@@ -1,0 +1,577 @@
+
+<script src="js/three/three.min.js"></script>
+<script src="js/three/controls/OrbitControls.js"></script>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+
+<script type="text/javascript">
+
+
+/**
+ * Creates and compiles a shader.
+ *
+ * @param {!WebGLRenderingContext} gl The WebGL Context.
+ * @param {string} shaderSource The GLSL source code for the shader.
+ * @param {number} shaderType The type of shader, VERTEX_SHADER or
+ *     FRAGMENT_SHADER.
+ * @return {!WebGLShader} The shader.
+ */
+function compileShader(gl, scriptId, shaderSource, shaderType) 
+{
+	// Create the shader object
+	var shader = gl.createShader(shaderType);
+
+	gl.shaderSource(shader, shaderSource); // Set the shader source code.
+	gl.compileShader(shader);              // Compile the shader
+
+	// Check if it compiled
+	var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+	if (!success) 
+	{
+		// Something went wrong during compilation; get the error
+		throw "could not compile " + scriptId + " shader:" + gl.getShaderInfoLog(shader);
+	}
+
+	return shader;
+}
+
+    /**
+     * Creates a shader from the content of a script tag.
+     *
+     * @param {!WebGLRenderingContext} gl The WebGL Context.
+     * @param {string} scriptId The id of the script tag.
+     * @param {string} opt_shaderType. The type of shader to create.
+     *     If not passed in will use the type attribute from the
+     *     script tag.
+     * @return {!WebGLShader} A shader.
+     */
+function createShaderFromScriptTag(gl, scriptId, opt_shaderType) 
+{
+	// look up the script tag by id.
+	var shaderScript = document.getElementById(scriptId);
+	if (!shaderScript) 
+	{
+		throw("*** Error: unknown script element: " + scriptId);
+	}
+
+	// extract the contents of the script tag.
+	var shaderSource = shaderScript.text;
+
+	// If we didn't pass in a type, use the 'type' from
+	// the script tag.
+	if (!opt_shaderType) 
+	{
+		if (shaderScript.type == "x-shader/x-vertex") 
+		{
+			opt_shaderType = gl.VERTEX_SHADER;
+		}
+		else if (shaderScript.type == "x-shader/x-fragment") 
+		{
+			opt_shaderType = gl.FRAGMENT_SHADER;
+		}
+		else if (!opt_shaderType) 
+		{
+			throw("*** Error: shader type not set");
+		}
+	}
+
+	return compileShader(gl, scriptId, shaderSource, opt_shaderType);
+};
+
+
+/**
+ * Creates a program from 2 shaders.
+ *
+ * @param {!WebGLRenderingContext) gl The WebGL context.
+ * @param {!WebGLShader} vertexShader A vertex shader.
+ * @param {!WebGLShader} fragmentShader A fragment shader.
+ * @return {!WebGLProgram} A program.
+ */
+function createProgram(gl, vertexShader, fragmentShader) 
+{
+	// create a program.
+	var program = gl.createProgram();
+
+	// attach the shaders.
+	gl.attachShader(program, vertexShader);
+	gl.attachShader(program, fragmentShader);
+
+	// link the program.
+	gl.linkProgram(program);
+
+	// Check if it linked.
+	var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+	if (!success) {
+	  // something went wrong with the link
+	  throw ("program filed to link:" + gl.getProgramInfoLog (program));
+	}
+
+	return program;
+};
+
+/**
+ * Creates a program from 2 script tags.
+ *
+ * @param {!WebGLRenderingContext} gl The WebGL Context.
+ * @param {string} vertexShaderId The id of the vertex shader script tag.
+ * @param {string} fragmentShaderId The id of the fragment shader script tag.
+ * @return {!WebGLProgram} A program
+ */
+function createProgramFromScripts(gl, vertexShaderId, fragmentShaderId)
+{
+	var vertexShader   = createShaderFromScriptTag(gl, vertexShaderId);
+	var fragmentShader = createShaderFromScriptTag(gl, fragmentShaderId);
+	return createProgram(gl, vertexShader, fragmentShader);
+}
+
+function createAndSetupTexture(gl, textureUnitIndex, width, height) 
+{
+	var texture = gl.createTexture();
+
+	gl.activeTexture(gl.TEXTURE0+textureUnitIndex);
+	gl.bindTexture(gl.TEXTURE_2D, texture);
+
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.FLOAT, null);
+
+	return texture;
+}
+
+
+
+</script>
+
+
+
+
+
+<script type="text/javascript">
+
+/*  dispersion visualization
+    -------------------------
+
+	For now, single light =  laser at X0, pointed toward W0,  with assumed emission spectrum
+
+	Make a texture F containing a pixel per photon frequency sample.
+	Make vec4 textures X, X' and W, W' also each containing a pixel per frequency sample 
+	Initialize textures X = X0, and W = W0 (the location and direction of a 'laser beam' emitter)
+
+	for i = 1 to N/B    (B = batch size)
+		
+		for each ray sample:   X'_i = trace(X_i, W_i) given F_i
+		                       W'_i = sample(X'_i, W_i) given F_i
+
+		drawLine(X_i, X'_i)
+		
+		X_i = X'_i
+		W_i = W'_i
+
+
+
+	dispersion pathtracing
+	----------------------
+
+	Goal is interesting images specifically of dispersive refraction in solid dielectric media.
+	Very similar to shadertoy, except we maintain a radiance buffer, and 
+	And 
+
+*/
+
+var gl;
+var canvas;
+
+var camera, controls;
+
+var rendering_program;
+
+var raytrace_program;
+var RAYBUFFER_W;
+var RAYBUFFER_H;
+
+var RAY_BUFFER;
+var QUAD_VBO;
+
+var textures;
+var framebuffers;
+var X_index, Xp_index;
+
+var frame;
+
+
+// shim layer with setTimeout fallback
+window.requestAnimFrame = (function(){
+  return  window.requestAnimationFrame       ||
+          window.webkitRequestAnimationFrame ||
+          window.mozRequestAnimationFrame    ||
+          function( callback ){
+            window.setTimeout(callback, 1000 / 60);
+          };
+})();
+
+
+// todo:  move all GL boilerplate into javascript objects, a la Tantalum GL
+
+// todo: use bl.ocks.org to serve the webGL app publicly ..
+// (or at least, the minified version of it, e.g. use r.js to minify)
+
+
+function init() 
+{
+	frame = 0;
+
+	// Get a WebGL context
+	canvas  = document.getElementById('canvas');
+	canvas.width  = window.innerWidth;
+	canvas.height = window.innerHeight;
+
+	gl            = canvas.getContext('experimental-webgl', {antialias: true});
+	if (!gl) 
+	{
+ 		gl = canvas.getContext("webgl", {antialias: true});
+	}
+	gl.getExtension('OES_texture_float') 
+
+
+	window.addEventListener( 'resize', onWindowResize, false );
+
+
+	gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+
+	// set some camera attributes
+	var WIDTH  = window.innerWidth;
+	var HEIGHT = window.innerHeight;
+	var VIEW_ANGLE = 45;
+	var ASPECT = WIDTH / HEIGHT;
+	var NEAR = 0.1;
+	var FAR = 10000;
+
+	camera = new THREE.PerspectiveCamera(
+						    VIEW_ANGLE,
+						    ASPECT,
+						    NEAR,
+						    FAR);
+	camera.position.z = 300;
+
+	controls = new THREE.OrbitControls(camera);
+	controls.addEventListener( 'change', camChanged );
+
+	// setup rendering GLSL program
+	rendering_program = createProgramFromScripts(gl, "viewport-vertex-shader", "viewport-fragment-shader");
+	gl.useProgram(rendering_program);
+
+	// Create a vertex buffer and put vertex locations in it
+	{
+		//POS_BUFFER = gl.createBuffer();
+		//gl.bindBuffer(gl.ARRAY_BUFFER, POS_BUFFER);
+		//setGeometry(gl);
+	}
+
+	// create texture coords attributes for our line rendering
+	{
+		RAYBUFFER_W = 512;
+		RAYBUFFER_H = 512;
+
+		// Create the buffer which defines the ray texture coordinates
+		RAY_BUFFER = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, RAY_BUFFER);
+		
+		var vboData = new Float32Array(RAYBUFFER_W*RAYBUFFER_H*3);
+		for (var i = 0; i < RAYBUFFER_W*RAYBUFFER_H; ++i)
+		{
+			var u = ((i % RAYBUFFER_H) + 0.5)/RAYBUFFER_W;
+			var v = (Math.floor(i/RAYBUFFER_W) + 0.5)/RAYBUFFER_H;
+			vboData[i*3 + 0] = u;
+			vboData[i*3 + 1] = v;
+			vboData[i*3 + 2] = i%2;
+		}
+		gl.bufferData(gl.ARRAY_BUFFER, vboData, gl.STATIC_DRAW);
+
+		// We'll supply texcoords as floats.
+		var texcoordLocation = gl.getAttribLocation(rendering_program, "a_texCoord");
+		gl.enableVertexAttribArray(texcoordLocation);
+		gl.vertexAttribPointer(texcoordLocation, 3, gl.FLOAT, false, 0, 0);
+	}
+
+	// Prototype of raytracing logic ..
+	{
+		// Create raytracing GLSL program
+		raytrace_program = createProgramFromScripts(gl, "raytrace-vertex-shader", "raytrace-fragment-shader");
+		gl.useProgram(raytrace_program);
+
+		// Create a 'X' texture, and an 'Xp' texture
+		textures = [];
+		framebuffers = [];
+		X_index = 0;
+
+		// texture X
+		{
+			var X = createAndSetupTexture(gl, X_index, RAYBUFFER_W, RAYBUFFER_H);
+			var FBO_X = gl.createFramebuffer();
+
+			textures.push(X);
+			framebuffers.push(FBO_X);
+			
+			gl.bindFramebuffer(gl.FRAMEBUFFER, FBO_X);
+			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, X, 0);
+		}
+
+		// texture Xp
+		/*
+		Xp_index = 1;
+		{
+			var Xp = createAndSetupTexture(gl, Xp_texIndex, 2048, 2);
+			var FBO_Xp = gl.createFramebuffer();
+
+			textures.push(Xp);
+			framebuffers.push(FBO_Xp);
+			Xp_index = textures.length;
+
+			gl.bindFramebuffer(gl.FRAMEBUFFER, FBO_Xp);
+			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, textureXp, 0);
+		}
+		*/
+
+		// Create a 2d-vertex buffer and put a single clipspace rectangle in it (2 triangles)
+		// which is what the raytracing program will use to render to texture
+		QUAD_VBO = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, QUAD_VBO);
+		gl.bufferData(
+		    gl.ARRAY_BUFFER,
+		    new Float32Array([
+		        -1.0, -1.0, 0.0,
+		         1.0, -1.0, 0.0,
+		        -1.0,  1.0, 0.0,
+		        -1.0,  1.0, 0.0,
+		         1.0, -1.0, 0.0,
+		         1.0,  1.0, 0.0]),
+		    gl.STATIC_DRAW);
+
+		var positionLocation = gl.getAttribLocation(raytrace_program, "a_position");
+		gl.enableVertexAttribArray(positionLocation);
+		gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
+	}
+
+	animateLoop();
+}
+
+
+function camChanged()
+{
+	//console.log('camera changed..');
+	render();
+}
+
+function animateLoop() 
+{
+	//console.log("frame: " + frame);
+	requestAnimFrame(animateLoop);
+
+	controls.update();
+	render();
+
+	frame = frame+1;
+}
+
+
+
+function onWindowResize() 
+{
+	console.log('onWindowResize');
+
+	canvas.width  = window.innerWidth;
+	canvas.height = window.innerHeight;
+
+	camera.aspect = window.innerWidth / window.innerHeight;
+	camera.updateProjectionMatrix();
+
+	render();
+}
+
+
+
+function raytrace()
+{
+	gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffers[X_index]);
+	gl.bindTexture(gl.TEXTURE_2D, textures[X_index]);
+
+	gl.useProgram(raytrace_program);
+
+	// Tell webgl the viewport setting needed for framebuffer.
+	gl.viewport(0, 0, RAYBUFFER_W, RAYBUFFER_H);
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, QUAD_VBO);
+
+	var positionLocation = gl.getAttribLocation(raytrace_program, "a_position");
+	gl.enableVertexAttribArray(positionLocation);
+	gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);	
+
+	// Will run raytrace program over all fragments
+	gl.drawArrays(gl.TRIANGLES, 0, 6);
+}
+
+function render() 
+{
+	gl = canvas.getContext('experimental-webgl', {antialias: true});
+	if (!gl) 
+	{
+ 		gl = canvas.getContext("webgl", {antialias: true});
+	}
+
+	// Raytrace, to generate X, Xp textures containing the next line segments to render
+	raytrace();
+
+	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+	// Render those line segments in 3d
+	gl.useProgram(rendering_program);
+
+	// Setup projection matrix
+	var projectionMatrix = camera.projectionMatrix.toArray();
+	var projectionMatrixLocation = gl.getUniformLocation(rendering_program, "u_projectionMatrix");
+	gl.uniformMatrix4fv(projectionMatrixLocation, false, projectionMatrix);
+
+	// Setup modelview matrix (to match camera)
+	camera.updateMatrixWorld();
+	var matrixWorldInverse = new THREE.Matrix4();
+	matrixWorldInverse.getInverse( camera.matrixWorld );
+	var modelViewMatrix = matrixWorldInverse.toArray();
+	var modelViewMatrixLocation  = gl.getUniformLocation(rendering_program, "u_modelViewMatrix");
+	gl.uniformMatrix4fv(modelViewMatrixLocation, false, modelViewMatrix);
+
+	// Draw!
+	gl.viewport(0, 0, window.innerWidth, window.innerHeight);
+
+	gl.clearColor(0.0, 0.0, 0.0, 1.0);
+	gl.clear(gl.COLOR_BUFFER_BIT);
+
+	// Make sure that u_X sampler in rendering program references the X texture:
+	var u_XLoc = gl.getUniformLocation(rendering_program, "u_X");
+	gl.uniform1i(u_XLoc, X_index);
+
+	// provide texture coordinates for the rectangle.
+	var texCoordLocation = gl.getAttribLocation(rendering_program, "a_texCoord");
+	var texCoordBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+		  0.0,  0.0,
+		  1.0,  0.0,
+		  0.0,  1.0,
+		  0.0,  1.0,
+		  1.0,  0.0,
+		  1.0,  1.0]), gl.STATIC_DRAW);
+	gl.enableVertexAttribArray(texCoordLocation);
+	gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
+	 
+
+	// Bind the X texture
+	gl.activeTexture(gl.TEXTURE0+X_index);
+	gl.bindTexture(gl.TEXTURE_2D, textures[X_index]);
+
+	// For now, draw 100 out of our RAYBUFFER_W*RAYBUFFER_H line segments
+	gl.bindBuffer(gl.ARRAY_BUFFER, RAY_BUFFER);
+
+	var texcoordLocation = gl.getAttribLocation(rendering_program, "a_texCoord");
+	gl.enableVertexAttribArray(texcoordLocation);
+	gl.vertexAttribPointer(texcoordLocation, 3, gl.FLOAT, false, 0, 0);
+
+	gl.drawArrays(gl.LINES, 0, 512);
+
+}
+
+
+</script>
+
+
+
+<script id="viewport-vertex-shader" type="x-shader/x-vertex">
+
+	/////////////////////////////////////////////////
+	// Vertex shader
+	/////////////////////////////////////////////////
+
+	// Vertex positions come from a texture!
+	uniform sampler2D u_X;
+	attribute vec3 a_texCoord;
+
+	uniform mat4 u_projectionMatrix;
+	uniform mat4 u_modelViewMatrix;
+
+	void main()
+	{
+		vec4 X = texture2D(u_X, a_texCoord.xy);
+		vec3 P = mix(X.xyz, vec3(0.0), a_texCoord.z);
+
+		gl_Position = u_projectionMatrix * u_modelViewMatrix * vec4(P, 1.0);
+	}
+
+</script>
+
+
+<script id="viewport-fragment-shader" type="x-shader/x-fragment">
+	
+	/////////////////////////////////////////////////
+	// Fragment shader
+	/////////////////////////////////////////////////
+
+	void main() 
+	{
+		gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+	}
+
+</script>
+
+
+
+<script id="raytrace-vertex-shader" type="x-shader/x-vertex">
+
+	attribute vec3 a_position;
+
+	void main()
+	{
+		gl_Position = vec4(a_position, 1.0);
+	}
+
+</script>
+
+<script id="raytrace-fragment-shader" type="x-shader/x-fragment">
+
+	precision mediump float;
+
+	// our input textures, giving ray start point (X) and direction (W)
+	//uniform sampler2D u_X;
+
+	void main() 
+	{
+		float i = float(gl_FragCoord.x) / 512.0;
+		float j = float(gl_FragCoord.y) / 512.0;
+
+		// Read X, W, F
+
+		// Do:  X' = trace(X, W) given F
+
+		// Write X' into fragment (of ray buffer)
+		vec3 Xp = vec3(i, j, 1.0);
+
+		// Will write Xp into a texture (via render-to-texture)
+		gl_FragColor = vec4(Xp, 1.0);
+	}
+
+</script>
+
+
+
+<body onload="init();">
+
+<canvas id="canvas" style="border: none;" width="500" height="500"></canvas>
+<br/>
+
+<div id="container">
+</div>
+
+</body>
+
+
