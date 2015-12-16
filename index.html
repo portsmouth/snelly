@@ -1,151 +1,11 @@
 
-<script src="js/three/three.min.js"></script>
-<script src="js/three/controls/OrbitControls.js"></script>
-
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
 
-<script type="text/javascript">
+<script type="text/javascript" src="js/three/three.min.js"></script>
+<script type="text/javascript" src="js/three/controls/OrbitControls.js"></script>
 
-
-/**
- * Creates and compiles a shader.
- *
- * @param {!WebGLRenderingContext} gl The WebGL Context.
- * @param {string} shaderSource The GLSL source code for the shader.
- * @param {number} shaderType The type of shader, VERTEX_SHADER or
- *     FRAGMENT_SHADER.
- * @return {!WebGLShader} The shader.
- */
-function compileShader(gl, scriptId, shaderSource, shaderType) 
-{
-	// Create the shader object
-	var shader = gl.createShader(shaderType);
-
-	gl.shaderSource(shader, shaderSource); // Set the shader source code.
-	gl.compileShader(shader);              // Compile the shader
-
-	// Check if it compiled
-	var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
-	if (!success) 
-	{
-		// Something went wrong during compilation; get the error
-		throw "could not compile " + scriptId + " shader:" + gl.getShaderInfoLog(shader);
-	}
-
-	return shader;
-}
-
-    /**
-     * Creates a shader from the content of a script tag.
-     *
-     * @param {!WebGLRenderingContext} gl The WebGL Context.
-     * @param {string} scriptId The id of the script tag.
-     * @param {string} opt_shaderType. The type of shader to create.
-     *     If not passed in will use the type attribute from the
-     *     script tag.
-     * @return {!WebGLShader} A shader.
-     */
-function createShaderFromScriptTag(gl, scriptId, opt_shaderType) 
-{
-	// look up the script tag by id.
-	var shaderScript = document.getElementById(scriptId);
-	if (!shaderScript) 
-	{
-		throw("*** Error: unknown script element: " + scriptId);
-	}
-
-	// extract the contents of the script tag.
-	var shaderSource = shaderScript.text;
-
-	// If we didn't pass in a type, use the 'type' from
-	// the script tag.
-	if (!opt_shaderType) 
-	{
-		if (shaderScript.type == "x-shader/x-vertex") 
-		{
-			opt_shaderType = gl.VERTEX_SHADER;
-		}
-		else if (shaderScript.type == "x-shader/x-fragment") 
-		{
-			opt_shaderType = gl.FRAGMENT_SHADER;
-		}
-		else if (!opt_shaderType) 
-		{
-			throw("*** Error: shader type not set");
-		}
-	}
-
-	return compileShader(gl, scriptId, shaderSource, opt_shaderType);
-};
-
-
-/**
- * Creates a program from 2 shaders.
- *
- * @param {!WebGLRenderingContext) gl The WebGL context.
- * @param {!WebGLShader} vertexShader A vertex shader.
- * @param {!WebGLShader} fragmentShader A fragment shader.
- * @return {!WebGLProgram} A program.
- */
-function createProgram(gl, vertexShader, fragmentShader) 
-{
-	// create a program.
-	var program = gl.createProgram();
-
-	// attach the shaders.
-	gl.attachShader(program, vertexShader);
-	gl.attachShader(program, fragmentShader);
-
-	// link the program.
-	gl.linkProgram(program);
-
-	// Check if it linked.
-	var success = gl.getProgramParameter(program, gl.LINK_STATUS);
-	if (!success) {
-	  // something went wrong with the link
-	  throw ("program filed to link:" + gl.getProgramInfoLog (program));
-	}
-
-	return program;
-};
-
-/**
- * Creates a program from 2 script tags.
- *
- * @param {!WebGLRenderingContext} gl The WebGL Context.
- * @param {string} vertexShaderId The id of the vertex shader script tag.
- * @param {string} fragmentShaderId The id of the fragment shader script tag.
- * @return {!WebGLProgram} A program
- */
-function createProgramFromScripts(gl, vertexShaderId, fragmentShaderId)
-{
-	var vertexShader   = createShaderFromScriptTag(gl, vertexShaderId);
-	var fragmentShader = createShaderFromScriptTag(gl, fragmentShaderId);
-	return createProgram(gl, vertexShader, fragmentShader);
-}
-
-function createAndSetupTexture(gl, textureUnitIndex, width, height) 
-{
-	var texture = gl.createTexture();
-
-	gl.activeTexture(gl.TEXTURE0+textureUnitIndex);
-	gl.bindTexture(gl.TEXTURE_2D, texture);
-
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-
-	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.FLOAT, null);
-
-	return texture;
-}
-
-
-
-</script>
-
-
+<script type="text/javascript" src="js/require.js"></script>
+<script type="text/javascript" src="js/gl.js"></script>
 
 
 
@@ -260,7 +120,7 @@ function init()
 	controls.addEventListener( 'change', camChanged );
 
 	// setup rendering GLSL program
-	rendering_program = createProgramFromScripts(gl, "viewport-vertex-shader", "viewport-fragment-shader");
+	rendering_program = createProgramFromScripts(gl, "viewport-vertex-shader.glsl", "viewport-fragment-shader.glsl");
 	gl.useProgram(rendering_program);
 
 	// Create a vertex buffer and put vertex locations in it
@@ -299,7 +159,7 @@ function init()
 	// Prototype of raytracing logic ..
 	{
 		// Create raytracing GLSL program
-		raytrace_program = createProgramFromScripts(gl, "raytrace-vertex-shader", "raytrace-fragment-shader");
+		raytrace_program = createProgramFromScripts(gl, "raytrace-vertex-shader.glsl", "raytrace-fragment-shader.glsl");
 		gl.useProgram(raytrace_program);
 
 		// Create a 'X' texture, and an 'Xp' texture
@@ -486,82 +346,12 @@ function render()
 </script>
 
 
+<!-- SHADERS -->
+<script id="viewport-vertex-shader"   type="x-shader/x-vertex"   src="js/shaders/viewport-vertex-shader.glsl"  ></script>
 
-<script id="viewport-vertex-shader" type="x-shader/x-vertex">
-
-	/////////////////////////////////////////////////
-	// Vertex shader
-	/////////////////////////////////////////////////
-
-	// Vertex positions come from a texture!
-	uniform sampler2D u_X;
-	attribute vec3 a_texCoord;
-
-	uniform mat4 u_projectionMatrix;
-	uniform mat4 u_modelViewMatrix;
-
-	void main()
-	{
-		vec4 X = texture2D(u_X, a_texCoord.xy);
-		vec3 P = mix(X.xyz, vec3(0.0), a_texCoord.z);
-
-		gl_Position = u_projectionMatrix * u_modelViewMatrix * vec4(P, 1.0);
-	}
-
-</script>
-
-
-<script id="viewport-fragment-shader" type="x-shader/x-fragment">
-	
-	/////////////////////////////////////////////////
-	// Fragment shader
-	/////////////////////////////////////////////////
-
-	void main() 
-	{
-		gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-	}
-
-</script>
-
-
-
-<script id="raytrace-vertex-shader" type="x-shader/x-vertex">
-
-	attribute vec3 a_position;
-
-	void main()
-	{
-		gl_Position = vec4(a_position, 1.0);
-	}
-
-</script>
-
-<script id="raytrace-fragment-shader" type="x-shader/x-fragment">
-
-	precision mediump float;
-
-	// our input textures, giving ray start point (X) and direction (W)
-	//uniform sampler2D u_X;
-
-	void main() 
-	{
-		float i = float(gl_FragCoord.x) / 512.0;
-		float j = float(gl_FragCoord.y) / 512.0;
-
-		// Read X, W, F
-
-		// Do:  X' = trace(X, W) given F
-
-		// Write X' into fragment (of ray buffer)
-		vec3 Xp = vec3(i, j, 1.0);
-
-		// Will write Xp into a texture (via render-to-texture)
-		gl_FragColor = vec4(Xp, 1.0);
-	}
-
-</script>
-
+<script id="viewport-fragment-shader" type="x-shader/x-fragment" src="js/shaders/viewport-fragment-shader.glsl"></script>
+<script id="raytrace-vertex-shader"   type="x-shader/x-vertex"   src="js/shaders/raytrace-vertex-shader.glsl"  ></script>
+<script id="raytrace-fragment-shader" type="x-shader/x-fragment" src="js/shaders/raytrace-fragment-shader.glsl"></script>
 
 
 <body onload="init();">
