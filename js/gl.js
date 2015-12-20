@@ -82,48 +82,48 @@ function checkLoaded(vertexShaderFile, fragmentShaderFile)
  * @param {string} fragmentShaderId The id of the fragment shader script tag.
  * @return {!WebGLProgram} A program
  */
-function createProgramFromScripts(gl, vertexShaderFile, fragmentShaderFile)
+function createProgramsFromScripts(gl, shader_names)
 {
-	var vertexShader;
-	var fragmentShader;
-	var crap;
+	var shader_files = [];
+	for (var i = 0; i < shader_names.length; i++) 
+	{
+		var name = shader_names[i];
+		shader_files.push( "text!shaders/"+name+'-vertex-shader.glsl' );
+		shader_files.push( "text!shaders/"+name+'-fragment-shader.glsl' );
+	}
 
-	//console.log("vertexShaderFile: " + vertexShaderFile);
-	//console.log("fragmentShaderFile: " + fragmentShaderFile);
+	//console.log("shader_files: " +  shader_files)
 
 	require(
-		["text!shaders/"+vertexShaderFile, "text!shaders/"+fragmentShaderFile],
-		function(vertexShaderCode, fragmentShaderCode) {
 
-			//console.log("vertexShaderCode: " + vertexShaderCode);
-			//console.log("fragmentShaderCode: " + fragmentShaderCode);
+		shader_files,
 
-			vertexShader   = compileShader(gl, vertexShaderFile, vertexShaderCode, gl.VERTEX_SHADER);
-			fragmentShader = compileShader(gl, fragmentShaderFile, fragmentShaderCode, gl.FRAGMENT_SHADER);
+		function() 
+		{
+			console.log("hello: " + gl)
+			var shader_programs = {};
 
-			//console.log("vertexShader: " + vertexShader);
-			//console.log("fragmentShader: " + fragmentShader);
+			//console.log("arguments: " +  arguments);
 
-			window[vertexShaderFile]   = vertexShader;
-			window[fragmentShaderFile] = fragmentShader;
+			var n = 0;
+			for (var i = 0; i<(arguments.length)/2; i++) 
+			{
+				vertexShaderCode   = arguments[n];
+				fragmentShaderCode = arguments[n+1]
 
-			//console.log(window);
+				//console.log("vertexShaderCode: " + vertexShaderCode);
+				//console.log("fragmentShaderCode: " + arguments);
+
+				vertexShader       = compileShader(gl, shader_names[i], vertexShaderCode, gl.VERTEX_SHADER);
+				fragmentShader     = compileShader(gl, shader_names[i], fragmentShaderCode, gl.FRAGMENT_SHADER);
+
+				shader_programs[ shader_names[i] ] = createProgram(gl, vertexShader, fragmentShader);
+				n += 2;
+			}
+
+			init(shader_programs);
 		}
 	);
-
-	checkLoaded(vertexShaderFile, fragmentShaderFile);
-
-	//
-	// OK ----   clearly need to actually be requesting to load the entire set of shaders asynchonously.
-	// *Then* in the callback indicating that has finished, continue to the next phase.
-	//
-
-
-	console.log(window[vertexShaderFile]);
-
-	console.log("Loaded " + vertexShaderFile + " and " + fragmentShaderFile);
-
-	return createProgram(gl, vertexShader, fragmentShader);
 }
 
 function createAndSetupTexture(gl, textureUnitIndex, width, height) 

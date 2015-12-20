@@ -7,8 +7,6 @@
 <script type="text/javascript" src="js/require.js"></script>
 <script type="text/javascript" src="js/gl.js"></script>
 
-
-
 <script type="text/javascript">
 
 /*  dispersion visualization
@@ -79,8 +77,24 @@ window.requestAnimFrame = (function(){
 // (or at least, the minified version of it, e.g. use r.js to minify)
 
 
-function init() 
+function loadScripts()
 {
+	canvas  = document.getElementById('canvas');
+	gl = canvas.getContext('experimental-webgl', {antialias: true});
+	if (!gl) 
+	{
+ 		gl = canvas.getContext("webgl", {antialias: true});
+	}
+
+	createProgramsFromScripts(gl, ["viewport", "raytrace"]);
+}
+
+
+function init(shader_programs) 
+{
+	rendering_program = shader_programs['viewport'];
+	raytrace_program = shader_programs['raytrace'];
+
 	frame = 0;
 
 	// Get a WebGL context
@@ -120,7 +134,6 @@ function init()
 	controls.addEventListener( 'change', camChanged );
 
 	// setup rendering GLSL program
-	rendering_program = createProgramFromScripts(gl, "viewport-vertex-shader.glsl", "viewport-fragment-shader.glsl");
 	gl.useProgram(rendering_program);
 
 	// Create a vertex buffer and put vertex locations in it
@@ -159,7 +172,6 @@ function init()
 	// Prototype of raytracing logic ..
 	{
 		// Create raytracing GLSL program
-		raytrace_program = createProgramFromScripts(gl, "raytrace-vertex-shader.glsl", "raytrace-fragment-shader.glsl");
 		gl.useProgram(raytrace_program);
 
 		// Create a 'X' texture, and an 'Xp' texture
@@ -275,12 +287,6 @@ function raytrace()
 
 function render() 
 {
-	gl = canvas.getContext('experimental-webgl', {antialias: true});
-	if (!gl) 
-	{
- 		gl = canvas.getContext("webgl", {antialias: true});
-	}
-
 	// Raytrace, to generate X, Xp textures containing the next line segments to render
 	raytrace();
 
@@ -354,7 +360,7 @@ function render()
 <script id="raytrace-fragment-shader" type="x-shader/x-fragment" src="js/shaders/raytrace-fragment-shader.glsl"></script>
 
 
-<body onload="init();">
+<body onload="loadScripts();">
 
 <canvas id="canvas" style="border: none;" width="500" height="500"></canvas>
 <br/>
