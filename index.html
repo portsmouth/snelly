@@ -5,7 +5,9 @@
 <script type="text/javascript" src="js/three/controls/OrbitControls.js"></script>
 
 <script type="text/javascript" src="js/require.js"></script>
+
 <script type="text/javascript" src="js/gl.js"></script>
+<script type="text/javascript" src="js/renderer.js"></script>
 
 <script type="text/javascript">
 
@@ -39,9 +41,6 @@
 
 */
 
-var gl;
-var canvas;
-
 var camera, controls;
 
 var rendering_program;
@@ -59,6 +58,7 @@ var X_index, Xp_index;
 
 var frame;
 
+var glu;
 
 // shim layer with setTimeout fallback
 window.requestAnimFrame = (function(){
@@ -77,20 +77,14 @@ window.requestAnimFrame = (function(){
 // (or at least, the minified version of it, e.g. use r.js to minify)
 
 
-function loadScripts()
+function onLoad()
 {
-	canvas  = document.getElementById('canvas');
-	gl = canvas.getContext('experimental-webgl', {antialias: true});
-	if (!gl) 
-	{
- 		gl = canvas.getContext("webgl", {antialias: true});
-	}
-
-	createProgramsFromScripts(gl, ["viewport", "raytrace"]);
+	glu = new GLU();
+	glu.createProgramsFromScripts(["viewport", "raytrace"]);
 }
 
 
-function init(shader_programs) 
+function onShaderProgramsLoaded(shader_programs) 
 {
 	rendering_program = shader_programs['viewport'];
 	raytrace_program = shader_programs['raytrace'];
@@ -98,7 +92,7 @@ function init(shader_programs)
 	frame = 0;
 
 	// Get a WebGL context
-	canvas  = document.getElementById('canvas');
+	var canvas  = document.getElementById('canvas');
 	canvas.width  = window.innerWidth;
 	canvas.height = window.innerHeight;
 
@@ -109,9 +103,7 @@ function init(shader_programs)
 	}
 	gl.getExtension('OES_texture_float') 
 
-
 	window.addEventListener( 'resize', onWindowResize, false );
-
 
 	gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
 
@@ -181,7 +173,7 @@ function init(shader_programs)
 
 		// texture X
 		{
-			var X = createAndSetupTexture(gl, X_index, RAYBUFFER_W, RAYBUFFER_H);
+			var X = glu.createAndSetupTexture(X_index, RAYBUFFER_W, RAYBUFFER_H);
 			var FBO_X = gl.createFramebuffer();
 
 			textures.push(X);
@@ -352,15 +344,7 @@ function render()
 </script>
 
 
-<!-- SHADERS -->
-<script id="viewport-vertex-shader"   type="x-shader/x-vertex"   src="js/shaders/viewport-vertex-shader.glsl"  ></script>
-
-<script id="viewport-fragment-shader" type="x-shader/x-fragment" src="js/shaders/viewport-fragment-shader.glsl"></script>
-<script id="raytrace-vertex-shader"   type="x-shader/x-vertex"   src="js/shaders/raytrace-vertex-shader.glsl"  ></script>
-<script id="raytrace-fragment-shader" type="x-shader/x-fragment" src="js/shaders/raytrace-fragment-shader.glsl"></script>
-
-
-<body onload="loadScripts();">
+<body onload="onLoad();">
 
 <canvas id="canvas" style="border: none;" width="500" height="500"></canvas>
 <br/>
