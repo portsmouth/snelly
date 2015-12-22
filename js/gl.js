@@ -16,18 +16,20 @@ var GLU = function()
 // Creates and compiles a shader.
 GLU.prototype.compileShader = function(shaderName, shaderSource, shaderType) 
 {
-	// Create the shader object
-	var shader = this.gl.createShader(shaderType);
+	var gl = this.gl;
 
-	this.gl.shaderSource(shader, shaderSource); // Set the shader source code.
-	this.gl.compileShader(shader);              // Compile the shader
+	// Create the shader object
+	var shader = gl.createShader(shaderType);
+
+	gl.shaderSource(shader, shaderSource); // Set the shader source code.
+	gl.compileShader(shader);              // Compile the shader
 
 	// Check if it compiled
-	var success = gl.getShaderParameter(shader, this.gl.COMPILE_STATUS);
+	var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
 	if (!success) 
 	{
 		// Something went wrong during compilation; get the error
-		throw "could not compile " + shaderName + " shader:" + this.gl.getShaderInfoLog(shader);
+		throw "could not compile " + shaderName + " shader:" + gl.getShaderInfoLog(shader);
 	}
 
 	return shader;
@@ -36,6 +38,8 @@ GLU.prototype.compileShader = function(shaderName, shaderSource, shaderType)
 
 GLU.prototype.createProgram = function(vertexShader, fragmentShader) 
 {
+	var gl = this.gl;
+
 	// create a program.
 	var program = gl.createProgram();
 
@@ -59,6 +63,8 @@ GLU.prototype.createProgram = function(vertexShader, fragmentShader)
 
 GLU.prototype.createProgramsFromScripts = function(shader_names)
 {
+	console.log("GLU.prototype.createProgramsFromScripts");
+
 	var shader_files = [];
 	for (var i = 0; i < shader_names.length; i++) 
 	{
@@ -68,6 +74,7 @@ GLU.prototype.createProgramsFromScripts = function(shader_names)
 	}
 
 	var gl = this.gl;
+	var glu = this;
 
 	require(
 
@@ -77,21 +84,16 @@ GLU.prototype.createProgramsFromScripts = function(shader_names)
 		{
 			var shader_programs = {};
 
-			//console.log("arguments: " +  arguments);
-
 			var n = 0;
 			for (var i = 0; i<(arguments.length)/2; i++) 
 			{
 				vertexShaderCode   = arguments[n];
 				fragmentShaderCode = arguments[n+1]
 
-				console.log("this: " +  this);
-				console.log("this.compileShader: " + this.compileShader);
+				vertexShader       = glu.compileShader(shader_names[i], vertexShaderCode, gl.VERTEX_SHADER);
+				fragmentShader     = glu.compileShader(shader_names[i], fragmentShaderCode, gl.FRAGMENT_SHADER);
 
-				vertexShader       = this.compileShader(shader_names[i], vertexShaderCode, gl.VERTEX_SHADER);
-				fragmentShader     = this.compileShader(shader_names[i], fragmentShaderCode, gl.FRAGMENT_SHADER);
-
-				shader_programs[ shader_names[i] ] = this.createProgram(gl, vertexShader, fragmentShader);
+				shader_programs[ shader_names[i] ] = glu.createProgram(vertexShader, fragmentShader);
 				n += 2;
 			}
 

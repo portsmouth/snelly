@@ -80,6 +80,10 @@ window.requestAnimFrame = (function(){
 function onLoad()
 {
 	glu = new GLU();
+
+	console.log("GLU: " + glu);
+	console.log("GLU: " + glu.gl);
+
 	glu.createProgramsFromScripts(["viewport", "raytrace"]);
 }
 
