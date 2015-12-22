@@ -1,19 +1,23 @@
 
 
 
-
-
-/**
- * Creates and compiles a shader.
- *
- * @param {!WebGLRenderingContext} gl The WebGL Context.
- * @param {string} shaderSource The GLSL source code for the shader.
- * @param {number} shaderType The type of shader, VERTEX_SHADER or
- *     FRAGMENT_SHADER.
- * @return {!WebGLShader} The shader.
- */
-function compileShader(gl, shaderName, shaderSource, shaderType) 
+var GLU = function() 
 {
+	var canvas = document.getElementById('canvas');
+	
+	this.gl = canvas.getContext('experimental-webgl', {antialias: true});
+	if (!this.gl) 
+	{
+ 		this.gl = canvas.getContext("webgl", {antialias: true});
+	}
+}
+
+
+// Creates and compiles a shader.
+GLU.prototype.compileShader = function(shaderName, shaderSource, shaderType) 
+{
+	var gl = this.gl;
+
 	// Create the shader object
 	var shader = gl.createShader(shaderType);
 
@@ -29,21 +33,13 @@ function compileShader(gl, shaderName, shaderSource, shaderType)
 	}
 
 	return shader;
-}
+};
 
 
-
-
-/**
- * Creates a program from 2 shaders.
- *
- * @param {!WebGLRenderingContext) gl The WebGL context.
- * @param {!WebGLShader} vertexShader A vertex shader.
- * @param {!WebGLShader} fragmentShader A fragment shader.
- * @return {!WebGLProgram} A program.
- */
-function createProgram(gl, vertexShader, fragmentShader) 
+GLU.prototype.createProgram = function(vertexShader, fragmentShader) 
 {
+	var gl = this.gl;
+
 	// create a program.
 	var program = gl.createProgram();
 
@@ -65,25 +61,10 @@ function createProgram(gl, vertexShader, fragmentShader)
 };
 
 
-function checkLoaded(vertexShaderFile, fragmentShaderFile)
+GLU.prototype.createProgramsFromScripts = function(shader_names)
 {
-	if( !(vertexShaderFile in window) || !(fragmentShaderFile in window) )
-	{
-		setTimeout(checkLoaded, 100);
-		return;
-	}
-}
+	console.log("GLU.prototype.createProgramsFromScripts");
 
-/**
- * Creates a program from 2 script tags.
- *
- * @param {!WebGLRenderingContext} gl The WebGL Context.
- * @param {string} vertexShaderId The id of the vertex shader script tag.
- * @param {string} fragmentShaderId The id of the fragment shader script tag.
- * @return {!WebGLProgram} A program
- */
-function createProgramsFromScripts(gl, shader_names)
-{
 	var shader_files = [];
 	for (var i = 0; i < shader_names.length; i++) 
 	{
@@ -92,7 +73,8 @@ function createProgramsFromScripts(gl, shader_names)
 		shader_files.push( "text!shaders/"+name+'-fragment-shader.glsl' );
 	}
 
-	//console.log("shader_files: " +  shader_files)
+	var gl = this.gl;
+	var glu = this;
 
 	require(
 
@@ -100,10 +82,7 @@ function createProgramsFromScripts(gl, shader_names)
 
 		function() 
 		{
-			console.log("hello: " + gl)
 			var shader_programs = {};
-
-			//console.log("arguments: " +  arguments);
 
 			var n = 0;
 			for (var i = 0; i<(arguments.length)/2; i++) 
@@ -111,23 +90,21 @@ function createProgramsFromScripts(gl, shader_names)
 				vertexShaderCode   = arguments[n];
 				fragmentShaderCode = arguments[n+1]
 
-				//console.log("vertexShaderCode: " + vertexShaderCode);
-				//console.log("fragmentShaderCode: " + arguments);
+				vertexShader       = glu.compileShader(shader_names[i], vertexShaderCode, gl.VERTEX_SHADER);
+				fragmentShader     = glu.compileShader(shader_names[i], fragmentShaderCode, gl.FRAGMENT_SHADER);
 
-				vertexShader       = compileShader(gl, shader_names[i], vertexShaderCode, gl.VERTEX_SHADER);
-				fragmentShader     = compileShader(gl, shader_names[i], fragmentShaderCode, gl.FRAGMENT_SHADER);
-
-				shader_programs[ shader_names[i] ] = createProgram(gl, vertexShader, fragmentShader);
+				shader_programs[ shader_names[i] ] = glu.createProgram(vertexShader, fragmentShader);
 				n += 2;
 			}
 
-			init(shader_programs);
+			onShaderProgramsLoaded(shader_programs);
 		}
 	);
 }
 
-function createAndSetupTexture(gl, textureUnitIndex, width, height) 
+GLU.prototype.createAndSetupTexture = function(textureUnitIndex, width, height) 
 {
+	var gl = this.gl;
 	var texture = gl.createTexture();
 
 	gl.activeTexture(gl.TEXTURE0+textureUnitIndex);
