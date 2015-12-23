@@ -3,7 +3,6 @@
 
 <script type="text/javascript" src="js/three/three.min.js"></script>
 <script type="text/javascript" src="js/three/controls/OrbitControls.js"></script>
-
 <script type="text/javascript" src="js/require.js"></script>
 
 <script type="text/javascript" src="js/gl.js"></script>
@@ -41,24 +40,16 @@
 
 */
 
-var camera, controls;
-
-var rendering_program;
-
-var raytrace_program;
-var RAYBUFFER_W;
-var RAYBUFFER_H;
-
-var RAY_BUFFER;
-var QUAD_VBO;
-
-var textures;
-var framebuffers;
-var X_index, Xp_index;
-
 var frame;
 
+// THREE.js OrbitControls
+var controls;
+
+// GLU utility object
 var glu;
+
+// Renderer object
+var renderer;
 
 // shim layer with setTimeout fallback
 window.requestAnimFrame = (function(){
@@ -80,148 +71,26 @@ window.requestAnimFrame = (function(){
 function onLoad()
 {
 	glu = new GLU();
-
-	console.log("GLU: " + glu);
-	console.log("GLU: " + glu.gl);
-
 	glu.createProgramsFromScripts(["viewport", "raytrace"]);
 }
 
 
 function onShaderProgramsLoaded(shader_programs) 
 {
-	rendering_program = shader_programs['viewport'];
-	raytrace_program = shader_programs['raytrace'];
-
 	frame = 0;
 
-	// Get a WebGL context
-	var canvas  = document.getElementById('canvas');
+	var canvas = document.getElementById('canvas');
 	canvas.width  = window.innerWidth;
 	canvas.height = window.innerHeight;
 
-	gl            = canvas.getContext('experimental-webgl', {antialias: true});
-	if (!gl) 
-	{
- 		gl = canvas.getContext("webgl", {antialias: true});
-	}
-	gl.getExtension('OES_texture_float') 
-
 	window.addEventListener( 'resize', onWindowResize, false );
 
-	gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+	// Instantiate renderer object
+	renderer = new Renderer(glu, shader_programs, canvas.width, canvas.height);
 
-	// set some camera attributes
-	var WIDTH  = window.innerWidth;
-	var HEIGHT = window.innerHeight;
-	var VIEW_ANGLE = 45;
-	var ASPECT = WIDTH / HEIGHT;
-	var NEAR = 0.1;
-	var FAR = 10000;
-
-	camera = new THREE.PerspectiveCamera(
-						    VIEW_ANGLE,
-						    ASPECT,
-						    NEAR,
-						    FAR);
-	camera.position.z = 300;
-
-	controls = new THREE.OrbitControls(camera);
+	// Create user control system for camera
+	controls = new THREE.OrbitControls( renderer.getCamera() );
 	controls.addEventListener( 'change', camChanged );
-
-	// setup rendering GLSL program
-	gl.useProgram(rendering_program);
-
-	// Create a vertex buffer and put vertex locations in it
-	{
-		//POS_BUFFER = gl.createBuffer();
-		//gl.bindBuffer(gl.ARRAY_BUFFER, POS_BUFFER);
-		//setGeometry(gl);
-	}
-
-	// create texture coords attributes for our line rendering
-	{
-		RAYBUFFER_W = 512;
-		RAYBUFFER_H = 512;
-
-		// Create the buffer which defines the ray texture coordinates
-		RAY_BUFFER = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, RAY_BUFFER);
-		
-		var vboData = new Float32Array(RAYBUFFER_W*RAYBUFFER_H*3);
-		for (var i = 0; i < RAYBUFFER_W*RAYBUFFER_H; ++i)
-		{
-			var u = ((i % RAYBUFFER_H) + 0.5)/RAYBUFFER_W;
-			var v = (Math.floor(i/RAYBUFFER_W) + 0.5)/RAYBUFFER_H;
-			vboData[i*3 + 0] = u;
-			vboData[i*3 + 1] = v;
-			vboData[i*3 + 2] = i%2;
-		}
-		gl.bufferData(gl.ARRAY_BUFFER, vboData, gl.STATIC_DRAW);
-
-		// We'll supply texcoords as floats.
-		var texcoordLocation = gl.getAttribLocation(rendering_program, "a_texCoord");
-		gl.enableVertexAttribArray(texcoordLocation);
-		gl.vertexAttribPointer(texcoordLocation, 3, gl.FLOAT, false, 0, 0);
-	}
-
-	// Prototype of raytracing logic ..
-	{
-		// Create raytracing GLSL program
-		gl.useProgram(raytrace_program);
-
-		// Create a 'X' texture, and an 'Xp' texture
-		textures = [];
-		framebuffers = [];
-		X_index = 0;
-
-		// texture X
-		{
-			var X = glu.createAndSetupTexture(X_index, RAYBUFFER_W, RAYBUFFER_H);
-			var FBO_X = gl.createFramebuffer();
-
-			textures.push(X);
-			framebuffers.push(FBO_X);
-			
-			gl.bindFramebuffer(gl.FRAMEBUFFER, FBO_X);
-			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, X, 0);
-		}
-
-		// texture Xp
-		/*
-		Xp_index = 1;
-		{
-			var Xp = createAndSetupTexture(gl, Xp_texIndex, 2048, 2);
-			var FBO_Xp = gl.createFramebuffer();
-
-			textures.push(Xp);
-			framebuffers.push(FBO_Xp);
-			Xp_index = textures.length;
-
-			gl.bindFramebuffer(gl.FRAMEBUFFER, FBO_Xp);
-			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, textureXp, 0);
-		}
-		*/
-
-		// Create a 2d-vertex buffer and put a single clipspace rectangle in it (2 triangles)
-		// which is what the raytracing program will use to render to texture
-		QUAD_VBO = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, QUAD_VBO);
-		gl.bufferData(
-		    gl.ARRAY_BUFFER,
-		    new Float32Array([
-		        -1.0, -1.0, 0.0,
-		         1.0, -1.0, 0.0,
-		        -1.0,  1.0, 0.0,
-		        -1.0,  1.0, 0.0,
-		         1.0, -1.0, 0.0,
-		         1.0,  1.0, 0.0]),
-		    gl.STATIC_DRAW);
-
-		var positionLocation = gl.getAttribLocation(raytrace_program, "a_position");
-		gl.enableVertexAttribArray(positionLocation);
-		gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
-	}
 
 	animateLoop();
 }
@@ -229,8 +98,7 @@ function onShaderProgramsLoaded(shader_programs)
 
 function camChanged()
 {
-	//console.log('camera changed..');
-	render();
+	renderer.render();
 }
 
 function animateLoop() 
@@ -239,11 +107,11 @@ function animateLoop()
 	requestAnimFrame(animateLoop);
 
 	controls.update();
-	render();
+
+	renderer.render();
 
 	frame = frame+1;
 }
-
 
 
 function onWindowResize() 
@@ -253,95 +121,8 @@ function onWindowResize()
 	canvas.width  = window.innerWidth;
 	canvas.height = window.innerHeight;
 
-	camera.aspect = window.innerWidth / window.innerHeight;
-	camera.updateProjectionMatrix();
-
-	render();
-}
-
-
-
-function raytrace()
-{
-	gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffers[X_index]);
-	gl.bindTexture(gl.TEXTURE_2D, textures[X_index]);
-
-	gl.useProgram(raytrace_program);
-
-	// Tell webgl the viewport setting needed for framebuffer.
-	gl.viewport(0, 0, RAYBUFFER_W, RAYBUFFER_H);
-
-	gl.bindBuffer(gl.ARRAY_BUFFER, QUAD_VBO);
-
-	var positionLocation = gl.getAttribLocation(raytrace_program, "a_position");
-	gl.enableVertexAttribArray(positionLocation);
-	gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);	
-
-	// Will run raytrace program over all fragments
-	gl.drawArrays(gl.TRIANGLES, 0, 6);
-}
-
-function render() 
-{
-	// Raytrace, to generate X, Xp textures containing the next line segments to render
-	raytrace();
-
-	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-	// Render those line segments in 3d
-	gl.useProgram(rendering_program);
-
-	// Setup projection matrix
-	var projectionMatrix = camera.projectionMatrix.toArray();
-	var projectionMatrixLocation = gl.getUniformLocation(rendering_program, "u_projectionMatrix");
-	gl.uniformMatrix4fv(projectionMatrixLocation, false, projectionMatrix);
-
-	// Setup modelview matrix (to match camera)
-	camera.updateMatrixWorld();
-	var matrixWorldInverse = new THREE.Matrix4();
-	matrixWorldInverse.getInverse( camera.matrixWorld );
-	var modelViewMatrix = matrixWorldInverse.toArray();
-	var modelViewMatrixLocation  = gl.getUniformLocation(rendering_program, "u_modelViewMatrix");
-	gl.uniformMatrix4fv(modelViewMatrixLocation, false, modelViewMatrix);
-
-	// Draw!
-	gl.viewport(0, 0, window.innerWidth, window.innerHeight);
-
-	gl.clearColor(0.0, 0.0, 0.0, 1.0);
-	gl.clear(gl.COLOR_BUFFER_BIT);
-
-	// Make sure that u_X sampler in rendering program references the X texture:
-	var u_XLoc = gl.getUniformLocation(rendering_program, "u_X");
-	gl.uniform1i(u_XLoc, X_index);
-
-	// provide texture coordinates for the rectangle.
-	var texCoordLocation = gl.getAttribLocation(rendering_program, "a_texCoord");
-	var texCoordBuffer = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-		  0.0,  0.0,
-		  1.0,  0.0,
-		  0.0,  1.0,
-		  0.0,  1.0,
-		  1.0,  0.0,
-		  1.0,  1.0]), gl.STATIC_DRAW);
-	gl.enableVertexAttribArray(texCoordLocation);
-	gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
-	 
-
-	// Bind the X texture
-	gl.activeTexture(gl.TEXTURE0+X_index);
-	gl.bindTexture(gl.TEXTURE_2D, textures[X_index]);
-
-	// For now, draw 100 out of our RAYBUFFER_W*RAYBUFFER_H line segments
-	gl.bindBuffer(gl.ARRAY_BUFFER, RAY_BUFFER);
-
-	var texcoordLocation = gl.getAttribLocation(rendering_program, "a_texCoord");
-	gl.enableVertexAttribArray(texcoordLocation);
-	gl.vertexAttribPointer(texcoordLocation, 3, gl.FLOAT, false, 0, 0);
-
-	gl.drawArrays(gl.LINES, 0, 512);
-
+	renderer.resize(canvas.width, canvas.height);
+	renderer.render();
 }
 
 

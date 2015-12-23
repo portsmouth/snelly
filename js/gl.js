@@ -4,7 +4,6 @@
 var GLU = function() 
 {
 	var canvas = document.getElementById('canvas');
-	
 	this.gl = canvas.getContext('experimental-webgl', {antialias: true});
 	if (!this.gl) 
 	{
@@ -13,27 +12,7 @@ var GLU = function()
 }
 
 
-// Creates and compiles a shader.
-GLU.prototype.compileShader = function(shaderName, shaderSource, shaderType) 
-{
-	var gl = this.gl;
 
-	// Create the shader object
-	var shader = gl.createShader(shaderType);
-
-	gl.shaderSource(shader, shaderSource); // Set the shader source code.
-	gl.compileShader(shader);              // Compile the shader
-
-	// Check if it compiled
-	var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
-	if (!success) 
-	{
-		// Something went wrong during compilation; get the error
-		throw "could not compile " + shaderName + " shader:" + gl.getShaderInfoLog(shader);
-	}
-
-	return shader;
-};
 
 
 GLU.prototype.createProgram = function(vertexShader, fragmentShader) 
@@ -52,19 +31,39 @@ GLU.prototype.createProgram = function(vertexShader, fragmentShader)
 
 	// Check if it linked.
 	var success = gl.getProgramParameter(program, gl.LINK_STATUS);
-	if (!success) {
-	  // something went wrong with the link
-	  throw ("program filed to link:" + gl.getProgramInfoLog (program));
+	if (!success) 
+	{
+		// something went wrong with the link
+		throw ("Program failed to link, error: " + gl.getProgramInfoLog (program));
 	}
 
 	return program;
-};
+}
+
+GLU.prototype.compileShaderSource = function(shaderName, shaderSource, shaderType)
+{
+	var gl = this.gl;
+
+	// Create the shader object
+	var shader = gl.createShader(shaderType);
+
+	gl.shaderSource(shader, shaderSource); // Set the shader source code.
+	gl.compileShader(shader);              // Compile the shader
+
+	// Check if it compiled
+	var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+	if (!success) 
+	{
+		// Something went wrong during compilation; get the error
+		throw ("Could not compile " + shaderName + " shader:" + gl.getShaderInfoLog(shader));
+	}
+
+	return shader;
+}
 
 
 GLU.prototype.createProgramsFromScripts = function(shader_names)
 {
-	console.log("GLU.prototype.createProgramsFromScripts");
-
 	var shader_files = [];
 	for (var i = 0; i < shader_names.length; i++) 
 	{
@@ -87,11 +86,11 @@ GLU.prototype.createProgramsFromScripts = function(shader_names)
 			var n = 0;
 			for (var i = 0; i<(arguments.length)/2; i++) 
 			{
-				vertexShaderCode   = arguments[n];
-				fragmentShaderCode = arguments[n+1]
+				var vertexShaderCode   = arguments[n];
+				var fragmentShaderCode = arguments[n+1];
 
-				vertexShader       = glu.compileShader(shader_names[i], vertexShaderCode, gl.VERTEX_SHADER);
-				fragmentShader     = glu.compileShader(shader_names[i], fragmentShaderCode, gl.FRAGMENT_SHADER);
+				var vertexShader       = glu.compileShaderSource(shader_names[i], vertexShaderCode, gl.VERTEX_SHADER);
+				var fragmentShader     = glu.compileShaderSource(shader_names[i], fragmentShaderCode, gl.FRAGMENT_SHADER);
 
 				shader_programs[ shader_names[i] ] = glu.createProgram(vertexShader, fragmentShader);
 				n += 2;
@@ -119,6 +118,16 @@ GLU.prototype.createAndSetupTexture = function(textureUnitIndex, width, height)
 
 	return texture;
 }
+
+
+GLU.prototype.compileShader = function(shaderName, shaderSource, shaderType) 
+{
+	var gl = this.gl;
+
+
+}
+
+
 
 
 
