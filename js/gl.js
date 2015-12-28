@@ -1,131 +1,145 @@
 
 
+var GLU = {};
 
-var GLU = function() 
-{
-	var canvas = document.getElementById('canvas');
+(function() {
+
+    var canvas = document.getElementById('canvas');
 	this.gl = canvas.getContext('experimental-webgl', {antialias: true});
 	if (!this.gl) 
 	{
  		this.gl = canvas.getContext("webgl", {antialias: true});
 	}
-}
+ 
+	this.gl.getExtension('OES_texture_float')
 
+ 	///////////////////////////////////////////////////
+ 	// GLU namespace functions
+ 	///////////////////////////////////////////////////
 
-
-
-
-GLU.prototype.createProgram = function(vertexShader, fragmentShader) 
-{
-	var gl = this.gl;
-
-	// create a program.
-	var program = gl.createProgram();
-
-	// attach the shaders.
-	gl.attachShader(program, vertexShader);
-	gl.attachShader(program, fragmentShader);
-
-	// link the program.
-	gl.linkProgram(program);
-
-	// Check if it linked.
-	var success = gl.getProgramParameter(program, gl.LINK_STATUS);
-	if (!success) 
+ 	this.createAndSetupTexture = function(textureUnitIndex, width, height) 
 	{
-		// something went wrong with the link
-		throw ("Program failed to link, error: " + gl.getProgramInfoLog (program));
+		var gl = this.gl;
+		var texture = gl.createTexture();
+
+		gl.activeTexture(gl.TEXTURE0+textureUnitIndex);
+		gl.bindTexture(gl.TEXTURE_2D, texture);
+
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.FLOAT, null);
+
+		return texture;
 	}
 
-	return program;
-}
-
-GLU.prototype.compileShaderSource = function(shaderName, shaderSource, shaderType)
-{
-	var gl = this.gl;
-
-	// Create the shader object
-	var shader = gl.createShader(shaderType);
-
-	gl.shaderSource(shader, shaderSource); // Set the shader source code.
-	gl.compileShader(shader);              // Compile the shader
-
-	// Check if it compiled
-	var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
-	if (!success) 
+	this.resolveShaderSource = function(shader_names, onFinishedCallback)
 	{
-		// Something went wrong during compilation; get the error
-		throw ("Could not compile " + shaderName + " shader:" + gl.getShaderInfoLog(shader));
-	}
-
-	return shader;
-}
-
-
-GLU.prototype.createProgramsFromScripts = function(shader_names)
-{
-	var shader_files = [];
-	for (var i = 0; i < shader_names.length; i++) 
-	{
-		var name = shader_names[i];
-		shader_files.push( "text!shaders/"+name+'-vertex-shader.glsl' );
-		shader_files.push( "text!shaders/"+name+'-fragment-shader.glsl' );
-	}
-
-	var gl = this.gl;
-	var glu = this;
-
-	require(
-
-		shader_files,
-
-		function() 
+		var shader_files = [];
+		for (var i = 0; i < shader_names.length; i++) 
 		{
-			var shader_programs = {};
-
-			var n = 0;
-			for (var i = 0; i<(arguments.length)/2; i++) 
-			{
-				var vertexShaderCode   = arguments[n];
-				var fragmentShaderCode = arguments[n+1];
-
-				var vertexShader       = glu.compileShaderSource(shader_names[i], vertexShaderCode, gl.VERTEX_SHADER);
-				var fragmentShader     = glu.compileShaderSource(shader_names[i], fragmentShaderCode, gl.FRAGMENT_SHADER);
-
-				shader_programs[ shader_names[i] ] = glu.createProgram(vertexShader, fragmentShader);
-				n += 2;
-			}
-
-			onShaderProgramsLoaded(shader_programs);
+			shader_files.push( "text!shaders/"+shader_names[i]+'-vertex-shader.glsl' );
+			shader_files.push( "text!shaders/"+shader_names[i]+'-fragment-shader.glsl' );
 		}
-	);
-}
 
-GLU.prototype.createAndSetupTexture = function(textureUnitIndex, width, height) 
-{
-	var gl = this.gl;
-	var texture = gl.createTexture();
+		require(
+			shader_files,
+			function() 
+			{
+				var shaderSources = {};
+				var n = 0;
+				for (var i = 0; i<(arguments.length)/2; i++) 
+				{
+					shaderSources[shader_names[i]] = 
+					{
+						'v': arguments[n],
+						'f': arguments[n+1]
+					};
+					n += 2;
+				}
+				onFinishedCallback(shaderSources);
+			}
+		);
+	}
 
-	gl.activeTexture(gl.TEXTURE0+textureUnitIndex);
-	gl.bindTexture(gl.TEXTURE_2D, texture);
+	this.createProgram = function(vertexShader, fragmentShader) 
+	{
+		var gl = this.gl;
 
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+		// create a program.
+		var program = gl.createProgram();
 
-	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.FLOAT, null);
+		// attach the shaders.
+		gl.attachShader(program, vertexShader);
+		gl.attachShader(program, fragmentShader);
 
-	return texture;
-}
+		// link the program.
+		gl.linkProgram(program);
+
+		// Check if it linked.
+		var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+		if (!success) 
+		{
+			// something went wrong with the link
+			throw ("Program failed to link, error: " + gl.getProgramInfoLog (program));
+		}
+
+		return program;
+	}
+
+	this.compileShaderSource = function(shaderName, shaderSource, shaderType)
+	{
+		var gl = this.gl;
+		var shader = gl.createShader(shaderType); // Create the shader object
+		gl.shaderSource(shader, shaderSource); // Set the shader source code.
+		gl.compileShader(shader);              // Compile the shader
+		var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS); // Check if it compiled
+		if (!success) 
+		{
+			// Something went wrong during compilation; get the error
+			throw ("Could not compile " + shaderName + " shader:" + gl.getShaderInfoLog(shader));
+		}
+		return shader;
+	}
 
 
-GLU.prototype.compileShader = function(shaderName, shaderSource, shaderType) 
-{
-	var gl = this.gl;
+ 	///////////////////////////////////////////////////
+ 	// GLU.Shader object
+ 	///////////////////////////////////////////////////
+
+	this.Shader = function(name, shaderSources)
+	{
+		var gl = GLU.gl;
+		shaderSource = shaderSources[name];
+		vertSource = shaderSource.v;
+		fragSource = shaderSource.f;
+		var vertexShader       = GLU.compileShaderSource(name, vertSource, gl.VERTEX_SHADER);
+		var fragmentShader     = GLU.compileShaderSource(name, fragSource, gl.FRAGMENT_SHADER);
+		this.program = GLU.createProgram(vertexShader, fragmentShader);
+	}
+
+	this.Shader.prototype.bind = function() 
+	{
+		GLU.gl.useProgram(this.program);
+	}
+
+	this.Shader.prototype.getAttribLocation = function(attribName)
+	{
+		return GLU.gl.getAttribLocation(this.program, attribName);
+	}
+
+	this.Shader.prototype.getUniformLocation = function(uniformName)
+	{
+		return GLU.gl.getUniformLocation(this.program, uniformName);
+	}
 
 
-}
+}).apply(GLU);  
+
+
+
 
 
 

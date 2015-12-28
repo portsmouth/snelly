@@ -1,4 +1,14 @@
 
+
+<body onload="onLoad();">
+
+<canvas id="canvas" style="border: none;" width="500" height="500"></canvas>
+<br/>
+
+<div id="container">
+</div>
+
+
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
 
 <script type="text/javascript" src="js/three/three.min.js"></script>
@@ -45,8 +55,7 @@ var frame;
 // THREE.js OrbitControls
 var controls;
 
-// GLU utility object
-var glu;
+
 
 // Renderer object
 var renderer;
@@ -70,13 +79,6 @@ window.requestAnimFrame = (function(){
 
 function onLoad()
 {
-	glu = new GLU();
-	glu.createProgramsFromScripts(["viewport", "raytrace"]);
-}
-
-
-function onShaderProgramsLoaded(shader_programs) 
-{
 	frame = 0;
 
 	var canvas = document.getElementById('canvas');
@@ -86,7 +88,7 @@ function onShaderProgramsLoaded(shader_programs)
 	window.addEventListener( 'resize', onWindowResize, false );
 
 	// Instantiate renderer object
-	renderer = new Renderer(glu, shader_programs, canvas.width, canvas.height);
+	renderer = new Renderer(canvas.width, canvas.height);
 
 	// Create user control system for camera
 	controls = new THREE.OrbitControls( renderer.getCamera() );
@@ -94,6 +96,7 @@ function onShaderProgramsLoaded(shader_programs)
 
 	animateLoop();
 }
+
 
 
 function camChanged()
@@ -116,8 +119,6 @@ function animateLoop()
 
 function onWindowResize() 
 {
-	console.log('onWindowResize');
-
 	canvas.width  = window.innerWidth;
 	canvas.height = window.innerHeight;
 
@@ -127,15 +128,6 @@ function onWindowResize()
 
 
 </script>
-
-
-<body onload="onLoad();">
-
-<canvas id="canvas" style="border: none;" width="500" height="500"></canvas>
-<br/>
-
-<div id="container">
-</div>
 
 </body>
 
