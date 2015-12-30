@@ -2,10 +2,8 @@
 
 <body onload="onLoad();">
 
-<canvas id="canvas" style="border: none;" width="500" height="500"></canvas>
-<br/>
-
-<div id="container">
+<div class="fluence-render" id="content">
+	<canvas id="render-canvas" width="1000" height="1000"></canvas>
 </div>
 
 
@@ -19,35 +17,8 @@
 
 <script type="text/javascript">
 
-/*  dispersion visualization
-    -------------------------
 
-	For now, single light =  laser at X0, pointed toward W0,  with assumed emission spectrum
-
-	Make a texture F containing a pixel per photon frequency sample.
-	Make vec4 textures X, X' and W, W' also each containing a pixel per frequency sample 
-	Initialize textures X = X0, and W = W0 (the location and direction of a 'laser beam' emitter)
-
-	for i = 1 to N/B    (B = batch size)
-		
-		for each ray sample:   X'_i = trace(X_i, W_i) given F_i
-		                       W'_i = sample(X'_i, W_i) given F_i
-
-		drawLine(X_i, X'_i)
-		
-		X_i = X'_i
-		W_i = W'_i
-
-
-
-	dispersion pathtracing
-	----------------------
-
-	Goal is interesting images specifically of dispersive refraction in solid dielectric media.
-	Very similar to shadertoy, except we maintain a radiance buffer, and 
-	And 
-
-*/
+var render_canvas;
 
 var frame;
 
@@ -78,14 +49,15 @@ function onLoad()
 {
 	frame = 0;
 
-	var canvas = document.getElementById('canvas');
-	canvas.width  = window.innerWidth;
-	canvas.height = window.innerHeight;
+	render_canvas = document.getElementById('render-canvas');
+
+	render_canvas.width  = window.innerWidth;
+	render_canvas.height = window.innerHeight;
 
 	window.addEventListener( 'resize', onWindowResize, false );
 
 	// Instantiate renderer object
-	renderer = new Renderer(canvas.width, canvas.height);
+	renderer = new Renderer();
 
 	// Create user control system for camera
 	controls = new THREE.OrbitControls( renderer.getCamera() );
@@ -116,10 +88,10 @@ function animateLoop()
 
 function onWindowResize() 
 {
-	canvas.width  = window.innerWidth;
-	canvas.height = window.innerHeight;
+	render_canvas.width  = window.innerWidth;
+	render_canvas.height = window.innerHeight;
 
-	renderer.resize(canvas.width, canvas.height);
+	renderer.resize(render_canvas.width, render_canvas.height);
 	renderer.render();
 }
 

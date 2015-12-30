@@ -3,10 +3,14 @@
 // Raytrace fragment shader
 /////////////////////////////////////////////////
 
+//#extension GL_EXT_draw_buffers : require
 precision mediump float;
 
-// our input textures, giving ray start point (X) and direction (W)
-//uniform sampler2D u_X;
+//uniform sampler2D PosData;
+//uniform sampler2D DirData;
+//uniform sampler2D RngData;
+//uniform sampler2D RgbData;
+
 void main() 
 {
 	float i = float(gl_FragCoord.x) / 512.0;

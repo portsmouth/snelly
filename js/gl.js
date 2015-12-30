@@ -4,22 +4,42 @@ var GLU = {};
 
 (function() {
 
-    var canvas = document.getElementById('canvas');
-	this.gl = canvas.getContext('experimental-webgl', {antialias: true});
+	this.canvas = document.getElementById('render-canvas');
+	this.gl = this.canvas.getContext('experimental-webgl', {antialias: true});
 	if (!this.gl) 
 	{
- 		this.gl = canvas.getContext("webgl", {antialias: true});
+		this.gl = canvas.getContext("webgl", {antialias: true});
 	}
- 
+
 	this.gl.getExtension('OES_texture_float')
 
- 	///////////////////////////////////////////////////
- 	// GLU namespace functions
- 	///////////////////////////////////////////////////
+	var gl = this.gl;
+
+	///////////////////////////////////////////////////
+	// GLU namespace functions
+	///////////////////////////////////////////////////
+
+	this.glTypeSize = function(type) 
+	{
+		switch (type) 
+		{
+			case gl.BYTE:
+			case gl.UNSIGNED_BYTE:
+			    return 1;
+			case gl.SHORT:
+			case gl.UNSIGNED_SHORT:
+			    return 2;
+			case gl.INT:
+			case gl.UNSIGNED_INT:
+			case gl.FLOAT:
+			    return 4;
+			default:
+			    return 0;
+		}
+	}
 
  	this.createAndSetupTexture = function(textureUnitIndex, width, height) 
 	{
-		var gl = this.gl;
 		var texture = gl.createTexture();
 
 		gl.activeTexture(gl.TEXTURE0+textureUnitIndex);
@@ -66,8 +86,6 @@ var GLU = {};
 
 	this.createProgram = function(vertexShader, fragmentShader) 
 	{
-		var gl = this.gl;
-
 		// create a program.
 		var program = gl.createProgram();
 
@@ -91,7 +109,6 @@ var GLU = {};
 
 	this.compileShaderSource = function(shaderName, shaderSource, shaderType)
 	{
-		var gl = this.gl;
 		var shader = gl.createShader(shaderType); // Create the shader object
 		gl.shaderSource(shader, shaderSource); // Set the shader source code.
 		gl.compileShader(shader);              // Compile the shader
@@ -99,40 +116,220 @@ var GLU = {};
 		if (!success) 
 		{
 			// Something went wrong during compilation; get the error
-			throw ("Could not compile " + shaderName + " shader:" + gl.getShaderInfoLog(shader));
+			var shaderTypeStr = (shaderType==gl.VERTEX_SHADER) ? 'vertex' : 'fragment';
+			throw ("Could not compile " + shaderName + " " + shaderTypeStr + " shader:" + gl.getShaderInfoLog(shader));
 		}
 		return shader;
 	}
 
 
- 	///////////////////////////////////////////////////
- 	// GLU.Shader object
- 	///////////////////////////////////////////////////
+	///////////////////////////////////////////////////
+	// GLU.Shader object
+	///////////////////////////////////////////////////
 
 	this.Shader = function(name, shaderSources)
 	{
-		var gl = GLU.gl;
 		shaderSource = shaderSources[name];
 		vertSource = shaderSource.v;
 		fragSource = shaderSource.f;
 		var vertexShader       = GLU.compileShaderSource(name, vertSource, gl.VERTEX_SHADER);
 		var fragmentShader     = GLU.compileShaderSource(name, fragSource, gl.FRAGMENT_SHADER);
 		this.program = GLU.createProgram(vertexShader, fragmentShader);
+		if (!gl.getProgramParameter(this.program, gl.LINK_STATUS))
+			alert("Could not initialise shaders");
+		this.uniforms = {};
 	}
 
 	this.Shader.prototype.bind = function() 
 	{
-		GLU.gl.useProgram(this.program);
+		gl.useProgram(this.program);
 	}
 
 	this.Shader.prototype.getAttribLocation = function(attribName)
 	{
-		return GLU.gl.getAttribLocation(this.program, attribName);
+		return gl.getAttribLocation(this.program, attribName);
 	}
 
 	this.Shader.prototype.getUniformLocation = function(uniformName)
 	{
-		return GLU.gl.getUniformLocation(this.program, uniformName);
+		return gl.getUniformLocation(this.program, uniformName);
+	}
+
+	this.Shader.prototype.uniformIndex = function(name) 
+	{
+	    if (!(name in this.uniforms))
+	        this.uniforms[name] = gl.getUniformLocation(this.program, name);
+	    return this.uniforms[name];
+	}
+
+	this.Shader.prototype.uniformTexture = function(name, texture) 
+	{
+	    var id = this.uniformIndex(name);
+	    if (id != -1)
+	        gl.uniform1i(id, texture.boundUnit);
+	}
+
+	this.Shader.prototype.uniformF = function(name, f) 
+	{
+		var id = this.uniformIndex(name);
+		if (id != -1)
+		    gl.uniform1f(id, f);
+	}
+
+	this.Shader.prototype.uniform2F = function(name, f1, f2) 
+	{
+		var id = this.uniformIndex(name);
+		if (id != -1)
+		    gl.uniform2f(id, f1, f2);
+	}
+
+	///////////////////////////////////////////////////
+	// GLU.VertexBuffer object
+	///////////////////////////////////////////////////
+
+	this.VertexBuffer = function()
+	{
+		this.attributes = [];
+		this.elementSize = 0;
+	}
+
+	this.VertexBuffer.prototype.bind = function()
+	{
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.glName);
+	}
+
+	this.VertexBuffer.prototype.addAttribute = function(name, size, type, norm)
+	{
+		this.attributes.push({
+		    "name": name,
+		    "size": size,
+		    "type": type,
+		    "norm": norm,
+		    "offset": this.elementSize,
+		    "index": -1
+		});
+		this.elementSize += size*GLU.glTypeSize(type);
+	}
+
+	this.VertexBuffer.prototype.init = function(numVerts) 
+	{
+		this.length = numVerts;
+		this.glName = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.glName);
+		gl.bufferData(gl.ARRAY_BUFFER, this.length*this.elementSize, gl.STATIC_DRAW);
+	}
+
+	this.VertexBuffer.prototype.copy = function(data) 
+	{
+		if (data.byteLength != this.length*this.elementSize)
+			throw new Error("Resizing VBO during copy strongly discouraged");
+		gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+	}
+
+	this.VertexBuffer.prototype.draw = function(shader, mode, length) 
+	{
+		for (var i = 0; i < this.attributes.length; ++i) 
+		{
+			this.attributes[i].index = gl.getAttribLocation(shader.program, this.attributes[i].name);
+			if (this.attributes[i].index >= 0)
+			{
+				var attr = this.attributes[i];
+				gl.enableVertexAttribArray(attr.index);
+				gl.vertexAttribPointer(attr.index, attr.size, attr.type, attr.norm, this.elementSize, attr.offset);
+			}
+		}
+
+		gl.drawArrays(mode, 0, length ? length : this.length);
+
+		for (var i = 0; i < this.attributes.length; ++i)
+		{
+			if (this.attributes[i].index >= 0) 
+			{
+				gl.disableVertexAttribArray(this.attributes[i].index);
+				this.attributes[i].index = -1;
+			}
+		}
+	}
+
+
+	///////////////////////////////////////////////////
+	// GLU.Texture object
+	///////////////////////////////////////////////////
+
+	this.Texture = function(width, height, channels, isFloat, isLinear, isClamped, texels) 
+	{
+		var coordMode = isClamped ? gl.CLAMP_TO_EDGE : gl.REPEAT;
+		this.type     = isFloat   ? gl.FLOAT         : gl.UNSIGNED_BYTE;
+		this.format   = [gl.LUMINANCE, gl.RG, gl.RGB, gl.RGBA][channels - 1];
+
+		this.width  = width;
+		this.height = height;
+
+		this.glName = gl.createTexture();
+		gl.bindTexture(gl.TEXTURE_2D, this.glName);
+		gl.texImage2D(gl.TEXTURE_2D, 0, this.format, this.width, this.height, 0, this.format, this.type, texels);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, coordMode);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, coordMode);
+		this.setSmooth(isLinear);
+
+		this.boundUnit = -1;
+	}
+
+	this.Texture.prototype.setSmooth = function(smooth) 
+	{
+		var interpMode = smooth ? gl.LINEAR : gl.NEAREST;
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, interpMode);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, interpMode);
+	}
+
+	this.Texture.prototype.copy = function(texels) 
+	{
+		gl.texImage2D(gl.TEXTURE_2D, 0, this.format, this.width, this.height, 0, this.format, this.type, texels);
+	}
+
+	this.Texture.prototype.bind = function(unit) 
+	{
+		gl.activeTexture(gl.TEXTURE0 + unit);
+		gl.bindTexture(gl.TEXTURE_2D, this.glName);
+		this.boundUnit = unit;
+	}
+
+
+	///////////////////////////////////////////////////
+	// GLU.RenderTarget object
+	///////////////////////////////////////////////////
+
+	this.RenderTarget = function() 
+	{
+		this.glName = gl.createFramebuffer();
+	}
+
+	this.RenderTarget.prototype.bind = function() 
+	{
+		gl.bindFramebuffer(gl.FRAMEBUFFER, this.glName);
+	}
+
+	this.RenderTarget.prototype.unbind = function() 
+	{
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	}
+
+	this.RenderTarget.prototype.attachTexture = function(texture, index) 
+	{
+		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + index, gl.TEXTURE_2D, texture.glName, 0);
+	}
+
+	this.RenderTarget.prototype.detachTexture = function(index) 
+	{
+		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + index, gl.TEXTURE_2D, null, 0);
+	}
+
+	this.RenderTarget.prototype.drawBuffers = function(numBufs) 
+	{
+		var buffers = [];
+		for (var i = 0; i < numBufs; ++i)
+		    buffers.push(gl.COLOR_ATTACHMENT0 + i);
+		multiBufExt.drawBuffersWEBGL(buffers);
 	}
 
 
