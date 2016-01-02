@@ -4,20 +4,27 @@ var GLU = {};
 
 (function() {
 
-	this.canvas = document.getElementById('render-canvas');
-	this.gl = this.canvas.getContext('experimental-webgl', {antialias: true});
-	if (!this.gl) 
-	{
-		this.gl = canvas.getContext("webgl", {antialias: true});
-	}
-
-	this.gl.getExtension('OES_texture_float')
-
-	var gl = this.gl;
-
 	///////////////////////////////////////////////////
 	// GLU namespace functions
 	///////////////////////////////////////////////////
+
+	this.setupGL = function()
+	{
+		try 
+		{
+			var gl = this.canvas.getContext("webgl") || this.canvas.getContext("experimental-webgl");
+		} catch (e) {}
+		if (!gl) throw new Error("Could not initialise WebGL");
+		this.gl = gl;
+		
+		this.floatExt    = gl.getExtension("OES_texture_float");
+		this.floatLinExt = gl.getExtension("OES_texture_float_linear");
+		this.floatBufExt = gl.getExtension("WEBGL_color_buffer_float");
+		this.multiBufExt = gl.getExtension("WEBGL_draw_buffers");
+
+		if (!this.floatExt || !this.floatLinExt) throw new Error("Your platform does not support float textures");
+		if (!this.multiBufExt)                   throw new Error("Your platform does not support the draw buffers extension");
+	}
 
 	this.glTypeSize = function(type) 
 	{
@@ -183,6 +190,20 @@ var GLU = {};
 		    gl.uniform2f(id, f1, f2);
 	}
 
+	this.Shader.prototype.uniform3F = function(name, f1, f2, f3) 
+	{
+		var id = this.uniformIndex(name);
+		if (id != -1)
+		    gl.uniform3f(id, f1, f2, f3);
+	}
+
+	this.Shader.prototype.uniform4F = function(name, f1, f2, f3, f4) 
+	{
+		var id = this.uniformIndex(name);
+		if (id != -1)
+		    gl.uniform4F(id, f1, f2, f3, f4);
+	}
+
 	///////////////////////////////////////////////////
 	// GLU.VertexBuffer object
 	///////////////////////////////////////////////////
@@ -329,9 +350,56 @@ var GLU = {};
 		var buffers = [];
 		for (var i = 0; i < numBufs; ++i)
 		    buffers.push(gl.COLOR_ATTACHMENT0 + i);
-		multiBufExt.drawBuffersWEBGL(buffers);
+		GLU.multiBufExt.drawBuffersWEBGL(buffers);
 	}
 
+
+	///////////////////////////////////////////////////
+	// GLU logic
+	///////////////////////////////////////////////////
+
+	this.fail = function(message)
+	{
+		var sorryP = document.createElement("p"); 
+		sorryP.appendChild(document.createTextNode("Sorry! :("));
+		sorryP.style.fontSize = "50px";
+
+		var failureP = document.createElement("p");
+		failureP.className = "warning-box";
+		failureP.innerHTML = message;
+
+		var errorImg = document.createElement("img"); 
+		errorImg.title = errorImg.alt = "The Element of Failure";
+		errorImg.src = "fail.png";
+		errorImg.width = 600;
+
+		var failureDiv = document.createElement("div"); 
+		failureDiv.className = "center";
+		failureDiv.appendChild(sorryP);
+		failureDiv.appendChild(errorImg);
+		failureDiv.appendChild(failureP);
+
+		document.getElementById("content").appendChild(failureDiv);
+		this.overlay.style.display = this.canvas.style.display = 'none';
+	}
+
+	this.canvas = document.getElementById('render-canvas');
+	this.canvas.width = 1;
+	this.canvas.height= 1;
+
+	try 
+	{
+		this.setupGL();
+	}
+	catch (e) 
+	{
+		/* GL errors at this stage are to be expected to some degree,
+		   so display a nice error message and call it quits */
+		this.fail(e.message + ". This demo won't run in your browser.");
+		return;
+	}
+
+	var gl = this.gl;
 
 }).apply(GLU);  
 

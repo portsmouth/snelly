@@ -3,10 +3,13 @@
 // Raytrace vertex shader
 /////////////////////////////////////////////////
 
-attribute vec3 a_position;
+attribute vec3 Position;
+attribute vec2 TexCoord;
 
-void main()
+varying vec2 vTexCoord;
+
+void main() 
 {
-	gl_Position = vec4(a_position, 1.0);
+	gl_Position = vec4(Position, 1.0);
+	vTexCoord = TexCoord;
 }
-

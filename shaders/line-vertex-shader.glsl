@@ -3,29 +3,27 @@
 // Line vertex shader
 /////////////////////////////////////////////////
 
-// Line segment vertex positions come from a texture!
-uniform sampler2D u_X;
-attribute vec3 TexCoord;
+precision mediump float;
+
+uniform sampler2D PosDataA;
+uniform sampler2D PosDataB;
+uniform sampler2D RgbData;
 
 uniform mat4 u_projectionMatrix;
 uniform mat4 u_modelViewMatrix;
 
+attribute vec3 TexCoord;
+varying vec3 vColor;
+
 void main()
 {
-	vec4 X = texture2D(u_X, TexCoord.xy);
-	vec3 P = mix(X.xyz, vec3(0.0), TexCoord.z);
-	gl_Position = u_projectionMatrix * u_modelViewMatrix * vec4(P, 1.0);
+	vec3 posA = texture2D(PosDataA, TexCoord.xy).xyz;
+	vec3 posB = texture2D(PosDataB, TexCoord.xy).xyz;
+
+	// Line segment vertex position
+	vec3 pos = mix(posA, posB, TexCoord.z);
+
+	gl_Position = u_projectionMatrix * u_modelViewMatrix * vec4(pos, 1.0);
+	vColor = texture2D(RgbData, TexCoord.xy).rgb;
 }
 
-
-
-/* // debug version
-attribute vec3 a_position;
-attribute vec2 a_texCoord;
-varying vec2 v_texCoord;
-void main()
-{
-	gl_Position = vec4(a_position, 1.0);
-	v_texCoord = a_texCoord;
-}
-*/

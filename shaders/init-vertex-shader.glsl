@@ -3,10 +3,15 @@
 // Init vertex shader
 /////////////////////////////////////////////////
 
+precision mediump float;
 
+attribute vec3 Position;
+attribute vec2 TexCoord;
 
-void main()
+varying vec2 vTexCoord;
+
+void main() 
 {
-	gl_Position = vec4(0.0, 0.0, 0.0, 1.0);
+	gl_Position = vec4(Position, 1.0);
+	vTexCoord = TexCoord;
 }
-

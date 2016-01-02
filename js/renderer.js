@@ -11,7 +11,7 @@ var RayState = function(size)
 
 	var posData = new Float32Array(size*size*3); // ray position
 	var dirData = new Float32Array(size*size*3); // ray direction
-	var rngData = new Float32Array(size*size);   // Random number initial seed
+	var rngData = new Float32Array(size*size*4); // Random number seed
 	var rgbData = new Float32Array(size*size*4); // Ray color, and throughput
 
 	for (var i = 0; i < size*size; ++i)
@@ -26,14 +26,16 @@ var RayState = function(size)
 		dirData[i*3 + 2] = Math.sin(theta);
 
 		rngData[i] = i;
-		
+
 		for (var t = 0; t < 4; ++t)
+		{
 			rgbData[i*4 + t] = 0.0;
+		}
 	}
 
 	this.posTex = new GLU.Texture(size, size, 3, true, false, true, posData);
 	this.dirTex = new GLU.Texture(size, size, 3, true, false, true, posData);
-	this.rngTex = new GLU.Texture(size, size, 1, true, false, true, rngData);
+	this.rngTex = new GLU.Texture(size, size, 4, true, false, true, rngData);
 	this.rgbTex = new GLU.Texture(size, size, 4, true, false, true, rgbData);
 }
 
@@ -85,11 +87,6 @@ var Renderer = function()
 	
 	this.initialized = false;
 
-	this.QUAD_VBO = null;
-	this.textures = [];
-	this.framebuffers = [];
-	this.X_index = 0;
-
 	// Initialize THREE.js camera
 	{
 		var VIEW_ANGLE = 45;
@@ -98,14 +95,11 @@ var Renderer = function()
 		var FAR = 10000;
 		this.camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
 		this.camera.position.z = 10;
-
 		this.camera.updateProjectionMatrix();
 	}
 
-	
-
 	var renderer = this;
-	GLU.resolveShaderSource(["init", "trace", "line"],
+	GLU.resolveShaderSource(["init", "trace", "line", "comp", "pass"],
 		function onShadersLoaded(shaderSources)
 		{
 			if (!renderer.initialized)
@@ -118,81 +112,96 @@ var Renderer = function()
 }
 
 
+Renderer.prototype.createQuadVbo = function()
+{
+	var vbo = new GLU.VertexBuffer();
+	vbo.addAttribute("Position", 3, this.gl.FLOAT, false);
+	vbo.addAttribute("TexCoord", 2, this.gl.FLOAT, false);
+	vbo.init(4);
+	vbo.copy(new Float32Array([
+		 1.0,  1.0, 0.0, 1.0, 1.0,
+		-1.0,  1.0, 0.0, 0.0, 1.0,
+		-1.0, -1.0, 0.0, 0.0, 0.0,
+		 1.0, -1.0, 0.0, 1.0, 0.0
+	]));
+	return vbo;
+}
+
+
+Renderer.prototype.reset = function()
+{
+	if (!this.needsReset)
+	    return;
+
+	this.needsReset = false;
+	this.wavesTraced = 0;
+	this.raysTraced = 0;
+	this.samplesTraced = 0;
+	this.pathLength = 0;
+
+	this.fbo.bind();
+	this.fbo.drawBuffers(1);
+	this.fbo.attachTexture(this.screenBuffer, 0);
+	this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+	this.fbo.unbind();
+}
+
+
+Renderer.prototype.resetActiveBlock = function()
+{
+	//this.activeBlock = 4;
+	this.activeBlock = this.raySize;
+}
+
 Renderer.prototype.setup = function(shaderSources)
 {
 	var gl = GLU.gl;
+
+	// Quad VBO for rendering textures
+	this.quadVbo = this.createQuadVbo();
 
 	// shaderSources is a dict from name (e.g. "viewport")
 	// to a dict {v:vertexShaderSource, f:fragmentShaderSource}
 	this.initProgram  = new GLU.Shader('init',  shaderSources);
 	this.traceProgram = new GLU.Shader('trace', shaderSources);
 	this.lineProgram  = new GLU.Shader('line',  shaderSources);
+	this.compProgram  = new GLU.Shader('comp',  shaderSources);
+	this.passProgram  = new GLU.Shader('pass',  shaderSources);
 	
-
 	//gl.viewport(0, 0, this.width, this.height);
 	this.raySize = 512;
+	this.resetActiveBlock();
 	this.rayCount = this.raySize*this.raySize;
-	//this.currentState = 0;
-	//this.rayStates = [new RayState(this.raySize), new RayState(this.raySize)];
-
-	// setup rendering GLSL program
-	this.lineProgram.bind();
+	this.currentState = 0;
+	this.needsReset = true;
+	this.maxPathLength = 12;
+	this.rayStates = [new RayState(this.raySize), new RayState(this.raySize)];
+		
+	// Create the buffer of texture coordinates, which maps each drawn line
+	// to its corresponding texture lookup.
 	{
-		// Create the buffer which defines the ray texture coordinates
 		this.rayVbo = new GLU.VertexBuffer();
 		this.rayVbo.addAttribute("TexCoord", 3, gl.FLOAT, false);
-		
 		this.rayVbo.init(this.rayCount*2);
-
 		var vboData = new Float32Array(this.rayCount*2*3);
-		for (var i = 0; i < this.rayCount; ++i)
+		for (var i=0; i<this.rayCount; ++i)
 		{
 			var u = ((i % this.raySize) + 0.5) / this.raySize;
 			var v = (Math.floor(i/this.raySize) + 0.5) / this.raySize;
 			vboData[i*6 + 0] = vboData[i*6 + 3] = u;
 			vboData[i*6 + 1] = vboData[i*6 + 4] = v;
-			vboData[i*6 + 2] = i%2;
+			vboData[i*6 + 2] = 0.0;
 			vboData[i*6 + 5] = 1.0;
 		}
-
 		this.rayVbo.copy(vboData);
 	}
 
-	// Prototype of raytracing logic ..
-	this.traceProgram.bind();
-	{
-		// Create a 'X' texture, and an 'Xp' texture
+	this.fbo = new GLU.RenderTarget();
 
-		// texture X
-		{
-			var X = GLU.createAndSetupTexture(this.X_index, this.raySize, this.raySize);
-			var FBO_X = gl.createFramebuffer();
-			this.textures.push(X);
-			this.framebuffers.push(FBO_X);
-			
-			gl.bindFramebuffer(gl.FRAMEBUFFER, FBO_X);
-			gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, X, 0);
-		}
+	gl.clearColor(1.0, 0.0, 0.0, 1.0);
+	gl.blendFunc(gl.ONE, gl.ONE);
 
-		// Create a 2d-vertex buffer and put a single clipspace rectangle in it (2 triangles)
-		// which is what the raytracing program will use to render to texture
-		this.QUAD_VBO = gl.createBuffer();
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.QUAD_VBO);
-		gl.bufferData(
-		    gl.ARRAY_BUFFER,
-		    new Float32Array([
-		        -1.0, -1.0, 0.0,
-		         1.0, -1.0, 0.0,
-		        -1.0,  1.0, 0.0,
-		        -1.0,  1.0, 0.0,
-		         1.0, -1.0, 0.0,
-		         1.0,  1.0, 0.0]),
-		    gl.STATIC_DRAW);
-
-		var positionLocation = this.traceProgram.getAttribLocation("a_position");
-		gl.enableVertexAttribArray(positionLocation);
-		gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);
-	}
+	this.resize(this.width, this.height);
 }
 
 
@@ -210,37 +219,159 @@ Renderer.prototype.resize = function(width, height)
 
 	this.camera.aspect = width / height;
 	this.camera.updateProjectionMatrix();
+
+	this.screenBuffer = new GLU.Texture(this.width, this.height, 4, true, false, true, null);
+	this.waveBuffer   = new GLU.Texture(this.width, this.height, 4, true, false, true, null);
+
+	this.resetActiveBlock();
+	this.reset();
 }
 
 
-Renderer.prototype.raytrace = function() 
+Renderer.prototype.composite = function()
 {
-	var gl = this.gl;
-
-	gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffers[this.X_index]);
-	gl.bindTexture(gl.TEXTURE_2D, this.textures[this.X_index]);
-
-	this.traceProgram.bind();
-
-	// Tell webgl the viewport setting needed for framebuffer.
-	gl.viewport(0, 0, this.raySize, this.raySize);
-
-	gl.bindBuffer(gl.ARRAY_BUFFER, this.QUAD_VBO);
-
-	var positionLocation = this.traceProgram.getAttribLocation("a_position");
-	gl.enableVertexAttribArray(positionLocation);
-	gl.vertexAttribPointer(positionLocation, 3, gl.FLOAT, false, 0, 0);	
-
-	// Will run raytrace program over all fragments
-	gl.drawArrays(gl.TRIANGLES, 0, 6);
+	//this.screenBuffer.bind(0);
+	this.compositeProgram.bind();
+	this.quadVbo.bind();
+	//this.compositeProgram.uniformTexture("Frame", this.screenBuffer);
+	//this.compositeProgram.uniformF("Exposure", this.width/(Math.max(this.samplesTraced, this.raySize*this.activeBlock)));
+	this.quadVbo.draw(this.compositeProgram, this.gl.TRIANGLE_FAN);
 }
 
 
 Renderer.prototype.render = function()
 {
 	if (!this.initialized) return;
-
 	var gl = this.gl;
+
+	/*
+	this.needsReset = true;
+
+	var current = this.currentState;
+	var next    = 1 - current;
+
+	this.fbo.bind();
+
+	// trace rays
+	gl.viewport(0, 0, this.raySize, this.raySize);
+	//gl.scissor(0, 0, this.raySize, this.activeBlock);
+	//gl.enable(gl.SCISSOR_TEST);
+
+	this.fbo.drawBuffers(4);
+	this.rayStates[next].attach(this.fbo);
+	this.quadVbo.bind();
+
+	if (this.pathLength == 0)
+	{
+		// Start all rays at emission point(s)
+		this.initProgram.bind();
+		this.rayStates[current].rngTex.bind(0);
+		this.initProgram.uniformTexture("RngData", this.rayStates[current].rngTex);
+		this.initProgram.uniform3F("EmitterPos", 0.0, 0.0, 0.0);
+		this.initProgram.uniform3F("EmitterDir", 1.0, 1.0, 1.0);
+
+		this.quadVbo.draw(this.initProgram, gl.TRIANGLE_FAN);
+
+		current = 1 - current;
+		next    = 1 - next;
+		this.rayStates[next].attach(this.fbo);
+	}
+
+	// Raytrace into scene, generating ray position data in rayStates textures
+	{
+		this.traceProgram.bind();
+		this.rayStates[current].bind(this.traceProgram);
+		this.quadVbo.draw(this.traceProgram, gl.TRIANGLE_FAN);
+		this.rayStates[next].detach(this.fbo);
+	}
+
+	// Draw the next set of lines into the wave buffer
+	{
+		//gl.disable(gl.SCISSOR_TEST);
+		gl.viewport(0, 0, this.width, this.height);
+
+		this.fbo.drawBuffers(1);
+		this.fbo.attachTexture(this.waveBuffer, 0);
+
+		if (this.pathLength == 0)
+		{
+			gl.clear(gl.COLOR_BUFFER_BIT);
+			gl.clearColor(1.0, 0.0, 0.0, 1.0); 
+		}
+
+		gl.enable(gl.BLEND);
+
+		this.lineProgram.bind();
+
+		// Setup projection matrix
+		var projectionMatrix = this.camera.projectionMatrix.toArray();
+		var projectionMatrixLocation = this.lineProgram.getUniformLocation("u_projectionMatrix");
+		gl.uniformMatrix4fv(projectionMatrixLocation, false, projectionMatrix);
+
+		// Setup modelview matrix (to match camera)
+		this.camera.updateMatrixWorld();
+		var matrixWorldInverse = new THREE.Matrix4();
+		matrixWorldInverse.getInverse( this.camera.matrixWorld );
+		var modelViewMatrix = matrixWorldInverse.toArray();
+		var modelViewMatrixLocation = this.lineProgram.getUniformLocation("u_modelViewMatrix");
+		gl.uniformMatrix4fv(modelViewMatrixLocation, false, modelViewMatrix);
+
+		this.rayStates[current].posTex.bind(0);
+		this.rayStates[   next].posTex.bind(1);
+		this.rayStates[current].rgbTex.bind(2);
+
+		this.lineProgram.uniformTexture("PosDataA", this.rayStates[current].posTex);
+		this.lineProgram.uniformTexture("PosDataB", this.rayStates[   next].posTex);
+		this.lineProgram.uniformTexture("RgbData",  this.rayStates[current].rgbTex);
+
+		this.rayVbo.bind(); // Binds the TexCoord attribute
+		this.rayVbo.draw(this.lineProgram, gl.LINES, this.raySize*this.activeBlock*2);
+
+		this.raysTraced += this.raySize*this.activeBlock;
+		this.pathLength += 1;
+	}
+
+	if (this.pathLength==this.maxPathLength || this.wavesTraced==0)
+	{
+		this.fbo.attachTexture(this.screenBuffer, 0);
+		this.passProgram.bind();
+		this.passProgram.uniformTexture("Frame", this.waveBuffer);
+		this.quadVbo.draw(this.passProgram, gl.TRIANGLE_FAN);
+
+		if (this.pathLength == this.maxPathLength)
+		{
+			this.samplesTraced += this.raySize*this.activeBlock;
+			this.wavesTraced += 1;
+			this.pathLength = 0;
+		}
+	}
+	*/
+
+	//gl.disable(gl.BLEND);
+
+	//this.fbo.unbind();
+	
+	gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
+	
+	gl.viewport(0, 0, this.width, this.height);
+
+	gl.clear(gl.COLOR_BUFFER_BIT);
+	gl.clearColor(1.0, 0.0, 0.0, 1.0); 
+
+	//this.compositeProgram.bind();
+
+	//this.quadVbo.bind();
+	
+	//this.compositeProgram.uniformTexture("Frame", this.screenBuffer);
+	//this.compositeProgram.uniformF("Exposure", this.width/(Math.max(this.samplesTraced, this.raySize*this.activeBlock)));
+	//this.quadVbo.draw(this.compositeProgram, this.gl.TRIANGLE_FAN);
+
+	//this.composite();
+
+	//this.currentState = next;
+}
+
+
 
 
 /*  dispersion visualization
@@ -262,44 +393,4 @@ Renderer.prototype.render = function()
 		X_i = X'_i
 		W_i = W'_i
 */
-
-
-	// Raytrace, to generate X, Xp textures containing the next line segments to render
-	this.raytrace();
-
-	// Render those line segments in 3d
-	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-	this.lineProgram.bind();
-
-	// Setup projection matrix
-	var projectionMatrix = this.camera.projectionMatrix.toArray();
-	var projectionMatrixLocation = this.lineProgram.getUniformLocation("u_projectionMatrix");
-	gl.uniformMatrix4fv(projectionMatrixLocation, false, projectionMatrix);
-
-	// Setup modelview matrix (to match camera)
-	this.camera.updateMatrixWorld();
-	var matrixWorldInverse = new THREE.Matrix4();
-	matrixWorldInverse.getInverse( this.camera.matrixWorld );
-	var modelViewMatrix = matrixWorldInverse.toArray();
-	var modelViewMatrixLocation = this.lineProgram.getUniformLocation("u_modelViewMatrix");
-	gl.uniformMatrix4fv(modelViewMatrixLocation, false, modelViewMatrix);
-
-	// Draw!
-	gl.viewport(0, 0, this.width, this.height);
-	gl.clearColor(0.0, 0.0, 0.0, 1.0);
-	gl.clear(gl.COLOR_BUFFER_BIT);
-
-	// Make sure that u_X sampler in rendering program references the X texture:
-	var u_XLoc = this.lineProgram.getUniformLocation("u_X");
-	gl.uniform1i(u_XLoc, this.X_index);
-
-	// Bind the X texture
-	gl.activeTexture(gl.TEXTURE0+this.X_index);
-	gl.bindTexture(gl.TEXTURE_2D, this.textures[this.X_index]);
-
-	this.rayVbo.bind();
-	this.rayVbo.draw(this.lineProgram, gl.LINES, this.rayCount);
-}
-
 
