@@ -4,7 +4,7 @@
 /////////////////////////////////////////////////
 
 #extension GL_EXT_draw_buffers : require
-precision mediump float;
+precision highp float;
 
 uniform sampler2D PosData;
 uniform sampler2D DirData;
@@ -23,7 +23,7 @@ void main()
 	// Read X, W, F
 	// Do:  X' = trace(X, W) given F
 	// Write X' into fragment (of ray buffer)
-	vec3 Xp = X + 100.0*D;
+	vec3 Xp = X + 0.1*state.rgb; //X + 100.0*D;
 	
 	gl_FragData[0] = vec4(Xp, 1.0);
 	gl_FragData[1] = vec4(D, 1.0);

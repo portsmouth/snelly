@@ -3,7 +3,7 @@
 // Line vertex shader
 /////////////////////////////////////////////////
 
-precision mediump float;
+precision highp float;
 
 uniform sampler2D PosDataA;
 uniform sampler2D PosDataB;

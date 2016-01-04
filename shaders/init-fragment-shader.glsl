@@ -4,7 +4,7 @@
 /////////////////////////////////////////////////
 
 #extension GL_EXT_draw_buffers : require
-precision mediump float;
+precision highp float;
 
 uniform sampler2D RngData;
 uniform vec3 EmitterPos;

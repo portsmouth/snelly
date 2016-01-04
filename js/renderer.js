@@ -22,14 +22,14 @@ var RayState = function(size)
 
 		var theta = Math.random()*Math.PI*2.0;
 		dirData[i*3 + 0] = Math.cos(theta);
-		dirData[i*3 + 1] = 0.0;
+		dirData[i*3 + 1] = 1.0;
 		dirData[i*3 + 2] = Math.sin(theta);
 
 		rngData[i] = i;
 
 		for (var t = 0; t < 4; ++t)
 		{
-			rgbData[i*4 + t] = 0.0;
+			rgbData[i*4 + t] = Math.random();
 		}
 	}
 
@@ -169,7 +169,7 @@ Renderer.prototype.setup = function(shaderSources)
 	this.passProgram  = new GLU.Shader('pass',  shaderSources);
 	
 	//gl.viewport(0, 0, this.width, this.height);
-	this.raySize = 512;
+	this.raySize = 64;
 	this.resetActiveBlock();
 	this.rayCount = this.raySize*this.raySize;
 	this.currentState = 0;
@@ -198,7 +198,6 @@ Renderer.prototype.setup = function(shaderSources)
 
 	this.fbo = new GLU.RenderTarget();
 
-	gl.clearColor(1.0, 0.0, 0.0, 1.0);
 	gl.blendFunc(gl.ONE, gl.ONE);
 
 	this.resize(this.width, this.height);
@@ -230,12 +229,12 @@ Renderer.prototype.resize = function(width, height)
 
 Renderer.prototype.composite = function()
 {
-	//this.screenBuffer.bind(0);
-	this.compositeProgram.bind();
+	this.screenBuffer.bind(0);
+	this.compProgram.bind();
 	this.quadVbo.bind();
-	//this.compositeProgram.uniformTexture("Frame", this.screenBuffer);
-	//this.compositeProgram.uniformF("Exposure", this.width/(Math.max(this.samplesTraced, this.raySize*this.activeBlock)));
-	this.quadVbo.draw(this.compositeProgram, this.gl.TRIANGLE_FAN);
+	this.compProgram.uniformTexture("Frame", this.screenBuffer);
+	this.compProgram.uniformF("Exposure", this.width/(Math.max(this.samplesTraced, this.raySize*this.activeBlock)));
+	this.quadVbo.draw(this.compProgram, this.gl.TRIANGLE_FAN);
 }
 
 
@@ -244,7 +243,6 @@ Renderer.prototype.render = function()
 	if (!this.initialized) return;
 	var gl = this.gl;
 
-	/*
 	this.needsReset = true;
 
 	var current = this.currentState;
@@ -258,14 +256,19 @@ Renderer.prototype.render = function()
 	//gl.enable(gl.SCISSOR_TEST);
 
 	this.fbo.drawBuffers(4);
+
+	// We will write the next state's ray data
 	this.rayStates[next].attach(this.fbo);
+
 	this.quadVbo.bind();
 
 	if (this.pathLength == 0)
 	{
 		// Start all rays at emission point(s)
 		this.initProgram.bind();
-		this.rayStates[current].rngTex.bind(0);
+
+		// We will read ray data from the current state
+		this.rayStates[current].rngTex.bind(0); 
 		this.initProgram.uniformTexture("RngData", this.rayStates[current].rngTex);
 		this.initProgram.uniform3F("EmitterPos", 0.0, 0.0, 0.0);
 		this.initProgram.uniform3F("EmitterDir", 1.0, 1.0, 1.0);
@@ -296,10 +299,10 @@ Renderer.prototype.render = function()
 		if (this.pathLength == 0)
 		{
 			gl.clear(gl.COLOR_BUFFER_BIT);
-			gl.clearColor(1.0, 0.0, 0.0, 1.0); 
+			gl.clearColor(0.0, 0.0, 0.0, 1.0); 
 		}
 
-		gl.enable(gl.BLEND);
+		//gl.enable(gl.BLEND);
 
 		this.lineProgram.bind();
 
@@ -331,9 +334,12 @@ Renderer.prototype.render = function()
 		this.pathLength += 1;
 	}
 
+	this.quadVbo.bind();
+
 	if (this.pathLength==this.maxPathLength || this.wavesTraced==0)
 	{
 		this.fbo.attachTexture(this.screenBuffer, 0);
+		this.waveBuffer.bind(0);
 		this.passProgram.bind();
 		this.passProgram.uniformTexture("Frame", this.waveBuffer);
 		this.quadVbo.draw(this.passProgram, gl.TRIANGLE_FAN);
@@ -345,30 +351,15 @@ Renderer.prototype.render = function()
 			this.pathLength = 0;
 		}
 	}
-	*/
 
-	//gl.disable(gl.BLEND);
 
-	//this.fbo.unbind();
-	
-	gl.bindFramebuffer(gl.FRAMEBUFFER, 0);
-	
-	gl.viewport(0, 0, this.width, this.height);
+	gl.disable(gl.BLEND);
 
-	gl.clear(gl.COLOR_BUFFER_BIT);
-	gl.clearColor(1.0, 0.0, 0.0, 1.0); 
+	this.fbo.unbind();
 
-	//this.compositeProgram.bind();
+	this.composite();
 
-	//this.quadVbo.bind();
-	
-	//this.compositeProgram.uniformTexture("Frame", this.screenBuffer);
-	//this.compositeProgram.uniformF("Exposure", this.width/(Math.max(this.samplesTraced, this.raySize*this.activeBlock)));
-	//this.quadVbo.draw(this.compositeProgram, this.gl.TRIANGLE_FAN);
-
-	//this.composite();
-
-	//this.currentState = next;
+	this.currentState = next;
 }
 
 

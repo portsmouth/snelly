@@ -3,7 +3,7 @@
 // Viewport fragment shader
 /////////////////////////////////////////////////
 
-precision mediump float;
+precision highp float;
 
 varying vec3 vColor;
 
