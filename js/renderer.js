@@ -9,32 +9,33 @@ var RayState = function(size)
 {
 	this.size = size;
 
-	var posData = new Float32Array(size*size*3); // ray position
-	var dirData = new Float32Array(size*size*3); // ray direction
+	var posData = new Float32Array(size*size*4); // ray position
+	var dirData = new Float32Array(size*size*4); // ray direction
 	var rngData = new Float32Array(size*size*4); // Random number seed
-	var rgbData = new Float32Array(size*size*4); // Ray color, and throughput
+	var rgbData = new Float32Array(size*size*4); // Ray color, and wavelength
 
-	for (var i = 0; i < size*size; ++i)
+	for (var i = 0; i<size*size; ++i)
 	{
-		posData[i*3 + 0] = 0.0;
-		posData[i*3 + 1] = 0.0;
-		posData[i*3 + 2] = 0.0;
+		posData[i*4 + 0] = -3.0;
+		posData[i*4 + 1] = 0.2;
+		posData[i*4 + 2] = 0.2;
+		posData[i*4 + 3] = 0.0;
 
 		var theta = Math.random()*Math.PI*2.0;
-		dirData[i*3 + 0] = Math.cos(theta);
-		dirData[i*3 + 1] = 1.0;
-		dirData[i*3 + 2] = Math.sin(theta);
+		dirData[i*4 + 0] = 1.0; //Math.cos(theta);
+		dirData[i*4 + 1] = 0.0 ;//Math.sin(theta);
+		dirData[i*4 + 2] = 0.0;
+		dirData[i*4 + 3] = 0.0;
 
-		rngData[i] = i;
-
-		for (var t = 0; t < 4; ++t)
+		for (var t = 0; t<4; ++t)
 		{
 			rgbData[i*4 + t] = Math.random();
+			rngData[i*4 + t] = Math.random()*4194167.0;
 		}
 	}
 
-	this.posTex = new GLU.Texture(size, size, 3, true, false, true, posData);
-	this.dirTex = new GLU.Texture(size, size, 3, true, false, true, posData);
+	this.posTex = new GLU.Texture(size, size, 4, true, false, true, posData);
+	this.dirTex = new GLU.Texture(size, size, 4, true, false, true, dirData);
 	this.rngTex = new GLU.Texture(size, size, 4, true, false, true, rngData);
 	this.rgbTex = new GLU.Texture(size, size, 4, true, false, true, rgbData);
 }
@@ -46,9 +47,8 @@ RayState.prototype.bind = function(shader)
 	this.dirTex.bind(1);
 	this.rngTex.bind(2);
 	this.rgbTex.bind(3);
-
 	shader.uniformTexture("PosData", this.posTex);
-	shader.uniformTexture("DirData", this.posTex);
+	shader.uniformTexture("DirData", this.dirTex);
 	shader.uniformTexture("RngData", this.rngTex);
 	shader.uniformTexture("RgbData", this.rgbTex);
 }
@@ -168,13 +168,21 @@ Renderer.prototype.setup = function(shaderSources)
 	this.compProgram  = new GLU.Shader('comp',  shaderSources);
 	this.passProgram  = new GLU.Shader('pass',  shaderSources);
 	
+	// table of 256 vec4 RGB colors, corresponding to the 256 wavelength samples
+	// between 360.0 and 750.0 nanometres
+	// @todo:  for now we will just assume a flat emission spectrum, i.e pure white light.
+	this.LAMBDA_MIN = 360.0;
+    this.LAMBDA_MAX = 750.0;
+	this.spectrumTable = wavelengthToRgbTable();
+	this.spectrum = new GLU.Texture(this.spectrumTable.length/4, 1, 4, true,  true, true, this.spectrumTable);
+  
 	//gl.viewport(0, 0, this.width, this.height);
-	this.raySize = 64;
+	this.raySize = 128;
 	this.resetActiveBlock();
 	this.rayCount = this.raySize*this.raySize;
 	this.currentState = 0;
 	this.needsReset = true;
-	this.maxPathLength = 12;
+	this.maxPathLength = 8;
 	this.rayStates = [new RayState(this.raySize), new RayState(this.raySize)];
 		
 	// Create the buffer of texture coordinates, which maps each drawn line
@@ -198,11 +206,11 @@ Renderer.prototype.setup = function(shaderSources)
 
 	this.fbo = new GLU.RenderTarget();
 
+	gl.clearColor(0.0, 0.0, 0.0, 1.0);
 	gl.blendFunc(gl.ONE, gl.ONE);
 
 	this.resize(this.width, this.height);
 }
-
 
 
 Renderer.prototype.getCamera = function()
@@ -215,13 +223,10 @@ Renderer.prototype.resize = function(width, height)
 {
 	this.width = width;
 	this.height = height;
-
 	this.camera.aspect = width / height;
 	this.camera.updateProjectionMatrix();
-
 	this.screenBuffer = new GLU.Texture(this.width, this.height, 4, true, false, true, null);
 	this.waveBuffer   = new GLU.Texture(this.width, this.height, 4, true, false, true, null);
-
 	this.resetActiveBlock();
 	this.reset();
 }
@@ -233,8 +238,23 @@ Renderer.prototype.composite = function()
 	this.compProgram.bind();
 	this.quadVbo.bind();
 	this.compProgram.uniformTexture("Frame", this.screenBuffer);
-	this.compProgram.uniformF("Exposure", this.width/(Math.max(this.samplesTraced, this.raySize*this.activeBlock)));
+
+	// Tonemap to effectively divide by total number of emitted photons
+	// (and also apply gamma correction)
+	this.compProgram.uniformF("Exposure", 10.0/this.samplesTraced);
+	
 	this.quadVbo.draw(this.compProgram, this.gl.TRIANGLE_FAN);
+}
+
+
+// With y-axis as the polar north
+Renderer.prototype.sphericalPolar = function(theta, phi)
+{
+	Sp = Math.sin(phi);
+	Cp = Math.cos(phi);
+	St = Math.sin(theta);
+	Ct = Math.cos(theta);
+	return new THREE.Vector3( Cp*St, Ct, Sp*St );
 }
 
 
@@ -262,29 +282,48 @@ Renderer.prototype.render = function()
 
 	this.quadVbo.bind();
 
+	// Initialize emitter rays (the beginning of a 'wave')
 	if (this.pathLength == 0)
 	{
 		// Start all rays at emission point(s)
 		this.initProgram.bind();
 
-		// We will read ray data from the current state
+		// Read random seed from the current state
 		this.rayStates[current].rngTex.bind(0); 
 		this.initProgram.uniformTexture("RngData", this.rayStates[current].rngTex);
-		this.initProgram.uniform3F("EmitterPos", 0.0, 0.0, 0.0);
-		this.initProgram.uniform3F("EmitterDir", 1.0, 1.0, 1.0);
 
+		// Read wavelength -> RGB table 
+		this.spectrum.bind(1);
+		this.initProgram.uniformTexture("Spectrum", this.spectrum);
+		
+		// Emitter data (currently just location and direction)
+		emitterPos = new THREE.Vector3(-3.0, 0.2, 0.2);
+		this.initProgram.uniform3F("EmitterPos", emitterPos.x, emitterPos.y, emitterPos.z);
+
+		emitterDir = this.sphericalPolar(Math.PI/2.0, 0.0);
+		this.initProgram.uniform3F("EmitterDir", 1.0, 0.0, 0.0); //emitterDir.x, emitterDir.y, emitterDir.z);
+
+		// Write emitted ray initial conditions into 'next' state
 		this.quadVbo.draw(this.initProgram, gl.TRIANGLE_FAN);
 
+		// Make the initial state be 'current'
 		current = 1 - current;
 		next    = 1 - next;
+
+		// And we prepare to write into the 'next' state
 		this.rayStates[next].attach(this.fbo);
 	}
 
-	// Raytrace into scene, generating ray position data in rayStates textures
+	// Raytrace into scene, generating new ray pos/dir data in 'next' rayStates textures
 	{
 		this.traceProgram.bind();
+
+		// Use the current state as the initial conditions
 		this.rayStates[current].bind(this.traceProgram);
+
+		// Generate the next ray state
 		this.quadVbo.draw(this.traceProgram, gl.TRIANGLE_FAN);
+
 		this.rayStates[next].detach(this.fbo);
 	}
 
@@ -296,13 +335,13 @@ Renderer.prototype.render = function()
 		this.fbo.drawBuffers(1);
 		this.fbo.attachTexture(this.waveBuffer, 0);
 
-		if (this.pathLength == 0)
+		if (this.pathLength == 0 || this.wavesTraced==0)
 		{
+			// Clear wavebuffer before the first bounce
 			gl.clear(gl.COLOR_BUFFER_BIT);
-			gl.clearColor(0.0, 0.0, 0.0, 1.0); 
 		}
 
-		//gl.enable(gl.BLEND);
+		gl.enable(gl.BLEND);
 
 		this.lineProgram.bind();
 
@@ -319,9 +358,9 @@ Renderer.prototype.render = function()
 		var modelViewMatrixLocation = this.lineProgram.getUniformLocation("u_modelViewMatrix");
 		gl.uniformMatrix4fv(modelViewMatrixLocation, false, modelViewMatrix);
 
-		this.rayStates[current].posTex.bind(0);
-		this.rayStates[   next].posTex.bind(1);
-		this.rayStates[current].rgbTex.bind(2);
+		this.rayStates[current].posTex.bind(0); // PosDataA = current.posTex
+		this.rayStates[   next].posTex.bind(1); // PosDataA = next.posTex
+		this.rayStates[current].rgbTex.bind(2); // current  = current.rgbTex
 
 		this.lineProgram.uniformTexture("PosDataA", this.rayStates[current].posTex);
 		this.lineProgram.uniformTexture("PosDataB", this.rayStates[   next].posTex);
@@ -336,6 +375,7 @@ Renderer.prototype.render = function()
 
 	this.quadVbo.bind();
 
+	// Update the screenBuffer with the waveBuffer contents
 	if (this.pathLength==this.maxPathLength || this.wavesTraced==0)
 	{
 		this.fbo.attachTexture(this.screenBuffer, 0);
@@ -357,31 +397,9 @@ Renderer.prototype.render = function()
 
 	this.fbo.unbind();
 
+	// Final composite of screenBuffer to window
 	this.composite();
 
 	this.currentState = next;
 }
-
-
-
-
-/*  dispersion visualization
-    -------------------------
-
-	For now, single light =  laser at X0, pointed toward W0,  with assumed emission spectrum
-
-	Make a texture F containing a pixel per photon frequency sample.
-	Make vec4 textures X, X' and W, W' also each containing a pixel per frequency sample 
-	Initialize textures X = X0, and W = W0 (the location and direction of a 'laser beam' emitter)
-
-	for i = 1 to N/B    (B = batch size)
-		
-		for each ray sample:   X'_i = trace(X_i, W_i) given F_i
-		                       W'_i = sample(X'_i, W_i) given F_i
-
-		drawLine(X_i, X'_i)
-		
-		X_i = X'_i
-		W_i = W'_i
-*/
 
