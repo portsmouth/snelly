@@ -3,7 +3,7 @@
 <body onload="onLoad();">
 
 <div class="fluence-render" id="content">
-	<canvas id="render-canvas" width="1000" height="1000"></canvas>
+	<canvas id="render-canvas" width="820" height="461"></canvas>
 </div>
 
 
@@ -12,6 +12,7 @@
 <script type="text/javascript" src="js/three/controls/OrbitControls.js"></script>
 <script type="text/javascript" src="js/require.js"></script>
 
+<script type="text/javascript" src="js/spectrum.js"></script>
 <script type="text/javascript" src="js/gl.js"></script>
 <script type="text/javascript" src="js/renderer.js"></script>
 
@@ -39,7 +40,6 @@ window.requestAnimFrame = (function(){
 })();
 
 
-// todo:  move all GL boilerplate into javascript objects, a la Tantalum GL
 
 // todo: use bl.ocks.org to serve the webGL app publicly ..
 // (or at least, the minified version of it, e.g. use r.js to minify)
@@ -70,7 +70,7 @@ function onLoad()
 
 function camChanged()
 {
-	renderer.render();
+	renderer.reset();
 }
 
 function animateLoop() 
