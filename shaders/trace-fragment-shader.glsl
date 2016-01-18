@@ -37,15 +37,23 @@ float rand(inout vec4 state)
 // is defined by the points with SDF<0.0, with a constant refractive index.
 
 
+float sdBox( vec3 p, vec3 b )
+{
+  vec3 d = abs(p) - b;
+  return min(max(d.x,max(d.y,d.z)),0.0) +
+         length(max(d,0.0));
+}
+
+
 float DF(vec3 X)
 {
+	//float SDF = sdBox(X, vec3(1.0, 1.0, 1.0));
 	float SDF = length(X) - 1.0;
 	return SDF;
 }
 
 
-
-#define normalEpsilon 0.01
+#define normalEpsilon 0.005
 
 vec3 calcNormal( in vec3 pos )
 {
@@ -59,8 +67,6 @@ vec3 calcNormal( in vec3 pos )
 }
 
 
-#define IOR 1.1 // Must be >1.0
-
 float sellmeierIor(vec3 b, vec3 c, float lambda) 
 {
 	// (where lambda is in nanometres)
@@ -69,7 +75,7 @@ float sellmeierIor(vec3 b, vec3 c, float lambda)
 }
 
 // N is outward normal (from solid to vacuum)
-vec3 refract(vec3 X, vec3 D, vec3 N, inout vec4 rgbLambda)
+vec3 refract(inout vec3 X, vec3 D, vec3 N, inout vec4 rgbLambda)
 {
 	float lambda = rgbLambda.w;
 	float ior = sqrt(sellmeierIor(vec3(1.0396, 0.2318, 1.0105), 
@@ -86,30 +92,34 @@ vec3 refract(vec3 X, vec3 D, vec3 N, inout vec4 rgbLambda)
 	}
 	else
 	{
-		ei = ior; // Incident from internal medium, if exiting
-		et = 1.0; // Transmitted to vacuum, if exiting
+		ei = ior;  // Incident from internal medium, if exiting
+		et = 1.0;  // Transmitted to vacuum, if exiting
+		N *= -1.0; // Flip normal (so normal is always opposite to incident light direction)
+		cosi *= -1.0;
 	}
 
 	float sini = sqrt(max(0.0, 1.0 - cosi*cosi));
-	float sint = ei/et * sini;
+	float r = ei/et;
+	float sint = r * sini;
 
 	// Handle total internal reflection (occurs only if exiting)
 	if (sint >= 1.0)
 	{
+		// Shift X slightly away from surface, towards interior
+		X += normalEpsilon*N;
 		return D - 2.0*dot(D,N)*N;
 	}
 
 	float cost = sqrt(max(0.0, 1.0 - sint*sint));
-	float r = ei/et;
-
-	//rgbLambda.rgb *= r*r; // @todo: is that right?
-
-	return r*D + (r*cosi - cost)*N;
+	rgbLambda.rgb /= r*r;
+	
+	X -= normalEpsilon*N;
+	return r*D + (r*cosi - cost)*N; // transmitted direction
 }
 
 
 #define maxMarchSteps 32
-#define minMarchDist 0.01
+#define minMarchDist 0.001
 
 
 void raytrace(vec3 X, vec3 D,
@@ -121,12 +131,11 @@ void raytrace(vec3 X, vec3 D,
 	for (int i=0; i<maxMarchSteps; i++)
 	{
 		Xp = X + totalDistance*D;
-		float dist = DF(Xp);
+		float dist = abs(DF(Xp));
 		totalDistance += dist;
 		if (dist < minMarchDist)
 		{
 			hit = true;
-			rgbLambda.rgb = vec3(1.0, 0.0, 0.0);
 			break;
 		}
 	}
@@ -141,7 +150,6 @@ void raytrace(vec3 X, vec3 D,
 	}
 }
 
-#define maxDist 10.0
 
 void main()
 {
@@ -150,13 +158,8 @@ void main()
 	vec4 state     = texture2D(RngData, vTexCoord);
 	vec4 rgbLambda = texture2D(RgbData, vTexCoord);
 
-	//X += 0.5*vec3(rand(state), rand(state), rand(state));
-
-	vec3 Xp = X + 1.0*D; //vec3(1.0, 0.0, 0.0);
-	vec3 Dp = normalize(D + vec3(0.05, 0.05, 0.05)); //rand(state), rand(state), rand(state)));
-
-	//vec3 Xp, Dp;
-	//raytrace(X, D, Xp, Dp, rgbLambda);
+	vec3 Xp, Dp;
+	raytrace(X, D, Xp, Dp, rgbLambda);
 
 	gl_FragData[0] = vec4(Xp, 1.0);
 	gl_FragData[1] = vec4(Dp, 1.0);

@@ -35,7 +35,7 @@ void main()
 	float lambda = 360.0 + (750.0 - 360.0)*vTexCoord.x;
 	vec3 rgb = texture2D(Spectrum, vec2(vTexCoord.x, 0.5)).rgb;
 
-	vec3 pos = EmitterPos + 0.05*vec3(rand(state), rand(state), rand(state));
+	vec3 pos = EmitterPos + 0.25*(-vec3(0.5) + vec3(rand(state), rand(state), rand(state)));
 	vec3 dir = normalize(EmitterDir + 0.5*vec3(rand(state), rand(state), rand(state)));
 	
 	gl_FragData[0] = vec4(pos, 1.0);

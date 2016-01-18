@@ -324,19 +324,19 @@ var GLU = {};
 
 	this.RenderTarget.prototype.attachTexture = function(texture, index) 
 	{
-		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + index, gl.TEXTURE_2D, texture.glName, 0);
+		gl.framebufferTexture2D(gl.FRAMEBUFFER, GLU.multiBufExt.COLOR_ATTACHMENT0_WEBGL + index, gl.TEXTURE_2D, texture.glName, 0);
 	}
 
 	this.RenderTarget.prototype.detachTexture = function(index) 
 	{
-		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + index, gl.TEXTURE_2D, null, 0);
+		gl.framebufferTexture2D(gl.FRAMEBUFFER, GLU.multiBufExt.COLOR_ATTACHMENT0_WEBGL + index, gl.TEXTURE_2D, null, 0);
 	}
 
 	this.RenderTarget.prototype.drawBuffers = function(numBufs) 
 	{
 		var buffers = [];
 		for (var i = 0; i<numBufs; ++i)
-		    buffers.push(gl.COLOR_ATTACHMENT0 + i);
+		    buffers.push(GLU.multiBufExt.COLOR_ATTACHMENT0_WEBGL + i);
 		GLU.multiBufExt.drawBuffersWEBGL(buffers);
 	}
 

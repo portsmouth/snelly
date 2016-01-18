@@ -16,14 +16,9 @@ var RayState = function(size)
 
 	for (var i = 0; i<size*size; ++i)
 	{
-		posData[i*4 + 0] = -3.0;
-		posData[i*4 + 1] = 0.2;
-		posData[i*4 + 2] = 0.2;
-		posData[i*4 + 3] = 0.0;
-
 		var theta = Math.random()*Math.PI*2.0;
-		dirData[i*4 + 0] = 1.0; //Math.cos(theta);
-		dirData[i*4 + 1] = 0.0 ;//Math.sin(theta);
+		dirData[i*4 + 0] = 1.0;
+		dirData[i*4 + 1] = 0.0;
 		dirData[i*4 + 2] = 0.0;
 		dirData[i*4 + 3] = 0.0;
 
@@ -56,6 +51,7 @@ RayState.prototype.bind = function(shader)
 
 RayState.prototype.attach = function(fbo)
 {
+	var gl = GLU.gl;
 	fbo.attachTexture(this.posTex, 0);
 	fbo.attachTexture(this.dirTex, 1);
 	fbo.attachTexture(this.rngTex, 2);
@@ -65,6 +61,7 @@ RayState.prototype.attach = function(fbo)
 
 RayState.prototype.detach = function(fbo)
 {
+	var gl = GLU.gl;
 	fbo.detachTexture(0);
 	fbo.detachTexture(1);
 	fbo.detachTexture(2);
@@ -241,7 +238,7 @@ Renderer.prototype.composite = function()
 
 	// Tonemap to effectively divide by total number of emitted photons
 	// (and also apply gamma correction)
-	this.compProgram.uniformF("Exposure", 10.0/this.samplesTraced);
+	this.compProgram.uniformF("Exposure", this.width/(Math.max(this.samplesTraced, this.raySize*this.activeBlock)));
 	
 	this.quadVbo.draw(this.compProgram, this.gl.TRIANGLE_FAN);
 }
@@ -275,9 +272,9 @@ Renderer.prototype.render = function()
 	//gl.scissor(0, 0, this.raySize, this.activeBlock);
 	//gl.enable(gl.SCISSOR_TEST);
 
+	// We will write the next state's ray data
 	this.fbo.drawBuffers(4);
 
-	// We will write the next state's ray data
 	this.rayStates[next].attach(this.fbo);
 
 	this.quadVbo.bind();
@@ -297,20 +294,26 @@ Renderer.prototype.render = function()
 		this.initProgram.uniformTexture("Spectrum", this.spectrum);
 		
 		// Emitter data (currently just location and direction)
-		emitterPos = new THREE.Vector3(-3.0, 0.2, 0.2);
+		emitterPos = new THREE.Vector3(-5.0, 0.0, 0.0);
 		this.initProgram.uniform3F("EmitterPos", emitterPos.x, emitterPos.y, emitterPos.z);
 
 		emitterDir = this.sphericalPolar(Math.PI/2.0, 0.0);
-		this.initProgram.uniform3F("EmitterDir", 1.0, 0.0, 0.0); //emitterDir.x, emitterDir.y, emitterDir.z);
+		this.initProgram.uniform3F("EmitterDir", emitterDir.x, emitterDir.y, emitterDir.z);
 
 		// Write emitted ray initial conditions into 'next' state
 		this.quadVbo.draw(this.initProgram, gl.TRIANGLE_FAN);
 
-		// Make the initial state be 'current'
+		// Make this initial state be 'current'
 		current = 1 - current;
 		next    = 1 - next;
 
 		// And we prepare to write into the 'next' state
+		//this.fbo.drawBuffers(4);
+		GLU.multiBufExt.drawBuffersWEBGL([gl.COLOR_ATTACHMENT0,
+										  gl.COLOR_ATTACHMENT1,
+										  gl.COLOR_ATTACHMENT2,
+										  gl.COLOR_ATTACHMENT3]);
+
 		this.rayStates[next].attach(this.fbo);
 	}
 
@@ -359,7 +362,7 @@ Renderer.prototype.render = function()
 		gl.uniformMatrix4fv(modelViewMatrixLocation, false, modelViewMatrix);
 
 		this.rayStates[current].posTex.bind(0); // PosDataA = current.posTex
-		this.rayStates[   next].posTex.bind(1); // PosDataA = next.posTex
+		this.rayStates[   next].posTex.bind(1); // PosDataB = next.posTex
 		this.rayStates[current].rgbTex.bind(2); // current  = current.rgbTex
 
 		this.lineProgram.uniformTexture("PosDataA", this.rayStates[current].posTex);
@@ -376,7 +379,7 @@ Renderer.prototype.render = function()
 	this.quadVbo.bind();
 
 	// Update the screenBuffer with the waveBuffer contents
-	if (this.pathLength==this.maxPathLength || this.wavesTraced==0)
+	if (true) //this.pathLength==this.maxPathLength || this.wavesTraced==0)
 	{
 		this.fbo.attachTexture(this.screenBuffer, 0);
 		this.waveBuffer.bind(0);
@@ -392,7 +395,6 @@ Renderer.prototype.render = function()
 		}
 	}
 
-
 	gl.disable(gl.BLEND);
 
 	this.fbo.unbind();
@@ -400,6 +402,6 @@ Renderer.prototype.render = function()
 	// Final composite of screenBuffer to window
 	this.composite();
 
-	this.currentState = next;
+	//this.currentState = next;
 }
 
