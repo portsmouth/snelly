@@ -2,6 +2,31 @@
 
 
 //////////////////////////////////////////////////////////////////////
+// Laser pointer UI
+//////////////////////////////////////////////////////////////////////
+
+var LaserPointer = function(glRenderer, glScene, glCamera) 
+{
+	var geometry = new THREE.BoxGeometry( 1, 1, 1 );
+	this.material = new THREE.MeshLambertMaterial( { color: 0xff8000 } );
+	var cube = new THREE.Mesh( geometry, this.material  );
+	glScene.add( cube );
+
+	//var geometry = new THREE.SphereGeometry(90, 32, 32);
+	//var material  = new THREE.MeshBasicMaterial();
+	//var mesh  = new THREE.Mesh(geometry, material);
+
+	this.glScene = glScene;
+	this.glRenderer = glRenderer;
+	this.glCamera = glCamera;
+}
+
+LaserPointer.prototype.render = function()
+{
+	this.glRenderer.render(this.glScene, this.glCamera);
+}
+
+//////////////////////////////////////////////////////////////////////
 // RayState
 //////////////////////////////////////////////////////////////////////
 
@@ -16,12 +41,10 @@ var RayState = function(size)
 
 	for (var i = 0; i<size*size; ++i)
 	{
-		var theta = Math.random()*Math.PI*2.0;
 		dirData[i*4 + 0] = 1.0;
 		dirData[i*4 + 1] = 0.0;
 		dirData[i*4 + 2] = 0.0;
 		dirData[i*4 + 3] = 0.0;
-
 		for (var t = 0; t<4; ++t)
 		{
 			rgbData[i*4 + t] = Math.random();
@@ -56,6 +79,10 @@ RayState.prototype.attach = function(fbo)
 	fbo.attachTexture(this.dirTex, 1);
 	fbo.attachTexture(this.rngTex, 2);
 	fbo.attachTexture(this.rgbTex, 3);
+	if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) != gl.FRAMEBUFFER_COMPLETE) 
+	{
+		GLU.fail("Invalid framebuffer");
+	}
 }
 
 
@@ -91,7 +118,7 @@ var Renderer = function()
 		var NEAR = 0.1;
 		var FAR = 10000;
 		this.camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
-		this.camera.position.z = 10;
+		this.camera.position.z = 50;
 		this.camera.updateProjectionMatrix();
 	}
 
@@ -106,6 +133,31 @@ var Renderer = function()
 			}
 		}
 	);
+
+	// Setup three.js GL renderer
+	var ui_canvas = document.getElementById('ui-canvas');
+
+	ui_canvas.style.top = 0;
+	//ui_canvas.style.left= 0;
+	ui_canvas.style.position = 'absolute' 
+
+	this.glRenderer = new THREE.WebGLRenderer( { canvas: ui_canvas,
+											     alpha: true,
+											     antialias: true } );
+	this.glRenderer.setClearColor( 0x000000, 0 ); // the default
+	this.glRenderer.setSize(this.width, this.height);
+	this.glScene = new THREE.Scene();
+	this.glScene.add(this.camera);
+
+	var pointLight = new THREE.PointLight(0xFFFFFF);
+	pointLight.position.x = 10;
+	pointLight.position.y = 50;
+	pointLight.position.z = 130;
+	this.glScene.add(pointLight);
+
+	document.body.appendChild(this.glRenderer.domElement);
+
+	this.laser = new LaserPointer(this.glRenderer, this.glScene, this.camera);
 }
 
 
@@ -174,12 +226,12 @@ Renderer.prototype.setup = function(shaderSources)
 	this.spectrum = new GLU.Texture(this.spectrumTable.length/4, 1, 4, true,  true, true, this.spectrumTable);
   
 	//gl.viewport(0, 0, this.width, this.height);
-	this.raySize = 128;
+	this.raySize = 256;
 	this.resetActiveBlock();
 	this.rayCount = this.raySize*this.raySize;
 	this.currentState = 0;
 	this.needsReset = true;
-	this.maxPathLength = 8;
+	this.maxPathLength = 15;
 	this.rayStates = [new RayState(this.raySize), new RayState(this.raySize)];
 		
 	// Create the buffer of texture coordinates, which maps each drawn line
@@ -226,6 +278,8 @@ Renderer.prototype.resize = function(width, height)
 	this.waveBuffer   = new GLU.Texture(this.width, this.height, 4, true, false, true, null);
 	this.resetActiveBlock();
 	this.reset();
+
+	this.glRenderer.setSize(width, height);
 }
 
 
@@ -238,7 +292,7 @@ Renderer.prototype.composite = function()
 
 	// Tonemap to effectively divide by total number of emitted photons
 	// (and also apply gamma correction)
-	this.compProgram.uniformF("Exposure", this.width/(Math.max(this.samplesTraced, this.raySize*this.activeBlock)));
+	this.compProgram.uniformF("Exposure", 10.0/(Math.max(this.samplesTraced, 1)));//this.raySize*this.activeBlock)));
 	
 	this.quadVbo.draw(this.compProgram, this.gl.TRIANGLE_FAN);
 }
@@ -258,6 +312,7 @@ Renderer.prototype.sphericalPolar = function(theta, phi)
 Renderer.prototype.render = function()
 {
 	if (!this.initialized) return;
+
 	var gl = this.gl;
 
 	this.needsReset = true;
@@ -279,7 +334,7 @@ Renderer.prototype.render = function()
 
 	this.quadVbo.bind();
 
-	// Initialize emitter rays (the beginning of a 'wave')
+	// initialize emitter rays (the beginning of a 'wave')
 	if (this.pathLength == 0)
 	{
 		// Start all rays at emission point(s)
@@ -294,7 +349,7 @@ Renderer.prototype.render = function()
 		this.initProgram.uniformTexture("Spectrum", this.spectrum);
 		
 		// Emitter data (currently just location and direction)
-		emitterPos = new THREE.Vector3(-5.0, 0.0, 0.0);
+		emitterPos = new THREE.Vector3(-10.0, 0.0, 0.0);
 		this.initProgram.uniform3F("EmitterPos", emitterPos.x, emitterPos.y, emitterPos.z);
 
 		emitterDir = this.sphericalPolar(Math.PI/2.0, 0.0);
@@ -308,11 +363,7 @@ Renderer.prototype.render = function()
 		next    = 1 - next;
 
 		// And we prepare to write into the 'next' state
-		//this.fbo.drawBuffers(4);
-		GLU.multiBufExt.drawBuffersWEBGL([gl.COLOR_ATTACHMENT0,
-										  gl.COLOR_ATTACHMENT1,
-										  gl.COLOR_ATTACHMENT2,
-										  gl.COLOR_ATTACHMENT3]);
+		this.fbo.drawBuffers(4);
 
 		this.rayStates[next].attach(this.fbo);
 	}
@@ -379,7 +430,7 @@ Renderer.prototype.render = function()
 	this.quadVbo.bind();
 
 	// Update the screenBuffer with the waveBuffer contents
-	if (true) //this.pathLength==this.maxPathLength || this.wavesTraced==0)
+	if (this.pathLength==this.maxPathLength || this.wavesTraced==0)
 	{
 		this.fbo.attachTexture(this.screenBuffer, 0);
 		this.waveBuffer.bind(0);
@@ -387,21 +438,32 @@ Renderer.prototype.render = function()
 		this.passProgram.uniformTexture("Frame", this.waveBuffer);
 		this.quadVbo.draw(this.passProgram, gl.TRIANGLE_FAN);
 
+		this.samplesTraced += this.raySize*this.activeBlock;
+
 		if (this.pathLength == this.maxPathLength)
 		{
-			this.samplesTraced += this.raySize*this.activeBlock;
 			this.wavesTraced += 1;
 			this.pathLength = 0;
 		}
 	}
 
 	gl.disable(gl.BLEND);
-
+	
 	this.fbo.unbind();
 
 	// Final composite of screenBuffer to window
 	this.composite();
 
-	//this.currentState = next;
+	// Render laser pointer
+
+	//this.laser.material.needsUpdate = true;
+	this.laser.render(this.glScene);
+
+	// Update raytracing state
+	this.currentState = next;
 }
+
+
+
+
 

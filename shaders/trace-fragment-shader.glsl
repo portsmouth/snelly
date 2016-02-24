@@ -44,16 +44,36 @@ float sdBox( vec3 p, vec3 b )
          length(max(d,0.0));
 }
 
+float sdSphere( vec3 p, vec3 c, float s )
+{
+  return length(p-c) - s;
+}
+
+float sdTorus( vec3 p, float r, float R )
+{
+  vec2 q = vec2(length(p.xz) - R, p.y);
+  return length(q) - r;
+}
+
+/*
+float opRep( vec3 p, vec3 c )
+{
+    vec3 q = mod(p,c) - 0.5*c;
+    return sdSphere( q, 1.0 );
+}
+*/
 
 float DF(vec3 X)
 {
-	//float SDF = sdBox(X, vec3(1.0, 1.0, 1.0));
-	float SDF = length(X) - 1.0;
-	return SDF;
+	float SDF1 = sdTorus(X, 0.8, 1.8);
+	float SDF2 = sdSphere(X, vec3(0.0, 0.0, 0.0), 1.99);
+	return min(SDF1, SDF2);
 }
 
 
-#define normalEpsilon 0.005
+
+
+#define normalEpsilon 5.0e-4
 
 vec3 calcNormal( in vec3 pos )
 {
@@ -72,6 +92,7 @@ float sellmeierIor(vec3 b, vec3 c, float lambda)
 	// (where lambda is in nanometres)
 	float lSq = (lambda*1e-3)*(lambda*1e-3);
 	return 1.0 + dot((b*lSq)/(lSq - c), vec3(1.0));
+	//return sqrt(2.0);
 }
 
 // N is outward normal (from solid to vacuum)
@@ -118,8 +139,8 @@ vec3 refract(inout vec3 X, vec3 D, vec3 N, inout vec4 rgbLambda)
 }
 
 
-#define maxMarchSteps 32
-#define minMarchDist 0.001
+#define maxMarchSteps 16
+#define minMarchDist 1.0e-4
 
 
 void raytrace(vec3 X, vec3 D,
@@ -160,6 +181,7 @@ void main()
 
 	vec3 Xp, Dp;
 	raytrace(X, D, Xp, Dp, rgbLambda);
+
 
 	gl_FragData[0] = vec4(Xp, 1.0);
 	gl_FragData[1] = vec4(Dp, 1.0);
