@@ -19,6 +19,7 @@
 
 <script type="text/javascript" src="js/jquery-1.11.3.min.js"></script>
 <script type="text/javascript" src="js/three/three.min.js"></script>
+<script type="text/javascript" src="js/three/libs/stats.min.js"></script>
 <script type="text/javascript" src="js/three/controls/OrbitControls.js"></script>
 <script type="text/javascript" src="js/require.js"></script>
 
@@ -28,10 +29,6 @@
 
 <script type="text/javascript">
 
-
-var render_canvas;
-
-var frame;
 
 // THREE.js OrbitControls
 var controls;
@@ -50,20 +47,12 @@ window.requestAnimFrame = (function(){
 })();
 
 
-
 // todo: use bl.ocks.org to serve the webGL app publicly ..
 // (or at least, the minified version of it, e.g. use r.js to minify)
 
 
 function onLoad()
 {
-	frame = 0;
-
-	render_canvas = document.getElementById('render-canvas');
-
-	render_canvas.width  = window.innerWidth;
-	render_canvas.height = window.innerHeight;
-
 	window.addEventListener( 'resize', onWindowResize, false );
 
 	// Instantiate renderer object
@@ -91,13 +80,12 @@ function animateLoop()
 	controls.update();
 
 	renderer.render();
-
-	frame = frame+1;
 }
 
 
 function onWindowResize() 
 {
+	var render_canvas = document.getElementById('render-canvas');
 	render_canvas.width  = window.innerWidth;
 	render_canvas.height = window.innerHeight;
 

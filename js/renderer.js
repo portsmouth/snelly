@@ -7,19 +7,61 @@
 
 var LaserPointer = function(glRenderer, glScene, glCamera) 
 {
-	var geometry = new THREE.BoxGeometry( 1, 1, 1 );
-	this.material = new THREE.MeshLambertMaterial( { color: 0xff8000 } );
-	var cube = new THREE.Mesh( geometry, this.material  );
-	glScene.add( cube );
+	var group = new THREE.Object3D();
 
-	//var geometry = new THREE.SphereGeometry(90, 32, 32);
-	//var material  = new THREE.MeshBasicMaterial();
-	//var mesh  = new THREE.Mesh(geometry, material);
+	var housingGeo      = new THREE.CylinderGeometry( 0.2, 0.2, 2, 32 );
+	var housingMaterial = new THREE.MeshPhongMaterial( { color: 0xdddddd, specular: 0x999999, shininess: 60 } );
+	var housingObj = new THREE.Mesh( housingGeo, housingMaterial  );
+	group.add(housingObj);
+
+	var azimuthHandleGeo      = new THREE.TorusGeometry( 0.5, 0.12, 32, 100 );
+	var azimuthHandleMaterial = new THREE.MeshPhongMaterial( { color: 0x000099, specular: 0x000099, shininess: 30 } );
+	var azimuthHandleObj = new THREE.Mesh( azimuthHandleGeo, azimuthHandleMaterial  );
+	//azimuthHandleObj.rotation.y = 0.5*Math.PI;
+	group.add(azimuthHandleObj);
+
+	var angleHandleGeo      = new THREE.TorusGeometry( 0.5, 0.12, 32, 100 );
+	var angleHandleMaterial = new THREE.MeshPhongMaterial( { color: 0x999900, specular: 0x999900, shininess: 30 } );
+	var angleHandleObj = new THREE.Mesh( angleHandleGeo, angleHandleMaterial  );
+	azimuthHandleObj.rotation.y = 0.5*Math.PI;
+	group.add(angleHandleObj);
+
+	// proxy to represent the emission point of the laser
+	var proxyGeo = new THREE.SphereGeometry(0.05);
+	var proxyMaterial = new THREE.MeshPhongMaterial( { color: 0xff0000, specular: 0x999900, shininess: 10 } );
+	var proxyObj = new THREE.Mesh( proxyGeo, proxyMaterial  );
+	proxyObj.position.y = 1.0;
+	group.add(proxyObj);
+	group.quaternion.setFromAxisAngle( new THREE.Vector3( 0, 0, 1 ), -Math.PI / 2 );
+	group.position.x = -10.0;
+
+	glScene.add(group);
+
+	// back plane to implement dragging 
+	var backPlaneObj = new THREE.Mesh(
+					new THREE.PlaneBufferGeometry( 2000, 2000, 8, 8 ),
+					new THREE.MeshBasicMaterial( { visible: false } )
+				);
+	glScene.add(backPlaneObj);
+
+	this.objects = {
+		"housing": housingObj,
+		"azimuthHandle": azimuthHandleObj,
+		"angleHandle": angleHandleObj,
+		"proxy": proxyObj,
+		"backPlane": backPlaneObj,
+		"group": group
+	};
 
 	this.glScene = glScene;
 	this.glRenderer = glRenderer;
 	this.glCamera = glCamera;
 }
+
+LaserPointer.prototype.getObjects = function()
+{
+	return this.objects;
+} 
 
 LaserPointer.prototype.render = function()
 {
@@ -106,6 +148,8 @@ var Renderer = function()
 	var gl = GLU.gl;
 
 	var render_canvas = document.getElementById('render-canvas');
+	render_canvas.width  = window.innerWidth;
+	render_canvas.height = window.innerHeight;
 	this.width = render_canvas.width;
 	this.height = render_canvas.height;
 	
@@ -134,11 +178,12 @@ var Renderer = function()
 		}
 	);
 
+	////////////////////////////////////////////////////////////
 	// Setup three.js GL renderer
-	var ui_canvas = document.getElementById('ui-canvas');
+	////////////////////////////////////////////////////////////
 
+	var ui_canvas = document.getElementById('ui-canvas');
 	ui_canvas.style.top = 0;
-	//ui_canvas.style.left= 0;
 	ui_canvas.style.position = 'absolute' 
 
 	this.glRenderer = new THREE.WebGLRenderer( { canvas: ui_canvas,
@@ -158,6 +203,35 @@ var Renderer = function()
 	document.body.appendChild(this.glRenderer.domElement);
 
 	this.laser = new LaserPointer(this.glRenderer, this.glScene, this.camera);
+
+	this.raycaster = new THREE.Raycaster();
+
+	this.mouse = new THREE.Vector2();
+	this.mouseOffset = new THREE.Vector3();
+	this.INTERSECTED = null;
+	this.SELECTED = null;
+
+	this.glRenderer.domElement.addEventListener( 'mousemove', this, false );
+	this.glRenderer.domElement.addEventListener( 'mousedown', this, false );
+	this.glRenderer.domElement.addEventListener( 'mouseup',   this, false );
+
+	this.container = document.getElementById('container');
+	{
+		this.stats = new Stats();
+		this.stats.domElement.style.position = 'absolute';
+		this.stats.domElement.style.top = '0px';
+		this.container.appendChild( this.stats.domElement );
+	}
+}
+
+Renderer.prototype.handleEvent = function(event)
+{
+	switch (event.type)
+	{
+		case 'mousemove': this.onDocumentMouseMove(event); break;
+		case 'mousedown': this.onDocumentMouseDown(event); break;
+		case 'mouseup':   this.onDocumentMouseUp(event);   break;
+	}
 }
 
 
@@ -226,7 +300,7 @@ Renderer.prototype.setup = function(shaderSources)
 	this.spectrum = new GLU.Texture(this.spectrumTable.length/4, 1, 4, true,  true, true, this.spectrumTable);
   
 	//gl.viewport(0, 0, this.width, this.height);
-	this.raySize = 256;
+	this.raySize = 128;
 	this.resetActiveBlock();
 	this.rayCount = this.raySize*this.raySize;
 	this.currentState = 0;
@@ -461,6 +535,93 @@ Renderer.prototype.render = function()
 
 	// Update raytracing state
 	this.currentState = next;
+
+	this.stats.update();
+}
+
+
+Renderer.prototype.onDocumentMouseMove = function(event)
+{
+	event.preventDefault();
+
+	this.mouse.x =   (event.clientX / window.innerWidth)*2 - 1;
+	this.mouse.y = - (event.clientY / window.innerHeight)*2 + 1;
+
+	this.raycaster.setFromCamera( this.mouse, this.camera );
+
+	obj = this.laser.getObjects();
+
+	if ( this.SELECTED ) 
+	{
+		var intersects = this.raycaster.intersectObject( obj['backPlane'] );
+		if ( intersects.length > 0 ) 
+		{
+			this.SELECTED.position.copy( intersects[0].point.sub(this.mouseOffset) );
+		}
+		return;
+	}
+
+	var intersects = this.raycaster.intersectObject(obj['housing']);
+
+	if ( intersects.length > 0 )
+	{
+		if ( this.INTERSECTED != intersects[0].object )
+		{
+			this.INTERSECTED = intersects[0].object;
+			obj['housing'].position.copy( this.INTERSECTED.position );
+			obj['backPlane'].lookAt( this.camera.position );
+		}
+		this.container.style.cursor = 'pointer';
+	}
+	else
+	{
+		this.INTERSECTED = null;
+		this.container.style.cursor = 'auto';
+	}
+}
+
+
+Renderer.prototype.onDocumentMouseDown = function(event)
+{
+	event.preventDefault();
+
+	this.raycaster.setFromCamera( this.mouse, this.camera );
+
+	obj = this.laser.getObjects();
+	var intersects = this.raycaster.intersectObject(obj['housing']);
+
+	if ( intersects.length > 0 )
+	{
+		controls.enabled = false;
+		
+		this.SELECTED = intersects[0].object;
+
+		var intersects = this.raycaster.intersectObject( obj['backPlane'] );
+		if ( intersects.length > 0 ) 
+		{
+			this.mouseOffset.copy( intersects[0].point ).sub( obj['backPlane'].position );
+		}
+
+		this.container.style.cursor = 'move';
+
+
+	}
+}
+
+
+Renderer.prototype.onDocumentMouseUp = function(event)
+{
+	event.preventDefault();
+	controls.enabled = true;
+
+	if ( this.INTERSECTED ) 
+	{
+		obj = this.laser.getObjects();
+		obj['backPlane'].position.copy( this.INTERSECTED.position );
+		this.SELECTED = null;
+	}
+
+	container.style.cursor = 'auto';
 }
 
 
