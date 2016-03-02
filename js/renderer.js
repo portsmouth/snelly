@@ -9,31 +9,53 @@ var LaserPointer = function(glRenderer, glScene, glCamera)
 {
 	var group = new THREE.Object3D();
 
-	var housingGeo      = new THREE.CylinderGeometry( 0.2, 0.2, 2, 32 );
+	var housingGeo      = new THREE.CylinderGeometry( 0.2, 0.2, 2, 64 );
 	var housingMaterial = new THREE.MeshPhongMaterial( { color: 0xdddddd, specular: 0x999999, shininess: 60 } );
 	var housingObj = new THREE.Mesh( housingGeo, housingMaterial  );
 	group.add(housingObj);
 
-	var azimuthHandleGeo      = new THREE.TorusGeometry( 0.5, 0.12, 32, 100 );
-	var azimuthHandleMaterial = new THREE.MeshPhongMaterial( { color: 0x000099, specular: 0x000099, shininess: 30 } );
+	var xHandleGeo      = new THREE.CylinderGeometry( 0.05, 0.05, 4, 64 );
+	var xHandleMaterial = new THREE.MeshPhongMaterial( { color: 0xff0000, specular: 0x999999, shininess: 60 } );
+	var xHandleObj      = new THREE.Mesh( xHandleGeo, xHandleMaterial  );
+	xHandleObj.rotation.z = 0.5*Math.PI;
+	xHandleObj.position.x = -0.0;
+	group.add(xHandleObj);
+
+	var yHandleGeo      = new THREE.CylinderGeometry( 0.05, 0.05, 4, 64 );
+	var yHandleMaterial = new THREE.MeshPhongMaterial( { color: 0x00ff00, specular: 0x999999, shininess: 60 } );
+	var yHandleObj      = new THREE.Mesh( yHandleGeo, yHandleMaterial  );
+	yHandleObj.rotation.y = 0.5*Math.PI;
+	yHandleObj.position.x = -0.0;
+	group.add(yHandleObj);
+
+	var zHandleGeo      = new THREE.CylinderGeometry( 0.05, 0.05, 4, 64 );
+	var zHandleMaterial = new THREE.MeshPhongMaterial( { color: 0x0000ff, specular: 0x999999, shininess: 30 } );
+	var zHandleObj      = new THREE.Mesh( zHandleGeo, zHandleMaterial  );
+	zHandleObj.rotation.x = 0.5*Math.PI;
+	zHandleObj.position.x = -0.0;
+	group.add(zHandleObj);
+
+	var azimuthHandleGeo      = new THREE.TorusGeometry( 0.75, 0.05, 32, 100 );
+	var azimuthHandleMaterial = new THREE.MeshPhongMaterial( { color: 0xff0000, specular: 0x999999, shininess: 30 } );
 	var azimuthHandleObj = new THREE.Mesh( azimuthHandleGeo, azimuthHandleMaterial  );
 	//azimuthHandleObj.rotation.y = 0.5*Math.PI;
 	group.add(azimuthHandleObj);
 
-	var angleHandleGeo      = new THREE.TorusGeometry( 0.5, 0.12, 32, 100 );
-	var angleHandleMaterial = new THREE.MeshPhongMaterial( { color: 0x999900, specular: 0x999900, shininess: 30 } );
+	var angleHandleGeo      = new THREE.TorusGeometry( 0.75, 0.05, 32, 100 );
+	var angleHandleMaterial = new THREE.MeshPhongMaterial( { color: 0x0000ff, specular: 0x999999, shininess: 30 } );
 	var angleHandleObj = new THREE.Mesh( angleHandleGeo, angleHandleMaterial  );
 	azimuthHandleObj.rotation.y = 0.5*Math.PI;
 	group.add(angleHandleObj);
 
 	// proxy to represent the emission point of the laser
-	var proxyGeo = new THREE.SphereGeometry(0.05);
+	var proxyGeo = new THREE.SphereGeometry(0.2);
 	var proxyMaterial = new THREE.MeshPhongMaterial( { color: 0xff0000, specular: 0x999900, shininess: 10 } );
 	var proxyObj = new THREE.Mesh( proxyGeo, proxyMaterial  );
 	proxyObj.position.y = 1.0;
 	group.add(proxyObj);
-	group.quaternion.setFromAxisAngle( new THREE.Vector3( 0, 0, 1 ), -Math.PI / 2 );
-	group.position.x = -10.0;
+	//group.quaternion.setFromAxisAngle( new THREE.Vector3( 0, 0, 1 ), -Math.PI / 2 );
+	//group.position.x = -10.0;
+	//group.rotation.y = 0.5*Math.PI;
 
 	glScene.add(group);
 
@@ -56,6 +78,8 @@ var LaserPointer = function(glRenderer, glScene, glCamera)
 	this.glScene = glScene;
 	this.glRenderer = glRenderer;
 	this.glCamera = glCamera;
+
+	this.translation = THREE.Vector3(-10.0, 0.0, 0.0);
 }
 
 LaserPointer.prototype.getObjects = function()
@@ -66,6 +90,14 @@ LaserPointer.prototype.getObjects = function()
 LaserPointer.prototype.render = function()
 {
 	this.glRenderer.render(this.glScene, this.glCamera);
+}
+
+LaserPointer.prototype.setTranslation = function(t)
+{
+	console.log(t);
+	this.translation = t;
+	group = this.objects["group"];
+	group.position.copy(t);
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -203,6 +235,7 @@ var Renderer = function()
 	document.body.appendChild(this.glRenderer.domElement);
 
 	this.laser = new LaserPointer(this.glRenderer, this.glScene, this.camera);
+	this.groupPos = new THREE.Vector3(0.0, 0.0, 0.0); // hack for debug
 
 	this.raycaster = new THREE.Raycaster();
 
@@ -536,12 +569,28 @@ Renderer.prototype.render = function()
 	// Update raytracing state
 	this.currentState = next;
 
+	var time = Date.now() * 0.001;
+	var rx = Math.sin( time * 0.7 ) * 0.5;
+	var ry = Math.sin( time * 0.3 ) * 0.5;
+	var rz = Math.sin( time * 0.2 ) * 0.5;
+	obj = this.laser.getObjects();
+
+	//this.laser.setTranslation(this.groupPos);
+	
+	//obj['group'].position.x = this.groupPos.x;
+
+	obj['group'].rotation.x = rx;
+	obj['group'].rotation.y = ry;
+	obj['group'].rotation.z = rz;
+	obj['group'].updateMatrix();
+
 	this.stats.update();
 }
 
 
 Renderer.prototype.onDocumentMouseMove = function(event)
 {
+	if (!this.initialized) return;
 	event.preventDefault();
 
 	this.mouse.x =   (event.clientX / window.innerWidth)*2 - 1;
@@ -565,10 +614,14 @@ Renderer.prototype.onDocumentMouseMove = function(event)
 
 	if ( intersects.length > 0 )
 	{
-		if ( this.INTERSECTED != intersects[0].object )
+		//if ( this.INTERSECTED != intersects[0].object )
 		{
 			this.INTERSECTED = intersects[0].object;
-			obj['housing'].position.copy( this.INTERSECTED.position );
+
+			this.groupPos.copy( this.INTERSECTED.position );
+
+			//obj['group'].position.copy( this.INTERSECTED.position );
+			//obj['group'].updateMatrix();
 			obj['backPlane'].lookAt( this.camera.position );
 		}
 		this.container.style.cursor = 'pointer';
@@ -583,6 +636,7 @@ Renderer.prototype.onDocumentMouseMove = function(event)
 
 Renderer.prototype.onDocumentMouseDown = function(event)
 {
+	if (!this.initialized) return;
 	event.preventDefault();
 
 	this.raycaster.setFromCamera( this.mouse, this.camera );
@@ -594,7 +648,7 @@ Renderer.prototype.onDocumentMouseDown = function(event)
 	{
 		controls.enabled = false;
 		
-		this.SELECTED = intersects[0].object;
+		this.SELECTED = obj['group'];
 
 		var intersects = this.raycaster.intersectObject( obj['backPlane'] );
 		if ( intersects.length > 0 ) 
@@ -603,14 +657,13 @@ Renderer.prototype.onDocumentMouseDown = function(event)
 		}
 
 		this.container.style.cursor = 'move';
-
-
 	}
 }
 
 
 Renderer.prototype.onDocumentMouseUp = function(event)
 {
+	if (!this.initialized) return;
 	event.preventDefault();
 	controls.enabled = true;
 
