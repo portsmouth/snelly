@@ -182,7 +182,6 @@ void main()
 	vec3 Xp, Dp;
 	raytrace(X, D, Xp, Dp, rgbLambda);
 
-
 	gl_FragData[0] = vec4(Xp, 1.0);
 	gl_FragData[1] = vec4(Dp, 1.0);
 	gl_FragData[2] = state;

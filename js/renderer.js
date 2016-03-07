@@ -7,98 +7,281 @@
 
 var LaserPointer = function(glRenderer, glScene, glCamera) 
 {
-	var group = new THREE.Object3D();
+	this.group = new THREE.Object3D();
+	var group = this.group;
 
-	var housingGeo      = new THREE.CylinderGeometry( 0.2, 0.2, 2, 64 );
+	this.camera = glCamera;
+	this.raycaster = new THREE.Raycaster();
+
+	this.mouse = new THREE.Vector2();
+	this.mousedownOffset = new THREE.Vector3();
+	this.translationOnMouseDown = new THREE.Vector3();
+	this.INTERSECTED = null;
+	this.SELECTED = null;
+
+	var housingGeo      = new THREE.CylinderGeometry( 0.2, 0.2, 2, 4 );
 	var housingMaterial = new THREE.MeshPhongMaterial( { color: 0xdddddd, specular: 0x999999, shininess: 60 } );
 	var housingObj = new THREE.Mesh( housingGeo, housingMaterial  );
 	group.add(housingObj);
 
-	var xHandleGeo      = new THREE.CylinderGeometry( 0.05, 0.05, 4, 64 );
-	var xHandleMaterial = new THREE.MeshPhongMaterial( { color: 0xff0000, specular: 0x999999, shininess: 60 } );
+	// x-handle
+	var xHandleGeo      = new THREE.CylinderGeometry( 0.05, 0.05, 4, 4 );
+	var xHandleMaterial = new THREE.MeshPhongMaterial( { color: 'red', specular: 0x999999, shininess: 60 } );
 	var xHandleObj      = new THREE.Mesh( xHandleGeo, xHandleMaterial  );
 	xHandleObj.rotation.z = 0.5*Math.PI;
 	xHandleObj.position.x = -0.0;
 	group.add(xHandleObj);
 
-	var yHandleGeo      = new THREE.CylinderGeometry( 0.05, 0.05, 4, 64 );
-	var yHandleMaterial = new THREE.MeshPhongMaterial( { color: 0x00ff00, specular: 0x999999, shininess: 60 } );
+	// y-handle
+	var yHandleGeo      = new THREE.CylinderGeometry( 0.05, 0.05, 4, 4 );
+	var yHandleMaterial = new THREE.MeshPhongMaterial( { color: 'green', specular: 0x999999, shininess: 60 } );
 	var yHandleObj      = new THREE.Mesh( yHandleGeo, yHandleMaterial  );
 	yHandleObj.rotation.y = 0.5*Math.PI;
 	yHandleObj.position.x = -0.0;
 	group.add(yHandleObj);
 
-	var zHandleGeo      = new THREE.CylinderGeometry( 0.05, 0.05, 4, 64 );
-	var zHandleMaterial = new THREE.MeshPhongMaterial( { color: 0x0000ff, specular: 0x999999, shininess: 30 } );
+	// z-handle
+	var zHandleGeo      = new THREE.CylinderGeometry( 0.05, 0.05, 4, 4 );
+	var zHandleMaterial = new THREE.MeshPhongMaterial( { color: 'blue', specular: 0x999999, shininess: 30 } );
 	var zHandleObj      = new THREE.Mesh( zHandleGeo, zHandleMaterial  );
 	zHandleObj.rotation.x = 0.5*Math.PI;
 	zHandleObj.position.x = -0.0;
 	group.add(zHandleObj);
 
-	var azimuthHandleGeo      = new THREE.TorusGeometry( 0.75, 0.05, 32, 100 );
-	var azimuthHandleMaterial = new THREE.MeshPhongMaterial( { color: 0xff0000, specular: 0x999999, shininess: 30 } );
-	var azimuthHandleObj = new THREE.Mesh( azimuthHandleGeo, azimuthHandleMaterial  );
-	//azimuthHandleObj.rotation.y = 0.5*Math.PI;
-	group.add(azimuthHandleObj);
+	// x-rot-handle
+	var xRotHandleGeo      = new THREE.TorusGeometry( 0.75, 0.1, 32, 100 );
+	var xRotHandleMaterial = new THREE.MeshPhongMaterial( { color: 'red', specular: 0x999999, shininess: 30 } );
+	var xRotHandleObj = new THREE.Mesh( xRotHandleGeo, xRotHandleMaterial  );
+	xRotHandleObj.rotation.y = 0.5*Math.PI;
+	group.add(xRotHandleObj);
 
-	var angleHandleGeo      = new THREE.TorusGeometry( 0.75, 0.05, 32, 100 );
-	var angleHandleMaterial = new THREE.MeshPhongMaterial( { color: 0x0000ff, specular: 0x999999, shininess: 30 } );
-	var angleHandleObj = new THREE.Mesh( angleHandleGeo, angleHandleMaterial  );
-	azimuthHandleObj.rotation.y = 0.5*Math.PI;
-	group.add(angleHandleObj);
+	// z-rot-handle
+	var zRotHandleGeo      = new THREE.TorusGeometry( 0.75, 0.1, 32, 100 );
+	var zRotHandleMaterial = new THREE.MeshPhongMaterial( { color: 'blue', specular: 0x999999, shininess: 30 } );
+	var zRotHandleObj = new THREE.Mesh( zRotHandleGeo, zRotHandleMaterial  );
+	zRotHandleObj.rotation.y = 0.0;
+	group.add(zRotHandleObj);
 
 	// proxy to represent the emission point of the laser
-	var proxyGeo = new THREE.SphereGeometry(0.2);
+	var proxyGeo = new THREE.SphereGeometry(0.1);
 	var proxyMaterial = new THREE.MeshPhongMaterial( { color: 0xff0000, specular: 0x999900, shininess: 10 } );
 	var proxyObj = new THREE.Mesh( proxyGeo, proxyMaterial  );
 	proxyObj.position.y = 1.0;
 	group.add(proxyObj);
-	//group.quaternion.setFromAxisAngle( new THREE.Vector3( 0, 0, 1 ), -Math.PI / 2 );
-	//group.position.x = -10.0;
-	//group.rotation.y = 0.5*Math.PI;
+	group.position.x = 0.0;
 
 	glScene.add(group);
 
 	// back plane to implement dragging 
 	var backPlaneObj = new THREE.Mesh(
-					new THREE.PlaneBufferGeometry( 2000, 2000, 8, 8 ),
+					new THREE.PlaneGeometry(2000, 2000),
 					new THREE.MeshBasicMaterial( { visible: false } )
 				);
+	backPlaneObj.position.x = 0.0;
+	backPlaneObj.position.y = 0.0;
 	glScene.add(backPlaneObj);
+
+	this.X = new THREE.Vector3(1, 0, 0);
+	this.Y = new THREE.Vector3(0, 1, 0);
+	this.Z = new THREE.Vector3(0, 0, 1);
 
 	this.objects = {
 		"housing": housingObj,
-		"azimuthHandle": azimuthHandleObj,
-		"angleHandle": angleHandleObj,
 		"proxy": proxyObj,
+		"xHandle": xHandleObj,
+		"yHandle": yHandleObj,
+		"zHandle": zHandleObj,
+		"xRotHandle": xRotHandleObj,
+		"zRotHandle": zRotHandleObj,
 		"backPlane": backPlaneObj,
 		"group": group
 	};
 
+	var handleNames = [ "xHandle", "yHandle", "zHandle", "xRotHandle", "zRotHandle" ];
+	this.handleObjects = [];
+	for (var n=0; n<handleNames.length; n++) 
+	{
+		this.handleObjects.push(this.objects[handleNames[n]]);
+	}
+
 	this.glScene = glScene;
 	this.glRenderer = glRenderer;
 	this.glCamera = glCamera;
-
-	this.translation = THREE.Vector3(-10.0, 0.0, 0.0);
 }
 
-LaserPointer.prototype.getObjects = function()
-{
-	return this.objects;
-} 
 
 LaserPointer.prototype.render = function()
 {
 	this.glRenderer.render(this.glScene, this.glCamera);
 }
 
-LaserPointer.prototype.setTranslation = function(t)
+LaserPointer.prototype.getPoint = function()
 {
-	console.log(t);
-	this.translation = t;
-	group = this.objects["group"];
-	group.position.copy(t);
+	var pLocal = new THREE.Vector3();
+	pLocal.copy(this.objects['proxy'].position);
+	var pWorld = pLocal.applyMatrix4( this.group.matrixWorld );
+	return pWorld;
 }
+
+LaserPointer.prototype.getDirection = function()
+{
+	return this.getY();
+}
+
+LaserPointer.prototype.getX = function()
+{
+	var worldX = new THREE.Vector3();
+	worldX.copy(this.X);
+	worldX.applyQuaternion(this.group.quaternion);
+	return worldX;
+}
+
+LaserPointer.prototype.getY = function()
+{
+	var worldY = new THREE.Vector3();
+	worldY.copy(this.Y);
+	worldY.applyQuaternion(this.group.quaternion);
+	return worldY;
+}
+
+LaserPointer.prototype.getZ = function()
+{
+	var worldZ = new THREE.Vector3();
+	worldZ.copy(this.Z);
+	worldZ.applyQuaternion(this.group.quaternion);
+	return worldZ;
+}
+
+
+LaserPointer.prototype.onMouseMove = function(event)
+{
+	// calculate mouse position in normalized device coordinates
+	// (-1 to +1) for both components
+	this.mouse.x =   (event.clientX / window.innerWidth)*2 - 1;
+	this.mouse.y = - (event.clientY / window.innerHeight)*2 + 1;
+
+	// update the picking ray with the camera and mouse position
+	this.raycaster.setFromCamera( this.mouse, this.camera );
+
+	obj = this.objects;
+
+	if ( this.SELECTED )
+	{
+		var backplaneIntersection = this.raycaster.intersectObject( obj['backPlane'] );
+		if ( backplaneIntersection.length > 0 )
+		{
+			var planeHitpoint = backplaneIntersection[0].point;
+			group = this.objects["group"];
+
+			var newGroupPos = new THREE.Vector3();
+			newGroupPos.copy(planeHitpoint).sub(this.mousedownOffset);
+
+			var groupShift = new THREE.Vector3();
+			groupShift.copy(newGroupPos).sub(group.position);
+
+			if (this.SELECTED == obj['xHandle'])
+			{
+				console.log('xHandle selected');
+				var moveX = groupShift.dot(this.getX());
+				var V = new THREE.Vector3();
+				V.copy(this.getX()).multiplyScalar(moveX);
+				group.position.add(V);
+			}
+			else if (this.SELECTED == obj['yHandle'])
+			{
+				console.log('yHandle selected');
+				var moveY = groupShift.dot(this.getY());
+				var V = new THREE.Vector3();
+				V.copy(this.getY()).multiplyScalar(moveY);
+				group.position.add(V);
+			}
+			else if (this.SELECTED == obj['zHandle'])
+			{
+				console.log('zHandle selected');
+				var moveZ = groupShift.dot(this.getZ());
+				var V = new THREE.Vector3();
+				V.copy(this.getZ()).multiplyScalar(moveZ);
+				group.position.add(V);
+			}
+			else if (this.SELECTED == obj['xRotHandle'])
+			{
+				var camDist = new THREE.Vector3();
+				camDist.copy(group.position).sub(this.camera.position);
+				var C = camDist.length();
+				var rotAngle = 0.5 * Math.PI * groupShift.dot(this.getY()) / Math.max(C, 1.0);
+
+				var rotX = new THREE.Quaternion();
+				rotX.setFromAxisAngle(this.getX(), rotAngle);
+
+				group.quaternion.multiplyQuaternions(rotX, group.quaternion);
+			}
+			else if (this.SELECTED == obj['zRotHandle'])
+			{
+				var camDist = new THREE.Vector3();
+				camDist.copy(group.position).sub(this.camera.position);
+				var C = camDist.length();
+				var rotAngle = 0.5 * Math.PI * groupShift.dot(this.getY()) / Math.max(C, 1.0);
+
+				var rotZ = new THREE.Quaternion();
+				rotZ.setFromAxisAngle(this.getZ(), rotAngle);
+
+				group.quaternion.multiplyQuaternions(rotZ, group.quaternion);
+			}
+
+			group.updateMatrix();
+		}
+		return true;
+	}
+
+	var intersections = this.raycaster.intersectObjects(this.handleObjects);
+	if ( intersections.length > 0 )
+	{
+		//if ( this.INTERSECTED != intersections[ 0 ].object ) 
+		{
+			//INTERSECTED = intersections[ 0 ].object;
+			group = obj['group'];
+			obj['backPlane'].lookAt( this.camera.position );
+			obj['backPlane'].position.copy( group.position );
+		}
+	}
+
+	return false;
+}
+
+
+
+LaserPointer.prototype.onMouseDown = function(event)
+{
+	// update the picking ray with the camera and mouse position
+	this.raycaster.setFromCamera( this.mouse, this.camera );
+
+	obj = this.objects;
+	var intersections = this.raycaster.intersectObjects(this.handleObjects);
+
+	if ( intersections.length > 0 )
+	{
+		console.log('intersection!');
+		controls.enabled = false;
+		this.SELECTED = intersections[0].object;
+
+		var backplaneIntersection = this.raycaster.intersectObject(obj['backPlane']);
+		if ( backplaneIntersection.length > 0 ) 
+		{
+			var planeHitpoint = backplaneIntersection[0].point;
+			// Record relative offset of mouse intersection and camera-aligned backplane
+			// (which we can assume is fixed in screen space during an active manipulation)
+			this.mousedownOffset.copy(planeHitpoint).sub(obj['backPlane'].position);
+		}
+	}
+}
+
+LaserPointer.prototype.onMouseUp = function(event)
+{
+	controls.enabled = true;
+	this.SELECTED = null;
+}
+
+
 
 //////////////////////////////////////////////////////////////////////
 // RayState
@@ -191,8 +374,8 @@ var Renderer = function()
 	{
 		var VIEW_ANGLE = 45;
 		var ASPECT = this.width / this.height ;
-		var NEAR = 0.1;
-		var FAR = 10000;
+		var NEAR = 0.05;
+		var FAR = 1000;
 		this.camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
 		this.camera.position.z = 50;
 		this.camera.updateProjectionMatrix();
@@ -237,12 +420,7 @@ var Renderer = function()
 	this.laser = new LaserPointer(this.glRenderer, this.glScene, this.camera);
 	this.groupPos = new THREE.Vector3(0.0, 0.0, 0.0); // hack for debug
 
-	this.raycaster = new THREE.Raycaster();
-
-	this.mouse = new THREE.Vector2();
-	this.mouseOffset = new THREE.Vector3();
-	this.INTERSECTED = null;
-	this.SELECTED = null;
+	document.body.addEventListener("keydown", this, false);
 
 	this.glRenderer.domElement.addEventListener( 'mousemove', this, false );
 	this.glRenderer.domElement.addEventListener( 'mousedown', this, false );
@@ -264,6 +442,7 @@ Renderer.prototype.handleEvent = function(event)
 		case 'mousemove': this.onDocumentMouseMove(event); break;
 		case 'mousedown': this.onDocumentMouseDown(event); break;
 		case 'mouseup':   this.onDocumentMouseUp(event);   break;
+		case 'keydown':   this.onKeydown(event);           break;
 	}
 }
 
@@ -333,7 +512,7 @@ Renderer.prototype.setup = function(shaderSources)
 	this.spectrum = new GLU.Texture(this.spectrumTable.length/4, 1, 4, true,  true, true, this.spectrumTable);
   
 	//gl.viewport(0, 0, this.width, this.height);
-	this.raySize = 128;
+	this.raySize = 32;
 	this.resetActiveBlock();
 	this.rayCount = this.raySize*this.raySize;
 	this.currentState = 0;
@@ -456,10 +635,10 @@ Renderer.prototype.render = function()
 		this.initProgram.uniformTexture("Spectrum", this.spectrum);
 		
 		// Emitter data (currently just location and direction)
-		emitterPos = new THREE.Vector3(-10.0, 0.0, 0.0);
+		emitterPos = this.laser.getPoint();
 		this.initProgram.uniform3F("EmitterPos", emitterPos.x, emitterPos.y, emitterPos.z);
 
-		emitterDir = this.sphericalPolar(Math.PI/2.0, 0.0);
+		emitterDir = this.laser.getDirection();
 		this.initProgram.uniform3F("EmitterDir", emitterDir.x, emitterDir.y, emitterDir.z);
 
 		// Write emitted ray initial conditions into 'next' state
@@ -562,27 +741,10 @@ Renderer.prototype.render = function()
 	this.composite();
 
 	// Render laser pointer
-
-	//this.laser.material.needsUpdate = true;
 	this.laser.render(this.glScene);
 
 	// Update raytracing state
 	this.currentState = next;
-
-	var time = Date.now() * 0.001;
-	var rx = Math.sin( time * 0.7 ) * 0.5;
-	var ry = Math.sin( time * 0.3 ) * 0.5;
-	var rz = Math.sin( time * 0.2 ) * 0.5;
-	obj = this.laser.getObjects();
-
-	//this.laser.setTranslation(this.groupPos);
-	
-	//obj['group'].position.x = this.groupPos.x;
-
-	obj['group'].rotation.x = rx;
-	obj['group'].rotation.y = ry;
-	obj['group'].rotation.z = rz;
-	obj['group'].updateMatrix();
 
 	this.stats.update();
 }
@@ -592,92 +754,48 @@ Renderer.prototype.onDocumentMouseMove = function(event)
 {
 	if (!this.initialized) return;
 	event.preventDefault();
-
-	this.mouse.x =   (event.clientX / window.innerWidth)*2 - 1;
-	this.mouse.y = - (event.clientY / window.innerHeight)*2 + 1;
-
-	this.raycaster.setFromCamera( this.mouse, this.camera );
-
-	obj = this.laser.getObjects();
-
-	if ( this.SELECTED ) 
-	{
-		var intersects = this.raycaster.intersectObject( obj['backPlane'] );
-		if ( intersects.length > 0 ) 
-		{
-			this.SELECTED.position.copy( intersects[0].point.sub(this.mouseOffset) );
-		}
-		return;
-	}
-
-	var intersects = this.raycaster.intersectObject(obj['housing']);
-
-	if ( intersects.length > 0 )
-	{
-		//if ( this.INTERSECTED != intersects[0].object )
-		{
-			this.INTERSECTED = intersects[0].object;
-
-			this.groupPos.copy( this.INTERSECTED.position );
-
-			//obj['group'].position.copy( this.INTERSECTED.position );
-			//obj['group'].updateMatrix();
-			obj['backPlane'].lookAt( this.camera.position );
-		}
-		this.container.style.cursor = 'pointer';
-	}
-	else
-	{
-		this.INTERSECTED = null;
-		this.container.style.cursor = 'auto';
-	}
+	if (this.laser.onMouseMove(event)) this.reset();
 }
-
 
 Renderer.prototype.onDocumentMouseDown = function(event)
 {
 	if (!this.initialized) return;
 	event.preventDefault();
-
-	this.raycaster.setFromCamera( this.mouse, this.camera );
-
-	obj = this.laser.getObjects();
-	var intersects = this.raycaster.intersectObject(obj['housing']);
-
-	if ( intersects.length > 0 )
-	{
-		controls.enabled = false;
-		
-		this.SELECTED = obj['group'];
-
-		var intersects = this.raycaster.intersectObject( obj['backPlane'] );
-		if ( intersects.length > 0 ) 
-		{
-			this.mouseOffset.copy( intersects[0].point ).sub( obj['backPlane'].position );
-		}
-
-		this.container.style.cursor = 'move';
-	}
+	this.laser.onMouseDown(event);
 }
-
 
 Renderer.prototype.onDocumentMouseUp = function(event)
 {
 	if (!this.initialized) return;
 	event.preventDefault();
-	controls.enabled = true;
-
-	if ( this.INTERSECTED ) 
-	{
-		obj = this.laser.getObjects();
-		obj['backPlane'].position.copy( this.INTERSECTED.position );
-		this.SELECTED = null;
-	}
-
-	container.style.cursor = 'auto';
+	this.laser.onMouseUp(event);
 }
 
+Renderer.prototype.onKeydown = function(event)
+{
+	if (!this.initialized) return;
+	event.preventDefault();
 
+	var charCode = (event.which) ? event.which : event.keyCode;
+	var fKeyCode = 70;
+
+	if (charCode == fKeyCode)
+	{
+		var element	= document.body;
+		if ( 'webkitCancelFullScreen' in document )
+		{
+			element.webkitRequestFullScreen();
+		}
+		else if ( 'mozCancelFullScreen' in document )
+		{
+			element.mozRequestFullScreen();
+		}
+		else
+		{
+			console.assert(false);
+		}
+	}
+}
 
 
 
