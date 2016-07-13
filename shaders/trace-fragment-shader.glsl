@@ -63,8 +63,41 @@ float opRep( vec3 p, vec3 c )
 }
 */
 
+const float inf = 1.0e6;
+
+float sdCross( in vec3 p )
+{
+  float da = sdBox(p.xyz,vec3(inf,1.0,1.0));
+  float db = sdBox(p.yzx,vec3(1.0,inf,1.0));
+  float dc = sdBox(p.zxy,vec3(1.0,1.0,inf));
+  return min(da,min(db,dc));
+}
+
+vec3 map( in vec3 p )
+{
+   float d = sdBox(p,vec3(1.0));
+
+   float s = 1.0;
+   for( int m=0; m<1; m++ )
+   {
+      vec3 a = mod( p*s, 2.0 )-1.0;
+      s *= 2.0;
+      vec3 r = abs(1.0 - 3.0*abs(a));
+
+      float da = max(r.x,r.y);
+      float db = max(r.y,r.z);
+      float dc = max(r.z,r.x);
+      float c = (min(da,min(db,dc))-1.0)/s;
+
+      d = max(d,c);
+   }
+
+   return vec3(d,1.0,1.0);
+}
+
 float DF(vec3 X)
 {
+	//return map(X/4.0).x;
 	float SDF1 = sdTorus(X, 0.8, 1.8);
 	float SDF2 = sdSphere(X, vec3(0.0, 0.0, 0.0), 1.99);
 	return min(SDF1, SDF2);
@@ -139,7 +172,7 @@ vec3 refract(inout vec3 X, vec3 D, vec3 N, inout vec4 rgbLambda)
 }
 
 
-#define maxMarchSteps 16
+#define maxMarchSteps 128
 #define minMarchDist 1.0e-4
 
 

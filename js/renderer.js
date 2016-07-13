@@ -19,13 +19,13 @@ var LaserPointer = function(glRenderer, glScene, glCamera)
 	this.INTERSECTED = null;
 	this.SELECTED = null;
 
-	var housingGeo      = new THREE.CylinderGeometry( 0.2, 0.2, 2, 4 );
+	var housingGeo      = new THREE.CylinderGeometry( 0.2, 0.2, 2, 32 );
 	var housingMaterial = new THREE.MeshPhongMaterial( { color: 0xdddddd, specular: 0x999999, shininess: 60 } );
 	var housingObj = new THREE.Mesh( housingGeo, housingMaterial  );
 	group.add(housingObj);
 
 	// x-handle
-	var xHandleGeo      = new THREE.CylinderGeometry( 0.05, 0.05, 4, 4 );
+	var xHandleGeo      = new THREE.CylinderGeometry( 0.1, 0.05, 4, 32 );
 	var xHandleMaterial = new THREE.MeshPhongMaterial( { color: 'red', specular: 0x999999, shininess: 60 } );
 	var xHandleObj      = new THREE.Mesh( xHandleGeo, xHandleMaterial  );
 	xHandleObj.rotation.z = 0.5*Math.PI;
@@ -33,7 +33,7 @@ var LaserPointer = function(glRenderer, glScene, glCamera)
 	group.add(xHandleObj);
 
 	// y-handle
-	var yHandleGeo      = new THREE.CylinderGeometry( 0.05, 0.05, 4, 4 );
+	var yHandleGeo      = new THREE.CylinderGeometry( 0.1, 0.05, 4, 32 );
 	var yHandleMaterial = new THREE.MeshPhongMaterial( { color: 'green', specular: 0x999999, shininess: 60 } );
 	var yHandleObj      = new THREE.Mesh( yHandleGeo, yHandleMaterial  );
 	yHandleObj.rotation.y = 0.5*Math.PI;
@@ -41,7 +41,7 @@ var LaserPointer = function(glRenderer, glScene, glCamera)
 	group.add(yHandleObj);
 
 	// z-handle
-	var zHandleGeo      = new THREE.CylinderGeometry( 0.05, 0.05, 4, 4 );
+	var zHandleGeo      = new THREE.CylinderGeometry( 0.1, 0.05, 4, 32 );
 	var zHandleMaterial = new THREE.MeshPhongMaterial( { color: 'blue', specular: 0x999999, shininess: 30 } );
 	var zHandleObj      = new THREE.Mesh( zHandleGeo, zHandleMaterial  );
 	zHandleObj.rotation.x = 0.5*Math.PI;
@@ -238,7 +238,18 @@ LaserPointer.prototype.onMouseMove = function(event)
 	{
 		//if ( this.INTERSECTED != intersections[ 0 ].object ) 
 		{
-			//INTERSECTED = intersections[ 0 ].object;
+			INTERSECTED = intersections[ 0 ].object;
+			INTERSECTED.material.color.set( 0xff0000 );
+
+			for (var n=0; n<this.handleObjects.length; n++) 
+			{
+				var obj = this.handleObjects[n];
+				if (obj != INTERSECTED) 
+				{
+					obj.material.color.set( 0xffffff );
+				}
+			}
+
 			group = obj['group'];
 			obj['backPlane'].lookAt( this.camera.position );
 			obj['backPlane'].position.copy( group.position );
@@ -248,6 +259,16 @@ LaserPointer.prototype.onMouseMove = function(event)
 	return false;
 }
 
+// TODO:
+
+//   beginnings of pathtracer
+//      - initially just one bounce per pixel rays, to visualize distance field
+
+//   fix laser pointer issues
+
+//   set up webGL dropdown UI thing, use initially e.g. for scene selection
+
+//   
 
 
 LaserPointer.prototype.onMouseDown = function(event)
@@ -512,12 +533,12 @@ Renderer.prototype.setup = function(shaderSources)
 	this.spectrum = new GLU.Texture(this.spectrumTable.length/4, 1, 4, true,  true, true, this.spectrumTable);
   
 	//gl.viewport(0, 0, this.width, this.height);
-	this.raySize = 32;
+	this.raySize = 256;
 	this.resetActiveBlock();
 	this.rayCount = this.raySize*this.raySize;
 	this.currentState = 0;
 	this.needsReset = true;
-	this.maxPathLength = 15;
+	this.maxPathLength = 32;
 	this.rayStates = [new RayState(this.raySize), new RayState(this.raySize)];
 		
 	// Create the buffer of texture coordinates, which maps each drawn line
@@ -578,7 +599,7 @@ Renderer.prototype.composite = function()
 
 	// Tonemap to effectively divide by total number of emitted photons
 	// (and also apply gamma correction)
-	this.compProgram.uniformF("Exposure", 10.0/(Math.max(this.samplesTraced, 1)));//this.raySize*this.activeBlock)));
+	this.compProgram.uniformF("Exposure", 100.0/(Math.max(this.samplesTraced, 1)));//this.raySize*this.activeBlock)));
 	
 	this.quadVbo.draw(this.compProgram, this.gl.TRIANGLE_FAN);
 }
