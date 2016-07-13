@@ -402,18 +402,6 @@ var Renderer = function()
 		this.camera.updateProjectionMatrix();
 	}
 
-	var renderer = this;
-	GLU.resolveShaderSource(["init", "trace", "line", "comp", "pass"],
-		function onShadersLoaded(shaderSources)
-		{
-			if (!renderer.initialized)
-			{
-				renderer.setup(shaderSources);
-				renderer.initialized = true;
-			}
-		}
-	);
-
 	////////////////////////////////////////////////////////////
 	// Setup three.js GL renderer
 	////////////////////////////////////////////////////////////
@@ -453,6 +441,18 @@ var Renderer = function()
 		this.stats.domElement.style.position = 'absolute';
 		this.stats.domElement.style.top = '0px';
 		this.container.appendChild( this.stats.domElement );
+	}
+
+	///////////////////////////////////////
+	// Read shaders
+	///////////////////////////////////////
+
+	var renderer = this;
+	var shaderSources = GLU.resolveShaderSource(["init", "trace", "line", "comp", "pass"]);
+	if (!renderer.initialized)
+	{
+		renderer.setup(shaderSources);
+		renderer.initialized = true;
 	}
 }
 
@@ -718,6 +718,20 @@ Renderer.prototype.render = function()
 		var modelViewMatrix = matrixWorldInverse.toArray();
 		var modelViewMatrixLocation = this.lineProgram.getUniformLocation("u_modelViewMatrix");
 		gl.uniformMatrix4fv(modelViewMatrixLocation, false, modelViewMatrix);
+
+
+
+
+
+		/// @todo:  here we will just render to each viewport pixel
+		///         using camera to initialize ray.
+
+		/// Extend to pathtracing by keeping previous frame's buffer around.
+
+
+
+
+
 
 		this.rayStates[current].posTex.bind(0); // PosDataA = current.posTex
 		this.rayStates[   next].posTex.bind(1); // PosDataB = next.posTex

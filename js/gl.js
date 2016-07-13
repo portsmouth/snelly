@@ -49,33 +49,19 @@ var GLU = {};
 		}
 	}
 
-	this.resolveShaderSource = function(shader_names, onFinishedCallback)
+	this.resolveShaderSource = function(shader_names)
 	{
-		var shader_files = [];
-		for (var i = 0; i < shader_names.length; i++) 
+		var shaderSources = {};
+		for (var i=0; i<shader_names.length; i++)
 		{
-			shader_files.push( "text!shaders/"+shader_names[i]+'-vertex-shader.glsl' );
-			shader_files.push( "text!shaders/"+shader_names[i]+'-fragment-shader.glsl' );
-		}
-
-		require(
-			shader_files,
-			function() 
+			var name = shader_names[i];
+			shaderSources[name] =
 			{
-				var shaderSources = {};
-				var n = 0;
-				for (var i = 0; i<(arguments.length)/2; i++) 
-				{
-					shaderSources[shader_names[i]] = 
-					{
-						'v': arguments[n],
-						'f': arguments[n+1]
-					};
-					n += 2;
-				}
-				onFinishedCallback(shaderSources);
-			}
-		);
+				'v': Shaders[name+'-vertex-shader'],
+				'f': Shaders[name+'-fragment-shader']
+			};
+		}
+		return shaderSources;
 	}
 
 	this.createProgram = function(vertexShader, fragmentShader) 
