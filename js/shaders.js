@@ -237,10 +237,10 @@ var Shaders = {
 	'\n' +
 	'vec3 map( in vec3 p )\n' +
 	'{\n' +
-	'   float d = sdBox(p,vec3(1.0));\n' +
+	'   float d = sdBox(p,vec3(100.0));\n' +
 	'\n' +
-	'   float s = 1.0;\n' +
-	'   for( int m=0; m<1; m++ )\n' +
+	'   float s = 0.1;\n' +
+	'   for( int m=0; m<6; m++ )\n' +
 	'   {\n' +
 	'      vec3 a = mod( p*s, 2.0 )-1.0;\n' +
 	'      s *= 2.0;\n' +

@@ -75,10 +75,10 @@ float sdCross( in vec3 p )
 
 vec3 map( in vec3 p )
 {
-   float d = sdBox(p,vec3(1.0));
+   float d = sdBox(p,vec3(100.0));
 
-   float s = 1.0;
-   for( int m=0; m<1; m++ )
+   float s = 0.1;
+   for( int m=0; m<6; m++ )
    {
       vec3 a = mod( p*s, 2.0 )-1.0;
       s *= 2.0;
