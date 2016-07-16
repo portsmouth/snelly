@@ -7,122 +7,278 @@
 
 var LaserPointer = function(glRenderer, glScene, glCamera) 
 {
+	// Main group of all objects moving rigidly with the laser pointer:
 	this.group = new THREE.Object3D();
 	var group = this.group;
 
 	this.camera = glCamera;
 	this.raycaster = new THREE.Raycaster();
 
-	this.mouse = new THREE.Vector2();
+	this.mouse     = new THREE.Vector2();
+	this.mousePrev = new THREE.Vector2();
 	this.mousedownOffset = new THREE.Vector3();
-	this.translationOnMouseDown = new THREE.Vector3();
+
 	this.INTERSECTED = null;
 	this.SELECTED = null;
 
 	var housingGeo      = new THREE.CylinderGeometry( 0.2, 0.2, 2, 32 );
 	var housingMaterial = new THREE.MeshPhongMaterial( { color: 0xdddddd, specular: 0x999999, shininess: 60 } );
-	var housingObj = new THREE.Mesh( housingGeo, housingMaterial  );
+	var housingObj      = new THREE.Mesh( housingGeo, housingMaterial  );
 	group.add(housingObj);
 
+	///////////////////////////////////////////////////////////
+	// Intersection geometry for handle controls (invisible)
+	///////////////////////////////////////////////////////////
+
+	this.intersectionHandleGroup = new THREE.Object3D();
+	var intersectionHandleGroup = this.intersectionHandleGroup;
+
+	var rI = 0.2;
+	var hI = 8.0;
+	var RI = 2.0;
+
 	// x-handle
-	var xHandleGeo      = new THREE.CylinderGeometry( 0.1, 0.05, 4, 32 );
-	var xHandleMaterial = new THREE.MeshPhongMaterial( { color: 'red', specular: 0x999999, shininess: 60 } );
-	var xHandleObj      = new THREE.Mesh( xHandleGeo, xHandleMaterial  );
-	xHandleObj.rotation.z = 0.5*Math.PI;
-	xHandleObj.position.x = -0.0;
-	group.add(xHandleObj);
+	var xHandleIntersectionGeo       = new THREE.CylinderGeometry( rI, rI, hI, 32 );
+	var xHandleIntersectionMaterial  = new THREE.MeshPhongMaterial( { color: 'red', specular: 0x999999, shininess: 60, visible: true } );
+	var xHandleIntersectionObj       = new THREE.Mesh( xHandleIntersectionGeo, xHandleIntersectionMaterial  );
+	xHandleIntersectionObj.rotation.z = 0.5*Math.PI;
+	xHandleIntersectionObj.position.x = -0.0;
+	intersectionHandleGroup.add(xHandleIntersectionObj);
 
 	// y-handle
-	var yHandleGeo      = new THREE.CylinderGeometry( 0.1, 0.05, 4, 32 );
-	var yHandleMaterial = new THREE.MeshPhongMaterial( { color: 'green', specular: 0x999999, shininess: 60 } );
-	var yHandleObj      = new THREE.Mesh( yHandleGeo, yHandleMaterial  );
-	yHandleObj.rotation.y = 0.5*Math.PI;
-	yHandleObj.position.x = -0.0;
-	group.add(yHandleObj);
+	var yHandleIntersectionGeo        = new THREE.CylinderGeometry( rI, rI, hI, 32 );
+	var yHandleIntersectionMaterial   = new THREE.MeshPhongMaterial( { color: 'green', specular: 0x999999, shininess: 60, visible: true } );
+	var yHandleIntersectionObj        = new THREE.Mesh( yHandleIntersectionGeo, yHandleIntersectionMaterial  );
+	yHandleIntersectionObj.rotation.y = 0.5*Math.PI;
+	yHandleIntersectionObj.position.x = -0.0;
+	intersectionHandleGroup.add(yHandleIntersectionObj);
 
 	// z-handle
-	var zHandleGeo      = new THREE.CylinderGeometry( 0.1, 0.05, 4, 32 );
-	var zHandleMaterial = new THREE.MeshPhongMaterial( { color: 'blue', specular: 0x999999, shininess: 30 } );
-	var zHandleObj      = new THREE.Mesh( zHandleGeo, zHandleMaterial  );
-	zHandleObj.rotation.x = 0.5*Math.PI;
-	zHandleObj.position.x = -0.0;
-	group.add(zHandleObj);
+	var zHandleIntersectionGeo        = new THREE.CylinderGeometry( rI, rI, hI, 32 );
+	var zHandleIntersectionMaterial   = new THREE.MeshPhongMaterial( { color: 'blue', specular: 0x999999, shininess: 30, visible: true } );
+	var zHandleIntersectionObj        = new THREE.Mesh( zHandleIntersectionGeo, zHandleIntersectionMaterial  );
+	zHandleIntersectionObj.rotation.x = 0.5*Math.PI;
+	zHandleIntersectionObj.position.x = -0.0;
+	intersectionHandleGroup.add(zHandleIntersectionObj);
 
 	// x-rot-handle
-	var xRotHandleGeo      = new THREE.TorusGeometry( 0.75, 0.1, 32, 100 );
-	var xRotHandleMaterial = new THREE.MeshPhongMaterial( { color: 'red', specular: 0x999999, shininess: 30 } );
-	var xRotHandleObj = new THREE.Mesh( xRotHandleGeo, xRotHandleMaterial  );
-	xRotHandleObj.rotation.y = 0.5*Math.PI;
-	group.add(xRotHandleObj);
+	var xRotHandleIntersectionGeo      = new THREE.TorusGeometry( RI, rI, 32, 100 );
+	var xRotHandleIntersectionMaterial = new THREE.MeshPhongMaterial( { color: 'red', specular: 0x999999, shininess: 30, visible: true } );
+	var xRotHandleIntersectionObj      = new THREE.Mesh( xRotHandleIntersectionGeo, xRotHandleIntersectionMaterial  );
+	xRotHandleIntersectionObj.rotation.y = 0.5*Math.PI;
+	intersectionHandleGroup.add(xRotHandleIntersectionObj);
 
 	// z-rot-handle
-	var zRotHandleGeo      = new THREE.TorusGeometry( 0.75, 0.1, 32, 100 );
-	var zRotHandleMaterial = new THREE.MeshPhongMaterial( { color: 'blue', specular: 0x999999, shininess: 30 } );
-	var zRotHandleObj = new THREE.Mesh( zRotHandleGeo, zRotHandleMaterial  );
-	zRotHandleObj.rotation.y = 0.0;
-	group.add(zRotHandleObj);
+	var zRotHandleIntersectionGeo      = new THREE.TorusGeometry( RI, rI, 32, 100 );
+	var zRotHandleIntersectionMaterial = new THREE.MeshPhongMaterial( { color: 'blue', specular: 0x999999, shininess: 30, visible: true } );
+	var zRotHandleIntersectionObj      = new THREE.Mesh( zRotHandleIntersectionGeo, zRotHandleIntersectionMaterial  );
+	zRotHandleIntersectionObj.rotation.y = 0.0;
+	intersectionHandleGroup.add(zRotHandleIntersectionObj);
 
+	group.add(intersectionHandleGroup);
+
+
+	//////////////////////////////////////////////////////////////////////////////
+	// Rendered geometry for handle controls (thin, visually appealing lines)
+	//////////////////////////////////////////////////////////////////////////////
+	
+	this.renderHandleGroup = new THREE.Object3D();
+	var renderHandleGroup = this.renderHandleGroup;
+
+	var rR = 0.05;
+	var hR = 8.0;
+	var RR = 2.0;
+
+	// x-handle
+	var xHandleRenderGeo      = new THREE.CylinderGeometry( rR, rR, hR, 32 );
+	var xHandleRenderMaterial = new THREE.MeshPhongMaterial( { color: 'red', specular: 0x999999, shininess: 60 } );
+	var xHandleRenderObj      = new THREE.Mesh( xHandleRenderGeo, xHandleRenderMaterial  );
+	xHandleRenderObj.rotation.z = 0.5*Math.PI;
+	xHandleRenderObj.position.x = -0.0;
+	renderHandleGroup.add(xHandleRenderObj);
+
+	// y-handle
+	var yHandleRenderGeo      = new THREE.CylinderGeometry( rR, rR, hR, 32 );
+	var yHandleRenderMaterial = new THREE.MeshPhongMaterial( { color: 'green', specular: 0x999999, shininess: 60 } );
+	var yHandleRenderObj      = new THREE.Mesh( yHandleRenderGeo, yHandleRenderMaterial  );
+	yHandleRenderObj.rotation.y = 0.5*Math.PI;
+	yHandleRenderObj.position.x = -0.0;
+	renderHandleGroup.add(yHandleRenderObj);
+
+	// z-handle
+	var zHandleRenderGeo      = new THREE.CylinderGeometry( rR, rR, hR, 32 );
+	var zHandleRenderMaterial = new THREE.MeshPhongMaterial( { color: 'blue', specular: 0x999999, shininess: 30 } );
+	var zHandleRenderObj      = new THREE.Mesh( zHandleRenderGeo, zHandleRenderMaterial  );
+	zHandleRenderObj.rotation.x = 0.5*Math.PI;
+	zHandleRenderObj.position.x = -0.0;
+	renderHandleGroup.add(zHandleRenderObj);
+
+	group.add(renderHandleGroup);
+
+	// x-rot-handle
+	var xRotHandleRenderGeo      = new THREE.TorusGeometry( RR, rR, 32, 100 );
+	var xRotHandleMaterial = new THREE.MeshPhongMaterial( { color: 'red', specular: 0x999999, shininess: 30 } );
+	var xRotHandleRenderObj = new THREE.Mesh( xRotHandleRenderGeo, xRotHandleMaterial  );
+	xRotHandleRenderObj.rotation.y = 0.5*Math.PI;
+	renderHandleGroup.add(xRotHandleRenderObj);
+
+	// z-rot-handle
+	var zRotHandleRenderGeo      = new THREE.TorusGeometry( RR, rR, 32, 100 );
+	var zRotHandleMaterial = new THREE.MeshPhongMaterial( { color: 'blue', specular: 0x999999, shininess: 30 } );
+	var zRotHandleRenderObj = new THREE.Mesh( zRotHandleRenderGeo, zRotHandleMaterial  );
+	zRotHandleRenderObj.rotation.y = 0.0;
+	renderHandleGroup.add(zRotHandleRenderObj);
+
+	///////////////////////////////////////////////////////////
 	// proxy to represent the emission point of the laser
-	var proxyGeo = new THREE.SphereGeometry(0.1);
+	///////////////////////////////////////////////////////////
+
+	var proxyGeo      = new THREE.SphereGeometry(0.1);
 	var proxyMaterial = new THREE.MeshPhongMaterial( { color: 0xff0000, specular: 0x999900, shininess: 10 } );
-	var proxyObj = new THREE.Mesh( proxyGeo, proxyMaterial  );
+	var proxyObj      = new THREE.Mesh( proxyGeo, proxyMaterial  );
 	proxyObj.position.y = 1.0;
 	group.add(proxyObj);
 	group.position.x = 0.0;
 
-	glScene.add(group);
-
+	///////////////////////////////////////////////////////////
 	// back plane to implement dragging 
-	var backPlaneObj = new THREE.Mesh(
-					new THREE.PlaneGeometry(2000, 2000),
-					new THREE.MeshBasicMaterial( { visible: false } )
+	///////////////////////////////////////////////////////////
+
+	var backPlaneObj =  new THREE.Mesh(
+						new THREE.PlaneGeometry(2000, 2000),
+						new THREE.MeshBasicMaterial( { visible: false } )
 				);
 	backPlaneObj.position.x = 0.0;
 	backPlaneObj.position.y = 0.0;
-	glScene.add(backPlaneObj);
 
 	this.X = new THREE.Vector3(1, 0, 0);
 	this.Y = new THREE.Vector3(0, 1, 0);
 	this.Z = new THREE.Vector3(0, 0, 1);
 
 	this.objects = {
+
 		"housing": housingObj,
 		"proxy": proxyObj,
-		"xHandle": xHandleObj,
-		"yHandle": yHandleObj,
-		"zHandle": zHandleObj,
-		"xRotHandle": xRotHandleObj,
-		"zRotHandle": zRotHandleObj,
+
+		"xHandleIntersection": xHandleIntersectionObj,
+		"yHandleIntersection": yHandleIntersectionObj,
+		"zHandleIntersection": zHandleIntersectionObj,
+		"xRotHandleIntersection": xRotHandleIntersectionObj,
+		"zRotHandleIntersection": zRotHandleIntersectionObj,
+		"intersectionHandleGroup" : intersectionHandleGroup,
+
+		"xHandleRender": xHandleRenderObj,
+		"yHandleRender": yHandleRenderObj,
+		"zHandleRender": zHandleRenderObj,
+		"xRotHandleRender": xRotHandleRenderObj,
+		"zRotHandleRender": zRotHandleRenderObj,
+		"renderHandleGroup" : renderHandleGroup,
+		
 		"backPlane": backPlaneObj,
 		"group": group
 	};
 
-	var handleNames = [ "xHandle", "yHandle", "zHandle", "xRotHandle", "zRotHandle" ];
-	this.handleObjects = [];
-	for (var n=0; n<handleNames.length; n++) 
+	// Set these names on the objects
+	for (var key in this.objects) 
 	{
-		this.handleObjects.push(this.objects[handleNames[n]]);
+		if (this.objects.hasOwnProperty(key)) 
+		{
+			this.objects[key].name = key;
+		}
 	}
 
+	var intersectionHandleNames = [ "xHandleIntersection", 
+									"yHandleIntersection", 
+									"zHandleIntersection",
+									"xRotHandleIntersection", 
+									"zRotHandleIntersection" ];
+	this.intersectionHandleObjects = [];
+	for (var n=0; n<intersectionHandleNames.length; n++) 
+	{
+		this.intersectionHandleObjects.push(this.objects[intersectionHandleNames[n]]);
+	}
+
+	var renderHandleNames = [ "xHandleRender", 
+							  "yHandleRender", 
+							  "zHandleRender",
+							  "xRotHandleRender", 
+							  "zRotHandleRender" ];
+	this.renderHandleObjects = [];
+	for (var n=0; n<renderHandleNames.length; n++) 
+	{
+		this.renderHandleObjects.push(this.objects[renderHandleNames[n]]);
+	}
+
+	this.intersectionHandleNameToRenderHandleName = { "xHandleIntersection": "xHandleRender",
+													  "yHandleIntersection": "yHandleRender",
+													  "zHandleIntersection": "zHandleRender",
+													  "xRotHandleIntersection": "xRotHandleRender",
+													  "zRotHandleIntersection": "zRotHandleRender" };
 	this.glScene = glScene;
 	this.glRenderer = glRenderer;
 	this.glCamera = glCamera;
+
+	// Finally, add the laser pointer objects (and backplane for raycasting) to the scene
+	glScene.add(group);
+	glScene.add(backPlaneObj);
 }
 
 
 LaserPointer.prototype.render = function()
 {
+	// Ensure laser handles are scaled according to current camera position
+	// (to be roughly constant size in screen space)
+	var group = this.objects["group"];
+
+	var camDist = new THREE.Vector3();
+	camDist.copy(this.objects["group"].position).sub(this.camera.position);
+	var C = 0.05*camDist.length();
+
+	intersectionHandleGroup = this.objects["intersectionHandleGroup"];
+	intersectionHandleGroup.scale.set(C, C, C);
+	intersectionHandleGroup.updateMatrix();
+
+	renderHandleGroup = this.objects["renderHandleGroup"];
+	renderHandleGroup.scale.set(C, C, C);
+	renderHandleGroup.updateMatrix();
+
+	group.updateMatrix();
+
 	this.glRenderer.render(this.glScene, this.glCamera);
 }
 
+// get position of emission point
 LaserPointer.prototype.getPoint = function()
 {
 	var pLocal = new THREE.Vector3();
 	pLocal.copy(this.objects['proxy'].position);
-	var pWorld = pLocal.applyMatrix4( this.group.matrixWorld );
+	var pWorld = pLocal.applyMatrix4( this.group.matrix );
 	return pWorld;
 }
 
+
+// set world position of group origin
+LaserPointer.prototype.setPosition = function(position)
+{
+	var group = this.objects["group"];
+	group.position.copy(position);
+	group.updateMatrix();
+}
+
+// set world direction of laser emitted from emission point
+LaserPointer.prototype.setDirection = function(direction)
+{
+	// rotate local y-direction of group into specified direction
+	var group = this.objects["group"];
+	var currentDir = this.getDirection();
+	var rot = new THREE.Quaternion();
+	rot.setFromUnitVectors(currentDir, direction);
+	group.quaternion.multiplyQuaternions(rot, group.quaternion);
+	group.updateMatrix();
+}
+
+
+// get direction of laser emitted from emission point
 LaserPointer.prototype.getDirection = function()
 {
 	return this.getY();
@@ -160,10 +316,27 @@ LaserPointer.prototype.onMouseMove = function(event)
 	this.mouse.x =   (event.clientX / window.innerWidth)*2 - 1;
 	this.mouse.y = - (event.clientY / window.innerHeight)*2 + 1;
 
+	var mouseShift = new THREE.Vector2();
+	mouseShift.copy(this.mouse).sub(this.mousePrev);
+	console.log('\nmouseShift');
+	console.log(event.clientX);
+	console.log(event.clientY);
+	console.log(this.mouse.x);
+	console.log(this.mouse.y);
+	console.log(this.mousePrev.x);
+	console.log(this.mousePrev.y);
+	console.log(mouseShift.x);
+	console.log(mouseShift.y);
+
+	this.mousePrev.copy(this.mouse);
+
 	// update the picking ray with the camera and mouse position
 	this.raycaster.setFromCamera( this.mouse, this.camera );
 
 	obj = this.objects;
+	group = obj["group"];
+
+	var camDist = new THREE.Vector3();
 
 	if ( this.SELECTED )
 	{
@@ -171,85 +344,68 @@ LaserPointer.prototype.onMouseMove = function(event)
 		if ( backplaneIntersection.length > 0 )
 		{
 			var planeHitpoint = backplaneIntersection[0].point;
-			group = this.objects["group"];
 
-			var newGroupPos = new THREE.Vector3();
-			newGroupPos.copy(planeHitpoint).sub(this.mousedownOffset);
+			var shiftRelative = new THREE.Vector3(); // relative to mouse-down hit
+			shiftRelative.copy(planeHitpoint).sub(this.mousedownOffset);
 
-			var groupShift = new THREE.Vector3();
-			groupShift.copy(newGroupPos).sub(group.position);
-
-			if (this.SELECTED == obj['xHandle'])
+			var shiftAbsolute = new THREE.Vector3(); // resulting group translation in plane 
+			shiftAbsolute.copy(shiftRelative).sub(group.position);
+		
+			if (this.SELECTED == obj['xHandleIntersection'])
 			{
-				console.log('xHandle selected');
-				var moveX = groupShift.dot(this.getX());
-				var V = new THREE.Vector3();
-				V.copy(this.getX()).multiplyScalar(moveX);
-				group.position.add(V);
+				var moveX = shiftAbsolute.dot(this.getX());
+				var xTranslation = new THREE.Vector3();
+				xTranslation.copy(this.getX()).multiplyScalar(moveX);
+				group.position.add(xTranslation);
 			}
-			else if (this.SELECTED == obj['yHandle'])
+			else if (this.SELECTED == obj['yHandleIntersection'])
 			{
-				console.log('yHandle selected');
-				var moveY = groupShift.dot(this.getY());
-				var V = new THREE.Vector3();
-				V.copy(this.getY()).multiplyScalar(moveY);
-				group.position.add(V);
+				var moveY = shiftAbsolute.dot(this.getY());
+				var yTranslation = new THREE.Vector3();
+				yTranslation.copy(this.getY()).multiplyScalar(moveY);
+				group.position.add(yTranslation);
 			}
-			else if (this.SELECTED == obj['zHandle'])
+			else if (this.SELECTED == obj['zHandleIntersection'])
 			{
-				console.log('zHandle selected');
-				var moveZ = groupShift.dot(this.getZ());
-				var V = new THREE.Vector3();
-				V.copy(this.getZ()).multiplyScalar(moveZ);
-				group.position.add(V);
+				var moveZ = shiftAbsolute.dot(this.getZ());
+				var zTranslation = new THREE.Vector3();
+				zTranslation.copy(this.getZ()).multiplyScalar(moveZ);
+				group.position.add(zTranslation);
 			}
-			else if (this.SELECTED == obj['xRotHandle'])
-			{
-				var camDist = new THREE.Vector3();
-				camDist.copy(group.position).sub(this.camera.position);
-				var C = camDist.length();
-				var rotAngle = 0.5 * Math.PI * groupShift.dot(this.getY()) / Math.max(C, 1.0);
 
+			else if (this.SELECTED == obj['xRotHandleIntersection'])
+			{
+				var rotAngle = 0.5 * Math.PI * mouseShift.length();
 				var rotX = new THREE.Quaternion();
 				rotX.setFromAxisAngle(this.getX(), rotAngle);
-
 				group.quaternion.multiplyQuaternions(rotX, group.quaternion);
 			}
-			else if (this.SELECTED == obj['zRotHandle'])
+			else if (this.SELECTED == obj['zRotHandleIntersection'])
 			{
-				var camDist = new THREE.Vector3();
-				camDist.copy(group.position).sub(this.camera.position);
-				var C = camDist.length();
-				var rotAngle = 0.5 * Math.PI * groupShift.dot(this.getY()) / Math.max(C, 1.0);
+				console.log('\nzRot');
+				console.log(mouseShift.x);
+				console.log(mouseShift.y);
+
+				var rotAngle = 0.5 * Math.PI * mouseShift.length();
+				console.log(rotAngle);
 
 				var rotZ = new THREE.Quaternion();
 				rotZ.setFromAxisAngle(this.getZ(), rotAngle);
-
 				group.quaternion.multiplyQuaternions(rotZ, group.quaternion);
 			}
 
 			group.updateMatrix();
 		}
+
 		return true;
 	}
 
-	var intersections = this.raycaster.intersectObjects(this.handleObjects);
+	var intersections = this.raycaster.intersectObjects(this.intersectionHandleObjects);
 	if ( intersections.length > 0 )
 	{
-		//if ( this.INTERSECTED != intersections[ 0 ].object ) 
+		if ( this.INTERSECTED != intersections[0].object ) 
 		{
-			INTERSECTED = intersections[ 0 ].object;
-			INTERSECTED.material.color.set( 0xff0000 );
-
-			for (var n=0; n<this.handleObjects.length; n++) 
-			{
-				var obj = this.handleObjects[n];
-				if (obj != INTERSECTED) 
-				{
-					obj.material.color.set( 0xffffff );
-				}
-			}
-
+			// We moused over a new handle: update backplane to prepare for possible selection:
 			group = obj['group'];
 			obj['backPlane'].lookAt( this.camera.position );
 			obj['backPlane'].position.copy( group.position );
@@ -273,25 +429,46 @@ LaserPointer.prototype.onMouseMove = function(event)
 
 LaserPointer.prototype.onMouseDown = function(event)
 {
+	this.mousePrev.x =   (event.clientX / window.innerWidth)*2 - 1;
+	this.mousePrev.y = - (event.clientY / window.innerHeight)*2 + 1;
+
 	// update the picking ray with the camera and mouse position
 	this.raycaster.setFromCamera( this.mouse, this.camera );
 
 	obj = this.objects;
-	var intersections = this.raycaster.intersectObjects(this.handleObjects);
+	var intersections = this.raycaster.intersectObjects(this.intersectionHandleObjects);
 
 	if ( intersections.length > 0 )
 	{
-		console.log('intersection!');
 		controls.enabled = false;
 		this.SELECTED = intersections[0].object;
+
+		// Indicate selection by making corresponding render handle slightly emissive
+		var rname = this.intersectionHandleNameToRenderHandleName[this.SELECTED.name];
+		var robj = this.objects[rname];
+		robj.material.emissive.set( 0x404040 );
+
+		for (var n=0; n<this.renderHandleObjects.length; n++) 
+		{
+			var robj_prime = this.renderHandleObjects[n];
+			if (robj_prime != robj) 
+			{
+				robj_prime.material.emissive.set( 0x000000 );
+			}
+		}
 
 		var backplaneIntersection = this.raycaster.intersectObject(obj['backPlane']);
 		if ( backplaneIntersection.length > 0 ) 
 		{
 			var planeHitpoint = backplaneIntersection[0].point;
+
 			// Record relative offset of mouse intersection and camera-aligned backplane
 			// (which we can assume is fixed in screen space during an active manipulation)
 			this.mousedownOffset.copy(planeHitpoint).sub(obj['backPlane'].position);
+
+			group = obj['group'];
+			this.groupPositionOnMouseDown   = group.position;
+			this.groupQuaternionOnMouseDown = group.quaternion;
 		}
 	}
 }
@@ -300,6 +477,8 @@ LaserPointer.prototype.onMouseUp = function(event)
 {
 	controls.enabled = true;
 	this.SELECTED = null;
+
+
 }
 
 
@@ -426,11 +605,39 @@ var Renderer = function()
 
 	document.body.appendChild(this.glRenderer.domElement);
 
+	////////////////////////////////////////////////////////////
+	// Setup Laser pointer
+	////////////////////////////////////////////////////////////
 	this.laser = new LaserPointer(this.glRenderer, this.glScene, this.camera);
-	this.groupPos = new THREE.Vector3(0.0, 0.0, 0.0); // hack for debug
+	this.laser.setPosition(new THREE.Vector3(-10.0, 0.0, 0.0));
+	this.laser.setDirection(new THREE.Vector3(1.0, 0.0, 0.0));
 
+	// @todo: define 'scenes', which consist of:
+
+	//   - a chunk of glsl defining an SDF
+	//   - starting point for laser pointer and camera
+
+	// User settings:
+	//   - switch scene
+	//   - change laser pointer spread
+	//   - change spectrum of emission
+	//   - change global IOR?
+
+	// @todo: some 'debug display' of the object geometry, via distance tracing.
+
+
+	// @todo  for version 2.0
+	//  -- more general scenes with:
+	//       - a different microfacet BSDF on each object surface (both reflection and transmission)
+	//       - different (but constant) IOR in SDF<0 interiors, per 'object'
+	//	-- ability to switch to full pathtracing mode (bidirectional)
+	
+
+
+	////////////////////////////////////////////////////////////
+	// Setup keypress events
+	////////////////////////////////////////////////////////////
 	document.body.addEventListener("keydown", this, false);
-
 	this.glRenderer.domElement.addEventListener( 'mousemove', this, false );
 	this.glRenderer.domElement.addEventListener( 'mousedown', this, false );
 	this.glRenderer.domElement.addEventListener( 'mouseup',   this, false );
@@ -533,7 +740,7 @@ Renderer.prototype.setup = function(shaderSources)
 	this.spectrum = new GLU.Texture(this.spectrumTable.length/4, 1, 4, true,  true, true, this.spectrumTable);
   
 	//gl.viewport(0, 0, this.width, this.height);
-	this.raySize = 256;
+	this.raySize = 32;
 	this.resetActiveBlock();
 	this.rayCount = this.raySize*this.raySize;
 	this.currentState = 0;
@@ -718,19 +925,6 @@ Renderer.prototype.render = function()
 		var modelViewMatrix = matrixWorldInverse.toArray();
 		var modelViewMatrixLocation = this.lineProgram.getUniformLocation("u_modelViewMatrix");
 		gl.uniformMatrix4fv(modelViewMatrixLocation, false, modelViewMatrix);
-
-
-
-
-
-		/// @todo:  here we will just render to each viewport pixel
-		///         using camera to initialize ray.
-
-		/// Extend to pathtracing by keeping previous frame's buffer around.
-
-
-
-
 
 
 		this.rayStates[current].posTex.bind(0); // PosDataA = current.posTex

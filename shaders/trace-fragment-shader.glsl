@@ -97,10 +97,10 @@ vec3 map( in vec3 p )
 
 float DF(vec3 X)
 {
-	return map(X/4.0).x;
-	//float SDF1 = sdTorus(X, 0.8, 1.8);
-	//float SDF2 = sdSphere(X, vec3(0.0, 0.0, 0.0), 1.99);
-	//return min(SDF1, SDF2);
+	//return map(X/4.0).x;
+	float SDF1 = sdTorus(X, 0.8, 1.8);
+	float SDF2 = sdSphere(X, vec3(0.0, 0.0, 0.0), 1.99);
+	return min(SDF1, SDF2);
 }
 
 

@@ -259,10 +259,10 @@ var Shaders = {
 	'\n' +
 	'float DF(vec3 X)\n' +
 	'{\n' +
-	'	return map(X/4.0).x;\n' +
-	'	//float SDF1 = sdTorus(X, 0.8, 1.8);\n' +
-	'	//float SDF2 = sdSphere(X, vec3(0.0, 0.0, 0.0), 1.99);\n' +
-	'	//return min(SDF1, SDF2);\n' +
+	'	//return map(X/4.0).x;\n' +
+	'	float SDF1 = sdTorus(X, 0.8, 1.8);\n' +
+	'	float SDF2 = sdSphere(X, vec3(0.0, 0.0, 0.0), 1.99);\n' +
+	'	return min(SDF1, SDF2);\n' +
 	'}\n' +
 	'\n' +
 	'\n' +

@@ -11,6 +11,8 @@ uniform sampler2D Spectrum;
 
 uniform vec3 EmitterPos;
 uniform vec3 EmitterDir;
+uniform float EmitterRadius;
+uniform float EmitterSpread; // in degrees
 
 varying vec2 vTexCoord;
 
