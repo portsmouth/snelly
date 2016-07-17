@@ -21,7 +21,10 @@ var LaserPointer = function(glRenderer, glScene, glCamera)
 	this.INTERSECTED = null;
 	this.SELECTED = null;
 
-	var housingGeo      = new THREE.CylinderGeometry( 0.2, 0.2, 2, 32 );
+	// Laser housing geometry
+	var rPointer = 0.2;
+	var lPointer = 2.0;
+	var housingGeo      = new THREE.CylinderGeometry( rPointer, rPointer, lPointer, 32 );
 	var housingMaterial = new THREE.MeshPhongMaterial( { color: 0xdddddd, specular: 0x999999, shininess: 60 } );
 	var housingObj      = new THREE.Mesh( housingGeo, housingMaterial  );
 	group.add(housingObj);
@@ -39,7 +42,7 @@ var LaserPointer = function(glRenderer, glScene, glCamera)
 
 	// x-handle
 	var xHandleIntersectionGeo       = new THREE.CylinderGeometry( rI, rI, hI, 32 );
-	var xHandleIntersectionMaterial  = new THREE.MeshPhongMaterial( { color: 'red', specular: 0x999999, shininess: 60, visible: true } );
+	var xHandleIntersectionMaterial  = new THREE.MeshPhongMaterial( { color: 'red', visible: false } );
 	var xHandleIntersectionObj       = new THREE.Mesh( xHandleIntersectionGeo, xHandleIntersectionMaterial  );
 	xHandleIntersectionObj.rotation.z = 0.5*Math.PI;
 	xHandleIntersectionObj.position.x = -0.0;
@@ -47,7 +50,7 @@ var LaserPointer = function(glRenderer, glScene, glCamera)
 
 	// y-handle
 	var yHandleIntersectionGeo        = new THREE.CylinderGeometry( rI, rI, hI, 32 );
-	var yHandleIntersectionMaterial   = new THREE.MeshPhongMaterial( { color: 'green', specular: 0x999999, shininess: 60, visible: true } );
+	var yHandleIntersectionMaterial   = new THREE.MeshPhongMaterial( { color: 'green', visible: false } );
 	var yHandleIntersectionObj        = new THREE.Mesh( yHandleIntersectionGeo, yHandleIntersectionMaterial  );
 	yHandleIntersectionObj.rotation.y = 0.5*Math.PI;
 	yHandleIntersectionObj.position.x = -0.0;
@@ -55,7 +58,7 @@ var LaserPointer = function(glRenderer, glScene, glCamera)
 
 	// z-handle
 	var zHandleIntersectionGeo        = new THREE.CylinderGeometry( rI, rI, hI, 32 );
-	var zHandleIntersectionMaterial   = new THREE.MeshPhongMaterial( { color: 'blue', specular: 0x999999, shininess: 30, visible: true } );
+	var zHandleIntersectionMaterial   = new THREE.MeshPhongMaterial( { color: 'blue', visible: false } );
 	var zHandleIntersectionObj        = new THREE.Mesh( zHandleIntersectionGeo, zHandleIntersectionMaterial  );
 	zHandleIntersectionObj.rotation.x = 0.5*Math.PI;
 	zHandleIntersectionObj.position.x = -0.0;
@@ -63,14 +66,14 @@ var LaserPointer = function(glRenderer, glScene, glCamera)
 
 	// x-rot-handle
 	var xRotHandleIntersectionGeo      = new THREE.TorusGeometry( RI, rI, 32, 100 );
-	var xRotHandleIntersectionMaterial = new THREE.MeshPhongMaterial( { color: 'red', specular: 0x999999, shininess: 30, visible: true } );
+	var xRotHandleIntersectionMaterial = new THREE.MeshPhongMaterial( { color: 'red', visible: false } );
 	var xRotHandleIntersectionObj      = new THREE.Mesh( xRotHandleIntersectionGeo, xRotHandleIntersectionMaterial  );
 	xRotHandleIntersectionObj.rotation.y = 0.5*Math.PI;
 	intersectionHandleGroup.add(xRotHandleIntersectionObj);
 
 	// z-rot-handle
 	var zRotHandleIntersectionGeo      = new THREE.TorusGeometry( RI, rI, 32, 100 );
-	var zRotHandleIntersectionMaterial = new THREE.MeshPhongMaterial( { color: 'blue', specular: 0x999999, shininess: 30, visible: true } );
+	var zRotHandleIntersectionMaterial = new THREE.MeshPhongMaterial( { color: 'blue', visible: false } );
 	var zRotHandleIntersectionObj      = new THREE.Mesh( zRotHandleIntersectionGeo, zRotHandleIntersectionMaterial  );
 	zRotHandleIntersectionObj.rotation.y = 0.0;
 	intersectionHandleGroup.add(zRotHandleIntersectionObj);
@@ -91,7 +94,7 @@ var LaserPointer = function(glRenderer, glScene, glCamera)
 
 	// x-handle
 	var xHandleRenderGeo      = new THREE.CylinderGeometry( rR, rR, hR, 32 );
-	var xHandleRenderMaterial = new THREE.MeshPhongMaterial( { color: 'red', specular: 0x999999, shininess: 60 } );
+	var xHandleRenderMaterial = new THREE.MeshPhongMaterial( { color: 0x800000, shininess: 10 } );
 	var xHandleRenderObj      = new THREE.Mesh( xHandleRenderGeo, xHandleRenderMaterial  );
 	xHandleRenderObj.rotation.z = 0.5*Math.PI;
 	xHandleRenderObj.position.x = -0.0;
@@ -99,7 +102,7 @@ var LaserPointer = function(glRenderer, glScene, glCamera)
 
 	// y-handle
 	var yHandleRenderGeo      = new THREE.CylinderGeometry( rR, rR, hR, 32 );
-	var yHandleRenderMaterial = new THREE.MeshPhongMaterial( { color: 'green', specular: 0x999999, shininess: 60 } );
+	var yHandleRenderMaterial = new THREE.MeshPhongMaterial( { color: 0x008000, shininess: 10 } );
 	var yHandleRenderObj      = new THREE.Mesh( yHandleRenderGeo, yHandleRenderMaterial  );
 	yHandleRenderObj.rotation.y = 0.5*Math.PI;
 	yHandleRenderObj.position.x = -0.0;
@@ -107,7 +110,7 @@ var LaserPointer = function(glRenderer, glScene, glCamera)
 
 	// z-handle
 	var zHandleRenderGeo      = new THREE.CylinderGeometry( rR, rR, hR, 32 );
-	var zHandleRenderMaterial = new THREE.MeshPhongMaterial( { color: 'blue', specular: 0x999999, shininess: 30 } );
+	var zHandleRenderMaterial = new THREE.MeshPhongMaterial( { color: 0x000080, shininess: 30 } );
 	var zHandleRenderObj      = new THREE.Mesh( zHandleRenderGeo, zHandleRenderMaterial  );
 	zHandleRenderObj.rotation.x = 0.5*Math.PI;
 	zHandleRenderObj.position.x = -0.0;
@@ -117,14 +120,14 @@ var LaserPointer = function(glRenderer, glScene, glCamera)
 
 	// x-rot-handle
 	var xRotHandleRenderGeo      = new THREE.TorusGeometry( RR, rR, 32, 100 );
-	var xRotHandleMaterial = new THREE.MeshPhongMaterial( { color: 'red', specular: 0x999999, shininess: 30 } );
+	var xRotHandleMaterial = new THREE.MeshPhongMaterial( { color: 0x800000, shininess: 10 } );
 	var xRotHandleRenderObj = new THREE.Mesh( xRotHandleRenderGeo, xRotHandleMaterial  );
 	xRotHandleRenderObj.rotation.y = 0.5*Math.PI;
 	renderHandleGroup.add(xRotHandleRenderObj);
 
 	// z-rot-handle
 	var zRotHandleRenderGeo      = new THREE.TorusGeometry( RR, rR, 32, 100 );
-	var zRotHandleMaterial = new THREE.MeshPhongMaterial( { color: 'blue', specular: 0x999999, shininess: 30 } );
+	var zRotHandleMaterial = new THREE.MeshPhongMaterial( { color: 0x000080, shininess: 10 } );
 	var zRotHandleRenderObj = new THREE.Mesh( zRotHandleRenderGeo, zRotHandleMaterial  );
 	zRotHandleRenderObj.rotation.y = 0.0;
 	renderHandleGroup.add(zRotHandleRenderObj);
@@ -221,6 +224,14 @@ var LaserPointer = function(glRenderer, glScene, glCamera)
 	// Finally, add the laser pointer objects (and backplane for raycasting) to the scene
 	glScene.add(group);
 	glScene.add(backPlaneObj);
+
+	// Initialize position and direction
+	this.setDirection(new THREE.Vector3(1.0, 0.0, 0.0));
+	this.setPosition(new THREE.Vector3(-10.0, 0.0, 0.0));
+
+	// Initialize emission geometry:
+	this.setEmissionRadius(0.25*rPointer);
+	this.setEmissionSpreadAngle(5.0);
 }
 
 
@@ -247,6 +258,8 @@ LaserPointer.prototype.render = function()
 	this.glRenderer.render(this.glScene, this.glCamera);
 }
 
+/// Queries:
+
 // get position of emission point
 LaserPointer.prototype.getPoint = function()
 {
@@ -255,28 +268,6 @@ LaserPointer.prototype.getPoint = function()
 	var pWorld = pLocal.applyMatrix4( this.group.matrix );
 	return pWorld;
 }
-
-
-// set world position of group origin
-LaserPointer.prototype.setPosition = function(position)
-{
-	var group = this.objects["group"];
-	group.position.copy(position);
-	group.updateMatrix();
-}
-
-// set world direction of laser emitted from emission point
-LaserPointer.prototype.setDirection = function(direction)
-{
-	// rotate local y-direction of group into specified direction
-	var group = this.objects["group"];
-	var currentDir = this.getDirection();
-	var rot = new THREE.Quaternion();
-	rot.setFromUnitVectors(currentDir, direction);
-	group.quaternion.multiplyQuaternions(rot, group.quaternion);
-	group.updateMatrix();
-}
-
 
 // get direction of laser emitted from emission point
 LaserPointer.prototype.getDirection = function()
@@ -308,26 +299,62 @@ LaserPointer.prototype.getZ = function()
 	return worldZ;
 }
 
+LaserPointer.prototype.getEmissionRadius = function()
+{
+	return this.emissionRadius;
+}
+
+// In degrees
+LaserPointer.prototype.getEmissionSpreadAngle = function()
+{
+	return this.emissionSpread;
+}
+
+/// Interactions:
+
+// set world position of group origin
+LaserPointer.prototype.setPosition = function(position)
+{
+	var group = this.objects["group"];
+	group.position.copy(position);
+	group.updateMatrix();
+}
+
+// set world direction of laser emitted from emission point
+LaserPointer.prototype.setDirection = function(direction)
+{
+	// rotate local y-direction of group into specified direction
+	var group = this.objects["group"];
+	var currentDir = this.getDirection();
+	var rot = new THREE.Quaternion();
+	rot.setFromUnitVectors(currentDir, direction);
+	group.quaternion.multiplyQuaternions(rot, group.quaternion);
+	group.updateMatrix();
+}
+
+LaserPointer.prototype.setEmissionRadius = function(radius)
+{
+	this.emissionRadius = radius;
+}
+
+// In degrees
+LaserPointer.prototype.setEmissionSpreadAngle = function(spreadAngleDegrees)
+{
+	this.emissionSpread = spreadAngleDegrees;
+}
 
 LaserPointer.prototype.onMouseMove = function(event)
 {
 	// calculate mouse position in normalized device coordinates
 	// (-1 to +1) for both components
-	this.mouse.x =   (event.clientX / window.innerWidth)*2 - 1;
-	this.mouse.y = - (event.clientY / window.innerHeight)*2 + 1;
+	this.mouse.x =   (( event.clientX - this.glRenderer.domElement.offsetLeft) / this.glRenderer.domElement.width)*2 - 1;
+	this.mouse.y = - (( event.clientY - this.glRenderer.domElement.offsetTop) / this.glRenderer.domElement.height)*2 + 1;
+
+	//this.mouse.x =   (event.clientX / window.innerWidth)*2 - 1;
+	//this.mouse.y = - (event.clientY / window.innerHeight)*2 + 1;
 
 	var mouseShift = new THREE.Vector2();
 	mouseShift.copy(this.mouse).sub(this.mousePrev);
-	console.log('\nmouseShift');
-	console.log(event.clientX);
-	console.log(event.clientY);
-	console.log(this.mouse.x);
-	console.log(this.mouse.y);
-	console.log(this.mousePrev.x);
-	console.log(this.mousePrev.y);
-	console.log(mouseShift.x);
-	console.log(mouseShift.y);
-
 	this.mousePrev.copy(this.mouse);
 
 	// update the picking ray with the camera and mouse position
@@ -373,22 +400,20 @@ LaserPointer.prototype.onMouseMove = function(event)
 				group.position.add(zTranslation);
 			}
 
+			// @todo: make ring always rotate in the direction
+			//        it is being 'dragged' (could just flip depending
+			//        on camDir.ringNormal)
+
 			else if (this.SELECTED == obj['xRotHandleIntersection'])
 			{
-				var rotAngle = 0.5 * Math.PI * mouseShift.length();
+				var rotAngle = 0.5 * Math.PI * (-mouseShift.x -mouseShift.y);
 				var rotX = new THREE.Quaternion();
 				rotX.setFromAxisAngle(this.getX(), rotAngle);
 				group.quaternion.multiplyQuaternions(rotX, group.quaternion);
 			}
 			else if (this.SELECTED == obj['zRotHandleIntersection'])
 			{
-				console.log('\nzRot');
-				console.log(mouseShift.x);
-				console.log(mouseShift.y);
-
-				var rotAngle = 0.5 * Math.PI * mouseShift.length();
-				console.log(rotAngle);
-
+				var rotAngle = 0.5 * Math.PI * (-mouseShift.x -mouseShift.y);
 				var rotZ = new THREE.Quaternion();
 				rotZ.setFromAxisAngle(this.getZ(), rotAngle);
 				group.quaternion.multiplyQuaternions(rotZ, group.quaternion);
@@ -400,10 +425,22 @@ LaserPointer.prototype.onMouseMove = function(event)
 		return true;
 	}
 
+	for (var n=0; n<this.renderHandleObjects.length; n++) 
+	{
+		this.renderHandleObjects[n].material.emissive.set( 0x000000 );
+		this.intersectionHandleObjects[n].material.emissive.set( 0x000000 );
+	}
+
 	var intersections = this.raycaster.intersectObjects(this.intersectionHandleObjects);
 	if ( intersections.length > 0 )
 	{
-		if ( this.INTERSECTED != intersections[0].object ) 
+		var intersected = intersections[0].object;
+		var rname = this.intersectionHandleNameToRenderHandleName[intersected.name];
+
+		this.objects[intersected.name].material.emissive.set( 0x404040 );
+		this.objects[rname].material.emissive.set( 0x404040 );
+
+		if ( this.INTERSECTED != intersected ) 
 		{
 			// We moused over a new handle: update backplane to prepare for possible selection:
 			group = obj['group'];
@@ -415,22 +452,30 @@ LaserPointer.prototype.onMouseMove = function(event)
 	return false;
 }
 
-// TODO:
-
-//   beginnings of pathtracer
-//      - initially just one bounce per pixel rays, to visualize distance field
-
-//   fix laser pointer issues
-
-//   set up webGL dropdown UI thing, use initially e.g. for scene selection
-
-//   
-
 
 LaserPointer.prototype.onMouseDown = function(event)
 {
-	this.mousePrev.x =   (event.clientX / window.innerWidth)*2 - 1;
-	this.mousePrev.y = - (event.clientY / window.innerHeight)*2 + 1;
+	/* 
+	// @todo: remove picking debug code below (leave for now)
+	console.log('\nevent.clientX: ' + event.clientX);
+	console.log('event.clientY: ' + event.clientY);
+	console.log('this.glRenderer.domElement.offsetLeft: ' + this.glRenderer.domElement.offsetLeft);
+	console.log('this.glRenderer.domElement.offsetTop: ' + this.glRenderer.domElement.offsetTop);
+	console.log('this.glRenderer.domElement.width: ' + this.glRenderer.domElement.width);
+	console.log('this.glRenderer.domElement.height: ' + this.glRenderer.domElement.height);
+	console.log('window.innerWidth: ' + window.innerWidth);
+	console.log('window.innerHeight: ' + window.innerHeight);
+
+	var render_canvas = document.getElementById('render-canvas');
+	var ui_canvas = document.getElementById('ui-canvas');
+	console.log('render_canvas.width: ' + render_canvas.width);
+	console.log('render_canvas.height: ' + render_canvas.height);
+	console.log('ui_canvas.width: ' + ui_canvas.width);
+	console.log('ui_canvas.height: ' + ui_canvas.height);
+	*/
+
+	this.mousePrev.x =   (( event.clientX - this.glRenderer.domElement.offsetLeft ) / this.glRenderer.domElement.width)*2 - 1;
+	this.mousePrev.y = - (( event.clientY - this.glRenderer.domElement.offsetTop ) / this.glRenderer.domElement.height)*2 + 1;
 
 	// update the picking ray with the camera and mouse position
 	this.raycaster.setFromCamera( this.mouse, this.camera );
@@ -587,7 +632,7 @@ var Renderer = function()
 
 	var ui_canvas = document.getElementById('ui-canvas');
 	ui_canvas.style.top = 0;
-	ui_canvas.style.position = 'absolute' 
+	ui_canvas.style.position = 'fixed' 
 
 	this.glRenderer = new THREE.WebGLRenderer( { canvas: ui_canvas,
 											     alpha: true,
@@ -597,7 +642,7 @@ var Renderer = function()
 	this.glScene = new THREE.Scene();
 	this.glScene.add(this.camera);
 
-	var pointLight = new THREE.PointLight(0xFFFFFF);
+	var pointLight = new THREE.PointLight(0x808080);
 	pointLight.position.x = 10;
 	pointLight.position.y = 50;
 	pointLight.position.z = 130;
@@ -608,6 +653,7 @@ var Renderer = function()
 	////////////////////////////////////////////////////////////
 	// Setup Laser pointer
 	////////////////////////////////////////////////////////////
+
 	this.laser = new LaserPointer(this.glRenderer, this.glScene, this.camera);
 	this.laser.setPosition(new THREE.Vector3(-10.0, 0.0, 0.0));
 	this.laser.setDirection(new THREE.Vector3(1.0, 0.0, 0.0));
@@ -740,12 +786,12 @@ Renderer.prototype.setup = function(shaderSources)
 	this.spectrum = new GLU.Texture(this.spectrumTable.length/4, 1, 4, true,  true, true, this.spectrumTable);
   
 	//gl.viewport(0, 0, this.width, this.height);
-	this.raySize = 32;
+	this.raySize = 64;
 	this.resetActiveBlock();
 	this.rayCount = this.raySize*this.raySize;
 	this.currentState = 0;
 	this.needsReset = true;
-	this.maxPathLength = 32;
+	this.maxPathLength = 20;
 	this.rayStates = [new RayState(this.raySize), new RayState(this.raySize)];
 		
 	// Create the buffer of texture coordinates, which maps each drawn line
@@ -784,6 +830,7 @@ Renderer.prototype.getCamera = function()
 
 Renderer.prototype.resize = function(width, height) 
 {
+	console.log("RESIZE: width="+width + ", height="+height);
 	this.width = width;
 	this.height = height;
 	this.camera.aspect = width / height;
@@ -793,6 +840,9 @@ Renderer.prototype.resize = function(width, height)
 	this.resetActiveBlock();
 	this.reset();
 
+	//var render_canvas = document.getElementById('render-canvas');
+	//render_canvas.width  = this.width;
+	//render_canvas.height = this.height;
 	this.glRenderer.setSize(width, height);
 }
 
@@ -869,6 +919,12 @@ Renderer.prototype.render = function()
 		emitterDir = this.laser.getDirection();
 		this.initProgram.uniform3F("EmitterDir", emitterDir.x, emitterDir.y, emitterDir.z);
 
+		emitterRadius = this.laser.getEmissionRadius();
+		this.initProgram.uniformF("EmitterRadius", emitterRadius);
+
+		emissionSpread = this.laser.getEmissionSpreadAngle();
+		this.initProgram.uniformF("EmitterSpread", emissionSpread);
+
 		// Write emitted ray initial conditions into 'next' state
 		this.quadVbo.draw(this.initProgram, gl.TRIANGLE_FAN);
 
@@ -925,7 +981,6 @@ Renderer.prototype.render = function()
 		var modelViewMatrix = matrixWorldInverse.toArray();
 		var modelViewMatrixLocation = this.lineProgram.getUniformLocation("u_modelViewMatrix");
 		gl.uniformMatrix4fv(modelViewMatrixLocation, false, modelViewMatrix);
-
 
 		this.rayStates[current].posTex.bind(0); // PosDataA = current.posTex
 		this.rayStates[   next].posTex.bind(1); // PosDataB = next.posTex

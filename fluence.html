@@ -9,10 +9,10 @@
 <div id="container">
 
     <div id="webglContainer"></div>
-        <canvas id="render-canvas" width="820" height="461"></canvas>
+        <canvas id="render-canvas"></canvas>
     
     <div id="threeContainer"></div>
-        <canvas id="ui-canvas" width="820" height="461"></canvas>
+        <canvas id="ui-canvas"></canvas>
 
 </div>
 
@@ -89,6 +89,10 @@ function onWindowResize()
 	var render_canvas = document.getElementById('render-canvas');
 	render_canvas.width  = window.innerWidth;
 	render_canvas.height = window.innerHeight;
+
+	var ui_canvas = document.getElementById('ui-canvas');
+	ui_canvas.width  = window.innerWidth;
+	ui_canvas.height = window.innerHeight;
 
 	renderer.resize(render_canvas.width, render_canvas.height);
 	renderer.render();
