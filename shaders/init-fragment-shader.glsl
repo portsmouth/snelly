@@ -16,6 +16,8 @@ uniform float EmitterSpread; // in degrees
 
 varying vec2 vTexCoord;
 
+#define M_PI 3.1415926535897932384626433832795
+
 float rand(inout vec4 state) 
 {
     const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
@@ -37,8 +39,10 @@ void main()
 	float lambda = 360.0 + (750.0 - 360.0)*vTexCoord.x;
 	vec3 rgb = texture2D(Spectrum, vec2(vTexCoord.x, 0.5)).rgb;
 
-	vec3 pos = EmitterPos + 0.5*(-vec3(0.5) + vec3(rand(state), rand(state), rand(state)));
-	vec3 dir = normalize(EmitterDir + 0.01*vec3(rand(state), rand(state), rand(state)));
+	vec3 pos = EmitterPos + EmitterRadius*(-vec3(0.5) + vec3(rand(state), rand(state), rand(state)));
+	
+	float spreadAngle = EmitterSpread*(M_PI/360.0);
+	vec3 dir = normalize(EmitterDir + spreadAngle*(-vec3(0.5) + vec3(rand(state), rand(state), rand(state))));
 	
 	gl_FragData[0] = vec4(pos, 1.0);
 	gl_FragData[1] = vec4(dir, 1.0);

@@ -216,7 +216,9 @@ var GLU = {};
 	this.VertexBuffer.prototype.copy = function(data) 
 	{
 		if (data.byteLength != this.length*this.elementSize)
+		{
 			throw new Error("Resizing VBO during copy strongly discouraged");
+		}
 		gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
 	}
 

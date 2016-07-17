@@ -16,23 +16,21 @@
 
 </div>
 
-
-<script type="text/javascript" src="js/jquery-1.11.3.min.js"></script>
-<script type="text/javascript" src="js/three/three.min.js"></script>
-<script type="text/javascript" src="js/three/libs/stats.min.js"></script>
-<script type="text/javascript" src="js/three/controls/OrbitControls.js"></script>
-<script type="text/javascript" src="js/require.js"></script>
+<script type="text/javascript" src="js/thirdparty/jquery-1.11.3.min.js"></script>
+<script type="text/javascript" src="js/thirdparty/three/three.min.js"></script>
+<script type="text/javascript" src="js/thirdparty/three/libs/stats.min.js"></script>
+<script type="text/javascript" src="js/thirdparty/three/libs/dat.gui.min.js"></script>
+<script type="text/javascript" src="js/thirdparty/three/controls/OrbitControls.js"></script>
 
 <script type="text/javascript" src="js/shaders.js"></script>
 <script type="text/javascript" src="js/spectrum.js"></script>
 <script type="text/javascript" src="js/gl.js"></script>
+<script type="text/javascript" src="js/laser.js"></script>
+<script type="text/javascript" src="js/gui.js"></script>
 <script type="text/javascript" src="js/renderer.js"></script>
 
 <script type="text/javascript">
 
-
-// THREE.js OrbitControls
-var controls;
 
 // Renderer object
 var renderer;
@@ -47,11 +45,6 @@ window.requestAnimFrame = (function(){
           };
 })();
 
-
-// todo: use bl.ocks.org to serve the webGL app publicly ..
-// (or at least, the minified version of it, e.g. use r.js to minify)
-
-
 function onLoad()
 {
 	window.addEventListener( 'resize', onWindowResize, false );
@@ -59,14 +52,8 @@ function onLoad()
 	// Instantiate renderer object
 	renderer = new Renderer();
 
-	// Create user control system for camera
-	controls = new THREE.OrbitControls( renderer.getCamera() );
-	controls.addEventListener( 'change', camChanged );
-
 	animateLoop();
 }
-
-
 
 function camChanged()
 {
@@ -75,14 +62,9 @@ function camChanged()
 
 function animateLoop() 
 {
-	//console.log("frame: " + frame);
 	requestAnimFrame(animateLoop);
-
-	controls.update();
-
 	renderer.render();
 }
-
 
 function onWindowResize() 
 {
@@ -97,7 +79,6 @@ function onWindowResize()
 	renderer.resize(render_canvas.width, render_canvas.height);
 	renderer.render();
 }
-
 
 </script>
 

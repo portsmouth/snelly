@@ -39,8 +39,12 @@ var Shaders = {
 	'\n' +
 	'uniform vec3 EmitterPos;\n' +
 	'uniform vec3 EmitterDir;\n' +
+	'uniform float EmitterRadius;\n' +
+	'uniform float EmitterSpread; // in degrees\n' +
 	'\n' +
 	'varying vec2 vTexCoord;\n' +
+	'\n' +
+	'#define M_PI 3.1415926535897932384626433832795\n' +
 	'\n' +
 	'float rand(inout vec4 state) \n' +
 	'{\n' +
@@ -63,8 +67,10 @@ var Shaders = {
 	'	float lambda = 360.0 + (750.0 - 360.0)*vTexCoord.x;\n' +
 	'	vec3 rgb = texture2D(Spectrum, vec2(vTexCoord.x, 0.5)).rgb;\n' +
 	'\n' +
-	'	vec3 pos = EmitterPos + 0.5*(-vec3(0.5) + vec3(rand(state), rand(state), rand(state)));\n' +
-	'	vec3 dir = normalize(EmitterDir + 0.01*vec3(rand(state), rand(state), rand(state)));\n' +
+	'	vec3 pos = EmitterPos + EmitterRadius*(-vec3(0.5) + vec3(rand(state), rand(state), rand(state)));\n' +
+	'	\n' +
+	'	float spreadAngle = EmitterSpread*(M_PI/360.0);\n' +
+	'	vec3 dir = normalize(EmitterDir + spreadAngle*(-vec3(0.5) + vec3(rand(state), rand(state), rand(state))));\n' +
 	'	\n' +
 	'	gl_FragData[0] = vec4(pos, 1.0);\n' +
 	'	gl_FragData[1] = vec4(dir, 1.0);\n' +
@@ -235,12 +241,49 @@ var Shaders = {
 	'  return min(da,min(db,dc));\n' +
 	'}\n' +
 	'\n' +
+	'float Cross(vec3 p)\n' +
+	'{\n' +
+	'   p = abs(p);\n' +
+	'   vec3 d = vec3(max(p.x, p.y),\n' +
+	'                 max(p.y, p.z),\n' +
+	'                 max(p.z, p.x));\n' +
+	'   return min(d.x, min(d.y, d.z)) - (1.0 / 3.0);\n' +
+	'}\n' +
+	'\n' +
+	'float CrossRep(vec3 p)\n' +
+	'{\n' +
+	'   vec3 q = mod(p + 1.0, 2.0) - 1.0;\n' +
+	'   return Cross(q);\n' +
+	'}\n' +
+	'\n' +
+	'float CrossRepScale(vec3 p, float s)\n' +
+	'{\n' +
+	'   return CrossRep(p * s) / s;   \n' +
+	'}\n' +
+	'\n' +
+	'const int MENGER_ITERATIONS = 1;\n' +
+	'\n' +
+	'float menger(in vec3 pos)\n' +
+	'{\n' +
+	'   float scale = 0.05;\n' +
+	'   float dist = 0.0;\n' +
+	'   for (int i = 0; i < MENGER_ITERATIONS; i++)\n' +
+	'   {\n' +
+	'      dist = max(dist, -CrossRepScale(pos, scale));\n' +
+	'      scale *= 3.0;\n' +
+	'   }\n' +
+	'   return dist;\n' +
+	'}\n' +
+	'\n' +
+	'\n' +
+	'\n' +
+	'\n' +
 	'vec3 map( in vec3 p )\n' +
 	'{\n' +
-	'   float d = sdBox(p,vec3(100.0));\n' +
+	'   float d = sdBox(p, vec3(0.5));\n' +
 	'\n' +
 	'   float s = 0.1;\n' +
-	'   for( int m=0; m<6; m++ )\n' +
+	'   for( int m=0; m<3; m++ )\n' +
 	'   {\n' +
 	'      vec3 a = mod( p*s, 2.0 )-1.0;\n' +
 	'      s *= 2.0;\n' +
@@ -259,7 +302,9 @@ var Shaders = {
 	'\n' +
 	'float DF(vec3 X)\n' +
 	'{\n' +
-	'	//return map(X/4.0).x;\n' +
+	'	//return sdCross(X);\n' +
+	'	//return Cross(X);\n' +
+	'	//return menger(X);\n' +
 	'	float SDF1 = sdTorus(X, 0.8, 1.8);\n' +
 	'	float SDF2 = sdSphere(X, vec3(0.0, 0.0, 0.0), 1.99);\n' +
 	'	return min(SDF1, SDF2);\n' +
@@ -336,6 +381,7 @@ var Shaders = {
 	'\n' +
 	'#define maxMarchSteps 128\n' +
 	'#define minMarchDist 1.0e-4\n' +
+	'#define maxDist 1.0e6\n' +
 	'\n' +
 	'\n' +
 	'void raytrace(vec3 X, vec3 D,\n' +
@@ -357,6 +403,7 @@ var Shaders = {
 	'	}\n' +
 	'	if (!hit)\n' +
 	'	{\n' +
+	'		Xp = X + maxDist*D;\n' +
 	'		Dp = D;\n' +
 	'	}\n' +
 	'	else\n' +
