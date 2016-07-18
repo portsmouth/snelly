@@ -1,16 +1,30 @@
 
+body{
+  margin: 0px;
+  overflow: hidden;
+}
+
 /* make the canvases, children of the this container */
 #container {
     position: relative;
+    margin: 0px;
+    padding: 0px;
 }
 
 #webglContainer {
-    position: absolute;
+    position: relative;
+    margin: 0px;
+    padding: 0px;
+    overflow: hidden;
     pointer-events: none;   /* this element will not catch any events */
     z-index: 8;    /* position this canvas at bottom of the other one */
 }
 
 #threeContainer {
-    position: absolute;
+    position: relative;
+    margin: 0px;
+    padding: 0px;
+    overflow: hidden;
     z-index: 10;      /* position this canvas on top of the other one */
 }
+
