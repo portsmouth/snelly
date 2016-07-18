@@ -91,10 +91,10 @@ GUI.prototype.emissionSettings = function()
 	var settings = renderer.params.emissionSettings;
 	settings.radius = laser.getEmissionRadius();
 	settings.spread = laser.getEmissionSpreadAngle();
-	settings.hideLaserPointer = false;
+	settings.showLaserPointer = true;
 	settings.spectrum = 'monochromatic';
 
-	folder.add(settings, 'hideLaserPointer');
+	folder.add(settings, 'showLaserPointer').onChange( function(value) { laser.toggleVisibility(value); } );
 	folder.add(laser, 'emissionRadius', 0.0, 10.0).onChange( function(value) { laser.setEmissionRadius(value);      renderer.reset(); } );
 	folder.add(laser, 'emissionSpread', 0.0, 45.0).onChange( function(value) { laser.setEmissionSpreadAngle(value); renderer.reset(); } );
 	folder.add(settings, 'spectrum', ['monochromatic', 'color', 'flat', 'blackbody']);

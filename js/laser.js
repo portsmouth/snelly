@@ -23,10 +23,10 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 
 	this.objects = {};
 
-	// Initialize housing geometry:
+	// Initialize emitter:
 	this.setEmissionRadius(0.1);
 	this.setEmissionSpreadAngle(5.0);
-	this.buildHousing();
+	this.buildEmitterGeo();
 
 	///////////////////////////////////////////////////////////
 	// Intersection geometry for handle controls (invisible)
@@ -145,7 +145,7 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 	this.objects['group'] = this.group;
 
 	this.objects['xHandleIntersection'] = xHandleIntersectionObj;
-	this.objects['yHandleIntersection'] = xHandleIntersectionObj;
+	this.objects['yHandleIntersection'] = yHandleIntersectionObj;
 	this.objects['zHandleIntersection'] = zHandleIntersectionObj;
 	this.objects['xRotHandleIntersection'] = xRotHandleIntersectionObj;
 	this.objects['zRotHandleIntersection'] = zRotHandleIntersectionObj;
@@ -173,7 +173,8 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 									"yHandleIntersection", 
 									"zHandleIntersection",
 									"xRotHandleIntersection", 
-									"zRotHandleIntersection" ];
+									"zRotHandleIntersection",
+									"translater" ];
 	this.intersectionHandleObjects = [];
 	for (var n=0; n<intersectionHandleNames.length; n++) 
 	{
@@ -184,7 +185,8 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 							  "yHandleRender", 
 							  "zHandleRender",
 							  "xRotHandleRender", 
-							  "zRotHandleRender" ];
+							  "zRotHandleRender",
+							  "emitter" ];
 	this.renderHandleObjects = [];
 	for (var n=0; n<renderHandleNames.length; n++) 
 	{
@@ -195,7 +197,8 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 													  "yHandleIntersection": "yHandleRender",
 													  "zHandleIntersection": "zHandleRender",
 													  "xRotHandleIntersection": "xRotHandleRender",
-													  "zRotHandleIntersection": "zRotHandleRender" };
+													  "zRotHandleIntersection": "zRotHandleRender",
+													  "translater": "emitter" };
 	this.glScene = glScene;
 	this.glRenderer = glRenderer;
 	this.glCamera = glCamera;
@@ -210,33 +213,30 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 }
 
 
-LaserPointer.prototype.buildHousing = function()
+LaserPointer.prototype.buildEmitterGeo = function()
 {
 	var group = this.group;
-	if ('housing' in this.objects)
-	{
-		var housing = this.objects['housing'];
-		group.remove(housing);
-	}
-	
-	// Laser housing geometry
-	var rPointer = 3.0*this.getEmissionRadius();
-	var lPointer = 10.0*rPointer;
-	var housingGeo      = new THREE.CylinderGeometry( rPointer, rPointer, lPointer, 32 );
-	var housingMaterial = new THREE.MeshPhongMaterial( { color: 0xdddddd, specular: 0x999999, shininess: 60 } );
-	var housingObj      = new THREE.Mesh( housingGeo, housingMaterial  );
-	group.add(housingObj);
-	this.housingObj = housingObj;
-	this.objects['housing'] = housingObj;
+	if ('emitter' in this.objects)    group.remove(this.objects['emitter']);
+	if ('translater' in this.objects) group.remove(this.objects['translater']);
+		
+	// Laser emission geometry
+	var rPointer = 1.2*this.getEmissionRadius();
 
-	// emission point proxy
-	var proxyGeo      = new THREE.SphereGeometry(this.getEmissionRadius());
-	var proxyMaterial = new THREE.MeshPhongMaterial( { color: 0xff0000, visible: 'true' } );
-	var proxyObj      = new THREE.Mesh( proxyGeo, proxyMaterial  );
-	proxyObj.position.y = 0.5*lPointer;
-	group.add(proxyObj);
-	this.objects['proxy'] = proxyObj;
+	var emitterGeo      = new THREE.CylinderGeometry(rPointer, rPointer, 8.0*rPointer, 32, 32);
+	var emitterMaterial = new THREE.MeshPhongMaterial( { color: 0xdddddd, specular: 0x999999, shininess: 60 } );
+	var emitterObj      = new THREE.Mesh( emitterGeo, emitterMaterial  );
+	emitterObj.y = 6.0*rPointer;
+	group.add(emitterObj);
+	this.objects['emitter'] = emitterObj;
+
+	// proxy geo, for dragging
+	var translaterGeo      = new THREE.SphereGeometry(3.0*rPointer, 32, 32);
+	var translaterMaterial = new THREE.MeshPhongMaterial( { color: 0xff0000, visible: 'false' } );
+	var translaterObj      = new THREE.Mesh( translaterGeo, translaterMaterial  );
+	group.add(translaterObj);
+	this.objects['translater'] = translaterObj;
 }
+
 
 LaserPointer.prototype.render = function()
 {
@@ -245,6 +245,10 @@ LaserPointer.prototype.render = function()
 	var camDist = new THREE.Vector3();
 	camDist.copy(this.objects["group"].position).sub(this.camera.position);
 	var C = 0.05*camDist.length();
+
+	// Ensure that handles are always > emitter geo size
+	// (so on zooming in, body doesn't 'swallow' the manips).
+	C = Math.max(C, 2.0*this.getEmissionRadius(), 0.25);
 
 	intersectionHandleGroup = this.objects["intersectionHandleGroup"];
 	intersectionHandleGroup.scale.set(C, C, C);
@@ -259,16 +263,16 @@ LaserPointer.prototype.render = function()
 
 /// Queries:
 
-// get position of emission point
+// get world position of emission point
 LaserPointer.prototype.getPoint = function()
 {
 	var pLocal = new THREE.Vector3();
-	pLocal.copy(this.objects['proxy'].position);
+	pLocal.copy(this.objects['emitter'].position);
 	var pWorld = pLocal.applyMatrix4( this.group.matrix );
 	return pWorld;
 }
 
-// get direction of laser emitted from emission point
+// get world direction of laser emitted from emission point
 LaserPointer.prototype.getDirection = function()
 {
 	return this.getY();
@@ -311,6 +315,13 @@ LaserPointer.prototype.getEmissionSpreadAngle = function()
 
 /// Interactions:
 
+LaserPointer.prototype.toggleVisibility = function(visible)
+{
+	var group = this.objects["group"];
+	group.visible = visible;
+}
+
+
 // set world position of group origin
 LaserPointer.prototype.setPosition = function(position)
 {
@@ -334,7 +345,7 @@ LaserPointer.prototype.setDirection = function(direction)
 LaserPointer.prototype.setEmissionRadius = function(radius)
 {
 	this.emissionRadius = radius;
-	this.buildHousing();
+	this.buildEmitterGeo();
 }
 
 // In degrees

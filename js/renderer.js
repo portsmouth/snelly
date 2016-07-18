@@ -111,11 +111,14 @@ var Renderer = function()
 	this.glScene = new THREE.Scene();
 	this.glScene.add(this.camera);
 
-	var pointLight = new THREE.PointLight(0x808080);
+	var pointLight = new THREE.PointLight(0xa0a0a0);
 	pointLight.position.x = 10;
 	pointLight.position.y = 50;
 	pointLight.position.z = 130;
 	this.glScene.add(pointLight);
+
+	var light = new THREE.AmbientLight( 0x808080 ); // soft white light
+	this.glScene.add( light );
 
 	////////////////////////////////////////////////////////////
 	// Setup keypress events
@@ -143,6 +146,7 @@ var Renderer = function()
 	
 	// Create user control system for camera
 	this.controls = new THREE.OrbitControls( renderer.getCamera(), document.getElementById('ui-canvas'));
+	this.controls.zoomSpeed = 0.5;
 	this.controls.addEventListener( 'change', camChanged );
 
 	////////////////////////////////////////////////////////////
@@ -150,11 +154,11 @@ var Renderer = function()
 	////////////////////////////////////////////////////////////
 
 	this.laser = new LaserPointer(this.glRenderer, this.glScene, this.camera, this.controls);
-	this.laser.setPosition(new THREE.Vector3(-10.0, 0.0, 0.0));
+	this.laser.setPosition(new THREE.Vector3(-5.0, 0.0, 0.0));
 	this.laser.setDirection(new THREE.Vector3(1.0, 0.0, 0.0));
 
 	////////////////////////////////////////////////////////////
-	// Create dat ass.. er gui
+	// Create dat gui
 	////////////////////////////////////////////////////////////
 
 	this.gui = new GUI(this);
@@ -185,7 +189,6 @@ Renderer.prototype.handleEvent = function(event)
 	}
 }
 
-
 Renderer.prototype.createQuadVbo = function()
 {
 	var vbo = new GLU.VertexBuffer();
@@ -200,7 +203,6 @@ Renderer.prototype.createQuadVbo = function()
 	]));
 	return vbo;
 }
-
 
 Renderer.prototype.reset = function()
 {
@@ -320,7 +322,8 @@ Renderer.prototype.composite = function()
 
 	// Tonemap to effectively divide by total number of emitted photons
 	// (and also apply gamma correction)
-	this.compProgram.uniformF("Exposure", renderer.params.renderSettings.exposure/(Math.max(this.samplesTraced, 1)));//this.raySize*this.activeBlock)));
+	var numPhotons = Math.max(this.samplesTraced, 1);
+	this.compProgram.uniformF("Exposure", 0.01 * renderer.params.renderSettings.exposure / numPhotons);
 	
 	this.quadVbo.draw(this.compProgram, this.gl.TRIANGLE_FAN);
 }
@@ -510,22 +513,32 @@ Renderer.prototype.onKeydown = function(event)
 
 	var charCode = (event.which) ? event.which : event.keyCode;
 	var fKeyCode = 70;
+	var f11Keycode = 122;
 
-	if (charCode == fKeyCode)
+	switch (charCode)
 	{
-		var element	= document.body;
-		if ( 'webkitCancelFullScreen' in document )
-		{
-			element.webkitRequestFullScreen();
-		}
-		else if ( 'mozCancelFullScreen' in document )
-		{
-			element.mozRequestFullScreen();
-		}
-		else
-		{
-			console.assert(false);
-		}
+		case 70: // F key: go fullscreen
+			var element	= document.body;
+			if ( 'webkitCancelFullScreen' in document )
+			{
+				element.webkitRequestFullScreen();
+			}
+			else if ( 'mozCancelFullScreen' in document )
+			{
+				element.mozRequestFullScreen();
+			}
+			else
+			{
+				console.assert(false);
+			}
+			break;
+
+		case 122: // F11 key: focus on emitter
+			this.controls.object.zoom = this.controls.zoom0;
+			this.controls.target.copy(this.laser.getPoint());
+			this.controls.update();
+			break; 
+
 	}
 }
 
