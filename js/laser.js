@@ -220,18 +220,18 @@ LaserPointer.prototype.buildEmitterGeo = function()
 	if ('translater' in this.objects) group.remove(this.objects['translater']);
 		
 	// Laser emission geometry
-	var rPointer = 1.2*this.getEmissionRadius();
+	var rPointer = 1.1*this.getEmissionRadius();
+	this.emitterLength = 8.0*rPointer;
 
-	var emitterGeo      = new THREE.CylinderGeometry(rPointer, rPointer, 8.0*rPointer, 32, 32);
-	var emitterMaterial = new THREE.MeshPhongMaterial( { color: 0xdddddd, specular: 0x999999, shininess: 60 } );
+	var emitterGeo      = new THREE.CylinderGeometry(rPointer, rPointer, this.emitterLength, 32, 32);
+	var emitterMaterial = new THREE.MeshPhongMaterial( { color: 0xdddddd, specular: 0x999999, shininess: 60, visible: true } );
 	var emitterObj      = new THREE.Mesh( emitterGeo, emitterMaterial  );
-	emitterObj.y = 6.0*rPointer;
 	group.add(emitterObj);
 	this.objects['emitter'] = emitterObj;
 
 	// proxy geo, for dragging
-	var translaterGeo      = new THREE.SphereGeometry(3.0*rPointer, 32, 32);
-	var translaterMaterial = new THREE.MeshPhongMaterial( { color: 0xff0000, visible: 'false' } );
+	var translaterGeo      = new THREE.SphereGeometry(16.0*rPointer, 32, 32);
+	var translaterMaterial = new THREE.MeshPhongMaterial( { color: 0xff0000, visible: false } );
 	var translaterObj      = new THREE.Mesh( translaterGeo, translaterMaterial  );
 	group.add(translaterObj);
 	this.objects['translater'] = translaterObj;
@@ -244,15 +244,19 @@ LaserPointer.prototype.render = function()
 	// (to be roughly constant size in screen space)
 	var camDist = new THREE.Vector3();
 	camDist.copy(this.objects["group"].position).sub(this.camera.position);
-	var C = 0.05*camDist.length();
+	var C = 0.03*camDist.length();
 
 	// Ensure that handles are always > emitter geo size
 	// (so on zooming in, body doesn't 'swallow' the manips).
-	C = Math.max(C, 2.0*this.getEmissionRadius(), 0.25);
+	C = Math.max(C, 2.0*this.getEmissionRadius(), 1.0);
 
 	intersectionHandleGroup = this.objects["intersectionHandleGroup"];
 	intersectionHandleGroup.scale.set(C, C, C);
 	intersectionHandleGroup.updateMatrix();
+
+	translater = this.objects['translater'];
+	translater.scale.set(C, C, C);
+	translater.updateMatrix();
 
 	renderHandleGroup = this.objects["renderHandleGroup"];
 	renderHandleGroup.scale.set(C, C, C);
@@ -268,6 +272,8 @@ LaserPointer.prototype.getPoint = function()
 {
 	var pLocal = new THREE.Vector3();
 	pLocal.copy(this.objects['emitter'].position);
+	pLocal.y += 0.5*this.emitterLength;
+
 	var pWorld = pLocal.applyMatrix4( this.group.matrix );
 	return pWorld;
 }
@@ -361,9 +367,6 @@ LaserPointer.prototype.onMouseMove = function(event)
 	this.mouse.x =   (( event.clientX - this.glRenderer.domElement.offsetLeft) / this.glRenderer.domElement.width)*2 - 1;
 	this.mouse.y = - (( event.clientY - this.glRenderer.domElement.offsetTop) / this.glRenderer.domElement.height)*2 + 1;
 
-	//this.mouse.x =   (event.clientX / window.innerWidth)*2 - 1;
-	//this.mouse.y = - (event.clientY / window.innerHeight)*2 + 1;
-
 	var mouseShift = new THREE.Vector2();
 	mouseShift.copy(this.mouse).sub(this.mousePrev);
 	this.mousePrev.copy(this.mouse);
@@ -417,17 +420,61 @@ LaserPointer.prototype.onMouseMove = function(event)
 
 			else if (this.SELECTED == obj['xRotHandleIntersection'])
 			{
-				var rotAngle = 0.5 * Math.PI * (-mouseShift.x -mouseShift.y);
+				// world 'velocity' corresponding to mouse drag
+				var localX = new THREE.Vector3(1.0, 0.0, 0.0);
+				var localY = new THREE.Vector3(0.0, 1.0, 0.0);
+				var worldX = localX.transformDirection( this.camera.matrix );
+				var worldY = localY.transformDirection( this.camera.matrix );
+				worldX.multiplyScalar(mouseShift.x);
+				worldY.multiplyScalar(mouseShift.y);
+				var worldVelocity = new THREE.Vector3();
+				worldVelocity.copy(worldX);
+				worldVelocity.add(worldY);
+
+				var radiusVector = new THREE.Vector3(1.0, 0.0, 0.0);
+				radiusVector.copy(this.SELECTION_HITPOINT);
+				radiusVector.sub(group.position);
+
+				// angular momentum induced by drag
+				var L = new THREE.Vector3(1.0, 0.0, 0.0);;
+				L.crossVectors( radiusVector, worldVelocity );
+				var rotAngleX = 0.5 * Math.PI * L.dot(this.getX());
+
 				var rotX = new THREE.Quaternion();
-				rotX.setFromAxisAngle(this.getX(), rotAngle);
+				rotX.setFromAxisAngle(this.getX(), rotAngleX);
 				group.quaternion.multiplyQuaternions(rotX, group.quaternion);
 			}
 			else if (this.SELECTED == obj['zRotHandleIntersection'])
 			{
-				var rotAngle = 0.5 * Math.PI * (-mouseShift.x -mouseShift.y);
+				// world 'velocity' corresponding to mouse drag
+				var localX = new THREE.Vector3(1.0, 0.0, 0.0);
+				var localY = new THREE.Vector3(0.0, 1.0, 0.0);
+				var worldX = localX.transformDirection( this.camera.matrix );
+				var worldY = localY.transformDirection( this.camera.matrix );
+				worldX.multiplyScalar(mouseShift.x);
+				worldY.multiplyScalar(mouseShift.y);
+				var worldVelocity = new THREE.Vector3();
+				worldVelocity.copy(worldX);
+				worldVelocity.add(worldY);
+				
+				var radiusVector = new THREE.Vector3(1.0, 0.0, 0.0);
+				radiusVector.copy(this.SELECTION_HITPOINT);
+				radiusVector.sub(group.position);
+
+				// angular momentum induced by drag
+				var L = new THREE.Vector3(1.0, 0.0, 0.0);;
+				L.crossVectors( radiusVector, worldVelocity );
+				var rotAngleZ = 0.5 * Math.PI * L.dot(this.getZ());
 				var rotZ = new THREE.Quaternion();
-				rotZ.setFromAxisAngle(this.getZ(), rotAngle);
+				rotZ.setFromAxisAngle(this.getZ(), rotAngleZ);
 				group.quaternion.multiplyQuaternions(rotZ, group.quaternion);
+			}
+
+			else if (this.SELECTED == obj['translater'])
+			{
+				console.log("translater selected!");
+
+
 			}
 
 			group.updateMatrix();
@@ -478,7 +525,8 @@ LaserPointer.prototype.onMouseDown = function(event)
 	if ( intersections.length > 0 )
 	{
 		this.controls.enabled = false;
-		this.SELECTED = intersections[0].object;
+		this.SELECTED           = intersections[0].object;
+		this.SELECTION_HITPOINT = intersections[0].point;
 
 		// Indicate selection by making corresponding render handle slightly emissive
 		var rname = this.intersectionHandleNameToRenderHandleName[this.SELECTED.name];

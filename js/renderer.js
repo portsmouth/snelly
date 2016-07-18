@@ -157,6 +157,9 @@ var Renderer = function()
 	this.laser.setPosition(new THREE.Vector3(-5.0, 0.0, 0.0));
 	this.laser.setDirection(new THREE.Vector3(1.0, 0.0, 0.0));
 
+	var axisHelper = new THREE.AxisHelper( 5 );
+	this.glScene.add( axisHelper );
+
 	////////////////////////////////////////////////////////////
 	// Create dat gui
 	////////////////////////////////////////////////////////////
