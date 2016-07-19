@@ -120,15 +120,6 @@ var Renderer = function()
 	var light = new THREE.AmbientLight( 0x808080 ); // soft white light
 	this.glScene.add( light );
 
-	////////////////////////////////////////////////////////////
-	// Setup keypress events
-	////////////////////////////////////////////////////////////
-
-	document.body.addEventListener("keydown", this, false);
-	this.glRenderer.domElement.addEventListener( 'mousemove', this, false );
-	this.glRenderer.domElement.addEventListener( 'mousedown', this, false );
-	this.glRenderer.domElement.addEventListener( 'mouseup',   this, false );
-
 	this.container = document.getElementById('container');
 	{
 		this.stats = new Stats();
@@ -145,7 +136,7 @@ var Renderer = function()
 	this.shaderSources = GLU.resolveShaderSource(["init", "trace", "line", "comp", "pass"]);
 	
 	// Create user control system for camera
-	this.controls = new THREE.OrbitControls( renderer.getCamera(), document.getElementById('ui-canvas'));
+	this.controls = new THREE.OrbitControls(renderer.getCamera(), this.glRenderer.domElement);
 	this.controls.zoomSpeed = 0.5;
 	this.controls.addEventListener( 'change', camChanged );
 
@@ -156,9 +147,6 @@ var Renderer = function()
 	this.laser = new LaserPointer(this.glRenderer, this.glScene, this.camera, this.controls);
 	this.laser.setPosition(new THREE.Vector3(-5.0, 0.0, 0.0));
 	this.laser.setDirection(new THREE.Vector3(1.0, 0.0, 0.0));
-
-	var axisHelper = new THREE.AxisHelper( 5 );
-	this.glScene.add( axisHelper );
 
 	////////////////////////////////////////////////////////////
 	// Create dat gui
@@ -179,7 +167,37 @@ var Renderer = function()
 		this.setup(this.shaderSources);
 		this.initialized = true;
 	}
+
+	////////////////////////////////////////////////////////////
+	// Setup keypress events
+	////////////////////////////////////////////////////////////
+
+	renderer = this;
+
+	window.addEventListener('keydown', function(event) 
+	{
+		var charCode = (event.which) ? event.which : event.keyCode;
+		switch (charCode)
+		{
+			case 122: // F11 key: go fullscreen
+				var element	= document.body;
+				if      ( 'webkitCancelFullScreen' in document ) element.webkitRequestFullScreen();
+				else if ( 'mozCancelFullScreen'    in document ) element.mozRequestFullScreen();
+				else console.assert(false);
+				break;
+			case 70: // F key: focus on emitter
+				renderer.controls.object.zoom = renderer.controls.zoom0;
+				renderer.controls.target.copy(renderer.laser.getPoint());
+				renderer.controls.update();
+				break; 
+		}
+	}, false);
+	
+	this.glRenderer.domElement.addEventListener( 'mousemove', this, false );
+	this.glRenderer.domElement.addEventListener( 'mousedown', this, false );
+	this.glRenderer.domElement.addEventListener( 'mouseup',   this, false );
 }
+
 
 Renderer.prototype.handleEvent = function(event)
 {
@@ -188,7 +206,6 @@ Renderer.prototype.handleEvent = function(event)
 		case 'mousemove': this.onDocumentMouseMove(event); break;
 		case 'mousedown': this.onDocumentMouseDown(event); break;
 		case 'mouseup':   this.onDocumentMouseUp(event);   break;
-		case 'keydown':   this.onKeydown(event);           break;
 	}
 }
 
@@ -509,41 +526,6 @@ Renderer.prototype.onDocumentMouseUp = function(event)
 	this.laser.onMouseUp(event);
 }
 
-Renderer.prototype.onKeydown = function(event)
-{
-	if (!this.initialized) return;
-	event.preventDefault();
-
-	var charCode = (event.which) ? event.which : event.keyCode;
-	var fKeyCode = 70;
-	var f11Keycode = 122;
-
-	switch (charCode)
-	{
-		case 70: // F key: go fullscreen
-			var element	= document.body;
-			if ( 'webkitCancelFullScreen' in document )
-			{
-				element.webkitRequestFullScreen();
-			}
-			else if ( 'mozCancelFullScreen' in document )
-			{
-				element.mozRequestFullScreen();
-			}
-			else
-			{
-				console.assert(false);
-			}
-			break;
-
-		case 122: // F11 key: focus on emitter
-			this.controls.object.zoom = this.controls.zoom0;
-			this.controls.target.copy(this.laser.getPoint());
-			this.controls.update();
-			break; 
-
-	}
-}
 
 
 
