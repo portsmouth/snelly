@@ -39,9 +39,11 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 	var hI = 8.0;
 	var RI = 2.0;
 
+	var intersectionDebug = false;
+
 	// x-handle
 	var xHandleIntersectionGeo       = new THREE.CylinderGeometry( rI, rI, hI, 32 );
-	var xHandleIntersectionMaterial  = new THREE.MeshPhongMaterial( { color: 'red', visible: false } );
+	var xHandleIntersectionMaterial  = new THREE.MeshPhongMaterial( { color: 'red', visible: intersectionDebug } );
 	var xHandleIntersectionObj       = new THREE.Mesh( xHandleIntersectionGeo, xHandleIntersectionMaterial  );
 	xHandleIntersectionObj.rotation.z = 0.5*Math.PI;
 	xHandleIntersectionObj.position.x = -0.0;
@@ -49,7 +51,7 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 
 	// y-handle
 	var yHandleIntersectionGeo        = new THREE.CylinderGeometry( rI, rI, hI, 32 );
-	var yHandleIntersectionMaterial   = new THREE.MeshPhongMaterial( { color: 'green', visible: false } );
+	var yHandleIntersectionMaterial   = new THREE.MeshPhongMaterial( { color: 'green', visible: intersectionDebug } );
 	var yHandleIntersectionObj        = new THREE.Mesh( yHandleIntersectionGeo, yHandleIntersectionMaterial  );
 	yHandleIntersectionObj.rotation.y = 0.5*Math.PI;
 	yHandleIntersectionObj.position.x = -0.0;
@@ -57,7 +59,7 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 
 	// z-handle
 	var zHandleIntersectionGeo        = new THREE.CylinderGeometry( rI, rI, hI, 32 );
-	var zHandleIntersectionMaterial   = new THREE.MeshPhongMaterial( { color: 'blue', visible: false } );
+	var zHandleIntersectionMaterial   = new THREE.MeshPhongMaterial( { color: 'blue', visible: intersectionDebug } );
 	var zHandleIntersectionObj        = new THREE.Mesh( zHandleIntersectionGeo, zHandleIntersectionMaterial  );
 	zHandleIntersectionObj.rotation.x = 0.5*Math.PI;
 	zHandleIntersectionObj.position.x = -0.0;
@@ -65,14 +67,14 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 
 	// x-rot-handle
 	var xRotHandleIntersectionGeo      = new THREE.TorusGeometry( RI, rI, 32, 100 );
-	var xRotHandleIntersectionMaterial = new THREE.MeshPhongMaterial( { color: 'red', visible: false } );
+	var xRotHandleIntersectionMaterial = new THREE.MeshPhongMaterial( { color: 'red', visible: intersectionDebug } );
 	var xRotHandleIntersectionObj      = new THREE.Mesh( xRotHandleIntersectionGeo, xRotHandleIntersectionMaterial  );
 	xRotHandleIntersectionObj.rotation.y = 0.5*Math.PI;
 	intersectionHandleGroup.add(xRotHandleIntersectionObj);
 
 	// z-rot-handle
 	var zRotHandleIntersectionGeo      = new THREE.TorusGeometry( RI, rI, 32, 100 );
-	var zRotHandleIntersectionMaterial = new THREE.MeshPhongMaterial( { color: 'blue', visible: false } );
+	var zRotHandleIntersectionMaterial = new THREE.MeshPhongMaterial( { color: 'blue', visible: intersectionDebug } );
 	var zRotHandleIntersectionObj      = new THREE.Mesh( zRotHandleIntersectionGeo, zRotHandleIntersectionMaterial  );
 	zRotHandleIntersectionObj.rotation.y = 0.0;
 	intersectionHandleGroup.add(zRotHandleIntersectionObj);
@@ -131,6 +133,13 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 	zRotHandleRenderObj.rotation.y = 0.0;
 	renderHandleGroup.add(zRotHandleRenderObj);
 
+	// proxy geo, for dragging
+	var rPointer = 1.1*this.getEmissionRadius();
+	var translaterGeo      = new THREE.SphereGeometry(16.0*rPointer, 32, 32);
+	var translaterMaterial = new THREE.MeshPhongMaterial( { color: 0xff0000, visible: intersectionDebug } );
+	var translaterObj      = new THREE.Mesh( translaterGeo, translaterMaterial  );
+	group.add(translaterObj);
+	
 	// back plane to implement dragging 
 	var backPlaneObj =  new THREE.Mesh(
 						new THREE.PlaneGeometry(2000, 2000),
@@ -150,6 +159,7 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 	this.objects['xRotHandleIntersection'] = xRotHandleIntersectionObj;
 	this.objects['zRotHandleIntersection'] = zRotHandleIntersectionObj;
 	this.objects['intersectionHandleGroup'] = intersectionHandleGroup;
+	this.objects['translater'] = translaterObj;
 
 	this.objects['xHandleRender'] = xHandleRenderObj;
 	this.objects['yHandleRender'] = yHandleRenderObj;
@@ -185,8 +195,8 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 							  "yHandleRender", 
 							  "zHandleRender",
 							  "xRotHandleRender", 
-							  "zRotHandleRender",
-							  "emitter" ];
+							  "zRotHandleRender" ];
+
 	this.renderHandleObjects = [];
 	for (var n=0; n<renderHandleNames.length; n++) 
 	{
@@ -197,8 +207,7 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 													  "yHandleIntersection": "yHandleRender",
 													  "zHandleIntersection": "zHandleRender",
 													  "xRotHandleIntersection": "xRotHandleRender",
-													  "zRotHandleIntersection": "zRotHandleRender",
-													  "translater": "emitter" };
+													  "zRotHandleIntersection": "zRotHandleRender" };
 	this.glScene = glScene;
 	this.glRenderer = glRenderer;
 	this.glCamera = glCamera;
@@ -216,9 +225,11 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 LaserPointer.prototype.buildEmitterGeo = function()
 {
 	var group = this.group;
-	if ('emitter' in this.objects)    group.remove(this.objects['emitter']);
-	if ('translater' in this.objects) group.remove(this.objects['translater']);
-		
+	if (typeof this.emitterObj !== 'undefined') 
+	{
+		group.remove(this.emitterObj);
+	}
+
 	// Laser emission geometry
 	var rPointer = 1.1*this.getEmissionRadius();
 	this.emitterLength = 8.0*rPointer;
@@ -227,14 +238,7 @@ LaserPointer.prototype.buildEmitterGeo = function()
 	var emitterMaterial = new THREE.MeshPhongMaterial( { color: 0xdddddd, specular: 0x999999, shininess: 60, visible: true } );
 	var emitterObj      = new THREE.Mesh( emitterGeo, emitterMaterial  );
 	group.add(emitterObj);
-	this.objects['emitter'] = emitterObj;
-
-	// proxy geo, for dragging
-	var translaterGeo      = new THREE.SphereGeometry(16.0*rPointer, 32, 32);
-	var translaterMaterial = new THREE.MeshPhongMaterial( { color: 0xff0000, visible: false } );
-	var translaterObj      = new THREE.Mesh( translaterGeo, translaterMaterial  );
-	group.add(translaterObj);
-	this.objects['translater'] = translaterObj;
+	this.emitterObj = emitterObj;
 }
 
 
@@ -271,9 +275,8 @@ LaserPointer.prototype.render = function()
 LaserPointer.prototype.getPoint = function()
 {
 	var pLocal = new THREE.Vector3();
-	pLocal.copy(this.objects['emitter'].position);
+	pLocal.copy(this.emitterObj.position);
 	pLocal.y += 0.5*this.emitterLength;
-
 	var pWorld = pLocal.applyMatrix4( this.group.matrix );
 	return pWorld;
 }
@@ -392,32 +395,30 @@ LaserPointer.prototype.onMouseMove = function(event)
 			var shiftAbsolute = new THREE.Vector3(); // resulting group translation in plane 
 			shiftAbsolute.copy(shiftRelative).sub(group.position);
 		
+			// Translation on dragging 'rods'
 			if (this.SELECTED == obj['xHandleIntersection'])
 			{
-				var moveX = shiftAbsolute.dot(this.getX());
+				var moveX = 2.0*shiftAbsolute.dot(this.getX());
 				var xTranslation = new THREE.Vector3();
 				xTranslation.copy(this.getX()).multiplyScalar(moveX);
 				group.position.add(xTranslation);
 			}
 			else if (this.SELECTED == obj['yHandleIntersection'])
 			{
-				var moveY = shiftAbsolute.dot(this.getY());
+				var moveY = 2.0*shiftAbsolute.dot(this.getY());
 				var yTranslation = new THREE.Vector3();
 				yTranslation.copy(this.getY()).multiplyScalar(moveY);
 				group.position.add(yTranslation);
 			}
 			else if (this.SELECTED == obj['zHandleIntersection'])
 			{
-				var moveZ = shiftAbsolute.dot(this.getZ());
+				var moveZ = 2.0*shiftAbsolute.dot(this.getZ());
 				var zTranslation = new THREE.Vector3();
 				zTranslation.copy(this.getZ()).multiplyScalar(moveZ);
 				group.position.add(zTranslation);
 			}
 
-			// @todo: make ring always rotate in the direction
-			//        it is being 'dragged' (could just flip depending
-			//        on camDir.ringNormal)
-
+			// rotation on dragging 'rings'
 			else if (this.SELECTED == obj['xRotHandleIntersection'])
 			{
 				// world 'velocity' corresponding to mouse drag
@@ -438,7 +439,7 @@ LaserPointer.prototype.onMouseMove = function(event)
 				// angular momentum induced by drag
 				var L = new THREE.Vector3(1.0, 0.0, 0.0);;
 				L.crossVectors( radiusVector, worldVelocity );
-				var rotAngleX = 0.5 * Math.PI * L.dot(this.getX());
+				var rotAngleX = L.dot(this.getX());
 
 				var rotX = new THREE.Quaternion();
 				rotX.setFromAxisAngle(this.getX(), rotAngleX);
@@ -456,7 +457,7 @@ LaserPointer.prototype.onMouseMove = function(event)
 				var worldVelocity = new THREE.Vector3();
 				worldVelocity.copy(worldX);
 				worldVelocity.add(worldY);
-				
+
 				var radiusVector = new THREE.Vector3(1.0, 0.0, 0.0);
 				radiusVector.copy(this.SELECTION_HITPOINT);
 				radiusVector.sub(group.position);
@@ -464,17 +465,40 @@ LaserPointer.prototype.onMouseMove = function(event)
 				// angular momentum induced by drag
 				var L = new THREE.Vector3(1.0, 0.0, 0.0);;
 				L.crossVectors( radiusVector, worldVelocity );
-				var rotAngleZ = 0.5 * Math.PI * L.dot(this.getZ());
+				var rotAngleZ = L.dot(this.getZ());
 				var rotZ = new THREE.Quaternion();
 				rotZ.setFromAxisAngle(this.getZ(), rotAngleZ);
 				group.quaternion.multiplyQuaternions(rotZ, group.quaternion);
 			}
 
+			// translation on dragging laser 'housing'
 			else if (this.SELECTED == obj['translater'])
 			{
-				console.log("translater selected!");
+				// choose 'the plane most orthogonal to the view dir'
+				var camDir = this.camera.getWorldDirection();
+				var xproj = Math.abs(camDir.dot(this.getX())); // votes for yz plane
+				var yproj = Math.abs(camDir.dot(this.getY())); // votes for xy plane
+				var zproj = Math.abs(camDir.dot(this.getZ())); // votes for xy plane
+				var planeNormal;
+				if (xproj>yproj)
+				{
+					if (xproj>zproj) planeNormal = this.getX();
+					else             planeNormal = this.getZ();
+				}
+				else
+				{
+					if (yproj>zproj) planeNormal = this.getY();
+					else             planeNormal = this.getZ();
+				}
 
-
+				// project shiftRelative on chosen plane
+				var projectionDelta = new THREE.Vector3();
+				projectionDelta.copy(planeNormal);
+				projectionDelta.multiplyScalar(shiftAbsolute.dot(planeNormal));
+				var shift = new THREE.Vector3();
+				shift.copy(shiftAbsolute);
+				shift.sub(projectionDelta);
+				group.position.add(shift);
 			}
 
 			group.updateMatrix();
@@ -486,17 +510,23 @@ LaserPointer.prototype.onMouseMove = function(event)
 	for (var n=0; n<this.renderHandleObjects.length; n++) 
 	{
 		this.renderHandleObjects[n].material.emissive.set( 0x000000 );
-		this.intersectionHandleObjects[n].material.emissive.set( 0x000000 );
 	}
+	this.emitterObj.material.emissive.set( 0x000000 );
 
 	var intersections = this.raycaster.intersectObjects(this.intersectionHandleObjects);
 	if ( intersections.length > 0 )
 	{
 		var intersected = intersections[0].object;
-		var rname = this.intersectionHandleNameToRenderHandleName[intersected.name];
 
-		this.objects[intersected.name].material.emissive.set( 0x404040 );
-		this.objects[rname].material.emissive.set( 0x404040 );
+		if (intersected == this.objects['translater'])
+		{
+			this.emitterObj.material.emissive.set( 0x404040 );
+		}
+		else
+		{
+			var rname = this.intersectionHandleNameToRenderHandleName[intersected.name];
+			this.objects[rname].material.emissive.set( 0x404040 );
+		}
 
 		if ( this.INTERSECTED != intersected ) 
 		{
@@ -527,20 +557,6 @@ LaserPointer.prototype.onMouseDown = function(event)
 		this.controls.enabled = false;
 		this.SELECTED           = intersections[0].object;
 		this.SELECTION_HITPOINT = intersections[0].point;
-
-		// Indicate selection by making corresponding render handle slightly emissive
-		var rname = this.intersectionHandleNameToRenderHandleName[this.SELECTED.name];
-		var robj = this.objects[rname];
-		robj.material.emissive.set( 0x404040 );
-
-		for (var n=0; n<this.renderHandleObjects.length; n++) 
-		{
-			var robj_prime = this.renderHandleObjects[n];
-			if (robj_prime != robj) 
-			{
-				robj_prime.material.emissive.set( 0x000000 );
-			}
-		}
 
 		var backplaneIntersection = this.raycaster.intersectObject(obj['backPlane']);
 		if ( backplaneIntersection.length > 0 ) 
