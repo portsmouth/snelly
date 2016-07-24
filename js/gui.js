@@ -7,6 +7,7 @@ var GUI = function(renderer)
 	renderer.params = {}
 	renderer.params.renderSettings = {};
 	renderer.params.sceneSettings = {};
+	renderer.params.materialSettings = {};
 	renderer.params.emissionSettings = {};
 
 	// Create dat gui
@@ -15,6 +16,7 @@ var GUI = function(renderer)
 	
 	this.rs = this.rendererSettings();
 	this.ss = this.sceneSettings();
+	this.ss = this.materialSettings();
 	this.es = this.emissionSettings();
 
 	this.registerCamera();
@@ -35,8 +37,8 @@ GUI.prototype.rendererSettings = function()
 	settings.surfaceAlpha = 0.5;
 	
 	folder.add(settings, 'exposure', 0.0, 1000.0, 0.01);
-	folder.add(settings, 'maxPathLength', 1, 1024).onChange( function(value) { renderer.maxPathLength = Math.floor(value); renderer.resetup(); } );
-	folder.add(settings, 'photonsPerFrame', 1, 1024).onChange( function(value) { renderer.raySize = Math.floor(value); renderer.resetup(); } );
+	folder.add(settings, 'maxPathLength', 1, 1024).onChange( function(value) { renderer.maxPathLength = Math.floor(value); renderer.reset(); } );
+	folder.add(settings, 'photonsPerFrame', 1, 1024).onChange( function(value) { renderer.raySize = Math.floor(value); renderer.initRayStates(); } );
 	folder.add(settings, 'showSurface');
 	folder.add(settings, 'surfaceAlpha');
 	this.gui.remember(settings);
@@ -96,7 +98,7 @@ GUI.prototype.emissionSettings = function()
 
 	folder.add(settings, 'showLaserPointer').onChange( function(value) { laser.toggleVisibility(value); } );
 	folder.add(laser, 'emissionRadius', 0.0, 10.0).onChange( function(value) { laser.setEmissionRadius(value);      renderer.reset(); } );
-	folder.add(laser, 'emissionSpread', 0.0, 45.0).onChange( function(value) { laser.setEmissionSpreadAngle(value); renderer.reset(); } );
+	folder.add(laser, 'emissionSpread', 0.0, 90.0).onChange( function(value) { laser.setEmissionSpreadAngle(value); renderer.reset(); } );
 	folder.add(settings, 'spectrum', ['monochromatic', 'color', 'flat', 'blackbody']);
 
 	this.gui.remember(settings);
@@ -136,21 +138,57 @@ GUI.prototype.sceneSettings = function()
 	var renderer = this.renderer;
 	var settings = renderer.params.sceneSettings;
 
-	settings.scene = 'sphere';
+	scenes = renderer.getScenes();
+	var sceneNames = Object.keys(scenes);
 
-	folder.add(settings, 'scene', 
-
-				['sphere', 
-				 'box', 
-				 'diamond',
-				 'menger']);
+	folder.add(settings, 'scene', sceneNames).onChange( function(value) { 
+				 		console.log('Scene selection changed to ' + value);
+				 		renderer.loadScene(value);
+				 	} );
 
 	this.gui.remember(settings);
 
-	// @todo: later, each scene can have its own parameters
-	folder.open();
 	return folder;
 }
+
+GUI.prototype.materialSettings = function()
+{
+	folder = this.gui.addFolder('Material');
+
+	var renderer = this.renderer;
+	var settings = renderer.params.materialSettings;
+	
+	materials = renderer.getMaterials();
+	var materialNames = Object.keys(materials);
+
+	folder.add(settings, 'material', materialNames).onChange( function(value) { 
+				 		console.log('Material selection changed to ' + value);
+				 		renderer.loadMaterial(value);
+				 	} );
+
+	this.gui.remember(settings);
+
+	return folder;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

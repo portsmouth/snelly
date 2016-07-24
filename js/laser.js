@@ -252,7 +252,7 @@ LaserPointer.prototype.render = function()
 
 	// Ensure that handles are always > emitter geo size
 	// (so on zooming in, body doesn't 'swallow' the manips).
-	C = Math.max(C, 2.0*this.getEmissionRadius(), 1.0);
+	C = Math.max(C, 2.0*this.getEmissionRadius());
 
 	intersectionHandleGroup = this.objects["intersectionHandleGroup"];
 	intersectionHandleGroup.scale.set(C, C, C);
@@ -439,7 +439,7 @@ LaserPointer.prototype.onMouseMove = function(event)
 				// angular momentum induced by drag
 				var L = new THREE.Vector3(1.0, 0.0, 0.0);;
 				L.crossVectors( radiusVector, worldVelocity );
-				var rotAngleX = L.dot(this.getX());
+				var rotAngleX = Math.PI * L.dot(this.getX());
 
 				var rotX = new THREE.Quaternion();
 				rotX.setFromAxisAngle(this.getX(), rotAngleX);
@@ -465,7 +465,7 @@ LaserPointer.prototype.onMouseMove = function(event)
 				// angular momentum induced by drag
 				var L = new THREE.Vector3(1.0, 0.0, 0.0);;
 				L.crossVectors( radiusVector, worldVelocity );
-				var rotAngleZ = L.dot(this.getZ());
+				var rotAngleZ = Math.PI * L.dot(this.getZ());
 				var rotZ = new THREE.Quaternion();
 				rotZ.setFromAxisAngle(this.getZ(), rotAngleZ);
 				group.quaternion.multiplyQuaternions(rotZ, group.quaternion);

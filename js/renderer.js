@@ -82,23 +82,19 @@ var Renderer = function()
 	this.width = render_canvas.width;
 	this.height = render_canvas.height;
 	
-	this.initialized = false;
+	this.scenes = {}
+	this.materials = {}
 
 	// Initialize THREE.js camera
-	{
-		var VIEW_ANGLE = 45;
-		var ASPECT = this.width / this.height ;
-		var NEAR = 0.05;
-		var FAR = 1000;
-		this.camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
-		this.camera.position.z = 50;
-		this.camera.updateProjectionMatrix();
-	}
-
-	////////////////////////////////////////////////////////////
-	// Setup three.js GL renderer
-	////////////////////////////////////////////////////////////
-
+	var VIEW_ANGLE = 45;
+	var ASPECT = this.width / this.height ;
+	var NEAR = 0.05;
+	var FAR = 1000;
+	this.camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
+	this.camera.position.z = 50;
+	this.camera.updateProjectionMatrix();
+	
+	// Setup three.js GL viewport renderer
 	var ui_canvas = document.getElementById('ui-canvas');
 	ui_canvas.style.top = 0;
 	ui_canvas.style.position = 'fixed' 
@@ -128,52 +124,18 @@ var Renderer = function()
 		this.container.appendChild( this.stats.domElement );
 	}
 
-	///////////////////////////////////////
-	// Read shaders
-	///////////////////////////////////////
-
-	var renderer = this;
-	this.shaderSources = GLU.resolveShaderSource(["init", "trace", "line", "comp", "pass"]);
-	
 	// Create user control system for camera
-	this.controls = new THREE.OrbitControls(renderer.getCamera(), this.glRenderer.domElement);
+	this.controls = new THREE.OrbitControls(this.camera, this.glRenderer.domElement);
 	this.controls.zoomSpeed = 0.5;
 	this.controls.addEventListener( 'change', camChanged );
 
-	////////////////////////////////////////////////////////////
 	// Setup Laser pointer
-	////////////////////////////////////////////////////////////
-
 	this.laser = new LaserPointer(this.glRenderer, this.glScene, this.camera, this.controls);
 	this.laser.setPosition(new THREE.Vector3(-5.0, 0.0, 0.0));
 	this.laser.setDirection(new THREE.Vector3(1.0, 0.0, 0.0));
 
-	////////////////////////////////////////////////////////////
-	// Create dat gui
-	////////////////////////////////////////////////////////////
-
-	this.gui = new GUI(this);
-
-	////////////////////////////////////////////////////////////
-	// Initialize raytracing shaders
-	////////////////////////////////////////////////////////////
-
-	// Initialize raytracing parameters
-	this.raySize = 64;
-	this.maxPathLength = 20;
-
-	if (!this.initialized)
-	{
-		this.setup(this.shaderSources);
-		this.initialized = true;
-	}
-
-	////////////////////////////////////////////////////////////
 	// Setup keypress events
-	////////////////////////////////////////////////////////////
-
 	renderer = this;
-
 	window.addEventListener('keydown', function(event) 
 	{
 		var charCode = (event.which) ? event.which : event.keyCode;
@@ -196,6 +158,37 @@ var Renderer = function()
 	this.glRenderer.domElement.addEventListener( 'mousemove', this, false );
 	this.glRenderer.domElement.addEventListener( 'mousedown', this, false );
 	this.glRenderer.domElement.addEventListener( 'mouseup',   this, false );
+
+
+	////////////////////////////////////////////////////////////
+	// Initialize ray rendering
+	////////////////////////////////////////////////////////////
+
+	// Initialize textures containing ray states
+	this.raySize = 64;
+	this.maxPathLength = 20;
+	this.initRayStates();
+
+	// Create a quad VBO for rendering textures
+	this.quadVbo = this.createQuadVbo();
+
+	// Spectrum initialization:
+	// table of 256 vec4 RGB colors, corresponding to the 256 wavelength samples
+	// between 360.0 and 750.0 nanometres
+	// @todo:  for now we will just assume a flat emission spectrum, i.e pure white light.
+	this.LAMBDA_MIN = 360.0;
+    this.LAMBDA_MAX = 750.0;
+	this.spectrumTable = wavelengthToRgbTable();
+	this.spectrum = new GLU.Texture(this.spectrumTable.length/4, 1, 4, true,  true, true, this.spectrumTable);
+
+	// Initialize raytracing shaders
+	this.shaderSources = GLU.resolveShaderSource(["init", "trace", "line", "comp", "pass"]);
+
+	// Initialize GL
+	this.fbo = new GLU.RenderTarget();
+	gl.clearColor(0.0, 0.0, 0.0, 1.0);
+	gl.blendFunc(gl.ONE, gl.ONE);
+	this.resize(this.width, this.height);
 }
 
 
@@ -226,8 +219,7 @@ Renderer.prototype.createQuadVbo = function()
 
 Renderer.prototype.reset = function()
 {
-	if (!this.needsReset)
-	    return;
+	if (!this.needsReset) return;
 
 	this.needsReset = false;
 	this.wavesTraced = 0;
@@ -242,11 +234,6 @@ Renderer.prototype.reset = function()
 	this.fbo.unbind();
 }
 
-Renderer.prototype.resetup = function()
-{
-	this.setup(this.shaderSources);
-	this.reset();
-}
 
 Renderer.prototype.resetActiveBlock = function()
 {
@@ -254,29 +241,28 @@ Renderer.prototype.resetActiveBlock = function()
 	this.activeBlock = this.raySize;
 }
 
-Renderer.prototype.setup = function(shaderSources)
+Renderer.prototype.compileShaders = function()
 {
-	var gl = GLU.gl;
+	// @todo:  here, paste the current sdf and sample routine into the shader source:
+	sdfCode    = this.sceneObj.sdf();
+	iorCode    = this.materialObj.ior();
+	sampleCode = this.materialObj.sample();
+	injectedCode = sdfCode + '\n' + iorCode + '\n' + sampleCode;
 
-	// Quad VBO for rendering textures
-	this.quadVbo = this.createQuadVbo();
+	console.log('code to inject: ' + injectedCode);
 
-	// shaderSources is a dict from name (e.g. "viewport")
+	// shaderSources is a dict from name (e.g. "trace")
 	// to a dict {v:vertexShaderSource, f:fragmentShaderSource}
-	this.initProgram  = new GLU.Shader('init',  shaderSources);
-	this.traceProgram = new GLU.Shader('trace', shaderSources);
-	this.lineProgram  = new GLU.Shader('line',  shaderSources);
-	this.compProgram  = new GLU.Shader('comp',  shaderSources);
-	this.passProgram  = new GLU.Shader('pass',  shaderSources);
-	
-	// table of 256 vec4 RGB colors, corresponding to the 256 wavelength samples
-	// between 360.0 and 750.0 nanometres
-	// @todo:  for now we will just assume a flat emission spectrum, i.e pure white light.
-	this.LAMBDA_MIN = 360.0;
-    this.LAMBDA_MAX = 750.0;
-	this.spectrumTable = wavelengthToRgbTable();
-	this.spectrum = new GLU.Texture(this.spectrumTable.length/4, 1, 4, true,  true, true, this.spectrumTable);
+	this.initProgram  = new GLU.Shader('init',  this.shaderSources);
+	this.traceProgram = new GLU.Shader('trace', this.shaderSources);
+	this.lineProgram  = new GLU.Shader('line',  this.shaderSources);
+	this.compProgram  = new GLU.Shader('comp',  this.shaderSources);
+	this.passProgram  = new GLU.Shader('pass',  this.shaderSources);
+}
 
+
+Renderer.prototype.initRayStates = function()
+{
 	this.resetActiveBlock();
 	this.rayCount = this.raySize*this.raySize;
 	this.currentState = 0;
@@ -302,35 +288,46 @@ Renderer.prototype.setup = function(shaderSources)
 		}
 		this.rayVbo.copy(vboData);
 	}
-
-	this.fbo = new GLU.RenderTarget();
-
-	gl.clearColor(0.0, 0.0, 0.0, 1.0);
-	gl.blendFunc(gl.ONE, gl.ONE);
-
-	this.resize(this.width, this.height);
 }
 
 
-Renderer.prototype.getCamera = function()
+// scene management
+Renderer.prototype.addScene = function(sceneObj)
 {
-	return this.camera;
+	this.scenes[sceneObj.getName()] = sceneObj;
 }
 
-
-Renderer.prototype.resize = function(width, height)
+Renderer.prototype.getScenes = function()
 {
-	this.width = width;
-	this.height = height;
-	this.camera.aspect = width / height;
-	this.camera.updateProjectionMatrix();
-	this.screenBuffer = new GLU.Texture(this.width, this.height, 4, true, false, true, null);
-	this.waveBuffer   = new GLU.Texture(this.width, this.height, 4, true, false, true, null);
-	this.resetActiveBlock();
-	this.reset();
-
-	this.glRenderer.setSize(width, height);
+	return this.scenes;
 }
+
+Renderer.prototype.loadScene = function(sceneName)
+{
+	this.sceneObj = this.scenes[sceneName];
+	this.compileShaders();
+	this.sceneObj.setCam(this.controls, this.camera);
+	this.sceneObj.setLaser(this.laser);
+}
+
+
+// material management
+Renderer.prototype.addMaterial = function(materialObj)
+{
+	this.materials[materialObj.getName()] = materialObj;
+}
+
+Renderer.prototype.getMaterials = function()
+{
+	return this.materials;
+}
+
+Renderer.prototype.loadMaterial = function(materialName)
+{
+	this.materialObj = this.materials[materialName];
+	this.compileShaders();
+}
+
 
 
 Renderer.prototype.composite = function()
@@ -349,21 +346,8 @@ Renderer.prototype.composite = function()
 }
 
 
-// With y-axis as the polar north
-Renderer.prototype.sphericalPolar = function(theta, phi)
-{
-	Sp = Math.sin(phi);
-	Cp = Math.cos(phi);
-	St = Math.sin(theta);
-	Ct = Math.cos(theta);
-	return new THREE.Vector3( Cp*St, Ct, Sp*St );
-}
-
-
 Renderer.prototype.render = function()
 {
-	if (!this.initialized) return;
-
 	this.controls.update();
 
 	var gl = this.gl;
@@ -427,6 +411,8 @@ Renderer.prototype.render = function()
 	{
 		this.traceProgram.bind();
 		this.rayStates[current].bind(this.traceProgram);       // Use the current state as the initial conditions
+		this.sceneObj.syncShader(this.traceProgram);           // set current scene parameters 
+		this.materialObj.syncShader(this.traceProgram);        // set current material parameters 
 		this.quadVbo.draw(this.traceProgram, gl.TRIANGLE_FAN); // Generate the next ray state
 		this.rayStates[next].detach(this.fbo);
 	}
@@ -507,25 +493,40 @@ Renderer.prototype.render = function()
 
 Renderer.prototype.onDocumentMouseMove = function(event)
 {
-	if (!this.initialized) return;
 	event.preventDefault();
 	if (this.laser.onMouseMove(event)) this.reset();
 }
 
 Renderer.prototype.onDocumentMouseDown = function(event)
 {
-	if (!this.initialized) return;
 	event.preventDefault();
 	this.laser.onMouseDown(event);
 }
 
 Renderer.prototype.onDocumentMouseUp = function(event)
 {
-	if (!this.initialized) return;
 	event.preventDefault();
 	this.laser.onMouseUp(event);
 }
 
+Renderer.prototype.getCamera = function()
+{
+	return this.camera;
+}
+
+Renderer.prototype.resize = function(width, height)
+{
+	this.width = width;
+	this.height = height;
+	this.camera.aspect = width / height;
+	this.camera.updateProjectionMatrix();
+	this.screenBuffer = new GLU.Texture(this.width, this.height, 4, true, false, true, null);
+	this.waveBuffer   = new GLU.Texture(this.width, this.height, 4, true, false, true, null);
+	this.resetActiveBlock();
+	this.reset();
+
+	this.glRenderer.setSize(width, height);
+}
 
 
 

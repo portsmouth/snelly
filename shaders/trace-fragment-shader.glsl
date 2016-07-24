@@ -1,11 +1,4 @@
 
-/////////////////////////////////////////////////
-// Raytrace fragment shader
-/////////////////////////////////////////////////
-
-#extension GL_EXT_draw_buffers : require
-precision highp float;
-
 uniform sampler2D PosData;
 uniform sampler2D DirData;
 uniform sampler2D RngData;
@@ -13,129 +6,42 @@ uniform sampler2D RgbData;
 
 varying vec2 vTexCoord;
 
-
-float rand(inout vec4 state) 
-{
-    const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
-    const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
-    const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
-    const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
-
-    vec4 beta = floor(state/q);
-    vec4 p = a*(state - beta*q) - beta*r;
-    beta = (1.0 - sign(p))*0.5*m;
-    state = p + beta;
-    return fract(dot(state/m, vec4(1.0, -1.0, 1.0, -1.0)));
-}
-
-
-///////////////////////////////
-// Distance field
-///////////////////////////////
-
-// For now, assume this defines a solid body, whose interior
-// is defined by the points with SDF<0.0, with a constant refractive index.
-
-
-float sdBox( vec3 p, vec3 b )
-{
-  vec3 d = abs(p) - b;
-  return min(max(d.x,max(d.y,d.z)),0.0) +
-         length(max(d,0.0));
-}
-
-float sdSphere( vec3 p, vec3 c, float s )
-{
-  return length(p-c) - s;
-}
-
-float sdTorus( vec3 p, float r, float R )
-{
-  vec2 q = vec2(length(p.xz) - R, p.y);
-  return length(q) - r;
-}
-
-/*
-float opRep( vec3 p, vec3 c )
-{
-    vec3 q = mod(p,c) - 0.5*c;
-    return sdSphere( q, 1.0 );
-}
-*/
-
-const float inf = 1.0e6;
-
-float sdCross( in vec3 p )
-{
-  float da = sdBox(p.xyz,vec3(inf,1.0,1.0));
-  float db = sdBox(p.yzx,vec3(1.0,inf,1.0));
-  float dc = sdBox(p.zxy,vec3(1.0,1.0,inf));
-  return min(da,min(db,dc));
-}
-
-vec3 map( in vec3 p )
-{
-   float d = sdBox(p,vec3(100.0));
-
-   float s = 0.1;
-   for( int m=0; m<6; m++ )
-   {
-      vec3 a = mod( p*s, 2.0 )-1.0;
-      s *= 2.0;
-      vec3 r = abs(1.0 - 3.0*abs(a));
-
-      float da = max(r.x,r.y);
-      float db = max(r.y,r.z);
-      float dc = max(r.z,r.x);
-      float c = (min(da,min(db,dc))-1.0)/s;
-
-      d = max(d,c);
-   }
-
-   return vec3(d,1.0,1.0);
-}
-
-float DF(vec3 X)
-{
-	//return map(X/4.0).x;
-	float SDF1 = sdTorus(X, 0.8, 1.8);
-	float SDF2 = sdSphere(X, vec3(0.0, 0.0, 0.0), 1.99);
-	return min(SDF1, SDF2);
-}
-
-
-
-
+// @todo: epsilons should be relative to a scene scale
 #define normalEpsilon 5.0e-4
 
-vec3 calcNormal( in vec3 pos )
+// @todo: should be user params
+#define maxMarchSteps 256
+#define minMarchDist 1.0e-4
+#define maxDist 1.0e6
+
+
+// N is outward normal (from medium to vacuum)
+// Returns radiance gain on reflection (i.e., 1)
+float Reflect(inout vec3 X, inout vec3 D, vec3 N)
 {
-	// Compute normal as gradient of SDF
-	vec3 eps = vec3(normalEpsilon, 0.0, 0.0);
-	vec3 nor = vec3(
-	    DF(pos+eps.xyy) - DF(pos-eps.xyy),
-	    DF(pos+eps.yxy) - DF(pos-eps.yxy),
-	    DF(pos+eps.yyx) - DF(pos-eps.yyx) );
-	return normalize(nor);
+	float cosi = dot(-D, N);
+	bool entering = cosi > 0.0;
+	if (!entering)
+	{
+		N *= -1.0; // Flip normal (so normal is always opposite to incident light direction)
+	}
+	// Reflect direction about normal, and displace ray start into reflected halfspace:
+	X += normalEpsilon*N;
+	D -= 2.0*N*dot(D,N);
+	return 1.0;
 }
 
 
-float sellmeierIor(vec3 b, vec3 c, float lambda) 
-{
-	// (where lambda is in nanometres)
-	float lSq = (lambda*1e-3)*(lambda*1e-3);
-	return 1.0 + dot((b*lSq)/(lSq - c), vec3(1.0));
-	//return sqrt(2.0);
-}
+//////////////////////////////////////////////////////////////
+// Dielectric formulae
+//////////////////////////////////////////////////////////////
 
-// N is outward normal (from solid to vacuum)
-vec3 refract(inout vec3 X, vec3 D, vec3 N, inout vec4 rgbLambda)
-{
-	float lambda = rgbLambda.w;
-	float ior = sqrt(sellmeierIor(vec3(1.0396, 0.2318, 1.0105), 
-								  vec3(0.0060, 0.0200, 103.56), 
-								  lambda));
 
+// N is outward normal (from medium to vacuum).
+// Returns radiance gain on transmission
+float Transmit(inout vec3 X, inout vec3 D, vec3 N, float ior)
+{
+	// This applies of course only to dielectrics
 	float cosi = dot(-D, N);
 	bool entering = cosi > 0.0;
 	float ei, et;
@@ -152,55 +58,200 @@ vec3 refract(inout vec3 X, vec3 D, vec3 N, inout vec4 rgbLambda)
 		cosi *= -1.0;
 	}
 
-	float sini = sqrt(max(0.0, 1.0 - cosi*cosi));
 	float r = ei/et;
-	float sint = r * sini;
 
-	// Handle total internal reflection (occurs only if exiting)
-	if (sint >= 1.0)
-	{
-		// Shift X slightly away from surface, towards interior
-		X += normalEpsilon*N;
-		return D - 2.0*dot(D,N)*N;
-	}
+	// Compute sint from Snells law:
+	float sint = r * sqrt(max(0.0, 1.0 - cosi*cosi));
 
-	float cost = sqrt(max(0.0, 1.0 - sint*sint));
-	rgbLambda.rgb /= r*r;
-	
+	// sint<=1.0 guaranteed as total internal reflection already handled
+	float cost = sqrt(max(0.0, 1.0 - sint*sint)); 
+
+	// Displace ray start into transmitted halfspace
 	X -= normalEpsilon*N;
-	return r*D + (r*cosi - cost)*N; // transmitted direction
+
+	// Set transmitted direction
+	D = r*D + (r*cosi - cost)*N; 
+
+	// Transmitted radiance gets scaled by the square of the ratio of transmitted to incident IOR:
+	return 1.0 / (r*r);
 }
 
 
-#define maxMarchSteps 128
-#define minMarchDist 1.0e-4
-
-
-void raytrace(vec3 X, vec3 D,
-			  inout vec3 Xp, inout vec3 Dp,
-			  inout vec4 rgbLambda)
+// D is direction of incident light
+// N is normal pointing from medium to vacuum
+float reflectionDielectric(vec3 D, vec3 N, float ior)
 {
-	float totalDistance = 0.0;
+	float cosi = dot(-D, N);
+	bool entering = cosi > 0.0;
+	float ei, et;
+	if (entering)
+	{
+		ei = 1.0; // Incident from vacuum, if entering
+		et = ior; // Transmitted to internal medium, if entering
+	}
+	else
+	{
+		ei = ior;  // Incident from internal medium, if exiting
+		et = 1.0;  // Transmitted to vacuum, if exiting
+		N *= -1.0; // Flip normal (so normal is always opposite to incident light direction)
+		cosi *= -1.0;
+	}
+
+	// Compute sint from Snells law:
+	float sint = ei/et * sqrt(max(0.0, 1.0 - cosi*cosi));
+
+	// Handle total internal reflection
+	if (sint >= 1.0) return 1.0;
+	
+	float cost = sqrt(max(0.0, 1.0 - sint*sint));
+	float cosip = abs(cosi);
+	float rParallel      = ( et*cosip - ei*cost) / ( et*cosip + ei*cost);
+	float rPerpendicular = ( ei*cosip - et*cost) / ( ei*cosip + et*cost);
+	return 0.5 * (rParallel*rParallel + rPerpendicular*rPerpendicular);
+}
+
+
+// D is direction of incident light
+// N is normal pointing from medium to vacuum
+// returns radiance multiplier (1 for reflection, varying for transmission)
+float sampleDielectric(inout vec3 X, inout vec3 D, vec3 N, float ior)
+{
+	float R = reflectionDielectric(D, N, ior);
+	float rnd = rand(state);
+	if (R >= rnd) // make reflectProb = R
+	{
+		// we must multiply subsequent radiance by factor (1.0 / reflectProb) to get correct counting
+		// but as we chose reflectProb = R, this cancels with R, so that on reflection we should leave the radiance unchanged. 
+		return Reflect(X, D, N);
+	}
+	else // refraction, prob = (1-R)
+	{
+		// we must multiply subsequent radiance by factor (1.0 / transmitProb) to get correct counting
+		// but as we chose transmitProb = 1 - reflectProb = 1 - R, this cancels with (1-R) in the numerator, so that
+		// on transmission, we should just multiply the radiance by the (et/ei)^2 gain factor (done inside transmission function)
+		return Transmit(X, D, N, ior, gain);
+	}
+}
+
+
+//////////////////////////////////////////////////////////////
+// Metal formulae
+//////////////////////////////////////////////////////////////
+
+// D is direction of incident light
+// N is normal pointing from medium to vacuum
+float reflectionMetal(vec3 D, vec3 N, float ior, float k)
+{
+	float cosi = dot(-D, N);
+	float cosip = abs(cosi);
+	float cosi2 = cosip * cosip;
+	float tmp = (ior*ior + k*k) * cosi2;
+	float twoEtaCosi = 2.0 * ior * cosip;
+	float Rparl2 = (tmp - twoEtaCosi + 1.0) / (tmp + twoEtaCosi + 1.0);
+	float tmp_f = ior*ior + k*k;
+	float Rperp2 = (tmp_f - twoEtaCosi + cosi2) / (tmp_f + twoEtaCosi + cosi2);
+	return 0.5 * (Rparl2 + Rperp2);
+}
+
+// D is direction of incident light
+// N is normal pointing from medium to vacuum
+// returns radiance multiplier (varying for reflection, 0 for 'transmission' i.e. absorption)
+float sampleMetal(inout vec3 X, inout vec3 D, vec3 N, float ior, float k)
+{
+	float R = reflectionMetal(D, N, ior, k);
+	if (R >= rnd) // make reflectProb = R
+	{
+		// we must multiply subsequent radiance by factor (1.0 / reflectProb) to get correct counting
+		// but as we chose reflectProb = R, this cancels with R, so that on reflection we should leave the radiance unchanged. 
+		return Reflect(X, D, N);
+	}
+	else // absorption prob = (1-R)
+	{
+		return 0.0;
+	}
+}
+
+
+
+
+//////////////////////////////////////////////////////////////
+// @todo: paste this code in dynamically, based on current scene
+//////////////////////////////////////////////////////////////
+
+uniform float _radius;                
+float SDF(vec3 X)                     
+{                                     
+	return length(X) - _radius;       
+}                                     
+
+
+//////////////////////////////////////////////////////////////
+// @todo: paste this code in dynamically, based on current material
+//////////////////////////////////////////////////////////////
+
+float ior(float lnm) 
+{
+	return 1.5;
+}
+
+float sample(inout vec3 X, inout vec3 D, vec3 N, float lnm)
+{
+	return sampleDielectric(X, D, N, ior(lnm));
+}
+
+
+
+
+//////////////////////////////////////////////////////////////
+// Main SDF tracing loop
+//////////////////////////////////////////////////////////////
+
+
+vec3 calcNormal(in vec3 X)
+{
+	// Compute normal as gradient of SDF
+	float eps = normalEpsilon;
+	vec3 N = vec3( SDF(X+eps) - SDF(X-eps),
+				   SDF(X+eps) - SDF(X-eps),
+				   SDF(X+eps) - SDF(X-eps) );
+	return normalize(N);
+}
+
+
+void raytrace(inout vec3 X, inout vec3 D,
+			  inout vec4 rgbLambda, 
+			  inout vec4 state)
+{
+	const float radianceEpsilon = 1.0e-7;
+	if ( length(rgbLambda.rgb) < radianceEpsilon ) return;
+
+	float totalDist = 0.0;
 	bool hit = false;
 	for (int i=0; i<maxMarchSteps; i++)
 	{
-		Xp = X + totalDistance*D;
-		float dist = abs(DF(Xp));
-		totalDistance += dist;
+		X += totalDist*D;
+		float dist = abs( SDF(X) );
+		totalDist += dist;
 		if (dist < minMarchDist)
 		{
 			hit = true;
 			break;
 		}
 	}
+
 	if (!hit)
 	{
-		Dp = D;
+		X += maxDist*D;
+		rgbLambda.rgb *= 0.0; // terminate ray
 	}
 	else
 	{
+		// Hit the surface. Calculate normal there:
 		vec3 N = calcNormal(Xp);
-		Dp = refract(Xp, D, N, rgbLambda);
+
+		// Sample new direction, and update radiance accordingly:
+		float lambda = rgbLambda.w;
+		rgbLambda.rgb *= sample(X, D, N, lambda);
 	}
 }
 
@@ -212,12 +263,12 @@ void main()
 	vec4 state     = texture2D(RngData, vTexCoord);
 	vec4 rgbLambda = texture2D(RgbData, vTexCoord);
 
-	vec3 Xp, Dp;
-	raytrace(X, D, Xp, Dp, rgbLambda);
+	raytrace(X, D, rgbLambda, state);
 
-	gl_FragData[0] = vec4(Xp, 1.0);
-	gl_FragData[1] = vec4(Dp, 1.0);
+	gl_FragData[0] = vec4(X, 1.0);
+	gl_FragData[1] = vec4(D, 1.0);
 	gl_FragData[2] = state;
 	gl_FragData[3] = rgbLambda;
 }
+
 

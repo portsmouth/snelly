@@ -1,9 +1,5 @@
 
-
-precision highp float;
-
 uniform sampler2D Frame;
-
 varying vec2 vTexCoord;
 
 void main() 

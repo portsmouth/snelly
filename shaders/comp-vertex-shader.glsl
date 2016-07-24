@@ -1,5 +1,5 @@
 
-precision highp float;
+
 
 attribute vec3 Position;
 attribute vec2 TexCoord;
