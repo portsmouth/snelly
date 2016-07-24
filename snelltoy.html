@@ -22,11 +22,21 @@
 <script type="text/javascript" src="js/gl.js"></script>
 <script type="text/javascript" src="js/laser.js"></script>
 <script type="text/javascript" src="js/gui.js"></script>
+<script type="text/javascript" src="js/raystate.js"></script>
 <script type="text/javascript" src="js/renderer.js"></script>
-<script type="text/javascript" src="js/material.js"></script>
+<script type="text/javascript" src="js/materials.js"></script>
+<script type="text/javascript" src="js/scenes/scenes.js"></script>
 
-<script type="text/javascript" src="js/scenes/scene.js"></script>
+<?/* ----------------------------*/?>
+<?/*    scene definition files   */?>
+<?/* ----------------------------*/?>
+
 <script type="text/javascript" src="js/scenes/sphere.js"></script>
+<script type="text/javascript" src="js/scenes/fibre.js"></script>
+
+
+<?/* ----------------------------*/?>
+
 
 <script type="text/javascript">
 
@@ -53,25 +63,18 @@ function onLoad()
 	// Instantiate renderer object
 	renderer = new Renderer();
 
-	// Create scenes
-	renderer.addScene(new SphereScene("sphere", "Simple sphere"));
-	renderer.addScene(new FibreScene("fibre", "Simple optical fibre"));
-
-	// Create materials
-	renderer.addMaterial( new ConstantDielectric("constant", "Constant IOR dielectric", 1.5) ); 
-	renderer.addMaterial( new SellmeierDielectric("diamond", "Diamond",       0.0, 0.3306,     0.175,         4.3356,      0.1060,       0.0,        0.0       ) );
-	renderer.addMaterial( new SellmeierDielectric("glass_bk7", "Glass (BK7)", 0.0, 1.03961212, 0.00600069867, 0.231792344, 0.0200179144, 1.01046945, 103.560653) );
-	renderer.addMaterial(new LinearMetal("aluminium", "Aluminium",  0.46555, 4.7121, 1.6620, 8.0439));
-	renderer.addMaterial(new LinearMetal("gold", "Gold",            1.5275, 1.8394, 0.16918, 3.8816));
-
+	// Instantiate scenes and materials
+	createScenes(renderer);
+	createMaterials(renderer);
+	
+	// Load the initial scene and material
+	renderer.loadScene("sphere");
+	renderer.loadMaterial("glass_bk7");
 
 	// Create dat gui
 	gui = new GUI(renderer);
 
-	// Start
-	renderer.loadScene("sphere");
-	renderer.loadMaterial("glass_bk7");
-
+	// Begin rendering
 	animateLoop();
 }
 
@@ -101,7 +104,6 @@ function onWindowResize()
 }
 
 </script>
-
 </body>
 
 

@@ -12,7 +12,7 @@ src = "var Shaders = {\n\n"
 commonPath = ShaderDir + '/common.glsl'
 commonCode = open(commonPath).read().strip().split('\n')
 
-#debug = True
+debug = False
 
 for f in os.listdir(ShaderDir):
 

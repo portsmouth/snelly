@@ -8,6 +8,8 @@ function SphereScene(name, desc)
 	this._settings.radius = 1.0;
 }
 
+// NB, every function is mandatory and must be defined.
+
 SphereScene.prototype = Object.create(Scene.prototype);
 
 
@@ -15,13 +17,13 @@ SphereScene.prototype = Object.create(Scene.prototype);
 // defined by the points with SDF<0.0, with a constant refractive index.
 SphereScene.prototype.sdf = function()
 {
-	return '\
-		uniform float _radius;                \
-		float SDF(vec3 X)                     \
-		{                                     \
-			return length(X) - _radius;       \
-		}                                     \
-	';
+	return `
+				uniform float _radius;                
+				float SDF(vec3 X)                     
+				{                                     
+					return length(X) - _radius;       
+				}                                     
+	`;
 }
 
 
@@ -42,7 +44,7 @@ SphereScene.prototype.getScale = function()
 
 
 // Initial cam position default for this scene
-SphereScene.prototype.setCam = function(control, camera)
+SphereScene.prototype.setCam = function(controls, camera)
 {
 	camera.position.set(10.0, 10.0, 10.0)
 	controls.target.set(0.0, 0.0, 0.0);

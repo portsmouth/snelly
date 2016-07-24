@@ -307,13 +307,8 @@ var Shaders = {
 	'\n' +
 	'varying vec2 vTexCoord;\n' +
 	'\n' +
-	'// @todo: epsilons should be relative to a scene scale\n' +
-	'#define normalEpsilon 5.0e-4\n' +
-	'\n' +
-	'// @todo: should be user params\n' +
-	'#define maxMarchSteps 256\n' +
-	'#define minMarchDist 1.0e-4\n' +
-	'#define maxDist 1.0e6\n' +
+	'uniform float SceneScale;\n' +
+	'uniform int MaxMarchSteps;\n' +
 	'\n' +
 	'\n' +
 	'// N is outward normal (from medium to vacuum)\n' +
@@ -327,6 +322,7 @@ var Shaders = {
 	'		N *= -1.0; // Flip normal (so normal is always opposite to incident light direction)\n' +
 	'	}\n' +
 	'	// Reflect direction about normal, and displace ray start into reflected halfspace:\n' +
+	'	float normalEpsilon = 5.0e-5 * SceneScale;\n' +
 	'	X += normalEpsilon*N;\n' +
 	'	D -= 2.0*N*dot(D,N);\n' +
 	'	return 1.0;\n' +
@@ -368,6 +364,7 @@ var Shaders = {
 	'	float cost = sqrt(max(0.0, 1.0 - sint*sint)); \n' +
 	'\n' +
 	'	// Displace ray start into transmitted halfspace\n' +
+	'	float normalEpsilon = 5.0e-5 * SceneScale;\n' +
 	'	X -= normalEpsilon*N;\n' +
 	'\n' +
 	'	// Set transmitted direction\n' +
@@ -456,7 +453,7 @@ var Shaders = {
 	'\n' +
 	'// D is direction of incident light\n' +
 	'// N is normal pointing from medium to vacuum\n' +
-	'// returns radiance multiplier (varying for reflection, 0 for 'transmission' i.e. absorption)\n' +
+	'// returns radiance multiplier (varying for reflection, 0 for transmission, i.e. absorption)\n' +
 	'float sampleMetal(inout vec3 X, inout vec3 D, vec3 N, float ior, float k)\n' +
 	'{\n' +
 	'	float R = reflectionMetal(D, N, ior, k);\n' +
@@ -502,16 +499,14 @@ var Shaders = {
 	'\n' +
 	'\n' +
 	'\n' +
-	'\n' +
 	'//////////////////////////////////////////////////////////////\n' +
 	'// Main SDF tracing loop\n' +
 	'//////////////////////////////////////////////////////////////\n' +
 	'\n' +
-	'\n' +
 	'vec3 calcNormal(in vec3 X)\n' +
 	'{\n' +
 	'	// Compute normal as gradient of SDF\n' +
-	'	float eps = normalEpsilon;\n' +
+	'	float eps = 1.0e-5 * SceneScale;\n' +
 	'	vec3 N = vec3( SDF(X+eps) - SDF(X-eps),\n' +
 	'				   SDF(X+eps) - SDF(X-eps),\n' +
 	'				   SDF(X+eps) - SDF(X-eps) );\n' +
@@ -528,7 +523,9 @@ var Shaders = {
 	'\n' +
 	'	float totalDist = 0.0;\n' +
 	'	bool hit = false;\n' +
-	'	for (int i=0; i<maxMarchSteps; i++)\n' +
+	'\n' +
+	'	float minMarchDist = 1.0e-5 * SceneScale;\n' +
+	'	for (int i=0; i<MaxMarchSteps; i++)\n' +
 	'	{\n' +
 	'		X += totalDist*D;\n' +
 	'		float dist = abs( SDF(X) );\n' +

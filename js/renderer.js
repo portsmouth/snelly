@@ -1,76 +1,5 @@
 
 
-//////////////////////////////////////////////////////////////////////
-// RayState
-//////////////////////////////////////////////////////////////////////
-
-var RayState = function(size) 
-{
-	this.size = size;
-
-	var posData = new Float32Array(size*size*4); // ray position
-	var dirData = new Float32Array(size*size*4); // ray direction
-	var rngData = new Float32Array(size*size*4); // Random number seed
-	var rgbData = new Float32Array(size*size*4); // Ray color, and wavelength
-
-	for (var i = 0; i<size*size; ++i)
-	{
-		dirData[i*4 + 0] = 1.0;
-		dirData[i*4 + 1] = 0.0;
-		dirData[i*4 + 2] = 0.0;
-		dirData[i*4 + 3] = 0.0;
-		for (var t = 0; t<4; ++t)
-		{
-			rgbData[i*4 + t] = Math.random();
-			rngData[i*4 + t] = Math.random()*4194167.0;
-		}
-	}
-
-	this.posTex = new GLU.Texture(size, size, 4, true, false, true, posData);
-	this.dirTex = new GLU.Texture(size, size, 4, true, false, true, dirData);
-	this.rngTex = new GLU.Texture(size, size, 4, true, false, true, rngData);
-	this.rgbTex = new GLU.Texture(size, size, 4, true, false, true, rgbData);
-}
-
-RayState.prototype.bind = function(shader)
-{
-	this.posTex.bind(0);
-	this.dirTex.bind(1);
-	this.rngTex.bind(2);
-	this.rgbTex.bind(3);
-	shader.uniformTexture("PosData", this.posTex);
-	shader.uniformTexture("DirData", this.dirTex);
-	shader.uniformTexture("RngData", this.rngTex);
-	shader.uniformTexture("RgbData", this.rgbTex);
-}
-
-RayState.prototype.attach = function(fbo)
-{
-	var gl = GLU.gl;
-	fbo.attachTexture(this.posTex, 0);
-	fbo.attachTexture(this.dirTex, 1);
-	fbo.attachTexture(this.rngTex, 2);
-	fbo.attachTexture(this.rgbTex, 3);
-	if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) != gl.FRAMEBUFFER_COMPLETE) 
-	{
-		GLU.fail("Invalid framebuffer");
-	}
-}
-
-RayState.prototype.detach = function(fbo)
-{
-	var gl = GLU.gl;
-	fbo.detachTexture(0);
-	fbo.detachTexture(1);
-	fbo.detachTexture(2);
-	fbo.detachTexture(3);
-}
-
-
-//////////////////////////////////////////////////////////////////////
-// Renderer
-//////////////////////////////////////////////////////////////////////
-
 var Renderer = function()
 {
 	this.gl = GLU.gl;
@@ -84,6 +13,8 @@ var Renderer = function()
 	
 	this.scenes = {}
 	this.materials = {}
+	this.sceneObj = null;
+	this.materialObj = null;
 
 	// Initialize THREE.js camera
 	var VIEW_ANGLE = 45;
@@ -166,7 +97,6 @@ var Renderer = function()
 
 	// Initialize textures containing ray states
 	this.raySize = 64;
-	this.maxPathLength = 20;
 	this.initRayStates();
 
 	// Create a quad VBO for rendering textures
@@ -224,7 +154,7 @@ Renderer.prototype.reset = function()
 	this.needsReset = false;
 	this.wavesTraced = 0;
 	this.raysTraced = 0;
-	this.samplesTraced = 0;
+	this.pathsTraced = 0;
 	this.pathLength = 0;
 
 	this.fbo.bind();
@@ -241,19 +171,38 @@ Renderer.prototype.resetActiveBlock = function()
 	this.activeBlock = this.raySize;
 }
 
+
 Renderer.prototype.compileShaders = function()
 {
-	// @todo:  here, paste the current sdf and sample routine into the shader source:
-	sdfCode    = this.sceneObj.sdf();
-	iorCode    = this.materialObj.ior();
-	sampleCode = this.materialObj.sample();
-	injectedCode = sdfCode + '\n' + iorCode + '\n' + sampleCode;
+	if (this.sceneObj == null) return;
+	if (this.materialObj == null) return;
 
-	console.log('code to inject: ' + injectedCode);
+	console.log("scene: " + this.sceneObj.getName());
+	console.log("material: " + this.materialObj.getName());
+
+	// Inject code for the current scene and material:
+	sdfCode    = this.sceneObj.sdf();
+	console.log('sdfCode: ' + sdfCode);
+
+	iorCode    = this.materialObj.ior();
+	console.log('iorCode: ' + iorCode);
+
+	sampleCode = this.materialObj.sample();
+	console.log('sampleCode: ' + sampleCode);
+
+	//
+	// @todo:  HERE, paste the current sdf and sample routine into the shader source:
+	//
+
+
+
 
 	// shaderSources is a dict from name (e.g. "trace")
 	// to a dict {v:vertexShaderSource, f:fragmentShaderSource}
 	this.initProgram  = new GLU.Shader('init',  this.shaderSources);
+
+	console.log('debug b');
+
 	this.traceProgram = new GLU.Shader('trace', this.shaderSources);
 	this.lineProgram  = new GLU.Shader('line',  this.shaderSources);
 	this.compProgram  = new GLU.Shader('comp',  this.shaderSources);
@@ -267,12 +216,12 @@ Renderer.prototype.initRayStates = function()
 	this.rayCount = this.raySize*this.raySize;
 	this.currentState = 0;
 	this.needsReset = true;
-	
 	this.rayStates = [new RayState(this.raySize), new RayState(this.raySize)];
 		
 	// Create the buffer of texture coordinates, which maps each drawn line
 	// to its corresponding texture lookup.
 	{
+		var gl = GLU.gl;
 		this.rayVbo = new GLU.VertexBuffer();
 		this.rayVbo.addAttribute("TexCoord", 3, gl.FLOAT, false);
 		this.rayVbo.init(this.rayCount*2);
@@ -291,7 +240,15 @@ Renderer.prototype.initRayStates = function()
 }
 
 
+Renderer.prototype.getCamera = function()
+{
+	return this.camera;
+}
+
+
+//
 // scene management
+//
 Renderer.prototype.addScene = function(sceneObj)
 {
 	this.scenes[sceneObj.getName()] = sceneObj;
@@ -310,8 +267,14 @@ Renderer.prototype.loadScene = function(sceneName)
 	this.sceneObj.setLaser(this.laser);
 }
 
+Renderer.prototype.getLoadedScene = function()
+{
+	return this.sceneObj;
+}
 
+//
 // material management
+//
 Renderer.prototype.addMaterial = function(materialObj)
 {
 	this.materials[materialObj.getName()] = materialObj;
@@ -328,6 +291,11 @@ Renderer.prototype.loadMaterial = function(materialName)
 	this.compileShaders();
 }
 
+Renderer.prototype.getLoadedMaterial = function()
+{
+	return this.materialObj;
+}
+
 
 
 Renderer.prototype.composite = function()
@@ -337,14 +305,13 @@ Renderer.prototype.composite = function()
 	this.quadVbo.bind();
 	this.compProgram.uniformTexture("Frame", this.screenBuffer);
 
-	// Tonemap to effectively divide by total number of emitted photons
+	// Tonemap to effectively divide by total number of paths
 	// (and also apply gamma correction)
-	var numPhotons = Math.max(this.samplesTraced, 1);
-	this.compProgram.uniformF("Exposure", 0.01 * renderer.params.renderSettings.exposure / numPhotons);
+	var numPaths = Math.max(this.pathTraced, 1);
+	this.compProgram.uniformF("Exposure", 0.01 * renderer.renderSettings.exposure / numPaths);
 	
 	this.quadVbo.draw(this.compProgram, this.gl.TRIANGLE_FAN);
 }
-
 
 Renderer.prototype.render = function()
 {
@@ -411,6 +378,8 @@ Renderer.prototype.render = function()
 	{
 		this.traceProgram.bind();
 		this.rayStates[current].bind(this.traceProgram);       // Use the current state as the initial conditions
+		this.traceProgram.uniformF("SceneScale", this.sceneObj.getScale()); 
+		this.traceProgram.uniformI("MaxMarchSteps", renderer.renderSettings.maxMarchSteps); 
 		this.sceneObj.syncShader(this.traceProgram);           // set current scene parameters 
 		this.materialObj.syncShader(this.traceProgram);        // set current material parameters 
 		this.quadVbo.draw(this.traceProgram, gl.TRIANGLE_FAN); // Generate the next ray state
@@ -470,7 +439,7 @@ Renderer.prototype.render = function()
 		this.passProgram.bind();
 		this.passProgram.uniformTexture("Frame", this.waveBuffer);
 		this.quadVbo.draw(this.passProgram, gl.TRIANGLE_FAN);
-		this.samplesTraced += this.raySize*this.activeBlock;
+		this.pathsTraced += this.raySize*this.activeBlock;
 		if (this.pathLength == this.maxPathLength)
 		{
 			this.wavesTraced += 1;
@@ -509,10 +478,6 @@ Renderer.prototype.onDocumentMouseUp = function(event)
 	this.laser.onMouseUp(event);
 }
 
-Renderer.prototype.getCamera = function()
-{
-	return this.camera;
-}
 
 Renderer.prototype.resize = function(width, height)
 {

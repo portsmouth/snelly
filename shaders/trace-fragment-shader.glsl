@@ -6,13 +6,8 @@ uniform sampler2D RgbData;
 
 varying vec2 vTexCoord;
 
-// @todo: epsilons should be relative to a scene scale
-#define normalEpsilon 5.0e-4
-
-// @todo: should be user params
-#define maxMarchSteps 256
-#define minMarchDist 1.0e-4
-#define maxDist 1.0e6
+uniform float SceneScale;
+uniform int MaxMarchSteps;
 
 
 // N is outward normal (from medium to vacuum)
@@ -26,6 +21,7 @@ float Reflect(inout vec3 X, inout vec3 D, vec3 N)
 		N *= -1.0; // Flip normal (so normal is always opposite to incident light direction)
 	}
 	// Reflect direction about normal, and displace ray start into reflected halfspace:
+	float normalEpsilon = 5.0e-5 * SceneScale;
 	X += normalEpsilon*N;
 	D -= 2.0*N*dot(D,N);
 	return 1.0;
@@ -67,6 +63,7 @@ float Transmit(inout vec3 X, inout vec3 D, vec3 N, float ior)
 	float cost = sqrt(max(0.0, 1.0 - sint*sint)); 
 
 	// Displace ray start into transmitted halfspace
+	float normalEpsilon = 5.0e-5 * SceneScale;
 	X -= normalEpsilon*N;
 
 	// Set transmitted direction
@@ -155,7 +152,7 @@ float reflectionMetal(vec3 D, vec3 N, float ior, float k)
 
 // D is direction of incident light
 // N is normal pointing from medium to vacuum
-// returns radiance multiplier (varying for reflection, 0 for 'transmission' i.e. absorption)
+// returns radiance multiplier (varying for reflection, 0 for transmission, i.e. absorption)
 float sampleMetal(inout vec3 X, inout vec3 D, vec3 N, float ior, float k)
 {
 	float R = reflectionMetal(D, N, ior, k);
@@ -201,16 +198,14 @@ float sample(inout vec3 X, inout vec3 D, vec3 N, float lnm)
 
 
 
-
 //////////////////////////////////////////////////////////////
 // Main SDF tracing loop
 //////////////////////////////////////////////////////////////
 
-
 vec3 calcNormal(in vec3 X)
 {
 	// Compute normal as gradient of SDF
-	float eps = normalEpsilon;
+	float eps = 1.0e-5 * SceneScale;
 	vec3 N = vec3( SDF(X+eps) - SDF(X-eps),
 				   SDF(X+eps) - SDF(X-eps),
 				   SDF(X+eps) - SDF(X-eps) );
@@ -227,7 +222,9 @@ void raytrace(inout vec3 X, inout vec3 D,
 
 	float totalDist = 0.0;
 	bool hit = false;
-	for (int i=0; i<maxMarchSteps; i++)
+
+	float minMarchDist = 1.0e-5 * SceneScale;
+	for (int i=0; i<MaxMarchSteps; i++)
 	{
 		X += totalDist*D;
 		float dist = abs( SDF(X) );

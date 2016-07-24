@@ -149,6 +149,14 @@ var GLU = {};
 	        gl.uniform1i(id, texture.boundUnit);
 	}
 
+
+	this.Shader.prototype.uniformI = function(name, i) 
+	{
+		var id = this.uniformIndex(name);
+		if (id != -1)
+		    gl.uniform1i(id, i);
+	}
+
 	this.Shader.prototype.uniformF = function(name, f) 
 	{
 		var id = this.uniformIndex(name);

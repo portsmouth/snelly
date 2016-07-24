@@ -11,20 +11,20 @@ function FibreScene(name, desc)
 FibreScene.prototype = Object.create(Scene.prototype);
 
 
-// This defines a solid body, whose interior
+// This defines a solid body, whose interior is 
 // defined by the points with SDF<0.0, with a constant refractive index.
 FibreScene.prototype.sdf = function()
 {
-	return '\
-		uniform float _radius;                 \
-		uniform float _length;                 \
-		float SDF(vec3 X)                      \
-		{                                      \
-			vec2 h(_radius, _length);                          \
-			vec2 d = abs(vec2(length(p.xy), p.x)) - h;          \
-			return min(max(d.x,d.y),0.0) + length(max(d,0.0)); \
-		}                                                      \
-	';
+	return `
+					uniform float _radius;                 
+					uniform float _length;                 
+					float SDF(vec3 X)                      
+					{                                      
+						vec2 h(_radius, _length);                          
+						vec2 d = abs(vec2(length(p.xy), p.x)) - h;         
+						return min(max(d.x,d.y),0.0) + length(max(d,0.0)); 
+					}                                                      
+	`;
 }
 
 
@@ -41,13 +41,12 @@ FibreScene.prototype.syncShader = function(traceProgram)
 // can set tolerances appropriately.
 FibreScene.prototype.getScale = function()
 {
-	var settings = renderer.params.sceneSettings[getName()];
-	return settings.radius;
+	return this._settings.radius;
 }
 
 
 // Initial cam position default for this scene
-FibreScene.prototype.setCam = function(control, camera)
+FibreScene.prototype.setCam = function(controls, camera)
 {
 	camera.position.set(50.0, 0.0, 0.0)
 	controls.target.set(0.0, 0.0, 0.0);
@@ -69,7 +68,14 @@ FibreScene.prototype.initGui = function(parentFolder)
 
 }
 
-
+// set up gui and callbacks for this material
+LinearMetal.prototype.initGui = function(parentFolder)
+{
+	parentFolder.add(this, 'n400', 0.0, 10.0);
+	parentFolder.add(this, 'n700', 0.0, 10.0);
+	parentFolder.add(this, 'k400', 0.0, 1000.0);
+	parentFolder.add(this, 'k700', 0.0, 1000.0);
+}
 
 
 
