@@ -35,9 +35,9 @@ Metal.prototype = Object.create(Material.prototype);
 Metal.prototype.sample = function()
 {
 	return `
-				float sample(inout vec3 X, inout vec3 D, vec3 N, float lnm)
+				float SAMPLE(inout vec3 X, inout vec3 D, vec3 N, float lnm, inout vec4 rnd)
 				{                                                          
-					return sampleMetal(X, D, N, ior(lnm), k(lnm));        
+					return sampleMetal(X, D, N, IOR(lnm), K(lnm), rnd);    
 				}
 	`;
 }
@@ -65,13 +65,13 @@ LinearMetal.prototype.ior = function()
 				uniform float _n700;
 				uniform float _k400;
 				uniform float _k700;
-				float ior(float lnm)
+				float IOR(float lnm)
 				{                                                       
-					return abs(_n400 + (l-400.0) * (_n700-_n400)/300.0); 
+					return abs(_n400 + (lnm-400.0)*(_n700-_n400)/300.0); 
 				}                                                       
-				float k(float lnm)                                      
+				float K(float lnm)                                      
 				{                                                       
-					return abs(_k400 + (l-400.0) * (_k700-_k400)/300.0); 
+					return abs(_k400 + (lnm-400.0)*(_k700-_k400)/300.0); 
 				}
 	`;
 }
@@ -87,10 +87,10 @@ LinearMetal.prototype.syncShader = function(traceProgram)
 // set up gui and callbacks for this material
 LinearMetal.prototype.initGui = function(parentFolder)
 {
-	parentFolder.add(this, 'n400', 0.0, 10.0);
-	parentFolder.add(this, 'n700', 0.0, 10.0);
-	parentFolder.add(this, 'k400', 0.0, 1000.0);
-	parentFolder.add(this, 'k700', 0.0, 1000.0);
+	parentFolder.add(this, 'n400', 0.0, 10.0).onChange( function(value) { renderer.reset(); } );
+	parentFolder.add(this, 'n700', 0.0, 10.0).onChange( function(value) { renderer.reset(); } );
+	parentFolder.add(this, 'k400', 0.0, 1000.0).onChange( function(value) { renderer.reset(); } );
+	parentFolder.add(this, 'k700', 0.0, 1000.0).onChange( function(value) { renderer.reset(); } );
 }
 
 
@@ -109,9 +109,9 @@ Dielectric.prototype = Object.create(Material.prototype);
 Dielectric.prototype.sample = function()
 {
 	return `
-				float sample(inout vec3 X, inout vec3 D, vec3 N, float lnm)
+				float SAMPLE(inout vec3 X, inout vec3 D, vec3 N, float lnm, inout vec4 rnd)
 				{                                                          
-					return sampleDielectric(X, D, N, ior(lnm));            
+					return sampleDielectric(X, D, N, IOR(lnm), rnd);       
 				}
 	`;
 }
@@ -132,7 +132,7 @@ ConstantDielectric.prototype.ior = function()
 	// Defines a GLSL function which takes wavelength (in micrometres) and returns ior
 	return `
 				uniform float _iorVal;
-				float ior(float lnm)  
+				float IOR(float lnm)  
 				{                     
 					return _iorVal;   
 				}
@@ -147,7 +147,7 @@ ConstantDielectric.prototype.syncShader = function(traceProgram)
 // set up gui and callbacks for this material
 ConstantDielectric.prototype.initGui = function(parentFolder)
 {
-	parentFolder.add(this, 'iorVal', 0.0, 2.0);
+	parentFolder.add(this, 'iorVal', 0.0, 2.0).onChange( function(value) { renderer.reset(); } );
 }
 
 //
@@ -178,12 +178,12 @@ SellmeierDielectric.prototype.ior = function()
 				uniform float _C5;    
 				uniform float _C6;    
 				uniform float _C7;    
-				float ior(float lnm) 
-				{                                                                                                
+				float IOR(float lnm) 
+				{                                                                                            
 					float lmum = 1.0e-3*lnm;                                                                      
-					float l2 = l*l;                                                                               
+					float l2 = lmum*lmum;                                                                               
 					float n2 = 1.0 + _C1 + _C2*l2/(l2 - _C3*_C3) + _C4*l2/(l2 - _C5*_C5) + _C6*l2/(l2 - _C7*_C7); 
-					return sqrt(abs(n2));                                                                         
+					return sqrt(abs(n2));                                                                     
 				}
 	`;
 }
@@ -202,13 +202,15 @@ SellmeierDielectric.prototype.syncShader = function(traceProgram)
 // set up gui and callbacks for this material
 SellmeierDielectric.prototype.initGui = function(parentFolder)
 {
-	parentFolder.add(this, 'C1', 0.0, 1000.0);
-	parentFolder.add(this, 'C2', 0.0, 1000.0);
-	parentFolder.add(this, 'C3', 0.0, 1000.0);
-	parentFolder.add(this, 'C4', 0.0, 1000.0);
-	parentFolder.add(this, 'C5', 0.0, 1000.0);
-	parentFolder.add(this, 'C6', 0.0, 1000.0);
-	parentFolder.add(this, 'C7', 0.0, 1000.0);
+	// @todo: probably don't expose in UI..
+	// Maybe, as a 'fun' Sellmeier material.
+	parentFolder.add(this, 'C1', 0.0, 1000.0).onChange( function(value) { renderer.reset(); } );
+	parentFolder.add(this, 'C2', 0.0, 1000.0).onChange( function(value) { renderer.reset(); } );
+	parentFolder.add(this, 'C3', 0.0, 1000.0).onChange( function(value) { renderer.reset(); } );
+	parentFolder.add(this, 'C4', 0.0, 1000.0).onChange( function(value) { renderer.reset(); } );
+	parentFolder.add(this, 'C5', 0.0, 1000.0).onChange( function(value) { renderer.reset(); } );
+	parentFolder.add(this, 'C6', 0.0, 1000.0).onChange( function(value) { renderer.reset(); } );
+	parentFolder.add(this, 'C7', 0.0, 1000.0).onChange( function(value) { renderer.reset(); } );
 }
 
 

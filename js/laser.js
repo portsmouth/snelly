@@ -23,11 +23,6 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 
 	this.objects = {};
 
-	// Initialize emitter:
-	this.setEmissionRadius(0.1);
-	this.setEmissionSpreadAngle(5.0);
-	this.buildEmitterGeo();
-
 	///////////////////////////////////////////////////////////
 	// Intersection geometry for handle controls (invisible)
 	///////////////////////////////////////////////////////////
@@ -81,6 +76,12 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 
 	group.add(intersectionHandleGroup);
 
+	// translater intersection geo, for dragging
+	var translaterGeo      = new THREE.SphereGeometry(RI, 32, 32);
+	var translaterMaterial = new THREE.MeshPhongMaterial( { color: 0xff0000, visible: intersectionDebug } );
+	var translaterObj      = new THREE.Mesh( translaterGeo, translaterMaterial  );
+	group.add(translaterObj);
+
 
 	//////////////////////////////////////////////////////////////////////////////
 	// Rendered geometry for handle controls (thin, visually appealing lines)
@@ -89,7 +90,7 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 	this.renderHandleGroup = new THREE.Object3D();
 	var renderHandleGroup = this.renderHandleGroup;
 
-	var rR = 0.05;
+	var rR = 0.02;
 	var hR = 8.0;
 	var RR = 2.0;
 
@@ -133,12 +134,6 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 	zRotHandleRenderObj.rotation.y = 0.0;
 	renderHandleGroup.add(zRotHandleRenderObj);
 
-	// proxy geo, for dragging
-	var rPointer = 1.1*this.getEmissionRadius();
-	var translaterGeo      = new THREE.SphereGeometry(16.0*rPointer, 32, 32);
-	var translaterMaterial = new THREE.MeshPhongMaterial( { color: 0xff0000, visible: intersectionDebug } );
-	var translaterObj      = new THREE.Mesh( translaterGeo, translaterMaterial  );
-	group.add(translaterObj);
 	
 	// back plane to implement dragging 
 	var backPlaneObj =  new THREE.Mesh(
@@ -215,10 +210,6 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 	// Finally, add the laser pointer objects (and backplane for raycasting) to the scene
 	glScene.add(group);
 	glScene.add(backPlaneObj);
-
-	// Initialize position and direction
-	this.setDirection(new THREE.Vector3(1.0, 0.0, 0.0));
-	this.setPosition(new THREE.Vector3(-10.0, 0.0, 0.0));
 }
 
 
@@ -232,7 +223,7 @@ LaserPointer.prototype.buildEmitterGeo = function()
 
 	// Laser emission geometry
 	var rPointer = 1.1*this.getEmissionRadius();
-	this.emitterLength = 8.0*rPointer;
+	this.emitterLength = 0.01*rPointer;
 
 	var emitterGeo      = new THREE.CylinderGeometry(rPointer, rPointer, this.emitterLength, 32, 32);
 	var emitterMaterial = new THREE.MeshPhongMaterial( { color: 0xdddddd, specular: 0x999999, shininess: 60, visible: true } );
@@ -250,9 +241,12 @@ LaserPointer.prototype.render = function()
 	camDist.copy(this.objects["group"].position).sub(this.camera.position);
 	var C = 0.03*camDist.length();
 
+	var sceneObj = renderer.getLoadedScene();
+	var sceneScale = sceneObj.getScale();
+
 	// Ensure that handles are always > emitter geo size
 	// (so on zooming in, body doesn't 'swallow' the manips).
-	C = Math.max(C, 2.0*this.getEmissionRadius());
+	var C = Math.min(sceneScale, Math.max(C, 2.0*this.getEmissionRadius()));
 
 	intersectionHandleGroup = this.objects["intersectionHandleGroup"];
 	intersectionHandleGroup.scale.set(C, C, C);
@@ -346,6 +340,7 @@ LaserPointer.prototype.setDirection = function(direction)
 	var group = this.objects["group"];
 	var currentDir = this.getDirection();
 	var rot = new THREE.Quaternion();
+	direction.normalize();
 	rot.setFromUnitVectors(currentDir, direction);
 	group.quaternion.multiplyQuaternions(rot, group.quaternion);
 	group.updateMatrix();
@@ -353,7 +348,9 @@ LaserPointer.prototype.setDirection = function(direction)
 
 LaserPointer.prototype.setEmissionRadius = function(radius)
 {
-	this.emissionRadius = radius;
+	var sceneObj = renderer.getLoadedScene();
+	var sceneScale = sceneObj.getScale();
+	this.emissionRadius = Math.min(radius, 3.0*sceneScale);
 	this.buildEmitterGeo();
 }
 

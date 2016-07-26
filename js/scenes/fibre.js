@@ -4,8 +4,8 @@ function FibreScene(name, desc)
 	Scene.call(this, name, desc);
 
 	// defaults
-	this._settings.radius = 1.0;
-	this._settings.length = 100.0;
+	this._settings.radius = 0.5;
+	this._settings.length = 50.0;
 }
 
 FibreScene.prototype = Object.create(Scene.prototype);
@@ -16,14 +16,15 @@ FibreScene.prototype = Object.create(Scene.prototype);
 FibreScene.prototype.sdf = function()
 {
 	return `
-					uniform float _radius;                 
-					uniform float _length;                 
-					float SDF(vec3 X)                      
-					{                                      
-						vec2 h(_radius, _length);                          
-						vec2 d = abs(vec2(length(p.xy), p.x)) - h;         
-						return min(max(d.x,d.y),0.0) + length(max(d,0.0)); 
-					}                                                      
+				uniform float _radius;                 
+				uniform float _length;                 
+
+				float SDF(vec3 X)                      
+				{                                  
+					vec2 h = vec2(_radius, _length);                         
+					vec2 d = abs(vec2(length(X.xy), X.z)) - h;         
+					return min(max(d.x,d.y),0.0) + length(max(d,0.0)); 
+				}                                                      
 	`;
 }
 
@@ -48,24 +49,26 @@ FibreScene.prototype.getScale = function()
 // Initial cam position default for this scene
 FibreScene.prototype.setCam = function(controls, camera)
 {
-	camera.position.set(50.0, 0.0, 0.0)
-	controls.target.set(0.0, 0.0, 0.0);
+	camera.position.set(-2.0, 1.0, -22.0)
+	controls.target.set(-1.0, 0.0, -19.0);
 }
 
 
 // Initial laser position and direction defaults for this scene
 FibreScene.prototype.setLaser = function(laser)
 {
-	laser.setPosition(new THREE.Vector3(-100.0, 0.0, 0.0));
-	laser.setDirection(new THREE.Vector3(1.0, 0.0, 0.0));
-}
+	laser.setPosition(new THREE.Vector3(0.0, 0.0, -20.0));
+	laser.setDirection(new THREE.Vector3(0.1, 1.0, 1.0));
 
+	Scene.prototype.setLaser.call(this, laser);
+}
 
 
 // set up gui and callbacks for this scene
 FibreScene.prototype.initGui = function(parentFolder)
 {
-
+	parentFolder.add(this._settings, 'radius', 0.01, 10.0).onChange( function(value) { renderer.reset(); } );
+	parentFolder.add(this._settings, 'length', 0.01, 100.0).onChange( function(value) { renderer.reset(); } );
 }
 
 // set up gui and callbacks for this material

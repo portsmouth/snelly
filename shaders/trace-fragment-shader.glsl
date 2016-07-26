@@ -5,10 +5,12 @@ uniform sampler2D RngData;
 uniform sampler2D RgbData;
 
 varying vec2 vTexCoord;
-
 uniform float SceneScale;
-uniform int MaxMarchSteps;
 
+
+/////////////////////////////////////////////////////////////////////////
+// Fresnel formulae
+/////////////////////////////////////////////////////////////////////////
 
 // N is outward normal (from medium to vacuum)
 // Returns radiance gain on reflection (i.e., 1)
@@ -21,17 +23,46 @@ float Reflect(inout vec3 X, inout vec3 D, vec3 N)
 		N *= -1.0; // Flip normal (so normal is always opposite to incident light direction)
 	}
 	// Reflect direction about normal, and displace ray start into reflected halfspace:
-	float normalEpsilon = 5.0e-5 * SceneScale;
+	float normalEpsilon = 2.0e-5*SceneScale;
 	X += normalEpsilon*N;
 	D -= 2.0*N*dot(D,N);
 	return 1.0;
 }
 
 
-//////////////////////////////////////////////////////////////
-// Dielectric formulae
-//////////////////////////////////////////////////////////////
+// D is direction of incident light
+// N is normal pointing from medium to vacuum
+float reflectionMetal(vec3 D, vec3 N, float ior, float k)
+{
+	float cosi = dot(-D, N);
+	float cosip = abs(cosi);
+	float cosi2 = cosip * cosip;
+	float tmp = (ior*ior + k*k) * cosi2;
+	float twoEtaCosi = 2.0 * ior * cosip;
+	float Rparl2 = (tmp - twoEtaCosi + 1.0) / (tmp + twoEtaCosi + 1.0);
+	float tmp_f = ior*ior + k*k;
+	float Rperp2 = (tmp_f - twoEtaCosi + cosi2) / (tmp_f + twoEtaCosi + cosi2);
+	return 0.5 * (Rparl2 + Rperp2);
+}
 
+// D is direction of incident light
+// N is normal pointing from medium to vacuum
+// returns radiance multiplier (varying for reflection, 0 for transmission, i.e. absorption)
+float sampleMetal(inout vec3 X, inout vec3 D, vec3 N, float ior, float k, inout vec4 rnd)
+{
+	// @todo:  make sure that if light is emitted in interior of a metal, it terminates immediately.
+	float R = reflectionMetal(D, N, ior, k);
+	if (R >= rand(rnd)) // make reflectProb = R
+	{
+		// we must multiply subsequent radiance by factor (1.0 / reflectProb) to get correct counting
+		// but as we chose reflectProb = R, this cancels with R, so that on reflection we should leave the radiance unchanged. 
+		return Reflect(X, D, N);
+	}
+	else // absorption prob = (1-R)
+	{
+		return 0.0;
+	}
+}
 
 // N is outward normal (from medium to vacuum).
 // Returns radiance gain on transmission
@@ -63,7 +94,7 @@ float Transmit(inout vec3 X, inout vec3 D, vec3 N, float ior)
 	float cost = sqrt(max(0.0, 1.0 - sint*sint)); 
 
 	// Displace ray start into transmitted halfspace
-	float normalEpsilon = 5.0e-5 * SceneScale;
+	float normalEpsilon = 2.0e-5*SceneScale;
 	X -= normalEpsilon*N;
 
 	// Set transmitted direction
@@ -111,11 +142,10 @@ float reflectionDielectric(vec3 D, vec3 N, float ior)
 // D is direction of incident light
 // N is normal pointing from medium to vacuum
 // returns radiance multiplier (1 for reflection, varying for transmission)
-float sampleDielectric(inout vec3 X, inout vec3 D, vec3 N, float ior)
+float sampleDielectric(inout vec3 X, inout vec3 D, vec3 N, float ior, inout vec4 rnd)
 {
 	float R = reflectionDielectric(D, N, ior);
-	float rnd = rand(state);
-	if (R >= rnd) // make reflectProb = R
+	if (R >= rand(rnd)) // make reflectProb = R
 	{
 		// we must multiply subsequent radiance by factor (1.0 / reflectProb) to get correct counting
 		// but as we chose reflectProb = R, this cancels with R, so that on reflection we should leave the radiance unchanged. 
@@ -126,129 +156,75 @@ float sampleDielectric(inout vec3 X, inout vec3 D, vec3 N, float ior)
 		// we must multiply subsequent radiance by factor (1.0 / transmitProb) to get correct counting
 		// but as we chose transmitProb = 1 - reflectProb = 1 - R, this cancels with (1-R) in the numerator, so that
 		// on transmission, we should just multiply the radiance by the (et/ei)^2 gain factor (done inside transmission function)
-		return Transmit(X, D, N, ior, gain);
-	}
-}
-
-
-//////////////////////////////////////////////////////////////
-// Metal formulae
-//////////////////////////////////////////////////////////////
-
-// D is direction of incident light
-// N is normal pointing from medium to vacuum
-float reflectionMetal(vec3 D, vec3 N, float ior, float k)
-{
-	float cosi = dot(-D, N);
-	float cosip = abs(cosi);
-	float cosi2 = cosip * cosip;
-	float tmp = (ior*ior + k*k) * cosi2;
-	float twoEtaCosi = 2.0 * ior * cosip;
-	float Rparl2 = (tmp - twoEtaCosi + 1.0) / (tmp + twoEtaCosi + 1.0);
-	float tmp_f = ior*ior + k*k;
-	float Rperp2 = (tmp_f - twoEtaCosi + cosi2) / (tmp_f + twoEtaCosi + cosi2);
-	return 0.5 * (Rparl2 + Rperp2);
-}
-
-// D is direction of incident light
-// N is normal pointing from medium to vacuum
-// returns radiance multiplier (varying for reflection, 0 for transmission, i.e. absorption)
-float sampleMetal(inout vec3 X, inout vec3 D, vec3 N, float ior, float k)
-{
-	float R = reflectionMetal(D, N, ior, k);
-	if (R >= rnd) // make reflectProb = R
-	{
-		// we must multiply subsequent radiance by factor (1.0 / reflectProb) to get correct counting
-		// but as we chose reflectProb = R, this cancels with R, so that on reflection we should leave the radiance unchanged. 
-		return Reflect(X, D, N);
-	}
-	else // absorption prob = (1-R)
-	{
-		return 0.0;
+		return Transmit(X, D, N, ior);
 	}
 }
 
 
 
-
 //////////////////////////////////////////////////////////////
-// @todo: paste this code in dynamically, based on current scene
-//////////////////////////////////////////////////////////////
-
-uniform float _radius;                
-float SDF(vec3 X)                     
-{                                     
-	return length(X) - _radius;       
-}                                     
-
-
-//////////////////////////////////////////////////////////////
-// @todo: paste this code in dynamically, based on current material
+// Dynamically injected code
 //////////////////////////////////////////////////////////////
 
-float ior(float lnm) 
-{
-	return 1.5;
-}
 
-float sample(inout vec3 X, inout vec3 D, vec3 N, float lnm)
-{
-	return sampleDielectric(X, D, N, ior(lnm));
-}
+SDF_FUNC
+
+IOR_FUNC
+
+SAMPLE_FUNC
 
 
 
 //////////////////////////////////////////////////////////////
-// Main SDF tracing loop
+// SDF tracing
 //////////////////////////////////////////////////////////////
 
-vec3 calcNormal(in vec3 X)
+
+vec3 NORMAL( in vec3 pos )
 {
 	// Compute normal as gradient of SDF
-	float eps = 1.0e-5 * SceneScale;
-	vec3 N = vec3( SDF(X+eps) - SDF(X-eps),
-				   SDF(X+eps) - SDF(X-eps),
-				   SDF(X+eps) - SDF(X-eps) );
-	return normalize(N);
+	float normalEpsilon = 2.0e-5*SceneScale;
+	vec3 eps = vec3(normalEpsilon, 0.0, 0.0);
+	vec3 nor = vec3(
+	    SDF(pos+eps.xyy) - SDF(pos-eps.xyy),
+	    SDF(pos+eps.yxy) - SDF(pos-eps.yxy),
+	    SDF(pos+eps.yyx) - SDF(pos-eps.yyx) );
+	return normalize(nor);
 }
 
 
 void raytrace(inout vec3 X, inout vec3 D,
-			  inout vec4 rgbLambda, 
-			  inout vec4 state)
+			  inout vec4 rgbLambda, inout vec4 rnd)
 {
-	const float radianceEpsilon = 1.0e-7;
-	if ( length(rgbLambda.rgb) < radianceEpsilon ) return;
-
-	float totalDist = 0.0;
 	bool hit = false;
+	normalize(D);
+	float minMarchDist = 1.0e-5*SceneScale;
 
-	float minMarchDist = 1.0e-5 * SceneScale;
-	for (int i=0; i<MaxMarchSteps; i++)
+	//for (int i=0; i<MAX_MARCH_STEPS; i++)
+	for (int i=0; i<256; i++)
 	{
-		X += totalDist*D;
-		float dist = abs( SDF(X) );
-		totalDist += dist;
+		float dist = abs(SDF(X));
+		X += dist*D;
 		if (dist < minMarchDist)
 		{
 			hit = true;
+			break;
+		}
+		if (dist > 100.0*SceneScale)
+		{
 			break;
 		}
 	}
 
 	if (!hit)
 	{
-		X += maxDist*D;
+		X += SceneScale*D;
 		rgbLambda.rgb *= 0.0; // terminate ray
 	}
 	else
 	{
-		// Hit the surface. Calculate normal there:
-		vec3 N = calcNormal(Xp);
-
-		// Sample new direction, and update radiance accordingly:
-		float lambda = rgbLambda.w;
-		rgbLambda.rgb *= sample(X, D, N, lambda);
+		vec3 N = NORMAL(X);
+		rgbLambda.rgb *= SAMPLE(X, D, N, rgbLambda.w, rnd);
 	}
 }
 
@@ -257,14 +233,14 @@ void main()
 {
 	vec3 X         = texture2D(PosData, vTexCoord).xyz;
 	vec3 D         = texture2D(DirData, vTexCoord).xyz;
-	vec4 state     = texture2D(RngData, vTexCoord);
+	vec4 rnd       = texture2D(RngData, vTexCoord);
 	vec4 rgbLambda = texture2D(RgbData, vTexCoord);
 
-	raytrace(X, D, rgbLambda, state);
+	raytrace(X, D, rgbLambda, rnd);
 
 	gl_FragData[0] = vec4(X, 1.0);
 	gl_FragData[1] = vec4(D, 1.0);
-	gl_FragData[2] = state;
+	gl_FragData[2] = rnd;
 	gl_FragData[3] = rgbLambda;
 }
 

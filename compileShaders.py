@@ -24,21 +24,20 @@ for f in os.listdir(ShaderDir):
     if f.find('.glsl') == -1: continue
 
     name = f.replace('.glsl', '')
-    src += "'%s': \n" % name
+    src += "'%s': `\n" % name
 
     path = os.path.join(ShaderDir, f)
     lines = open(path).read().strip().split('\n')
     
     code = list(commonCode)
+    code.append('')
     code.extend(lines)
 
     for i, line in enumerate(code):
-        src += "\t'" + line + "\\n'"
+        src += line + '\n'
         if debug: print line
-        if i<len(code)-1:
-            src += " +\n"
-        else:
-            src += ",\n\n"
+        if i==len(code)-1:
+            src += "`,\n\n"
 
 src += "}"
 

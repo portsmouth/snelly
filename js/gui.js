@@ -25,17 +25,17 @@ GUI.prototype.rendererSettings = function()
 	renderer.renderSettings = {};
 	settings = renderer.renderSettings;
 
-	settings.exposure = 100.0;
-	settings.maxPathLength = 32;
-	settings.maxMarchSteps = 512;
-	settings.photonsPerFrame = renderer.raySize;
+	settings.exposure = 10.0;
 	settings.showSurface = false;
 	settings.surfaceAlpha = 0.5;
+	settings.maxPathLength = renderer.maxPathLength;
+	settings.maxMarchSteps =renderer.maxMarchSteps;
+	settings.photonsPerFrame = renderer.raySize;
 	
-	folder.add(settings, 'exposure', 0.0, 1000.0, 0.01);
-	folder.add(settings, 'maxPathLength', 1, 1024).onChange( function(value) { renderer.renderSettings.maxPathLength = Math.floor(value); renderer.reset(); } );
-	folder.add(settings, 'maxMarchSteps', 1, 1024).onChange( function(value) { renderer.renderSettings.maxMarchSteps = Math.floor(value); renderer.reset(); } );
-	folder.add(settings, 'photonsPerFrame', 1, 1024).onChange( function(value) { renderer.raySize = Math.floor(value); renderer.initRayStates(); } );
+	folder.add(settings, 'exposure', 0.0, 100.0, 0.01);
+	folder.add(settings, 'maxPathLength', 1, 1024).onChange( function(value) { renderer.maxPathLength = Math.floor(value); renderer.reset(); } );
+	folder.add(settings, 'maxMarchSteps', 1, 1024).onChange( function(value) { renderer.maxMarchSteps = Math.floor(value); renderer.reset(); } );
+	folder.add(settings, 'photonsPerFrame', 1, 1024).onChange( function(value) { renderer.raySize = Math.floor(value); renderer.initRayStates(); renderer.reset(); } );
 	folder.add(settings, 'showSurface');
 	folder.add(settings, 'surfaceAlpha');
 	this.gui.remember(settings);
@@ -52,10 +52,10 @@ GUI.prototype.registerCamera = function()
 	this.cpfolder.add(this.renderer.camera.position, 'x', -m, m).listen();
 	this.cpfolder.add(this.renderer.camera.position, 'y', -m, m).listen();
 	this.cpfolder.add(this.renderer.camera.position, 'z', -m, m).listen();
-	this.crfolder = rs.addFolder('Camera Rotation');
-	this.crfolder.add(this.renderer.camera.rotation, 'x', -m, m).listen();
-	this.crfolder.add(this.renderer.camera.rotation, 'y', -m, m).listen();
-	this.crfolder.add(this.renderer.camera.rotation, 'z', -m, m).listen();
+	this.crfolder = rs.addFolder('Camera Target');
+	this.crfolder.add(this.renderer.controls.target, 'x', -m, m).listen();
+	this.crfolder.add(this.renderer.controls.target, 'y', -m, m).listen();
+	this.crfolder.add(this.renderer.controls.target, 'z', -m, m).listen();
 	this.gui.remember(this.renderer.camera.position);
 	this.gui.remember(this.renderer.camera.rotation);
 	this.cpfolder.close();
@@ -142,10 +142,19 @@ GUI.prototype.sceneSettings = function()
 	settings.scene = sceneObj.getName();
 
 	scenes = renderer.getScenes();
+	for (var sceneName in scenes) 
+	{
+		if (scenes.hasOwnProperty(sceneName)) 
+		{
+			sceneFolder = folder.addFolder(sceneName);
+			sceneObj = scenes[sceneName];
+			sceneObj.initGui(sceneFolder);
+		}
+	}
+
 	var sceneNames = Object.keys(scenes);
 
 	folder.add(settings, 'scene', sceneNames).onChange( function(sceneName) { 
-				 		console.log('Scene selection changed to ' + sceneName);
 				 		renderer.loadScene(sceneName);
 				 	} );
 
@@ -162,14 +171,23 @@ GUI.prototype.materialSettings = function()
 	this.materialSettings = {};
 	settings = this.materialSettings;
 
-	var materialObj = renderer.getLoadedScene();
-	settings.material = sceneObj.materialObj();
+	var materialObj = renderer.getLoadedMaterial();
+	settings.material = materialObj.getName();
 	
 	materials = renderer.getMaterials();
+	for (var materialName in materials) 
+	{
+		if (materials.hasOwnProperty(materialName)) 
+		{
+			materialFolder = folder.addFolder(materialName);
+			materialObj = materials[materialName];
+			materialObj.initGui(materialFolder);
+		}
+	}
+
 	var materialNames = Object.keys(materials);
 
 	folder.add(settings, 'material', materialNames).onChange( function(materialName) { 
-				 		console.log('Material selection changed to ' + materialName);
 				 		renderer.loadMaterial(materialName);
 				 	} );
 

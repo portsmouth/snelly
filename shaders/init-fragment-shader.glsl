@@ -11,20 +11,20 @@ varying vec2 vTexCoord;
 
 void main()
 {
-	vec4 state = texture2D(RngData, vTexCoord);
+	vec4 seed = texture2D(RngData, vTexCoord);
 
 	float lambda = 360.0 + (750.0 - 360.0)*vTexCoord.x;
 	vec3 rgb = texture2D(Spectrum, vec2(vTexCoord.x, 0.5)).rgb;
 
 	// @todo: make cross-section circular
-	vec3 pos = EmitterPos + EmitterRadius*(-vec3(0.5) + vec3(rand(state), rand(state), rand(state)));
+	vec3 pos = EmitterPos + EmitterRadius*(-vec3(0.5) + vec3(rand(seed), rand(seed), rand(seed)));
 
 	// @todo: ncorrect, do properly (e.g. 90 degree spread != hemisphere with this)
 	float spreadAngle = EmitterSpread*(M_PI/360.0);
-	vec3 dir = normalize(EmitterDir + spreadAngle*(-vec3(0.5) + vec3(rand(state), rand(state), rand(state))));
+	vec3 dir = normalize(EmitterDir + spreadAngle*(-vec3(0.5) + vec3(rand(seed), rand(seed), rand(seed))));
 	
 	gl_FragData[0] = vec4(pos, 1.0);
 	gl_FragData[1] = vec4(dir, 1.0);
-	gl_FragData[2] = state;
+	gl_FragData[2] = seed;
 	gl_FragData[3] = vec4(rgb, lambda);
 }

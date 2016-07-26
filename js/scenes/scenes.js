@@ -22,6 +22,15 @@ Scene.prototype.getSettings = function()
 	return this._settings;
 }
 
+// Initial emitter defaults
+Scene.prototype.setLaser = function(laser)
+{
+	var sceneObj = renderer.getLoadedScene();
+	var sceneScale = sceneObj.getScale();
+	laser.setEmissionRadius(0.01*sceneScale);
+	laser.setEmissionSpreadAngle(5.0);
+	laser.buildEmitterGeo();
+}
 
 
 ////////////////////////////////////////////////////////////////////////

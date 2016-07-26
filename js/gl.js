@@ -97,7 +97,7 @@ var GLU = {};
 		{
 			// Something went wrong during compilation; get the error
 			var shaderTypeStr = (shaderType==gl.VERTEX_SHADER) ? 'vertex' : 'fragment';
-			throw ("Could not compile " + shaderName + " " + shaderTypeStr + " shader:" + gl.getShaderInfoLog(shader));
+			throw ("Could not compile " + shaderName + " " + shaderTypeStr + " shader: " + gl.getShaderInfoLog(shader));
 		}
 		return shader;
 	}
@@ -107,11 +107,26 @@ var GLU = {};
 	// GLU.Shader object
 	///////////////////////////////////////////////////
 
-	this.Shader = function(name, shaderSources)
+	this.Shader = function(name, shaderSources, replacements)
 	{
 		shaderSource = shaderSources[name];
-		vertSource = shaderSource.v;
-		fragSource = shaderSource.f;
+
+		// replacements is an optional object whose key-val pairs
+		// define patterns to replace in the vertex and fragment shaders
+		vertSource = (' ' + shaderSource.v).slice(1);
+		fragSource = (' ' + shaderSource.f).slice(1);
+		if (replacements != null)
+		{
+			for (var pattern in replacements) 
+			{
+				if (replacements.hasOwnProperty(pattern)) 
+				{
+					vertSource = vertSource.replace(new RegExp(pattern, 'g'), replacements[pattern]);
+					fragSource = fragSource.replace(new RegExp(pattern, 'g'), replacements[pattern]);
+				}
+			}
+		};
+
 		var vertexShader       = GLU.compileShaderSource(name, vertSource, gl.VERTEX_SHADER);
 		var fragmentShader     = GLU.compileShaderSource(name, fragSource, gl.FRAGMENT_SHADER);
 		this.program = GLU.createProgram(vertexShader, fragmentShader);
@@ -148,7 +163,6 @@ var GLU = {};
 	    if (id != -1)
 	        gl.uniform1i(id, texture.boundUnit);
 	}
-
 
 	this.Shader.prototype.uniformI = function(name, i) 
 	{

@@ -19,6 +19,7 @@ SphereScene.prototype.sdf = function()
 {
 	return `
 				uniform float _radius;                
+
 				float SDF(vec3 X)                     
 				{                                     
 					return length(X) - _radius;       
@@ -46,7 +47,7 @@ SphereScene.prototype.getScale = function()
 // Initial cam position default for this scene
 SphereScene.prototype.setCam = function(controls, camera)
 {
-	camera.position.set(10.0, 10.0, 10.0)
+	camera.position.set(-10.0, 10.0, 10.0)
 	controls.target.set(0.0, 0.0, 0.0);
 }
 
@@ -54,15 +55,16 @@ SphereScene.prototype.setCam = function(controls, camera)
 // Initial laser position and direction defaults for this scene
 SphereScene.prototype.setLaser = function(laser)
 {
-	laser.setPosition(new THREE.Vector3(-5.0, 0.0, 0.0));
+	laser.setPosition(new THREE.Vector3(-6.0, 0.0, 0.0));
 	laser.setDirection(new THREE.Vector3(1.0, 0.0, 0.0));
+	Scene.prototype.setLaser.call(this, laser);
 }
 
 
 // set up gui and callbacks for this scene
 SphereScene.prototype.initGui = function(parentFolder)
 {
-	
+	parentFolder.add(this._settings, 'radius', 0.01, 100.0).onChange( function(value) { renderer.reset(); } );
 }
 
 

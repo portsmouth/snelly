@@ -57,7 +57,7 @@ var Renderer = function()
 
 	// Create user control system for camera
 	this.controls = new THREE.OrbitControls(this.camera, this.glRenderer.domElement);
-	this.controls.zoomSpeed = 0.5;
+	this.controls.zoomSpeed = 2.0;
 	this.controls.addEventListener( 'change', camChanged );
 
 	// Setup Laser pointer
@@ -96,7 +96,9 @@ var Renderer = function()
 	////////////////////////////////////////////////////////////
 
 	// Initialize textures containing ray states
-	this.raySize = 64;
+	this.raySize = 128;
+	this.maxMarchSteps = 512;
+	this.maxPathLength = 32;
 	this.initRayStates();
 
 	// Create a quad VBO for rendering textures
@@ -157,6 +159,8 @@ Renderer.prototype.reset = function()
 	this.pathsTraced = 0;
 	this.pathLength = 0;
 
+	this.compileShaders();
+
 	this.fbo.bind();
 	this.fbo.drawBuffers(1);
 	this.fbo.attachTexture(this.screenBuffer, 0);
@@ -177,36 +181,33 @@ Renderer.prototype.compileShaders = function()
 	if (this.sceneObj == null) return;
 	if (this.materialObj == null) return;
 
-	console.log("scene: " + this.sceneObj.getName());
-	console.log("material: " + this.materialObj.getName());
+	//console.log("scene: " + this.sceneObj.getName());
+	//console.log("material: " + this.materialObj.getName());
 
 	// Inject code for the current scene and material:
 	sdfCode    = this.sceneObj.sdf();
-	console.log('sdfCode: ' + sdfCode);
-
 	iorCode    = this.materialObj.ior();
-	console.log('iorCode: ' + iorCode);
-
 	sampleCode = this.materialObj.sample();
-	console.log('sampleCode: ' + sampleCode);
 
-	//
-	// @todo:  HERE, paste the current sdf and sample routine into the shader source:
-	//
+	//console.log('sdfCode: ' + sdfCode);
+	//console.log('iorCode: ' + iorCode);
+	//console.log('sampleCode: ' + sampleCode);
 
-
-
+	// Copy the current scene and material routines into the source code
+	// of the trace fragment shader
+	replacements = {};
+	replacements.SDF_FUNC    = sdfCode;
+	replacements.IOR_FUNC    = iorCode;
+	replacements.SAMPLE_FUNC = sampleCode;
+	replacements.MAX_MARCH_STEPS = this.maxMarchSteps;
 
 	// shaderSources is a dict from name (e.g. "trace")
 	// to a dict {v:vertexShaderSource, f:fragmentShaderSource}
-	this.initProgram  = new GLU.Shader('init',  this.shaderSources);
-
-	console.log('debug b');
-
-	this.traceProgram = new GLU.Shader('trace', this.shaderSources);
-	this.lineProgram  = new GLU.Shader('line',  this.shaderSources);
-	this.compProgram  = new GLU.Shader('comp',  this.shaderSources);
-	this.passProgram  = new GLU.Shader('pass',  this.shaderSources);
+	this.traceProgram = new GLU.Shader('trace', this.shaderSources, replacements);
+	this.initProgram  = new GLU.Shader('init',  this.shaderSources, null);
+	this.lineProgram  = new GLU.Shader('line',  this.shaderSources, null);
+	this.compProgram  = new GLU.Shader('comp',  this.shaderSources, null);
+	this.passProgram  = new GLU.Shader('pass',  this.shaderSources, null);
 }
 
 
@@ -265,6 +266,7 @@ Renderer.prototype.loadScene = function(sceneName)
 	this.compileShaders();
 	this.sceneObj.setCam(this.controls, this.camera);
 	this.sceneObj.setLaser(this.laser);
+	this.reset();
 }
 
 Renderer.prototype.getLoadedScene = function()
@@ -289,6 +291,7 @@ Renderer.prototype.loadMaterial = function(materialName)
 {
 	this.materialObj = this.materials[materialName];
 	this.compileShaders();
+	this.reset();
 }
 
 Renderer.prototype.getLoadedMaterial = function()
@@ -307,8 +310,8 @@ Renderer.prototype.composite = function()
 
 	// Tonemap to effectively divide by total number of paths
 	// (and also apply gamma correction)
-	var numPaths = Math.max(this.pathTraced, 1);
-	this.compProgram.uniformF("Exposure", 0.01 * renderer.renderSettings.exposure / numPaths);
+	var numPaths = Math.max(this.pathsTraced, 1);
+	this.compProgram.uniformF("Exposure", renderer.renderSettings.exposure / numPaths);
 	
 	this.quadVbo.draw(this.compProgram, this.gl.TRIANGLE_FAN);
 }
@@ -379,7 +382,6 @@ Renderer.prototype.render = function()
 		this.traceProgram.bind();
 		this.rayStates[current].bind(this.traceProgram);       // Use the current state as the initial conditions
 		this.traceProgram.uniformF("SceneScale", this.sceneObj.getScale()); 
-		this.traceProgram.uniformI("MaxMarchSteps", renderer.renderSettings.maxMarchSteps); 
 		this.sceneObj.syncShader(this.traceProgram);           // set current scene parameters 
 		this.materialObj.syncShader(this.traceProgram);        // set current material parameters 
 		this.quadVbo.draw(this.traceProgram, gl.TRIANGLE_FAN); // Generate the next ray state
@@ -431,7 +433,6 @@ Renderer.prototype.render = function()
 
 	this.quadVbo.bind();
 
-	// Update the screenBuffer with the waveBuffer contents
 	if (this.pathLength==this.maxPathLength || this.wavesTraced<this.maxPathLength)
 	{
 		this.fbo.attachTexture(this.screenBuffer, 0);
@@ -439,6 +440,7 @@ Renderer.prototype.render = function()
 		this.passProgram.bind();
 		this.passProgram.uniformTexture("Frame", this.waveBuffer);
 		this.quadVbo.draw(this.passProgram, gl.TRIANGLE_FAN);
+
 		this.pathsTraced += this.raySize*this.activeBlock;
 		if (this.pathLength == this.maxPathLength)
 		{
