@@ -16,7 +16,7 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 
 	this.mouse     = new THREE.Vector2();
 	this.mousePrev = new THREE.Vector2();
-	this.mousedownOffset = new THREE.Vector3();
+	this.mousedownPlaneHitpoint = new THREE.Vector3();
 
 	this.INTERSECTED = null;
 	this.SELECTED = null;
@@ -137,7 +137,7 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 	
 	// back plane to implement dragging 
 	var backPlaneObj =  new THREE.Mesh(
-						new THREE.PlaneGeometry(2000, 2000),
+						new THREE.PlaneGeometry(20, 20),
 						new THREE.MeshBasicMaterial( { visible: false } ) );
 	backPlaneObj.position.x = 0.0;
 	backPlaneObj.position.y = 0.0;
@@ -343,6 +343,7 @@ LaserPointer.prototype.setDirection = function(direction)
 	direction.normalize();
 	rot.setFromUnitVectors(currentDir, direction);
 	group.quaternion.multiplyQuaternions(rot, group.quaternion);
+	group.quaternion.normalize();
 	group.updateMatrix();
 }
 
@@ -377,7 +378,8 @@ LaserPointer.prototype.onMouseMove = function(event)
 	obj = this.objects;
 	group = obj["group"];
 
-	var camDist = new THREE.Vector3();
+	var sceneObj = renderer.getLoadedScene();
+	var sceneScale = sceneObj.getScale();
 
 	if ( this.SELECTED )
 	{
@@ -386,30 +388,36 @@ LaserPointer.prototype.onMouseMove = function(event)
 		{
 			var planeHitpoint = backplaneIntersection[0].point;
 
-			var shiftRelative = new THREE.Vector3(); // relative to mouse-down hit
-			shiftRelative.copy(planeHitpoint).sub(this.mousedownOffset);
+			var shift = new THREE.Vector3(); // relative to mouse-down hit
+			shift.copy(planeHitpoint).sub(this.mousedownPlaneHitpoint);
 
-			var shiftAbsolute = new THREE.Vector3(); // resulting group translation in plane 
-			shiftAbsolute.copy(shiftRelative).sub(group.position);
-		
+			var shiftAbsolute = new THREE.Vector3();
+			shiftAbsolute.copy(shift);
+
+			var shiftDist =  Math.min(300.0*sceneScale, shift.length());
+			shift.normalize();
+			this.mousedownPlaneHitpoint.copy(planeHitpoint);
+
+			var epsilonLength = 1.0e-6*sceneScale;
+
 			// Translation on dragging 'rods'
 			if (this.SELECTED == obj['xHandleIntersection'])
 			{
-				var moveX = 2.0*shiftAbsolute.dot(this.getX());
+				var moveX = shiftDist / (shift.dot(this.getX()) + epsilonLength);
 				var xTranslation = new THREE.Vector3();
 				xTranslation.copy(this.getX()).multiplyScalar(moveX);
 				group.position.add(xTranslation);
 			}
 			else if (this.SELECTED == obj['yHandleIntersection'])
 			{
-				var moveY = 2.0*shiftAbsolute.dot(this.getY());
+				var moveY = shiftDist / (shift.dot(this.getY()) + epsilonLength);
 				var yTranslation = new THREE.Vector3();
 				yTranslation.copy(this.getY()).multiplyScalar(moveY);
 				group.position.add(yTranslation);
 			}
 			else if (this.SELECTED == obj['zHandleIntersection'])
 			{
-				var moveZ = 2.0*shiftAbsolute.dot(this.getZ());
+				var moveZ = shiftDist / (shift.dot(this.getZ()) + epsilonLength);
 				var zTranslation = new THREE.Vector3();
 				zTranslation.copy(this.getZ()).multiplyScalar(moveZ);
 				group.position.add(zTranslation);
@@ -418,7 +426,12 @@ LaserPointer.prototype.onMouseMove = function(event)
 			// rotation on dragging 'rings'
 			else if (this.SELECTED == obj['xRotHandleIntersection'])
 			{
-				// world 'velocity' corresponding to mouse drag
+				// apply angular motion induced by drag
+				var radiusVector = new THREE.Vector3();
+				radiusVector.copy(this.SELECTION_HITPOINT);
+				radiusVector.sub(group.position);
+				var radius = radiusVector.length() + epsilonLength;
+
 				var localX = new THREE.Vector3(1.0, 0.0, 0.0);
 				var localY = new THREE.Vector3(0.0, 1.0, 0.0);
 				var worldX = localX.transformDirection( this.camera.matrix );
@@ -429,22 +442,22 @@ LaserPointer.prototype.onMouseMove = function(event)
 				worldVelocity.copy(worldX);
 				worldVelocity.add(worldY);
 
-				var radiusVector = new THREE.Vector3(1.0, 0.0, 0.0);
-				radiusVector.copy(this.SELECTION_HITPOINT);
-				radiusVector.sub(group.position);
-
-				// angular momentum induced by drag
-				var L = new THREE.Vector3(1.0, 0.0, 0.0);;
+				var L = new THREE.Vector3();
 				L.crossVectors( radiusVector, worldVelocity );
-				var rotAngleX = Math.PI * L.dot(this.getX());
-
+				L.normalize();
+				var rotAngleX = (shiftDist/radius) * L.dot(this.getX());
 				var rotX = new THREE.Quaternion();
 				rotX.setFromAxisAngle(this.getX(), rotAngleX);
 				group.quaternion.multiplyQuaternions(rotX, group.quaternion);
 			}
 			else if (this.SELECTED == obj['zRotHandleIntersection'])
 			{
-				// world 'velocity' corresponding to mouse drag
+				// apply angular motion induced by drag
+				var radiusVector = new THREE.Vector3();
+				radiusVector.copy(this.SELECTION_HITPOINT);
+				radiusVector.sub(group.position);
+				var radius = radiusVector.length() + epsilonLength;
+
 				var localX = new THREE.Vector3(1.0, 0.0, 0.0);
 				var localY = new THREE.Vector3(0.0, 1.0, 0.0);
 				var worldX = localX.transformDirection( this.camera.matrix );
@@ -455,14 +468,10 @@ LaserPointer.prototype.onMouseMove = function(event)
 				worldVelocity.copy(worldX);
 				worldVelocity.add(worldY);
 
-				var radiusVector = new THREE.Vector3(1.0, 0.0, 0.0);
-				radiusVector.copy(this.SELECTION_HITPOINT);
-				radiusVector.sub(group.position);
-
-				// angular momentum induced by drag
-				var L = new THREE.Vector3(1.0, 0.0, 0.0);;
+				var L = new THREE.Vector3();
 				L.crossVectors( radiusVector, worldVelocity );
-				var rotAngleZ = Math.PI * L.dot(this.getZ());
+				L.normalize();
+				var rotAngleZ = (shiftDist/radius) * L.dot(this.getZ());
 				var rotZ = new THREE.Quaternion();
 				rotZ.setFromAxisAngle(this.getZ(), rotAngleZ);
 				group.quaternion.multiplyQuaternions(rotZ, group.quaternion);
@@ -491,11 +500,12 @@ LaserPointer.prototype.onMouseMove = function(event)
 				// project shiftRelative on chosen plane
 				var projectionDelta = new THREE.Vector3();
 				projectionDelta.copy(planeNormal);
+
 				projectionDelta.multiplyScalar(shiftAbsolute.dot(planeNormal));
-				var shift = new THREE.Vector3();
-				shift.copy(shiftAbsolute);
-				shift.sub(projectionDelta);
-				group.position.add(shift);
+				var translation = new THREE.Vector3();
+				translation.copy(shiftAbsolute);
+				translation.sub(projectionDelta);
+				group.position.add(translation);
 			}
 
 			group.updateMatrix();
@@ -504,35 +514,39 @@ LaserPointer.prototype.onMouseMove = function(event)
 		return true;
 	}
 
-	for (var n=0; n<this.renderHandleObjects.length; n++) 
+	else
 	{
-		this.renderHandleObjects[n].material.emissive.set( 0x000000 );
+		for (var n=0; n<this.renderHandleObjects.length; n++) 
+		{
+			this.renderHandleObjects[n].material.emissive.set( 0x000000 );
+		}
+		this.emitterObj.material.emissive.set( 0x000000 );
+
+		var intersections = this.raycaster.intersectObjects(this.intersectionHandleObjects);
+		if ( intersections.length > 0 )
+		{
+			var intersected = intersections[0].object;
+
+			if (intersected == this.objects['translater'])
+			{
+				this.emitterObj.material.emissive.set( 0x404040 );
+			}
+			else
+			{
+				var rname = this.intersectionHandleNameToRenderHandleName[intersected.name];
+				this.objects[rname].material.emissive.set( 0x404040 );
+			}
+
+			if ( this.INTERSECTED != intersected ) 
+			{
+				// We moused over a new handle: update backplane to prepare for possible selection:
+				group = obj['group'];
+				obj['backPlane'].lookAt( this.camera.position );
+				obj['backPlane'].position.copy( group.position );
+			}
+		}
 	}
-	this.emitterObj.material.emissive.set( 0x000000 );
-
-	var intersections = this.raycaster.intersectObjects(this.intersectionHandleObjects);
-	if ( intersections.length > 0 )
-	{
-		var intersected = intersections[0].object;
-
-		if (intersected == this.objects['translater'])
-		{
-			this.emitterObj.material.emissive.set( 0x404040 );
-		}
-		else
-		{
-			var rname = this.intersectionHandleNameToRenderHandleName[intersected.name];
-			this.objects[rname].material.emissive.set( 0x404040 );
-		}
-
-		if ( this.INTERSECTED != intersected ) 
-		{
-			// We moused over a new handle: update backplane to prepare for possible selection:
-			group = obj['group'];
-			obj['backPlane'].lookAt( this.camera.position );
-			obj['backPlane'].position.copy( group.position );
-		}
-	}
+	
 
 	return false;
 }
@@ -562,7 +576,7 @@ LaserPointer.prototype.onMouseDown = function(event)
 
 			// Record relative offset of mouse intersection and camera-aligned backplane
 			// (which we can assume is fixed in screen space during an active manipulation)
-			this.mousedownOffset.copy(planeHitpoint).sub(obj['backPlane'].position);
+			this.mousedownPlaneHitpoint.copy(planeHitpoint);
 
 			group = obj['group'];
 			this.groupPositionOnMouseDown   = group.position;
