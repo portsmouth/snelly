@@ -241,12 +241,9 @@ LaserPointer.prototype.render = function()
 	camDist.copy(this.objects["group"].position).sub(this.camera.position);
 	var C = 0.03*camDist.length();
 
-	var sceneObj = renderer.getLoadedScene();
-	var sceneScale = sceneObj.getScale();
-
 	// Ensure that handles are always > emitter geo size
 	// (so on zooming in, body doesn't 'swallow' the manips).
-	var C = Math.min(sceneScale, Math.max(C, 2.0*this.getEmissionRadius()));
+	var C = Math.max(C, 0.333*this.getEmissionRadius());
 
 	intersectionHandleGroup = this.objects["intersectionHandleGroup"];
 	intersectionHandleGroup.scale.set(C, C, C);
