@@ -64,10 +64,23 @@ SphereScene.prototype.setLaser = function(laser)
 // set up gui and callbacks for this scene
 SphereScene.prototype.initGui = function(parentFolder)
 {
-	parentFolder.add(this._settings, 'radius', 0.01, 100.0).onChange( function(value) { renderer.reset(); } );
+	this.radiusItem = parentFolder.add(this._settings, 'radius', 0.01, 100.0);
+	this.radiusItem.onChange( function(value) { renderer.reset(); } );
+	
+	console.log('init sphere gui: ');
+	console.dir(parentFolder);
+	console.dir(this.radiusItem);
 }
 
-
+SphereScene.prototype.eraseGui = function(parentFolder)
+{
+	console.log('erase sphere gui: ');
+	//console.dir(parentFolder);
+	//console.dir(this.radiusItem);
+	console.dir(this.radiusItem.__li);
+	parentFolder.remove(this.radiusItem);
+	//parentFolder.remove(this.radiusItem);
+}
 
 
 

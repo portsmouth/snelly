@@ -87,12 +87,13 @@ LinearMetal.prototype.syncShader = function(traceProgram)
 // set up gui and callbacks for this material
 LinearMetal.prototype.initGui = function(parentFolder)
 {
-	parentFolder.add(this, 'n400', 0.0, 10.0).onChange( function(value) { renderer.reset(); } );
-	parentFolder.add(this, 'n700', 0.0, 10.0).onChange( function(value) { renderer.reset(); } );
-	parentFolder.add(this, 'k400', 0.0, 1000.0).onChange( function(value) { renderer.reset(); } );
-	parentFolder.add(this, 'k700', 0.0, 1000.0).onChange( function(value) { renderer.reset(); } );
+
 }
 
+LinearMetal.prototype.eraseGui = function(parentFolder)
+{
+
+}
 
 
 ////////////////////////////////////////////////////////
@@ -147,8 +148,15 @@ ConstantDielectric.prototype.syncShader = function(traceProgram)
 // set up gui and callbacks for this material
 ConstantDielectric.prototype.initGui = function(parentFolder)
 {
-	parentFolder.add(this, 'iorVal', 0.0, 2.0).onChange( function(value) { renderer.reset(); } );
+	this.iorItem = parentFolder.add(this, 'iorVal', 0.0, 5.0);
+	this.iorItem.onChange( function(value) { renderer.reset(); } );
 }
+
+ConstantDielectric.prototype.eraseGui = function(parentFolder)
+{
+	parentFolder.remove(this.iorItem);
+}
+
 
 //
 // The standard Sellmeier model for dielectrics.
@@ -202,15 +210,13 @@ SellmeierDielectric.prototype.syncShader = function(traceProgram)
 // set up gui and callbacks for this material
 SellmeierDielectric.prototype.initGui = function(parentFolder)
 {
-	// @todo: probably don't expose in UI..
-	// Maybe, as a 'fun' Sellmeier material.
-	parentFolder.add(this, 'C1', 0.0, 1000.0).onChange( function(value) { renderer.reset(); } );
-	parentFolder.add(this, 'C2', 0.0, 1000.0).onChange( function(value) { renderer.reset(); } );
-	parentFolder.add(this, 'C3', 0.0, 1000.0).onChange( function(value) { renderer.reset(); } );
-	parentFolder.add(this, 'C4', 0.0, 1000.0).onChange( function(value) { renderer.reset(); } );
-	parentFolder.add(this, 'C5', 0.0, 1000.0).onChange( function(value) { renderer.reset(); } );
-	parentFolder.add(this, 'C6', 0.0, 1000.0).onChange( function(value) { renderer.reset(); } );
-	parentFolder.add(this, 'C7', 0.0, 1000.0).onChange( function(value) { renderer.reset(); } );
+
+}
+
+
+SellmeierDielectric.prototype.eraseGui = function(parentFolder)
+{
+
 }
 
 

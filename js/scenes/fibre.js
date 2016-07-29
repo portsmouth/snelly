@@ -4,8 +4,8 @@ function FibreScene(name, desc)
 	Scene.call(this, name, desc);
 
 	// defaults
-	this._settings.radius = 0.5;
-	this._settings.length = 50.0;
+	this._settings.radius = 1.36;
+	this._settings.length = 100.0;
 }
 
 FibreScene.prototype = Object.create(Scene.prototype);
@@ -49,16 +49,16 @@ FibreScene.prototype.getScale = function()
 // Initial cam position default for this scene
 FibreScene.prototype.setCam = function(controls, camera)
 {
-	camera.position.set(-2.0, 1.0, -22.0)
-	controls.target.set(-1.0, 0.0, -19.0);
+	camera.position.set(-13.0, 5.0, -39.0)
+	controls.target.set(-4.0, -1.0, -16.0);
 }
 
 
 // Initial laser position and direction defaults for this scene
 FibreScene.prototype.setLaser = function(laser)
 {
-	laser.setPosition(new THREE.Vector3(0.0, 0.0, -20.0));
-	laser.setDirection(new THREE.Vector3(0.1, 1.0, 1.0));
+	laser.setPosition(new THREE.Vector3(0.0, -1.0, -24.0));
+	laser.setDirection(new THREE.Vector3(1.0, 0.0, 0.0));
 
 	Scene.prototype.setLaser.call(this, laser);
 }
@@ -67,19 +67,18 @@ FibreScene.prototype.setLaser = function(laser)
 // set up gui and callbacks for this scene
 FibreScene.prototype.initGui = function(parentFolder)
 {
-	parentFolder.add(this._settings, 'radius', 0.01, 10.0).onChange( function(value) { renderer.reset(); } );
-	parentFolder.add(this._settings, 'length', 0.01, 100.0).onChange( function(value) { renderer.reset(); } );
+	this.radiusItem = parentFolder.add(this._settings, 'radius', 0.01, 10.0);
+	this.radiusItem.onChange( function(value) { renderer.reset(); } );
+
+	this.lengthItem = parentFolder.add(this._settings, 'length', 0.01, 100.0);
+	this.lengthItem.onChange( function(value) { renderer.reset(); } );
 }
 
-// set up gui and callbacks for this material
-LinearMetal.prototype.initGui = function(parentFolder)
+FibreScene.prototype.eraseGui = function(parentFolder)
 {
-	parentFolder.add(this, 'n400', 0.0, 10.0);
-	parentFolder.add(this, 'n700', 0.0, 10.0);
-	parentFolder.add(this, 'k400', 0.0, 1000.0);
-	parentFolder.add(this, 'k700', 0.0, 1000.0);
+	parentFolder.remove(this.radiusItem);
+	parentFolder.remove(this.lengthItem);
 }
-
 
 
 

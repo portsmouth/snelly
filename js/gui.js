@@ -46,6 +46,7 @@ GUI.prototype.rendererSettings = function()
 
 GUI.prototype.registerCamera = function()
 {
+	/*
 	rs = this.rs;
 	var m = 100.0;
 	this.cpfolder = rs.addFolder('Camera Position');
@@ -60,6 +61,7 @@ GUI.prototype.registerCamera = function()
 	this.gui.remember(this.renderer.camera.rotation);
 	this.cpfolder.close();
 	this.crfolder.close();
+	*/
 }
 
 GUI.prototype.registerLaser = function()
@@ -130,70 +132,95 @@ GUI.prototype.emissionSettings = function()
 	return folder;
 }
 
+
+dat.GUI.prototype.removeFolder = function(name) {
+  var folder = this.__folders[name];
+  if (!folder) {
+    return;
+  }
+  folder.close();
+  this.__ul.removeChild(folder.domElement.parentNode);
+  delete this.__folders[name];
+  this.onResize();
+}
+
 GUI.prototype.sceneSettings = function()
 {
-	folder = this.gui.addFolder('Scene');
+	this.sceneParentFolder = this.gui.addFolder('Scene');
 
 	var renderer = this.renderer;
-	this.sceneSettings = {};
-	settings = this.sceneSettings;
-
 	var sceneObj = renderer.getLoadedScene();
-	settings.scene = sceneObj.getName();
+	var sceneName = sceneObj.getName();
 
 	scenes = renderer.getScenes();
-	for (var sceneName in scenes) 
-	{
-		if (scenes.hasOwnProperty(sceneName)) 
-		{
-			sceneFolder = folder.addFolder(sceneName);
-			sceneObj = scenes[sceneName];
-			sceneObj.initGui(sceneFolder);
-		}
-	}
-
 	var sceneNames = Object.keys(scenes);
 
-	folder.add(settings, 'scene', sceneNames).onChange( function(sceneName) { 
+	// Scene selection menu
+	settings = {};
+	settings["scene selection"] = sceneName;
+	var GUI = this;
+
+	this.sceneParentFolder.add(settings, 'scene selection', sceneNames).onChange( function(sceneName) {
+
+						// eemove gui for current scene
+						var sceneObj = renderer.getLoadedScene();
+						sceneObj.eraseGui(GUI.sceneParentFolder);
+
+						// load new scene
 				 		renderer.loadScene(sceneName);
+
+				 		// init gui for new scene
+				 		sceneObj = renderer.getLoadedScene();
+				 		sceneObj.initGui(GUI.sceneParentFolder);
+				 		
 				 	} );
 
-	this.gui.remember(settings);
+	sceneObj.initGui(this.sceneParentFolder);
+	this.sceneParentFolder.open();
 
-	return folder;
+	this.gui.remember(settings);
+	return this.sceneParentFolder;
 }
 
 GUI.prototype.materialSettings = function()
 {
-	folder = this.gui.addFolder('Material');
+	this.materialParentFolder = this.gui.addFolder('Material');
 
 	var renderer = this.renderer;
-	this.materialSettings = {};
-	settings = this.materialSettings;
-
 	var materialObj = renderer.getLoadedMaterial();
-	settings.material = materialObj.getName();
-	
-	materials = renderer.getMaterials();
-	for (var materialName in materials) 
-	{
-		if (materials.hasOwnProperty(materialName)) 
-		{
-			materialFolder = folder.addFolder(materialName);
-			materialObj = materials[materialName];
-			materialObj.initGui(materialFolder);
-		}
-	}
+	var materialName = materialObj.getName();
 
+	materials = renderer.getMaterials();
 	var materialNames = Object.keys(materials);
 
-	folder.add(settings, 'material', materialNames).onChange( function(materialName) { 
+	// Material selection menu
+	settings = {};
+	settings["material selection"] = materialName;
+	var GUI = this;
+
+	this.materialParentFolder.add(settings, 'material selection', materialNames).onChange( function(materialName) {
+
+						// eemove gui for current material
+						var materialObj = renderer.getLoadedMaterial();
+						materialObj.eraseGui(GUI.materialParentFolder);
+
+						// load new material
 				 		renderer.loadMaterial(materialName);
+
+				 		// init gui for new material
+				 		materialObj = renderer.getLoadedMaterial();
+				 		materialObj.initGui(GUI.materialParentFolder);
+				 		
 				 	} );
 
-	this.gui.remember(settings);
 
-	return folder;
+
+	
+	materialObj.initGui(this.materialParentFolder);
+	this.materialParentFolder.open();
+
+	this.gui.remember(settings);
+	return this.materialParentFolder;
 }
 
 
