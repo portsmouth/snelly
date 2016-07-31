@@ -45,6 +45,7 @@ float reflectionMetal(vec3 D, vec3 N, float ior, float k)
 	return 0.5 * (Rparl2 + Rperp2);
 }
 
+
 // D is direction of incident light
 // N is normal pointing from medium to vacuum
 // returns radiance multiplier (varying for reflection, 0 for transmission, i.e. absorption)
@@ -63,6 +64,7 @@ float sampleMetal(inout vec3 X, inout vec3 D, vec3 N, float ior, float k, inout 
 		return 0.0;
 	}
 }
+
 
 // N is outward normal (from medium to vacuum).
 // Returns radiance gain on transmission
@@ -161,18 +163,15 @@ float sampleDielectric(inout vec3 X, inout vec3 D, vec3 N, float ior, inout vec4
 }
 
 
-
 //////////////////////////////////////////////////////////////
 // Dynamically injected code
 //////////////////////////////////////////////////////////////
-
 
 SDF_FUNC
 
 IOR_FUNC
 
 SAMPLE_FUNC
-
 
 
 //////////////////////////////////////////////////////////////
@@ -192,9 +191,9 @@ vec3 NORMAL( in vec3 pos )
 	return normalize(nor);
 }
 
-
-void raytrace(inout vec3 X, inout vec3 D,
-			  inout vec4 rgbLambda, inout vec4 rnd)
+void raytrace(inout vec4 rnd, 
+			  inout vec3 X, inout vec3 D,
+			  inout vec3 rgb, float wavelength)
 {
 	bool hit = false;
 	normalize(D);
@@ -219,12 +218,11 @@ void raytrace(inout vec3 X, inout vec3 D,
 	if (!hit)
 	{
 		X += SceneScale*D;
-		rgbLambda.rgb *= 0.0; // terminate ray
+		rgb *= 0.0; // terminate ray
 	}
 	else
 	{
-		vec3 N = NORMAL(X);
-		rgbLambda.rgb *= SAMPLE(X, D, N, rgbLambda.w, rnd);
+		rgb *= SAMPLE(X, D, NORMAL(X), wavelength, rnd);
 	}
 }
 
@@ -234,14 +232,15 @@ void main()
 	vec3 X         = texture2D(PosData, vTexCoord).xyz;
 	vec3 D         = texture2D(DirData, vTexCoord).xyz;
 	vec4 rnd       = texture2D(RngData, vTexCoord);
-	vec4 rgbLambda = texture2D(RgbData, vTexCoord);
+	vec4 rgbw      = texture2D(RgbData, vTexCoord);
 
-	raytrace(X, D, rgbLambda, rnd);
+	float wavelength = 360.0 + (750.0 - 360.0)*rgbw.w;
+	raytrace(rnd, X, D, rgbw.rgb, wavelength);
 
 	gl_FragData[0] = vec4(X, 1.0);
 	gl_FragData[1] = vec4(D, 1.0);
 	gl_FragData[2] = rnd;
-	gl_FragData[3] = rgbLambda;
+	gl_FragData[3] = rgbw;
 }
 
 

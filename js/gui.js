@@ -19,8 +19,7 @@ var GUI = function(renderer)
 
 GUI.prototype.rendererSettings = function()
 {
-	folder = this.gui.addFolder('Renderer');
-
+	this.rendererFolder = this.gui.addFolder('Renderer');
 	var renderer = this.renderer;
 	renderer.renderSettings = {};
 	settings = renderer.renderSettings;
@@ -32,16 +31,16 @@ GUI.prototype.rendererSettings = function()
 	settings.maxMarchSteps =renderer.maxMarchSteps;
 	settings.photonsPerFrame = renderer.raySize;
 	
-	folder.add(settings, 'exposure', 0.0, 100.0, 0.01);
-	folder.add(settings, 'maxPathLength', 1, 1024).onChange( function(value) { renderer.maxPathLength = Math.floor(value); renderer.reset(); } );
-	folder.add(settings, 'maxMarchSteps', 1, 1024).onChange( function(value) { renderer.maxMarchSteps = Math.floor(value); renderer.reset(); } );
-	folder.add(settings, 'photonsPerFrame', 1, 1024).onChange( function(value) { renderer.raySize = Math.floor(value); renderer.initRayStates(); renderer.reset(); } );
-	folder.add(settings, 'showSurface');
-	folder.add(settings, 'surfaceAlpha');
+	this.rendererFolder.add(settings, 'exposure', 0.0, 10.0, 0.01);
+	this.rendererFolder.add(settings, 'maxPathLength', 1, 1024).onChange( function(value) { renderer.maxPathLength = Math.floor(value); renderer.reset(); } );
+	this.rendererFolder.add(settings, 'maxMarchSteps', 1, 1024).onChange( function(value) { renderer.maxMarchSteps = Math.floor(value); renderer.reset(); } );
+	this.rendererFolder.add(settings, 'photonsPerFrame', 1, 1024).onChange( function(value) { renderer.raySize = Math.floor(value); renderer.initRayStates(); renderer.reset(); } );
+	this.rendererFolder.add(settings, 'showSurface');
+	this.rendererFolder.add(settings, 'surfaceAlpha');
 	this.gui.remember(settings);
 
-	folder.open();
-	return folder;
+	this.rendererFolder.open();
+	return this.rendererFolder;
 }
 
 GUI.prototype.registerCamera = function()
@@ -66,6 +65,7 @@ GUI.prototype.registerCamera = function()
 
 GUI.prototype.registerLaser = function()
 {
+	/*
 	es = this.es;
 	var m = 7.0;
 	this.lpfolder = es.addFolder('Laser Position');
@@ -80,78 +80,62 @@ GUI.prototype.registerLaser = function()
 	this.gui.remember(this.renderer.laser.rotation);
 	this.lpfolder.close();
 	this.lrfolder.close();
+	*/
 }
 
 GUI.prototype.emissionSettings = function()
 {
-	folder = this.gui.addFolder('Emission');
-
+	this.emissionFolder = this.gui.addFolder('Emission');
 	var renderer = this.renderer;
 	var laser = renderer.laser;
-
 	this.emissionSettings = {};
 	settings = this.emissionSettings;
-
-	settings.radius = laser.getEmissionRadius();
-	settings.spread = laser.getEmissionSpreadAngle();
 	settings.showLaserPointer = true;
 	settings.spectrum = 'monochromatic';
 
-	folder.add(settings, 'showLaserPointer').onChange( function(value) { laser.toggleVisibility(value); } );
-	folder.add(laser, 'emissionRadius', 0.0, 10.0).onChange( function(value) { laser.setEmissionRadius(value);      renderer.reset(); } );
-	folder.add(laser, 'emissionSpread', 0.0, 90.0).onChange( function(value) { laser.setEmissionSpreadAngle(value); renderer.reset(); } );
-	folder.add(settings, 'spectrum', ['monochromatic', 'color', 'flat', 'blackbody']);
+	this.emissionFolder.add(settings, 'showLaserPointer').onChange( function(value) { laser.toggleVisibility(value); } );
+	this.emissionFolder.add(laser, 'emissionRadius', 0.0, 10.0).onChange( function(value) { laser.setEmissionRadius(value);      renderer.reset(); } );
+	this.emissionFolder.add(laser, 'emissionSpread', 0.0, 90.0).onChange( function(value) { laser.setEmissionSpreadAngle(value); renderer.reset(); } );
+	this.emissionFolder.add(laser, 'emissionPower', 0.0, 10.0).onChange( function(value) { laser.setEmissionPower(value);       renderer.reset(); } );
+	this.gui.remember(laser);
+
+	// Spectrum selection
+	var GUI = this;
+	var spectrumObj = renderer.getLoadedSpectrum();
+	var spectrumName = spectrumObj.getName();
+	var spectra = renderer.getSpectra();
+	var spectrumNames = Object.keys(spectra);
+
+	settings["spectrum selection"] = spectrumName;
+	this.emissionFolder.add(settings, 'spectrum selection', spectrumNames).onChange( function(spectrumName) {
+
+						// remove gui for current spectrum
+						var spectrumObj = renderer.getLoadedSpectrum();
+						spectrumObj.eraseGui(GUI.emissionFolder);
+
+						// load new scene
+				 		renderer.loadSpectrum(spectrumName);
+
+				 		// init gui for new scene
+				 		spectrumObj = renderer.getLoadedSpectrum();
+				 		spectrumObj.initGui(GUI.emissionFolder);
+				 		
+				 	} );
+
+	spectrumObj.initGui(this.emissionFolder);
 
 	this.gui.remember(settings);
-
-	spectrumParams = folder.addFolder('spectrumParams');
-	spectrumParams.close();
-
-		monochromaticFolder = spectrumParams.addFolder('monochromatic');
-		settings.monochromaticSettings = {wavelength: 500.0};
-		monochromaticFolder.add(settings.monochromaticSettings, 'wavelength', 450.0, 650.0);
-		this.gui.remember(settings.monochromaticSettings);
-
-		colorFolder = spectrumParams.addFolder('color');
-		settings.colorSettings = {colorPicker: { h: 350, s: 0.9, v: 0.3 }};
-		colorFolder.addColor(settings.colorSettings, 'colorPicker');
-		this.gui.remember(settings.colorSettings);
-
-		flatFolder = spectrumParams.addFolder('flat');
-		settings.flatSettings = {minwavelength: 450.0, maxwavelength: 650.0};
-		flatFolder.add(settings.flatSettings, 'minwavelength', 450.0, 650.0);
-		flatFolder.add(settings.flatSettings, 'maxwavelength', 450.0, 650.0);
-		this.gui.remember(settings.flatSettings);
-
-		blackbodyFolder = spectrumParams.addFolder('blackbody');
-		settings.blackbodySettings = {temperature: 6000.0};
-		blackbodyFolder.add(settings.blackbodySettings, 'temperature', 1000.0, 15000.0);
-		this.gui.remember(settings.blackbodySettings);
-
-	folder.open();
-	return folder;
+	this.emissionFolder.open();
+	return this.emissionFolder;
 }
 
-
-dat.GUI.prototype.removeFolder = function(name) {
-  var folder = this.__folders[name];
-  if (!folder) {
-    return;
-  }
-  folder.close();
-  this.__ul.removeChild(folder.domElement.parentNode);
-  delete this.__folders[name];
-  this.onResize();
-}
 
 GUI.prototype.sceneSettings = function()
 {
-	this.sceneParentFolder = this.gui.addFolder('Scene');
-
+	this.sceneFolder = this.gui.addFolder('Scene');
 	var renderer = this.renderer;
 	var sceneObj = renderer.getLoadedScene();
 	var sceneName = sceneObj.getName();
-
 	scenes = renderer.getScenes();
 	var sceneNames = Object.keys(scenes);
 
@@ -160,36 +144,35 @@ GUI.prototype.sceneSettings = function()
 	settings["scene selection"] = sceneName;
 	var GUI = this;
 
-	this.sceneParentFolder.add(settings, 'scene selection', sceneNames).onChange( function(sceneName) {
+	this.sceneFolder.add(settings, 'scene selection', sceneNames).onChange( function(sceneName) {
 
-						// eemove gui for current scene
+						// remove gui for current scene
 						var sceneObj = renderer.getLoadedScene();
-						sceneObj.eraseGui(GUI.sceneParentFolder);
+						sceneObj.eraseGui(GUI.sceneFolder);
 
 						// load new scene
 				 		renderer.loadScene(sceneName);
 
 				 		// init gui for new scene
 				 		sceneObj = renderer.getLoadedScene();
-				 		sceneObj.initGui(GUI.sceneParentFolder);
+				 		sceneObj.initGui(GUI.sceneFolder);
 				 		
 				 	} );
 
-	sceneObj.initGui(this.sceneParentFolder);
-	this.sceneParentFolder.open();
+	sceneObj.initGui(this.sceneFolder);
+	this.sceneFolder.open();
 
 	this.gui.remember(settings);
-	return this.sceneParentFolder;
+	return this.sceneFolder;
 }
+
 
 GUI.prototype.materialSettings = function()
 {
-	this.materialParentFolder = this.gui.addFolder('Material');
-
+	this.materialFolder = this.gui.addFolder('Material');
 	var renderer = this.renderer;
 	var materialObj = renderer.getLoadedMaterial();
 	var materialName = materialObj.getName();
-
 	materials = renderer.getMaterials();
 	var materialNames = Object.keys(materials);
 
@@ -198,49 +181,27 @@ GUI.prototype.materialSettings = function()
 	settings["material selection"] = materialName;
 	var GUI = this;
 
-	this.materialParentFolder.add(settings, 'material selection', materialNames).onChange( function(materialName) {
+	this.materialFolder.add(settings, 'material selection', materialNames).onChange( function(materialName) {
 
-						// eemove gui for current material
+						// remove gui for current material
 						var materialObj = renderer.getLoadedMaterial();
-						materialObj.eraseGui(GUI.materialParentFolder);
+						materialObj.eraseGui(GUI.materialFolder);
 
 						// load new material
 				 		renderer.loadMaterial(materialName);
 
 				 		// init gui for new material
 				 		materialObj = renderer.getLoadedMaterial();
-				 		materialObj.initGui(GUI.materialParentFolder);
+				 		materialObj.initGui(GUI.materialFolder);
 				 		
 				 	} );
-
-
-
 	
-	materialObj.initGui(this.materialParentFolder);
-	this.materialParentFolder.open();
+	materialObj.initGui(this.materialFolder);
+	this.materialFolder.open();
 
 	this.gui.remember(settings);
-	return this.materialParentFolder;
+	return this.materialFolder;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

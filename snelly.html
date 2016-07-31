@@ -18,13 +18,16 @@
 <script type="text/javascript" src="js/thirdparty/three/controls/OrbitControls.js"></script>
 
 <script type="text/javascript" src="js/shaders.js"></script>
-<script type="text/javascript" src="js/spectrum.js"></script>
 <script type="text/javascript" src="js/gl.js"></script>
 <script type="text/javascript" src="js/laser.js"></script>
 <script type="text/javascript" src="js/gui.js"></script>
 <script type="text/javascript" src="js/raystate.js"></script>
+
+<script type="text/javascript" src="js/wavelengthToRgb.js"></script>
 <script type="text/javascript" src="js/renderer.js"></script>
+
 <script type="text/javascript" src="js/materials.js"></script>
+<script type="text/javascript" src="js/spectra.js"></script>
 <script type="text/javascript" src="js/scenes/scenes.js"></script>
 
 <?/* ----------------------------*/?>
@@ -66,10 +69,12 @@ function onLoad()
 	// Instantiate scenes and materials
 	createScenes(renderer);
 	createMaterials(renderer);
+	createSpectra(renderer);
 	
 	// Load the initial scene and material
 	renderer.loadScene("sphere");
 	renderer.loadMaterial("glass_bk7");
+	renderer.loadSpectrum("flat");
 
 	// Create dat gui
 	gui = new GUI(renderer);

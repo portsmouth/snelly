@@ -35,9 +35,9 @@ Metal.prototype = Object.create(Material.prototype);
 Metal.prototype.sample = function()
 {
 	return `
-				float SAMPLE(inout vec3 X, inout vec3 D, vec3 N, float lnm, inout vec4 rnd)
+				float SAMPLE(inout vec3 X, inout vec3 D, vec3 N, float wavelength_nm, inout vec4 rnd)
 				{                                                          
-					return sampleMetal(X, D, N, IOR(lnm), K(lnm), rnd);    
+					return sampleMetal(X, D, N, IOR(wavelength_nm), K(wavelength_nm), rnd);    
 				}
 	`;
 }
@@ -65,13 +65,13 @@ LinearMetal.prototype.ior = function()
 				uniform float _n700;
 				uniform float _k400;
 				uniform float _k700;
-				float IOR(float lnm)
+				float IOR(float wavelength_nm)
 				{                                                       
-					return abs(_n400 + (lnm-400.0)*(_n700-_n400)/300.0); 
+					return abs(_n400 + (wavelength_nm-400.0)*(_n700-_n400)/300.0); 
 				}                                                       
-				float K(float lnm)                                      
+				float K(float wavelength_nm)                                      
 				{                                                       
-					return abs(_k400 + (lnm-400.0)*(_k700-_k400)/300.0); 
+					return abs(_k400 + (wavelength_nm-400.0)*(_k700-_k400)/300.0); 
 				}
 	`;
 }
@@ -110,9 +110,9 @@ Dielectric.prototype = Object.create(Material.prototype);
 Dielectric.prototype.sample = function()
 {
 	return `
-				float SAMPLE(inout vec3 X, inout vec3 D, vec3 N, float lnm, inout vec4 rnd)
+				float SAMPLE(inout vec3 X, inout vec3 D, vec3 N, float wavelength_nm, inout vec4 rnd)
 				{                                                          
-					return sampleDielectric(X, D, N, IOR(lnm), rnd);       
+					return sampleDielectric(X, D, N, IOR(wavelength_nm), rnd);       
 				}
 	`;
 }
@@ -133,7 +133,7 @@ ConstantDielectric.prototype.ior = function()
 	// Defines a GLSL function which takes wavelength (in micrometres) and returns ior
 	return `
 				uniform float _iorVal;
-				float IOR(float lnm)  
+				float IOR(float wavelength_nm)  
 				{                     
 					return _iorVal;   
 				}
@@ -186,10 +186,10 @@ SellmeierDielectric.prototype.ior = function()
 				uniform float _C5;    
 				uniform float _C6;    
 				uniform float _C7;    
-				float IOR(float lnm) 
+				float IOR(float wavelength_nm) 
 				{                                                                                            
-					float lmum = 1.0e-3*lnm;                                                                      
-					float l2 = lmum*lmum;                                                                               
+					float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
+					float l2 = wavelength_um*wavelength_um;                                                                               
 					float n2 = 1.0 + _C1 + _C2*l2/(l2 - _C3*_C3) + _C4*l2/(l2 - _C5*_C5) + _C6*l2/(l2 - _C7*_C7); 
 					return sqrt(abs(n2));                                                                     
 				}
@@ -208,16 +208,8 @@ SellmeierDielectric.prototype.syncShader = function(traceProgram)
 }
 
 // set up gui and callbacks for this material
-SellmeierDielectric.prototype.initGui = function(parentFolder)
-{
-
-}
-
-
-SellmeierDielectric.prototype.eraseGui = function(parentFolder)
-{
-
-}
+SellmeierDielectric.prototype.initGui = function(parentFolder) {}
+SellmeierDielectric.prototype.eraseGui = function(parentFolder) {}
 
 
 ////////////////////////////////////////////////////////////////////////

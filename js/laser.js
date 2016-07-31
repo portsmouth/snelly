@@ -31,7 +31,7 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 	var intersectionHandleGroup = this.intersectionHandleGroup;
 
 	var rI = 0.4;
-	var hI = 8.0;
+	var hI = 12.0;
 	var RI = 2.0;
 
 	var intersectionDebug = false;
@@ -239,7 +239,7 @@ LaserPointer.prototype.render = function()
 	// (to be roughly constant size in screen space)
 	var camDist = new THREE.Vector3();
 	camDist.copy(this.objects["group"].position).sub(this.camera.position);
-	var C = 0.03*camDist.length();
+	var C = 0.05*camDist.length();
 
 	// Ensure that handles are always > emitter geo size
 	// (so on zooming in, body doesn't 'swallow' the manips).
@@ -313,6 +313,12 @@ LaserPointer.prototype.getEmissionSpreadAngle = function()
 	return this.emissionSpread;
 }
 
+LaserPointer.prototype.getEmissionPower = function()
+{
+	return this.emissionPower;
+}
+
+
 /// Interactions:
 
 LaserPointer.prototype.toggleVisibility = function(visible)
@@ -357,6 +363,12 @@ LaserPointer.prototype.setEmissionSpreadAngle = function(spreadAngleDegrees)
 {
 	this.emissionSpread = spreadAngleDegrees;
 }
+
+LaserPointer.prototype.setEmissionPower = function(power)
+{
+	this.emissionPower = power;
+}
+
 
 LaserPointer.prototype.onMouseMove = function(event)
 {

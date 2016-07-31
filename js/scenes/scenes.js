@@ -29,6 +29,7 @@ Scene.prototype.setLaser = function(laser)
 	var sceneScale = sceneObj.getScale();
 	laser.setEmissionRadius(0.01*sceneScale);
 	laser.setEmissionSpreadAngle(5.0);
+	laser.setEmissionPower(1.0);
 	laser.buildEmitterGeo();
 }
 

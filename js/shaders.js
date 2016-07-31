@@ -93,12 +93,14 @@ float rand(inout vec4 rnd)
 }
 
 uniform sampler2D RngData;
-uniform sampler2D Spectrum;
+uniform sampler2D WavelengthToRgb;
+uniform sampler2D ICDF;
 
 uniform vec3 EmitterPos;
 uniform vec3 EmitterDir;
 uniform float EmitterRadius;
 uniform float EmitterSpread; // in degrees
+uniform float EmitterPower;
 
 varying vec2 vTexCoord;
 
@@ -106,11 +108,13 @@ void main()
 {
 	vec4 seed = texture2D(RngData, vTexCoord);
 
-	float lambda = 360.0 + (750.0 - 360.0)*vTexCoord.x;
-	vec3 rgb = texture2D(Spectrum, vec2(vTexCoord.x, 0.5)).rgb;
+	// Sample photon wavelength from CDF of emission spectrum
+	// (here w is spectral offset, i.e. wavelength = 360.0 + (750.0 - 360.0)*w)
+    float w = texture2D(ICDF, vec2(rand(seed), 0.5)).r + rand(seed)*(1.0/256.0);
+  	vec3 rgb = EmitterPower * texture2D(WavelengthToRgb, vec2(w, 0.5)).rgb;
 
 	// Make emission cross-section circular
-	float rPos   = EmitterRadius*rand(seed);
+	float rPos   = EmitterRadius*sqrt(rand(seed));
 	float phiPos = 2.0*M_PI*rand(seed);
 	vec3 X = vec3(1.0, 0.0, 0.0);
 	vec3 Z = vec3(0.0, 0.0, 1.0);
@@ -124,14 +128,14 @@ void main()
 
 	// Emit in a cone with the given spread
 	float spreadAngle = abs(EmitterSpread)*M_PI/180.0;
-	float rDir = min(tan(spreadAngle), 1.0e6);
+	float rDir = min(tan(spreadAngle), 1.0e6) * sqrt(rand(seed));
 	float phiDir = 2.0*M_PI*rand(seed);
 	vec3 dir = normalize(EmitterDir + rDir*(u*cos(phiDir) + v*sin(phiDir)));
 	
 	gl_FragData[0] = vec4(pos, 1.0);
 	gl_FragData[1] = vec4(dir, 1.0);
 	gl_FragData[2] = seed;
-	gl_FragData[3] = vec4(rgb, lambda);
+	gl_FragData[3] = vec4(rgb, w);
 }
 `,
 
@@ -530,8 +534,9 @@ vec3 NORMAL( in vec3 pos )
 	return normalize(nor);
 }
 
-void raytrace(inout vec3 X, inout vec3 D,
-			  inout vec4 rgbLambda, inout vec4 rnd)
+void raytrace(inout vec4 rnd, 
+			  inout vec3 X, inout vec3 D,
+			  inout vec3 rgb, float wavelength)
 {
 	bool hit = false;
 	normalize(D);
@@ -556,12 +561,11 @@ void raytrace(inout vec3 X, inout vec3 D,
 	if (!hit)
 	{
 		X += SceneScale*D;
-		rgbLambda.rgb *= 0.0; // terminate ray
+		rgb *= 0.0; // terminate ray
 	}
 	else
 	{
-		vec3 N = NORMAL(X);
-		rgbLambda.rgb *= SAMPLE(X, D, N, rgbLambda.w, rnd);
+		rgb *= SAMPLE(X, D, NORMAL(X), wavelength, rnd);
 	}
 }
 
@@ -571,14 +575,15 @@ void main()
 	vec3 X         = texture2D(PosData, vTexCoord).xyz;
 	vec3 D         = texture2D(DirData, vTexCoord).xyz;
 	vec4 rnd       = texture2D(RngData, vTexCoord);
-	vec4 rgbLambda = texture2D(RgbData, vTexCoord);
+	vec4 rgbw      = texture2D(RgbData, vTexCoord);
 
-	raytrace(X, D, rgbLambda, rnd);
+	float wavelength = 360.0 + (750.0 - 360.0)*rgbw.w;
+	raytrace(rnd, X, D, rgbw.rgb, wavelength);
 
 	gl_FragData[0] = vec4(X, 1.0);
 	gl_FragData[1] = vec4(D, 1.0);
 	gl_FragData[2] = rnd;
-	gl_FragData[3] = rgbLambda;
+	gl_FragData[3] = rgbw;
 }
 `,
 

@@ -10,14 +10,9 @@ var Renderer = function()
 	render_canvas.height = window.innerHeight;
 	this.width = render_canvas.width;
 	this.height = render_canvas.height;
-	
-	this.scenes = {}
-	this.materials = {}
-	this.sceneObj = null;
-	this.materialObj = null;
 
 	// Initialize THREE.js camera
-	var VIEW_ANGLE = 45;
+	var VIEW_ANGLE = 65;
 	var ASPECT = this.width / this.height ;
 	var NEAR = 0.05;
 	var FAR = 1000;
@@ -92,8 +87,14 @@ var Renderer = function()
 
 
 	////////////////////////////////////////////////////////////
-	// Initialize ray rendering
+	// Initialize rendering
 	////////////////////////////////////////////////////////////
+
+	this.scenes = {}
+	this.sceneObj = null;
+
+	this.materials = {}
+	this.materialObj = null;
 
 	// Initialize textures containing ray states
 	this.raySize = 128;
@@ -107,11 +108,15 @@ var Renderer = function()
 	// Spectrum initialization:
 	// table of 256 vec4 RGB colors, corresponding to the 256 wavelength samples
 	// between 360.0 and 750.0 nanometres
-	// @todo:  for now we will just assume a flat emission spectrum, i.e pure white light.
+	this.spectra = {}
+	this.SPECTRUM_SAMPLES = 256;
+	this.spectrumObj = null;
+
 	this.LAMBDA_MIN = 360.0;
     this.LAMBDA_MAX = 750.0;
-	this.spectrumTable = wavelengthToRgbTable();
-	this.spectrum = new GLU.Texture(this.spectrumTable.length/4, 1, 4, true,  true, true, this.spectrumTable);
+	var wToRgb = wavelengthToRgbTable();
+	this.wavelengthToRgb = new GLU.Texture(wToRgb.length/4, 1, 4, true,  true, true, wToRgb);
+	this.emissionIcdf    = new GLU.Texture(4*this.SPECTRUM_SAMPLES, 1, 1, true, false, true, null);
 
 	// Initialize raytracing shaders
 	this.shaderSources = GLU.resolveShaderSource(["init", "trace", "line", "comp", "pass"]);
@@ -181,17 +186,10 @@ Renderer.prototype.compileShaders = function()
 	if (this.sceneObj == null) return;
 	if (this.materialObj == null) return;
 
-	//console.log("scene: " + this.sceneObj.getName());
-	//console.log("material: " + this.materialObj.getName());
-
 	// Inject code for the current scene and material:
 	sdfCode    = this.sceneObj.sdf();
 	iorCode    = this.materialObj.ior();
 	sampleCode = this.materialObj.sample();
-
-	//console.log('sdfCode: ' + sdfCode);
-	//console.log('iorCode: ' + iorCode);
-	//console.log('sampleCode: ' + sampleCode);
 
 	// Copy the current scene and material routines into the source code
 	// of the trace fragment shader
@@ -300,6 +298,34 @@ Renderer.prototype.getLoadedMaterial = function()
 }
 
 
+// emission spectrum management
+Renderer.prototype.addSpectrum = function(spectrumObj)
+{
+	this.spectra[spectrumObj.getName()] = spectrumObj;
+}
+
+Renderer.prototype.getSpectra = function()
+{
+	return this.spectra;
+}
+
+Renderer.prototype.loadSpectrum = function(spectrumName)
+{
+	this.spectrumObj = this.spectra[spectrumName];
+	var inverseCDF = this.spectrumObj.inverseCDF(this.LAMBDA_MIN, this.LAMBDA_MAX, this.SPECTRUM_SAMPLES);
+
+	this.emissionIcdf.bind(0);
+    this.emissionIcdf.copy(inverseCDF);
+
+	this.reset();
+}
+
+Renderer.prototype.getLoadedSpectrum = function()
+{
+	return this.spectrumObj;
+}
+
+
 
 Renderer.prototype.composite = function()
 {
@@ -352,18 +378,22 @@ Renderer.prototype.render = function()
 		this.initProgram.uniformTexture("RngData", this.rayStates[current].rngTex);
 
 		// Read wavelength -> RGB table 
-		this.spectrum.bind(1);
-		this.initProgram.uniformTexture("Spectrum", this.spectrum);
+		this.wavelengthToRgb.bind(1);
+		this.emissionIcdf.bind(2);
+		this.initProgram.uniformTexture("WavelengthToRgb", this.wavelengthToRgb);
+		this.initProgram.uniformTexture("ICDF", this.emissionIcdf);
 		
 		// Emitter data
 		emitterPos = this.laser.getPoint();
 		emitterDir = this.laser.getDirection();
 		emitterRadius = this.laser.getEmissionRadius();
 		emissionSpread = this.laser.getEmissionSpreadAngle();
+		emissionPower = this.laser.getEmissionPower();
 		this.initProgram.uniform3F("EmitterPos", emitterPos.x, emitterPos.y, emitterPos.z);
 		this.initProgram.uniform3F("EmitterDir", emitterDir.x, emitterDir.y, emitterDir.z);
 		this.initProgram.uniformF("EmitterRadius", emitterRadius);
 		this.initProgram.uniformF("EmitterSpread", emissionSpread);
+		this.initProgram.uniformF("EmitterPower", emissionPower);
 
 		// Write emitted ray initial conditions into 'next' state
 		this.quadVbo.draw(this.initProgram, gl.TRIANGLE_FAN);
@@ -433,7 +463,7 @@ Renderer.prototype.render = function()
 
 	this.quadVbo.bind();
 
-	if (this.pathLength==this.maxPathLength || this.wavesTraced<this.maxPathLength)
+	//if (this.pathLength==this.maxPathLength || this.wavesTraced<this.maxPathLength)
 	{
 		this.fbo.attachTexture(this.screenBuffer, 0);
 		this.waveBuffer.bind(0);
