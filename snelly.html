@@ -24,17 +24,19 @@
 <script type="text/javascript" src="js/raystate.js"></script>
 
 <script type="text/javascript" src="js/wavelengthToRgb.js"></script>
-<script type="text/javascript" src="js/renderer.js"></script>
-
 <script type="text/javascript" src="js/materials.js"></script>
 <script type="text/javascript" src="js/spectra.js"></script>
 <script type="text/javascript" src="js/scenes/scenes.js"></script>
+
+<script type="text/javascript" src="js/pathtracer.js"></script>
+<script type="text/javascript" src="js/renderer.js"></script>
 
 <?/* ----------------------------*/?>
 <?/*    scene definition files   */?>
 <?/* ----------------------------*/?>
 
 <script type="text/javascript" src="js/scenes/sphere.js"></script>
+<script type="text/javascript" src="js/scenes/box.js"></script>
 <script type="text/javascript" src="js/scenes/fibre.js"></script>
 
 
@@ -45,6 +47,8 @@
 
 // Renderer object
 var renderer;
+var pathtracer;
+
 
 // GUI object
 var gui;
@@ -65,7 +69,7 @@ function onLoad()
 
 	// Instantiate renderer object
 	renderer = new Renderer();
-
+	
 	// Instantiate scenes and materials
 	createScenes(renderer);
 	createMaterials(renderer);
@@ -75,6 +79,8 @@ function onLoad()
 	renderer.loadScene("sphere");
 	renderer.loadMaterial("glass_bk7");
 	renderer.loadSpectrum("flat");
+
+	pathtracer = new Pathtracer();
 
 	// Create dat gui
 	gui = new GUI(renderer);
@@ -90,8 +96,9 @@ function camChanged()
 
 function animateLoop() 
 {
-	requestAnimFrame(animateLoop);
 	renderer.render();
+	//pathtracer.render();
+	requestAnimFrame(animateLoop);
 }
 
 function onWindowResize() 
@@ -106,6 +113,9 @@ function onWindowResize()
 
 	renderer.resize(render_canvas.width, render_canvas.height);
 	renderer.render();
+
+	pathtracer.resize(render_canvas.width, render_canvas.height);
+	pathtracer.render();
 }
 
 </script>

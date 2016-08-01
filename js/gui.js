@@ -29,12 +29,12 @@ GUI.prototype.rendererSettings = function()
 	settings.surfaceAlpha = 0.5;
 	settings.maxPathLength = renderer.maxPathLength;
 	settings.maxMarchSteps =renderer.maxMarchSteps;
-	settings.photonsPerFrame = renderer.raySize;
+	settings.photonsPerFrame = renderer.raySize*renderer.raySize;
 	
 	this.rendererFolder.add(settings, 'exposure', 0.0, 10.0, 0.01);
 	this.rendererFolder.add(settings, 'maxPathLength', 1, 1024).onChange( function(value) { renderer.maxPathLength = Math.floor(value); renderer.reset(); } );
 	this.rendererFolder.add(settings, 'maxMarchSteps', 1, 1024).onChange( function(value) { renderer.maxMarchSteps = Math.floor(value); renderer.reset(); } );
-	this.rendererFolder.add(settings, 'photonsPerFrame', 1, 1024).onChange( function(value) { renderer.raySize = Math.floor(value); renderer.initRayStates(); renderer.reset(); } );
+	this.rendererFolder.add(settings, 'photonsPerFrame', 256, 1024*1024).onChange( function(value) { renderer.raySize = Math.floor(Math.sqrt(value)); renderer.initRayStates(); renderer.reset(); } );
 	this.rendererFolder.add(settings, 'showSurface');
 	this.rendererFolder.add(settings, 'surfaceAlpha');
 	this.gui.remember(settings);
@@ -95,7 +95,7 @@ GUI.prototype.emissionSettings = function()
 
 	this.emissionFolder.add(settings, 'showLaserPointer').onChange( function(value) { laser.toggleVisibility(value); } );
 	this.emissionFolder.add(laser, 'emissionRadius', 0.0, 10.0).onChange( function(value) { laser.setEmissionRadius(value);      renderer.reset(); } );
-	this.emissionFolder.add(laser, 'emissionSpread', 0.0, 90.0).onChange( function(value) { laser.setEmissionSpreadAngle(value); renderer.reset(); } );
+	this.emissionFolder.add(laser, 'emissionSpread', 0.0, 45.0).onChange( function(value) { laser.setEmissionSpreadAngle(value); renderer.reset(); } );
 	this.emissionFolder.add(laser, 'emissionPower', 0.0, 10.0).onChange( function(value) { laser.setEmissionPower(value);       renderer.reset(); } );
 	this.gui.remember(laser);
 

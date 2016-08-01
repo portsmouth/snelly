@@ -1,7 +1,6 @@
 
 function SphereScene(name, desc) 
 {
-	// no need for name? just use an internal unique id?
 	Scene.call(this, name, desc);
 
 	// defaults
@@ -64,7 +63,7 @@ SphereScene.prototype.setLaser = function(laser)
 // set up gui and callbacks for this scene
 SphereScene.prototype.initGui = function(parentFolder)
 {
-	this.radiusItem = parentFolder.add(this._settings, 'radius', 0.01, 100.0);
+	this.radiusItem = parentFolder.add(this._settings, 'radius', 0.01, 10.0);
 	this.radiusItem.onChange( function(value) { renderer.reset(); } );
 }
 

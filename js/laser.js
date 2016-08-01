@@ -352,9 +352,7 @@ LaserPointer.prototype.setDirection = function(direction)
 
 LaserPointer.prototype.setEmissionRadius = function(radius)
 {
-	var sceneObj = renderer.getLoadedScene();
-	var sceneScale = sceneObj.getScale();
-	this.emissionRadius = Math.min(radius, 3.0*sceneScale);
+	this.emissionRadius = radius;
 	this.buildEmitterGeo();
 }
 

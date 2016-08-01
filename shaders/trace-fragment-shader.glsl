@@ -195,12 +195,13 @@ void raytrace(inout vec4 rnd,
 			  inout vec3 X, inout vec3 D,
 			  inout vec3 rgb, float wavelength)
 {
+	if (length(rgb) < 1.0e-6) return;
+
 	bool hit = false;
 	normalize(D);
 	float minMarchDist = 1.0e-5*SceneScale;
 
-	//for (int i=0; i<MAX_MARCH_STEPS; i++)
-	for (int i=0; i<256; i++)
+	for (int i=0; i<MAX_MARCH_STEPS; i++)
 	{
 		float dist = abs(SDF(X));
 		X += dist*D;
@@ -209,7 +210,7 @@ void raytrace(inout vec4 rnd,
 			hit = true;
 			break;
 		}
-		if (dist > 100.0*SceneScale)
+		if (dist > 1000.0*SceneScale)
 		{
 			break;
 		}
@@ -217,7 +218,7 @@ void raytrace(inout vec4 rnd,
 
 	if (!hit)
 	{
-		X += SceneScale*D;
+		X += 1000.0*SceneScale*D;
 		rgb *= 0.0; // terminate ray
 	}
 	else
@@ -225,7 +226,6 @@ void raytrace(inout vec4 rnd,
 		rgb *= SAMPLE(X, D, NORMAL(X), wavelength, rnd);
 	}
 }
-
 
 void main()
 {

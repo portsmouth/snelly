@@ -16,6 +16,8 @@ var GLU = {};
 		} catch (e) {}
 		if (!gl) throw new Error("Could not initialise WebGL");
 		this.gl = gl;
+
+		console.log('Supported webGL extensions: ' + gl.getSupportedExtensions());
 		
 		this.floatExt    = gl.getExtension("OES_texture_float");
 		this.floatLinExt = gl.getExtension("OES_texture_float_linear");
@@ -185,6 +187,13 @@ var GLU = {};
 		    gl.uniform2f(id, f1, f2);
 	}
 
+	this.Shader.prototype.uniform2Fv = function(name, fvec2) 
+	{
+		var id = this.uniformIndex(name);
+		if (id != -1)
+		    gl.glUniform2fv(id, fvec2);
+	}
+
 	this.Shader.prototype.uniform3F = function(name, f1, f2, f3) 
 	{
 		var id = this.uniformIndex(name);
@@ -192,11 +201,26 @@ var GLU = {};
 		    gl.uniform3f(id, f1, f2, f3);
 	}
 
+
+	this.Shader.prototype.uniform3Fv = function(name, fvec3) 
+	{
+		var id = this.uniformIndex(name);
+		if (id != -1)
+		    gl.uniform3fv(id, fvec3);
+	}
+
 	this.Shader.prototype.uniform4F = function(name, f1, f2, f3, f4) 
 	{
 		var id = this.uniformIndex(name);
 		if (id != -1)
 		    gl.uniform4F(id, f1, f2, f3, f4);
+	}
+
+	this.Shader.prototype.uniform4Fv = function(name, fvec4) 
+	{
+		var id = this.uniformIndex(name);
+		if (id != -1)
+		    gl.uniform4fv(id, fvec4);
 	}
 
 	///////////////////////////////////////////////////

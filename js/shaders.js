@@ -2,20 +2,20 @@ var Shaders = {
 
 'comp-fragment-shader': `
 #extension GL_EXT_draw_buffers : require
+//#extension GL_EXT_frag_depth : require
 precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-
-/// @todo: where does this come from? What is it?
-
+/// GLSL float point pseudorandom number generator, from
+/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
+/// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
 {
     const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
     const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
     const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
     const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
-
     vec4 beta = floor(rnd/q);
     vec4 p = a*(rnd - beta*q) - beta*r;
     beta = (1.0 - sign(p))*0.5*m;
@@ -29,27 +29,28 @@ varying vec2 vTexCoord;
 
 void main() 
 {
-	// @todo: expose gamma here in UI
+	// @todo: expose gamma here in UI.
+	// @todo: 'proper' tonemapping here.
 	gl_FragColor = vec4(pow(texture2D(Frame, vTexCoord).rgb*Exposure, vec3(1.0/2.2)), 1.0);
 }
 `,
 
 'comp-vertex-shader': `
 #extension GL_EXT_draw_buffers : require
+//#extension GL_EXT_frag_depth : require
 precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-
-/// @todo: where does this come from? What is it?
-
+/// GLSL float point pseudorandom number generator, from
+/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
+/// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
 {
     const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
     const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
     const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
     const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
-
     vec4 beta = floor(rnd/q);
     vec4 p = a*(rnd - beta*q) - beta*r;
     beta = (1.0 - sign(p))*0.5*m;
@@ -71,20 +72,20 @@ void main(void)
 
 'init-fragment-shader': `
 #extension GL_EXT_draw_buffers : require
+//#extension GL_EXT_frag_depth : require
 precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-
-/// @todo: where does this come from? What is it?
-
+/// GLSL float point pseudorandom number generator, from
+/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
+/// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
 {
     const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
     const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
     const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
     const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
-
     vec4 beta = floor(rnd/q);
     vec4 p = a*(rnd - beta*q) - beta*r;
     beta = (1.0 - sign(p))*0.5*m;
@@ -141,20 +142,20 @@ void main()
 
 'init-vertex-shader': `
 #extension GL_EXT_draw_buffers : require
+//#extension GL_EXT_frag_depth : require
 precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-
-/// @todo: where does this come from? What is it?
-
+/// GLSL float point pseudorandom number generator, from
+/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
+/// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
 {
     const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
     const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
     const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
     const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
-
     vec4 beta = floor(rnd/q);
     vec4 p = a*(rnd - beta*q) - beta*r;
     beta = (1.0 - sign(p))*0.5*m;
@@ -176,20 +177,20 @@ void main()
 
 'line-fragment-shader': `
 #extension GL_EXT_draw_buffers : require
+//#extension GL_EXT_frag_depth : require
 precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-
-/// @todo: where does this come from? What is it?
-
+/// GLSL float point pseudorandom number generator, from
+/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
+/// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
 {
     const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
     const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
     const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
     const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
-
     vec4 beta = floor(rnd/q);
     vec4 p = a*(rnd - beta*q) - beta*r;
     beta = (1.0 - sign(p))*0.5*m;
@@ -207,20 +208,20 @@ void main()
 
 'line-vertex-shader': `
 #extension GL_EXT_draw_buffers : require
+//#extension GL_EXT_frag_depth : require
 precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-
-/// @todo: where does this come from? What is it?
-
+/// GLSL float point pseudorandom number generator, from
+/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
+/// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
 {
     const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
     const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
     const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
     const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
-
     vec4 beta = floor(rnd/q);
     vec4 p = a*(rnd - beta*q) - beta*r;
     beta = (1.0 - sign(p))*0.5*m;
@@ -254,20 +255,20 @@ void main()
 
 'pass-fragment-shader': `
 #extension GL_EXT_draw_buffers : require
+//#extension GL_EXT_frag_depth : require
 precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-
-/// @todo: where does this come from? What is it?
-
+/// GLSL float point pseudorandom number generator, from
+/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
+/// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
 {
     const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
     const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
     const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
     const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
-
     vec4 beta = floor(rnd/q);
     vec4 p = a*(rnd - beta*q) - beta*r;
     beta = (1.0 - sign(p))*0.5*m;
@@ -286,20 +287,20 @@ void main()
 
 'pass-vertex-shader': `
 #extension GL_EXT_draw_buffers : require
+//#extension GL_EXT_frag_depth : require
 precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-
-/// @todo: where does this come from? What is it?
-
+/// GLSL float point pseudorandom number generator, from
+/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
+/// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
 {
     const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
     const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
     const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
     const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
-
     vec4 beta = floor(rnd/q);
     vec4 p = a*(rnd - beta*q) - beta*r;
     beta = (1.0 - sign(p))*0.5*m;
@@ -319,22 +320,289 @@ void main(void)
 }
 `,
 
-'trace-fragment-shader': `
+'pathtracer-fragment-shader': `
 #extension GL_EXT_draw_buffers : require
+//#extension GL_EXT_frag_depth : require
 precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-
-/// @todo: where does this come from? What is it?
-
+/// GLSL float point pseudorandom number generator, from
+/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
+/// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
 {
     const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
     const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
     const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
     const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
+    vec4 beta = floor(rnd/q);
+    vec4 p = a*(rnd - beta*q) - beta*r;
+    beta = (1.0 - sign(p))*0.5*m;
+    rnd = p + beta;
+    return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
+}
 
+uniform sampler2D Radiance;
+uniform sampler2D RngData;
+
+// @todo:  camera details
+uniform vec2 resolution;
+
+uniform vec3 camPos;
+uniform vec3 camDir;
+uniform vec3 camX;
+uniform vec3 camY;
+
+uniform float camNear;
+uniform float camFar;
+const float camFovy; // degrees 
+
+
+//////////////////////////////////////////////////////////////
+// Dynamically injected code
+//////////////////////////////////////////////////////////////
+
+SDF_FUNC
+
+//////////////////////////////////////////////////////////////
+
+
+bool hit(inout vec3 X, vec3 D)
+{
+	normalize(D);
+	float minMarchDist = 1.0e-5*SceneScale;
+	for (int i=0; i<MAX_MARCH_STEPS; i++)
+	{
+		float dist = abs(SDF(X));
+		X += dist*D;
+		if (dist < minMarchDist)
+		{
+			return true;
+		}
+		if (dist > 100.0*SceneScale)
+		{
+			return false;;
+		}
+	}
+	return false;
+}
+
+
+vec3 localToWorld(vec3 N, vec3 wiL)
+{
+	vec3 T;
+	if (abs(N.z) < abs(N.x))
+	{
+		T.x =  N.z;
+		T.y =  0.0f;
+		T.z = -N.x;
+	}
+	else
+	{
+		T.x =  0.0f;
+		T.y =  N.z;
+		T.z = -N.y;
+	}
+	vec3 B = N.cross(T);
+	return T*wiL.x + B*wiL.y + N*wiL.z;
+}
+
+
+vec3 cosineSampleHemisphere(vec3 N, vec4 rnd)
+{
+	// sample disk
+	float r = sqrtf(rand(rnd));
+	float theta = 2.0 * M_PI * rand(rnd);
+	vec2 p = vec2(r*cosf(theta), r*sinf(theta));
+
+	// project
+	float z = sqrtf(max(0.f, 1.f - p.x*p.x - p.y*p.y));
+	return vec3(p.x, p.y, z);	
+}
+
+
+float computeClipDepth(float z, float zNear, float zFar)
+{
+	float zp = (zFar + zNear - 2.0f * zFar * zNear / z) / (zFar - zNear);
+	zp = zp * 0.5f + 0.5f;
+	return zp; // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+void main()
+{
+	// Initialize world ray position
+	vec3 X = camPos;
+
+	// Compute world ray direction for this fragment
+	vec2 ndc = -1.0 + 2.0* (gl_FragCoord.xy/resolution.xy);
+	float aspect = resolution.x / resolution.y;
+	float fh = 2.0*camNear*tan(0.5*radians(camFovy)); // frustum height
+	float fw = aspect*fh;
+	vec3 s = 0.5*(fw*ndc.x*camX + fh*ndc.y*camY);
+	vec3 D = normalize(near*camDir + s); // ray direction
+
+	// Raycast to first hit point
+	vec4 rnd  = texture2D(RngData, vTexCoord);
+	float zHit = camFar;
+	vec3 L = vec3(0.0, 0.0, 0.0);
+	
+	if ( hit(X, D) )
+	{
+		zHit = length(X - camPos);
+
+		// Construct a uniformly sampled AO 'shadow' ray in hemisphere of hit point
+		vec3 N = NORMAL(X);
+
+		// @todo: remind me why cosine-weighted sampling is the right thing here
+		vec3 wiL = cosineSampleHemisphere(N, rnd);
+		vec3 shadowRay = localToWorld(N, wiL);
+		if ( !hit(X, shadowRay) )
+		{
+			// assume white background on ray escape
+			L = vec3(1.0, 1.0, 1.0);
+		}
+	}
+
+	// Write updated radiance and sample count
+	vec4 oldL = texture2D(Radiance, vTexCoord);
+	float oldN = oldL.w;
+	float newN = oldN + 1.0;
+	vec3 newL = (oldN*oldL + L) / newN;
+
+	gl_FragColor = vec4(newL, newN);
+	//gl_FragDepth = computeClipDepth(zHit, camNear, camFar);
+}
+`,
+
+'pathtracer-vertex-shader': `
+#extension GL_EXT_draw_buffers : require
+//#extension GL_EXT_frag_depth : require
+precision highp float;
+
+#define M_PI 3.1415926535897932384626433832795
+
+/// GLSL float point pseudorandom number generator, from
+/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
+/// http://arxiv.org/pdf/1505.06022.pdf
+float rand(inout vec4 rnd) 
+{
+    const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
+    const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
+    const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
+    const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
+    vec4 beta = floor(rnd/q);
+    vec4 p = a*(rnd - beta*q) - beta*r;
+    beta = (1.0 - sign(p))*0.5*m;
+    rnd = p + beta;
+    return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
+}
+
+attribute vec3 Position;
+attribute vec2 TexCoord;
+
+varying vec2 vTexCoord;
+
+void main() 
+{
+	gl_Position = vec4(Position, 1.0);
+	vTexCoord = TexCoord;
+}
+`,
+
+'tonemapper-fragment-shader': `
+#extension GL_EXT_draw_buffers : require
+//#extension GL_EXT_frag_depth : require
+precision highp float;
+
+#define M_PI 3.1415926535897932384626433832795
+
+/// GLSL float point pseudorandom number generator, from
+/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
+/// http://arxiv.org/pdf/1505.06022.pdf
+float rand(inout vec4 rnd) 
+{
+    const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
+    const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
+    const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
+    const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
+    vec4 beta = floor(rnd/q);
+    vec4 p = a*(rnd - beta*q) - beta*r;
+    beta = (1.0 - sign(p))*0.5*m;
+    rnd = p + beta;
+    return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
+}
+
+uniform sampler2D samplerHDR;
+uniform float exposure;
+uniform float invGamma;
+in vec2 varTexCoord0;
+
+void main()
+{
+	vec3 L = exposure * texture(samplerHDR, varTexCoord0).rgb;
+	
+	float r = L.x; 
+	float g = L.y; 
+	float b = L.z;
+	
+	vec3 Lp = vec3(r/(1.0+r), g/(1.0+g), b/(1.0+b));
+
+	outColor = vec4(pow(Lp, vec3(invGamma)), 1.0f);
+}
+`,
+
+'tonemapper-vertex-shader': `
+#extension GL_EXT_draw_buffers : require
+//#extension GL_EXT_frag_depth : require
+precision highp float;
+
+#define M_PI 3.1415926535897932384626433832795
+
+/// GLSL float point pseudorandom number generator, from
+/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
+/// http://arxiv.org/pdf/1505.06022.pdf
+float rand(inout vec4 rnd) 
+{
+    const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
+    const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
+    const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
+    const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
+    vec4 beta = floor(rnd/q);
+    vec4 p = a*(rnd - beta*q) - beta*r;
+    beta = (1.0 - sign(p))*0.5*m;
+    rnd = p + beta;
+    return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
+}
+
+attribute vec3 Position;
+attribute vec2 TexCoord;
+varying vec2 vTexCoord;
+
+void main() 
+{
+	gl_Position = vec4(Position, 1.0);
+	vTexCoord = TexCoord;
+}
+`,
+
+'trace-fragment-shader': `
+#extension GL_EXT_draw_buffers : require
+//#extension GL_EXT_frag_depth : require
+precision highp float;
+
+#define M_PI 3.1415926535897932384626433832795
+
+/// GLSL float point pseudorandom number generator, from
+/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
+/// http://arxiv.org/pdf/1505.06022.pdf
+float rand(inout vec4 rnd) 
+{
+    const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
+    const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
+    const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
+    const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
     vec4 beta = floor(rnd/q);
     vec4 p = a*(rnd - beta*q) - beta*r;
     beta = (1.0 - sign(p))*0.5*m;
@@ -538,12 +806,13 @@ void raytrace(inout vec4 rnd,
 			  inout vec3 X, inout vec3 D,
 			  inout vec3 rgb, float wavelength)
 {
+	if (length(rgb) < 1.0e-6) return;
+
 	bool hit = false;
 	normalize(D);
 	float minMarchDist = 1.0e-5*SceneScale;
 
-	//for (int i=0; i<MAX_MARCH_STEPS; i++)
-	for (int i=0; i<256; i++)
+	for (int i=0; i<MAX_MARCH_STEPS; i++)
 	{
 		float dist = abs(SDF(X));
 		X += dist*D;
@@ -552,7 +821,7 @@ void raytrace(inout vec4 rnd,
 			hit = true;
 			break;
 		}
-		if (dist > 100.0*SceneScale)
+		if (dist > 1000.0*SceneScale)
 		{
 			break;
 		}
@@ -560,7 +829,7 @@ void raytrace(inout vec4 rnd,
 
 	if (!hit)
 	{
-		X += SceneScale*D;
+		X += 1000.0*SceneScale*D;
 		rgb *= 0.0; // terminate ray
 	}
 	else
@@ -568,7 +837,6 @@ void raytrace(inout vec4 rnd,
 		rgb *= SAMPLE(X, D, NORMAL(X), wavelength, rnd);
 	}
 }
-
 
 void main()
 {
@@ -589,20 +857,20 @@ void main()
 
 'trace-vertex-shader': `
 #extension GL_EXT_draw_buffers : require
+//#extension GL_EXT_frag_depth : require
 precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-
-/// @todo: where does this come from? What is it?
-
+/// GLSL float point pseudorandom number generator, from
+/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
+/// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
 {
     const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
     const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
     const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
     const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
-
     vec4 beta = floor(rnd/q);
     vec4 p = a*(rnd - beta*q) - beta*r;
     beta = (1.0 - sign(p))*0.5*m;

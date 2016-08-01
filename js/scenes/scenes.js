@@ -42,8 +42,7 @@ function createScenes(renderer)
 {
 	renderer.addScene(new SphereScene("sphere", "Simple sphere"));
 	renderer.addScene(new FibreScene("fibre", "Simple optical fibre"));
-
-
+	renderer.addScene(new BoxScene("box", "Simple box"));
 
 }
 

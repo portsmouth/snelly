@@ -156,9 +156,6 @@ Renderer.prototype.createQuadVbo = function()
 
 Renderer.prototype.reset = function()
 {
-	if (!this.needsReset) return;
-
-	this.needsReset = false;
 	this.wavesTraced = 0;
 	this.raysTraced = 0;
 	this.pathsTraced = 0;
@@ -214,7 +211,6 @@ Renderer.prototype.initRayStates = function()
 	this.resetActiveBlock();
 	this.rayCount = this.raySize*this.raySize;
 	this.currentState = 0;
-	this.needsReset = true;
 	this.rayStates = [new RayState(this.raySize), new RayState(this.raySize)];
 		
 	// Create the buffer of texture coordinates, which maps each drawn line
@@ -325,20 +321,20 @@ Renderer.prototype.getLoadedSpectrum = function()
 	return this.spectrumObj;
 }
 
-
-
 Renderer.prototype.composite = function()
 {
+	// Normalize and tonemap the screen buffer to produce final pixels
 	this.screenBuffer.bind(0);
 	this.compProgram.bind();
 	this.quadVbo.bind();
 	this.compProgram.uniformTexture("Frame", this.screenBuffer);
 
-	// Tonemap to effectively divide by total number of paths
+	// Normalize the emission by dividing by the total number of paths
 	// (and also apply gamma correction)
 	var numPaths = Math.max(this.pathsTraced, 1);
-	this.compProgram.uniformF("Exposure", renderer.renderSettings.exposure / numPaths);
-	
+	//this.compProgram.uniformF("Exposure", renderer.renderSettings.exposure / numPaths);
+	this.compProgram.uniformF("Exposure", renderer.renderSettings.exposure/numPaths);
+
 	this.quadVbo.draw(this.compProgram, this.gl.TRIANGLE_FAN);
 }
 
@@ -346,13 +342,11 @@ Renderer.prototype.render = function()
 {
 	this.controls.update();
 
-	var gl = this.gl;
-	this.needsReset = true;
-
 	var current = this.currentState;
 	var next    = 1 - current;
 
 	// Render laser pointer
+	var gl = this.gl;
 	gl.viewport(0, 0, this.width, this.height);
 	this.laser.render();
 	
@@ -407,7 +401,7 @@ Renderer.prototype.render = function()
 		this.rayStates[next].attach(this.fbo);
 	}
 
-	// Raytrace into scene, generating new ray pos/dir data in 'next' rayStates textures
+	// Fire rays into scene, generating new ray pos/dir data in 'next' rayStates textures
 	{
 		this.traceProgram.bind();
 		this.rayStates[current].bind(this.traceProgram);       // Use the current state as the initial conditions
@@ -418,7 +412,7 @@ Renderer.prototype.render = function()
 		this.rayStates[next].detach(this.fbo);
 	}
 
-	// Draw the next set of lines into the wave buffer
+	// Draw the next 'wavefront' of bounces (i.e. line segments) into the wave buffer
 	{
 		//gl.disable(gl.SCISSOR_TEST);
 		gl.viewport(0, 0, this.width, this.height);
@@ -430,6 +424,7 @@ Renderer.prototype.render = function()
 			gl.clear(gl.COLOR_BUFFER_BIT);
 		}
 
+		// The float color channels of all lines are simply added
 		gl.enable(gl.BLEND);
 		this.lineProgram.bind();
 
@@ -454,6 +449,7 @@ Renderer.prototype.render = function()
 		this.lineProgram.uniformTexture("PosDataB", this.rayStates[   next].posTex);
 		this.lineProgram.uniformTexture("RgbData",  this.rayStates[current].rgbTex);
 
+		/// @todo: 
 		this.rayVbo.bind(); // Binds the TexCoord attribute
 		this.rayVbo.draw(this.lineProgram, gl.LINES, this.raySize*this.activeBlock*2);
 
@@ -463,8 +459,11 @@ Renderer.prototype.render = function()
 
 	this.quadVbo.bind();
 
-	//if (this.pathLength==this.maxPathLength || this.wavesTraced<this.maxPathLength)
+	if (this.pathLength==this.maxPathLength || this.wavesTraced<this.maxPathLength)
 	{
+		// Copy the wavebuffer contents, a complete set of rendered path samples,
+		// into the screen buffer. (representing the radiance emitted into the line of sight from a 
+		//	volumetric emission field proportional to the fluence)
 		this.fbo.attachTexture(this.screenBuffer, 0);
 		this.waveBuffer.bind(0);
 		this.passProgram.bind();
@@ -482,7 +481,7 @@ Renderer.prototype.render = function()
 	gl.disable(gl.BLEND);
 	this.fbo.unbind();
 
-	// Final composite of screenBuffer to window
+	// Final composite of normalized screenBuffer to window
 	this.composite();
 
 	// Update raytracing state
