@@ -11,14 +11,20 @@ var Renderer = function()
 	this.width = render_canvas.width;
 	this.height = render_canvas.height;
 
+	this.container = document.getElementById('container');
+	{
+		this.stats = new Stats();
+		this.stats.domElement.style.position = 'absolute';
+		this.stats.domElement.style.top = '0px';
+		this.container.appendChild( this.stats.domElement );
+	}
+
 	// Initialize THREE.js camera
 	var VIEW_ANGLE = 65;
 	var ASPECT = this.width / this.height ;
 	var NEAR = 0.05;
 	var FAR = 1000;
 	this.camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
-	this.camera.position.z = 50;
-	this.camera.updateProjectionMatrix();
 	
 	// Setup three.js GL viewport renderer
 	var ui_canvas = document.getElementById('ui-canvas');
@@ -41,14 +47,6 @@ var Renderer = function()
 
 	var light = new THREE.AmbientLight( 0x808080 ); // soft white light
 	this.glScene.add( light );
-
-	this.container = document.getElementById('container');
-	{
-		this.stats = new Stats();
-		this.stats.domElement.style.position = 'absolute';
-		this.stats.domElement.style.top = '0px';
-		this.container.appendChild( this.stats.domElement );
-	}
 
 	// Create user control system for camera
 	this.controls = new THREE.OrbitControls(this.camera, this.glRenderer.domElement);
@@ -92,7 +90,6 @@ var Renderer = function()
 
 	this.scenes = {}
 	this.sceneObj = null;
-
 	this.materials = {}
 	this.materialObj = null;
 
@@ -111,7 +108,6 @@ var Renderer = function()
 	this.spectra = {}
 	this.SPECTRUM_SAMPLES = 256;
 	this.spectrumObj = null;
-
 	this.LAMBDA_MIN = 360.0;
     this.LAMBDA_MAX = 750.0;
 	var wToRgb = wavelengthToRgbTable();
@@ -125,6 +121,8 @@ var Renderer = function()
 	this.fbo = new GLU.RenderTarget();
 	gl.clearColor(0.0, 0.0, 0.0, 1.0);
 	gl.blendFunc(gl.ONE, gl.ONE);
+
+	// Trigger initial buffer generation
 	this.resize(this.width, this.height);
 }
 

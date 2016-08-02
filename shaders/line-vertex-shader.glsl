@@ -12,6 +12,7 @@ varying vec3 vColor;
 void main()
 {
 	// Textures A and B contain line segment start and end points respectively
+	// (i.e. the geometry defined by this vertex shader comes from textures!)
 	vec3 posA = texture2D(PosDataA, TexCoord.xy).xyz;
 	vec3 posB = texture2D(PosDataB, TexCoord.xy).xyz;
 

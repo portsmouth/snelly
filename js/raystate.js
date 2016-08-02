@@ -2,8 +2,6 @@
 
 var RayState = function(size) 
 {
-	this.size = size;
-
 	var posData = new Float32Array(size*size*4); // ray position
 	var dirData = new Float32Array(size*size*4); // ray direction
 	var rngData = new Float32Array(size*size*4); // Random number seed

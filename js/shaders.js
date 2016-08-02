@@ -242,6 +242,7 @@ varying vec3 vColor;
 void main()
 {
 	// Textures A and B contain line segment start and end points respectively
+	// (i.e. the geometry defined by this vertex shader comes from textures!)
 	vec3 posA = texture2D(PosDataA, TexCoord.xy).xyz;
 	vec3 posB = texture2D(PosDataB, TexCoord.xy).xyz;
 
@@ -345,6 +346,7 @@ float rand(inout vec4 rnd)
 
 uniform sampler2D Radiance;
 uniform sampler2D RngData;
+varying vec2 vTexCoord;
 
 // @todo:  camera details
 uniform vec2 resolution;
@@ -356,7 +358,9 @@ uniform vec3 camY;
 
 uniform float camNear;
 uniform float camFar;
-const float camFovy; // degrees 
+uniform float camFovy; // degrees 
+
+uniform float SceneScale;
 
 
 //////////////////////////////////////////////////////////////
@@ -388,6 +392,17 @@ bool hit(inout vec3 X, vec3 D)
 	return false;
 }
 
+vec3 NORMAL( in vec3 pos )
+{
+	// Compute normal as gradient of SDF
+	float normalEpsilon = 2.0e-5*SceneScale;
+	vec3 eps = vec3(normalEpsilon, 0.0, 0.0);
+	vec3 nor = vec3(
+	    SDF(pos+eps.xyy) - SDF(pos-eps.xyy),
+	    SDF(pos+eps.yxy) - SDF(pos-eps.yxy),
+	    SDF(pos+eps.yyx) - SDF(pos-eps.yyx) );
+	return normalize(nor);
+}
 
 vec3 localToWorld(vec3 N, vec3 wiL)
 {
@@ -395,16 +410,16 @@ vec3 localToWorld(vec3 N, vec3 wiL)
 	if (abs(N.z) < abs(N.x))
 	{
 		T.x =  N.z;
-		T.y =  0.0f;
+		T.y =  0.0;
 		T.z = -N.x;
 	}
 	else
 	{
-		T.x =  0.0f;
+		T.x =  0.0;
 		T.y =  N.z;
 		T.z = -N.y;
 	}
-	vec3 B = N.cross(T);
+	vec3 B = cross(N, T);
 	return T*wiL.x + B*wiL.y + N*wiL.z;
 }
 
@@ -412,23 +427,23 @@ vec3 localToWorld(vec3 N, vec3 wiL)
 vec3 cosineSampleHemisphere(vec3 N, vec4 rnd)
 {
 	// sample disk
-	float r = sqrtf(rand(rnd));
+	float r = sqrt(rand(rnd));
 	float theta = 2.0 * M_PI * rand(rnd);
-	vec2 p = vec2(r*cosf(theta), r*sinf(theta));
+	vec2 p = vec2(r*cos(theta), r*sin(theta));
 
 	// project
-	float z = sqrtf(max(0.f, 1.f - p.x*p.x - p.y*p.y));
+	float z = sqrt(max(0.0, 1.0 - p.x*p.x - p.y*p.y));
 	return vec3(p.x, p.y, z);	
 }
 
-
+/*
 float computeClipDepth(float z, float zNear, float zFar)
 {
-	float zp = (zFar + zNear - 2.0f * zFar * zNear / z) / (zFar - zNear);
-	zp = zp * 0.5f + 0.5f;
+	float zp = (zFar + zNear - 2.0*zFar*zNear/z) / (zFar - zNear);
+	zp = zp * 0.5 + 0.5;
 	return zp; // in [0,1] range as z ranges over [zNear, zFar]
 }
-
+*/
 
 void main()
 {
@@ -437,11 +452,13 @@ void main()
 
 	// Compute world ray direction for this fragment
 	vec2 ndc = -1.0 + 2.0* (gl_FragCoord.xy/resolution.xy);
+
+	/*
 	float aspect = resolution.x / resolution.y;
 	float fh = 2.0*camNear*tan(0.5*radians(camFovy)); // frustum height
 	float fw = aspect*fh;
 	vec3 s = 0.5*(fw*ndc.x*camX + fh*ndc.y*camY);
-	vec3 D = normalize(near*camDir + s); // ray direction
+	vec3 D = normalize(camNear*camDir + s); // ray direction
 
 	// Raycast to first hit point
 	vec4 rnd  = texture2D(RngData, vTexCoord);
@@ -467,11 +484,21 @@ void main()
 
 	// Write updated radiance and sample count
 	vec4 oldL = texture2D(Radiance, vTexCoord);
+
 	float oldN = oldL.w;
 	float newN = oldN + 1.0;
-	vec3 newL = (oldN*oldL + L) / newN;
+	vec3 newL = (oldN*oldL.rgb + L) / newN;
+	*/
 
-	gl_FragColor = vec4(newL, newN);
+	//vec4 oldL = texture2D(Radiance, vTexCoord);
+
+	vec3 L = vec3(ndc.x, ndc.y, 0.0);
+	gl_FragData[0] = vec4(L, 1.0);
+	
+	vec4 rnd  = texture2D(RngData, vTexCoord);
+	rand(rnd);
+	gl_FragData[1] = rnd;
+
 	//gl_FragDepth = computeClipDepth(zHit, camNear, camFar);
 }
 `,
@@ -534,22 +561,21 @@ float rand(inout vec4 rnd)
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
 
-uniform sampler2D samplerHDR;
+uniform sampler2D Radiance;
+varying vec2 vTexCoord;
+
 uniform float exposure;
 uniform float invGamma;
-in vec2 varTexCoord0;
 
 void main()
 {
-	vec3 L = exposure * texture(samplerHDR, varTexCoord0).rgb;
-	
+	vec3 L = exposure * texture2D(Radiance, vTexCoord).rgb;
 	float r = L.x; 
 	float g = L.y; 
 	float b = L.z;
-	
 	vec3 Lp = vec3(r/(1.0+r), g/(1.0+g), b/(1.0+b));
 
-	outColor = vec4(pow(Lp, vec3(invGamma)), 1.0f);
+	gl_FragColor = vec4(pow(Lp, vec3(invGamma)), 1.0);
 }
 `,
 

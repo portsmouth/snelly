@@ -91,13 +91,14 @@ function onLoad()
 
 function camChanged()
 {
-	renderer.reset();
+	//renderer.reset();
+	pathtracer.reset();
 }
 
 function animateLoop() 
 {
-	renderer.render();
-	//pathtracer.render();
+	//renderer.render();
+	pathtracer.render();
 	requestAnimFrame(animateLoop);
 }
 

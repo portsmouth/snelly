@@ -191,7 +191,7 @@ var GLU = {};
 	{
 		var id = this.uniformIndex(name);
 		if (id != -1)
-		    gl.glUniform2fv(id, fvec2);
+		    gl.uniform2fv(id, fvec2);
 	}
 
 	this.Shader.prototype.uniform3F = function(name, f1, f2, f3) 
@@ -355,6 +355,8 @@ var GLU = {};
 	{
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 	}
+
+	this.thing = false
 
 	this.RenderTarget.prototype.attachTexture = function(texture, index) 
 	{
