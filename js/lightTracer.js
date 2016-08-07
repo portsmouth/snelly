@@ -1,110 +1,81 @@
 
 
-var Renderer = function()
+var LightTracerState = function(size) 
+{
+	var posData = new Float32Array(size*size*4); // ray position
+	var dirData = new Float32Array(size*size*4); // ray direction
+	var rngData = new Float32Array(size*size*4); // Random number seed
+	var rgbData = new Float32Array(size*size*4); // Ray color, and wavelength
+
+	for (var i = 0; i<size*size; ++i)
+	{
+		dirData[i*4 + 0] = 1.0;
+		dirData[i*4 + 1] = 0.0;
+		dirData[i*4 + 2] = 0.0;
+		dirData[i*4 + 3] = 0.0;
+		for (var t = 0; t<4; ++t)
+		{
+			rgbData[i*4 + t] = Math.random();
+			rngData[i*4 + t] = Math.random()*4194167.0;
+		}
+	}
+
+	this.posTex = new GLU.Texture(size, size, 4, true, false, true, posData);
+	this.dirTex = new GLU.Texture(size, size, 4, true, false, true, dirData);
+	this.rngTex = new GLU.Texture(size, size, 4, true, false, true, rngData);
+	this.rgbTex = new GLU.Texture(size, size, 4, true, false, true, rgbData);
+}
+
+LightTracerState.prototype.bind = function(shader)
+{
+	this.posTex.bind(0);
+	this.dirTex.bind(1);
+	this.rngTex.bind(2);
+	this.rgbTex.bind(3);
+	shader.uniformTexture("PosData", this.posTex);
+	shader.uniformTexture("DirData", this.dirTex);
+	shader.uniformTexture("RngData", this.rngTex);
+	shader.uniformTexture("RgbData", this.rgbTex);
+}
+
+LightTracerState.prototype.attach = function(fbo)
+{
+	var gl = GLU.gl;
+	fbo.attachTexture(this.posTex, 0);
+	fbo.attachTexture(this.dirTex, 1);
+	fbo.attachTexture(this.rngTex, 2);
+	fbo.attachTexture(this.rgbTex, 3);
+	if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) != gl.FRAMEBUFFER_COMPLETE) 
+	{
+		GLU.fail("Invalid framebuffer");
+	}
+}
+
+LightTracerState.prototype.detach = function(fbo)
+{
+	var gl = GLU.gl;
+	fbo.detachTexture(0);
+	fbo.detachTexture(1);
+	fbo.detachTexture(2);
+	fbo.detachTexture(3);
+}
+
+
+var LightTracer = function()
 {
 	this.gl = GLU.gl;
 	var gl = GLU.gl;
-
-	var render_canvas = document.getElementById('render-canvas');
-	render_canvas.width  = window.innerWidth;
-	render_canvas.height = window.innerHeight;
-	this.width = render_canvas.width;
-	this.height = render_canvas.height;
-
-	this.container = document.getElementById('container');
-	{
-		this.stats = new Stats();
-		this.stats.domElement.style.position = 'absolute';
-		this.stats.domElement.style.top = '0px';
-		this.container.appendChild( this.stats.domElement );
-	}
-
-	// Initialize THREE.js camera
-	var VIEW_ANGLE = 65;
-	var ASPECT = this.width / this.height ;
-	var NEAR = 0.05;
-	var FAR = 1000;
-	this.camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
-	
-	// Setup three.js GL viewport renderer
-	var ui_canvas = document.getElementById('ui-canvas');
-	ui_canvas.style.top = 0;
-	ui_canvas.style.position = 'fixed' 
-
-	this.glRenderer = new THREE.WebGLRenderer( { canvas: ui_canvas,
-											     alpha: true,
-											     antialias: true } );
-	this.glRenderer.setClearColor( 0x000000, 0 ); // the default
-	this.glRenderer.setSize(this.width, this.height);
-	this.glScene = new THREE.Scene();
-	this.glScene.add(this.camera);
-
-	var pointLight = new THREE.PointLight(0xa0a0a0);
-	pointLight.position.x = 10;
-	pointLight.position.y = 50;
-	pointLight.position.z = 130;
-	this.glScene.add(pointLight);
-
-	var light = new THREE.AmbientLight( 0x808080 ); // soft white light
-	this.glScene.add( light );
-
-	// Create user control system for camera
-	this.controls = new THREE.OrbitControls(this.camera, this.glRenderer.domElement);
-	this.controls.zoomSpeed = 2.0;
-	this.controls.addEventListener( 'change', camChanged );
-
-	// Setup Laser pointer
-	this.laser = new LaserPointer(this.glRenderer, this.glScene, this.camera, this.controls);
-	this.laser.setPosition(new THREE.Vector3(-5.0, 0.0, 0.0));
-	this.laser.setDirection(new THREE.Vector3(1.0, 0.0, 0.0));
-
-	// Setup keypress events
-	renderer = this;
-	window.addEventListener('keydown', function(event) 
-	{
-		var charCode = (event.which) ? event.which : event.keyCode;
-		switch (charCode)
-		{
-			case 122: // F11 key: go fullscreen
-				var element	= document.body;
-				if      ( 'webkitCancelFullScreen' in document ) element.webkitRequestFullScreen();
-				else if ( 'mozCancelFullScreen'    in document ) element.mozRequestFullScreen();
-				else console.assert(false);
-				break;
-			case 70: // F key: focus on emitter
-				renderer.controls.object.zoom = renderer.controls.zoom0;
-				renderer.controls.target.copy(renderer.laser.getPoint());
-				renderer.controls.update();
-				break; 
-		}
-	}, false);
-	
-	this.glRenderer.domElement.addEventListener( 'mousemove', this, false );
-	this.glRenderer.domElement.addEventListener( 'mousedown', this, false );
-	this.glRenderer.domElement.addEventListener( 'mouseup',   this, false );
-
-
-	////////////////////////////////////////////////////////////
-	// Initialize rendering
-	////////////////////////////////////////////////////////////
-
-	this.scenes = {}
-	this.sceneObj = null;
-	this.materials = {}
-	this.materialObj = null;
 
 	// Initialize textures containing ray states
 	this.raySize = 128;
 	this.maxMarchSteps = 512;
 	this.maxPathLength = 32;
-	this.initRayStates();
+	this.initStates();
 
 	// Create a quad VBO for rendering textures
 	this.quadVbo = this.createQuadVbo();
 
-	// Spectrum initialization:
-	// table of 256 vec4 RGB colors, corresponding to the 256 wavelength samples
-	// between 360.0 and 750.0 nanometres
+	// Spectrum initialization
 	this.spectra = {}
 	this.SPECTRUM_SAMPLES = 256;
 	this.spectrumObj = null;
@@ -114,30 +85,23 @@ var Renderer = function()
 	this.wavelengthToRgb = new GLU.Texture(wToRgb.length/4, 1, 4, true,  true, true, wToRgb);
 	this.emissionIcdf    = new GLU.Texture(4*this.SPECTRUM_SAMPLES, 1, 1, true, false, true, null);
 
+	this.addSpectrum( new FlatSpectrum("flat", "Flat spectrum", 400.0, 700.0) );
+	this.addSpectrum( new BlackbodySpectrum("blackbody", "Blackbody spectrum", 6000.0) );
+	this.addSpectrum( new MonochromaticSpectrum("monochromatic", "Monochromatic spectrum", 650.0) ); 
+
+	this.fbo == null;
+	this.loadSpectrum("flat");
+
 	// Initialize raytracing shaders
 	this.shaderSources = GLU.resolveShaderSource(["init", "trace", "line", "comp", "pass"]);
 
 	// Initialize GL
 	this.fbo = new GLU.RenderTarget();
 	gl.clearColor(0.0, 0.0, 0.0, 1.0);
-	gl.blendFunc(gl.ONE, gl.ONE);
-
-	// Trigger initial buffer generation
-	this.resize(this.width, this.height);
 }
 
 
-Renderer.prototype.handleEvent = function(event)
-{
-	switch (event.type)
-	{
-		case 'mousemove': this.onDocumentMouseMove(event); break;
-		case 'mousedown': this.onDocumentMouseDown(event); break;
-		case 'mouseup':   this.onDocumentMouseUp(event);   break;
-	}
-}
-
-Renderer.prototype.createQuadVbo = function()
+LightTracer.prototype.createQuadVbo = function()
 {
 	var vbo = new GLU.VertexBuffer();
 	vbo.addAttribute("Position", 3, this.gl.FLOAT, false);
@@ -152,7 +116,7 @@ Renderer.prototype.createQuadVbo = function()
 	return vbo;
 }
 
-Renderer.prototype.reset = function()
+LightTracer.prototype.reset = function()
 {
 	this.wavesTraced = 0;
 	this.raysTraced = 0;
@@ -169,22 +133,23 @@ Renderer.prototype.reset = function()
 }
 
 
-Renderer.prototype.resetActiveBlock = function()
+LightTracer.prototype.resetActiveBlock = function()
 {
 	//this.activeBlock = 4;
 	this.activeBlock = this.raySize;
 }
 
 
-Renderer.prototype.compileShaders = function()
+LightTracer.prototype.compileShaders = function()
 {
-	if (this.sceneObj == null) return;
-	if (this.materialObj == null) return;
-
+	var sceneObj = snelly.getLoadedScene();
+	var materialObj = snelly.getLoadedMaterial();
+	if (sceneObj==null || materialObj==null) return;
+	
 	// Inject code for the current scene and material:
-	sdfCode    = this.sceneObj.sdf();
-	iorCode    = this.materialObj.ior();
-	sampleCode = this.materialObj.sample();
+	sdfCode    = sceneObj.sdf();
+	iorCode    = materialObj.ior();
+	sampleCode = materialObj.sample();
 
 	// Copy the current scene and material routines into the source code
 	// of the trace fragment shader
@@ -197,6 +162,7 @@ Renderer.prototype.compileShaders = function()
 	// shaderSources is a dict from name (e.g. "trace")
 	// to a dict {v:vertexShaderSource, f:fragmentShaderSource}
 	this.traceProgram = new GLU.Shader('trace', this.shaderSources, replacements);
+
 	this.initProgram  = new GLU.Shader('init',  this.shaderSources, null);
 	this.lineProgram  = new GLU.Shader('line',  this.shaderSources, null);
 	this.compProgram  = new GLU.Shader('comp',  this.shaderSources, null);
@@ -204,12 +170,13 @@ Renderer.prototype.compileShaders = function()
 }
 
 
-Renderer.prototype.initRayStates = function()
+LightTracer.prototype.initStates = function()
 {
 	this.resetActiveBlock();
+	this.raySize = Math.floor(this.raySize);
 	this.rayCount = this.raySize*this.raySize;
 	this.currentState = 0;
-	this.rayStates = [new RayState(this.raySize), new RayState(this.raySize)];
+	this.rayStates = [new LightTracerState(this.raySize), new LightTracerState(this.raySize)];
 		
 	// Create the buffer of texture coordinates, which maps each drawn line
 	// to its corresponding texture lookup.
@@ -232,94 +199,34 @@ Renderer.prototype.initRayStates = function()
 	}
 }
 
-
-Renderer.prototype.getCamera = function()
-{
-	return this.camera;
-}
-
-
-//
-// scene management
-//
-Renderer.prototype.addScene = function(sceneObj)
-{
-	this.scenes[sceneObj.getName()] = sceneObj;
-}
-
-Renderer.prototype.getScenes = function()
-{
-	return this.scenes;
-}
-
-Renderer.prototype.loadScene = function(sceneName)
-{
-	this.sceneObj = this.scenes[sceneName];
-	this.compileShaders();
-	this.sceneObj.setCam(this.controls, this.camera);
-	this.sceneObj.setLaser(this.laser);
-	this.reset();
-}
-
-Renderer.prototype.getLoadedScene = function()
-{
-	return this.sceneObj;
-}
-
-//
-// material management
-//
-Renderer.prototype.addMaterial = function(materialObj)
-{
-	this.materials[materialObj.getName()] = materialObj;
-}
-
-Renderer.prototype.getMaterials = function()
-{
-	return this.materials;
-}
-
-Renderer.prototype.loadMaterial = function(materialName)
-{
-	this.materialObj = this.materials[materialName];
-	this.compileShaders();
-	this.reset();
-}
-
-Renderer.prototype.getLoadedMaterial = function()
-{
-	return this.materialObj;
-}
-
-
 // emission spectrum management
-Renderer.prototype.addSpectrum = function(spectrumObj)
+LightTracer.prototype.addSpectrum = function(spectrumObj)
 {
 	this.spectra[spectrumObj.getName()] = spectrumObj;
 }
 
-Renderer.prototype.getSpectra = function()
+LightTracer.prototype.getSpectra = function()
 {
 	return this.spectra;
 }
 
-Renderer.prototype.loadSpectrum = function(spectrumName)
+LightTracer.prototype.loadSpectrum = function(spectrumName)
 {
 	this.spectrumObj = this.spectra[spectrumName];
 	var inverseCDF = this.spectrumObj.inverseCDF(this.LAMBDA_MIN, this.LAMBDA_MAX, this.SPECTRUM_SAMPLES);
-
 	this.emissionIcdf.bind(0);
     this.emissionIcdf.copy(inverseCDF);
-
-	this.reset();
+    if (this.fbo != null)
+		this.reset();
 }
 
-Renderer.prototype.getLoadedSpectrum = function()
+LightTracer.prototype.getLoadedSpectrum = function()
 {
 	return this.spectrumObj;
 }
 
-Renderer.prototype.composite = function()
+
+LightTracer.prototype.composite = function()
 {
 	// Normalize and tonemap the screen buffer to produce final pixels
 	this.screenBuffer.bind(0);
@@ -331,28 +238,32 @@ Renderer.prototype.composite = function()
 	// (and also apply gamma correction)
 	var numPaths = Math.max(this.pathsTraced, 1);
 	//this.compProgram.uniformF("Exposure", renderer.renderSettings.exposure / numPaths);
-	this.compProgram.uniformF("Exposure", renderer.renderSettings.exposure/numPaths);
+
+	var gui = snelly.getGUI();
+	this.compProgram.uniformF("Exposure", gui.lightTracerSettings.exposure/numPaths);
 
 	this.quadVbo.draw(this.compProgram, this.gl.TRIANGLE_FAN);
 }
 
-Renderer.prototype.render = function()
+
+LightTracer.prototype.render = function()
 {
-	this.controls.update();
+	var sceneObj = snelly.getLoadedScene();
+	if (sceneObj==null) return;
+
+	var materialObj = snelly.getLoadedMaterial();
+	if (materialObj==null) return;
 
 	var current = this.currentState;
 	var next    = 1 - current;
 
-	// Render laser pointer
-	var gl = this.gl;
-	gl.viewport(0, 0, this.width, this.height);
-	this.laser.render();
-	
-	////////////////////////////////
-	// trace light beams
-	////////////////////////////////
+	// Camera update
+	snelly.camera.near = 1.0e-3*sceneObj.getScale();
+	snelly.camera.far  = 1.0e3*sceneObj.getScale();
 
+	// trace light beams
 	this.fbo.bind();
+	var gl = GLU.gl;
 	gl.viewport(0, 0, this.raySize, this.raySize);
 	//gl.scissor(0, 0, this.raySize, this.activeBlock);
 	//gl.enable(gl.SCISSOR_TEST);
@@ -376,11 +287,12 @@ Renderer.prototype.render = function()
 		this.initProgram.uniformTexture("ICDF", this.emissionIcdf);
 		
 		// Emitter data
-		emitterPos = this.laser.getPoint();
-		emitterDir = this.laser.getDirection();
-		emitterRadius = this.laser.getEmissionRadius();
-		emissionSpread = this.laser.getEmissionSpreadAngle();
-		emissionPower = this.laser.getEmissionPower();
+		var laser = snelly.laser;
+		emitterPos = laser.getPoint();
+		emitterDir = laser.getDirection();
+		emitterRadius = laser.getEmissionRadius();
+		emissionSpread = laser.getEmissionSpreadAngle();
+		emissionPower = laser.getEmissionPower();
 		this.initProgram.uniform3F("EmitterPos", emitterPos.x, emitterPos.y, emitterPos.z);
 		this.initProgram.uniform3F("EmitterDir", emitterDir.x, emitterDir.y, emitterDir.z);
 		this.initProgram.uniformF("EmitterRadius", emitterRadius);
@@ -403,9 +315,9 @@ Renderer.prototype.render = function()
 	{
 		this.traceProgram.bind();
 		this.rayStates[current].bind(this.traceProgram);       // Use the current state as the initial conditions
-		this.traceProgram.uniformF("SceneScale", this.sceneObj.getScale()); 
-		this.sceneObj.syncShader(this.traceProgram);           // set current scene parameters 
-		this.materialObj.syncShader(this.traceProgram);        // set current material parameters 
+		this.traceProgram.uniformF("SceneScale", sceneObj.getScale()); 
+		sceneObj.syncShader(this.traceProgram);                // set current scene parameters 
+		materialObj.syncShader(this.traceProgram);             // set current material parameters 
 		this.quadVbo.draw(this.traceProgram, gl.TRIANGLE_FAN); // Generate the next ray state
 		this.rayStates[next].detach(this.fbo);
 	}
@@ -423,18 +335,20 @@ Renderer.prototype.render = function()
 		}
 
 		// The float color channels of all lines are simply added
+		gl.blendFunc(gl.ONE, gl.ONE);
 		gl.enable(gl.BLEND);
 		this.lineProgram.bind();
 
 		// Setup projection matrix
-		var projectionMatrix = this.camera.projectionMatrix.toArray();
+		var camera = snelly.camera;
+		var projectionMatrix = camera.projectionMatrix.toArray();
 		var projectionMatrixLocation = this.lineProgram.getUniformLocation("u_projectionMatrix");
 		gl.uniformMatrix4fv(projectionMatrixLocation, false, projectionMatrix);
 
 		// Setup modelview matrix (to match camera)
-		this.camera.updateMatrixWorld();
+		camera.updateMatrixWorld();
 		var matrixWorldInverse = new THREE.Matrix4();
-		matrixWorldInverse.getInverse( this.camera.matrixWorld );
+		matrixWorldInverse.getInverse( camera.matrixWorld );
 		var modelViewMatrix = matrixWorldInverse.toArray();
 		var modelViewMatrixLocation = this.lineProgram.getUniformLocation("u_modelViewMatrix");
 		gl.uniformMatrix4fv(modelViewMatrixLocation, false, modelViewMatrix);
@@ -460,14 +374,13 @@ Renderer.prototype.render = function()
 	if (this.pathLength==this.maxPathLength || this.wavesTraced<this.maxPathLength)
 	{
 		// Copy the wavebuffer contents, a complete set of rendered path samples,
-		// into the screen buffer. (representing the radiance emitted into the line of sight from a 
-		//	volumetric emission field proportional to the fluence)
+		// into the screen buffer (representing the radiance emitted into the line of sight from a 
+		// volumetric emission field proportional to the fluence)
 		this.fbo.attachTexture(this.screenBuffer, 0);
 		this.waveBuffer.bind(0);
 		this.passProgram.bind();
 		this.passProgram.uniformTexture("Frame", this.waveBuffer);
 		this.quadVbo.draw(this.passProgram, gl.TRIANGLE_FAN);
-
 		this.pathsTraced += this.raySize*this.activeBlock;
 		if (this.pathLength == this.maxPathLength)
 		{
@@ -476,51 +389,24 @@ Renderer.prototype.render = function()
 		}
 	}
 
-	gl.disable(gl.BLEND);
 	this.fbo.unbind();
+	gl.disable(gl.BLEND);
 
 	// Final composite of normalized screenBuffer to window
 	this.composite();
 
 	// Update raytracing state
 	this.currentState = next;
-
-	this.stats.update();
 }
 
 
-Renderer.prototype.onDocumentMouseMove = function(event)
-{
-	event.preventDefault();
-	if (this.laser.onMouseMove(event)) this.reset();
-}
-
-Renderer.prototype.onDocumentMouseDown = function(event)
-{
-	event.preventDefault();
-	this.laser.onMouseDown(event);
-}
-
-Renderer.prototype.onDocumentMouseUp = function(event)
-{
-	event.preventDefault();
-	this.laser.onMouseUp(event);
-}
-
-
-Renderer.prototype.resize = function(width, height)
+LightTracer.prototype.resize = function(width, height)
 {
 	this.width = width;
 	this.height = height;
-	this.camera.aspect = width / height;
-	this.camera.updateProjectionMatrix();
 	this.screenBuffer = new GLU.Texture(this.width, this.height, 4, true, false, true, null);
 	this.waveBuffer   = new GLU.Texture(this.width, this.height, 4, true, false, true, null);
 	this.resetActiveBlock();
 	this.reset();
-
-	this.glRenderer.setSize(width, height);
 }
-
-
 

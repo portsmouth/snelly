@@ -21,3 +21,29 @@ float rand(inout vec4 rnd)
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
 
+/// Distance field utilities
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+	vec3 d = abs(X) - bounds;
+		return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+
+// Union
+float opU( float d1, float d2 )
+{
+    return min(d1,d2);
+}
+
+// Subtraction
+float opS(float A, float B)
+{
+    return max(-B, A);
+}
+
+// Intersection
+float opI( float d1, float d2 )
+{
+    return max(d1,d2);
+}

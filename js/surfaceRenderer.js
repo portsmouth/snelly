@@ -1,6 +1,6 @@
 
 
-var PathState = function(width, height)
+var SurfaceRendererState = function(width, height)
 {
 	var radianceData = new Float32Array(width*height*4); // Path radiance, and sample count 
 	var rngData      = new Float32Array(width*height*4); // Random number seed
@@ -8,14 +8,14 @@ var PathState = function(width, height)
 	{
 		for (var t = 0; t<4; ++t)
 		{
-			rngData[i*4 + t];
+			rngData[i*4 + t] = Math.random();//*4194167.0;
 		}
 	}
 	this.radianceTex = new GLU.Texture(width, height, 4, true, false, true, radianceData);
 	this.rngTex      = new GLU.Texture(width, height, 4, true, false, true, rngData);
 }
 
-PathState.prototype.bind = function(shader)
+SurfaceRendererState.prototype.bind = function(shader)
 {
 	this.radianceTex.bind(0);
 	this.rngTex.bind(1);
@@ -23,7 +23,7 @@ PathState.prototype.bind = function(shader)
 	shader.uniformTexture("RngData", this.rngTex);
 }
 
-PathState.prototype.attach = function(fbo)
+SurfaceRendererState.prototype.attach = function(fbo)
 {
 	var gl = GLU.gl;
 	fbo.attachTexture(this.radianceTex, 0);
@@ -34,14 +34,14 @@ PathState.prototype.attach = function(fbo)
 	}
 }
 
-PathState.prototype.detach = function(fbo)
+SurfaceRendererState.prototype.detach = function(fbo)
 {
 	var gl = GLU.gl;
 	fbo.detachTexture(0);
 	fbo.detachTexture(1);
 }
 
-PathState.prototype.clear = function(fbo)
+SurfaceRendererState.prototype.clear = function(fbo)
 {
 	// clear radiance buffer
 	var gl = GLU.gl;
@@ -53,8 +53,7 @@ PathState.prototype.clear = function(fbo)
 }
 
 
-
-var Pathtracer = function()
+var SurfaceRenderer = function()
 {
 	this.gl = GLU.gl;
 	var gl = GLU.gl;
@@ -70,21 +69,23 @@ var Pathtracer = function()
 	
 	// Initialize pathtracing textures and fbo:
 	this.currentState = 0;
-	this.pathStates = [new PathState(this.width, this.height), 
-					   new PathState(this.width, this.height)];
+	this.pathStates = [new SurfaceRendererState(this.width, this.height), 
+					   new SurfaceRendererState(this.width, this.height)];
+
+	this.maxMarchSteps = 512;
 
 	// Load shaders
 	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper"]);
 	this.compileShaders();
 
-	gl.clearColor(1.0, 0.0, 0.0, 1.0);
+	gl.clearColor(0.0, 0.0, 0.0, 1.0);
 	gl.blendFunc(gl.ONE, gl.ONE);
 
 	// Trigger initial buffer generation
 	this.resize(this.width, this.height);
 }
 
-Pathtracer.prototype.createQuadVbo = function()
+SurfaceRenderer.prototype.createQuadVbo = function()
 {
 	var vbo = new GLU.VertexBuffer();
 	vbo.addAttribute("Position", 3, this.gl.FLOAT, false);
@@ -99,25 +100,26 @@ Pathtracer.prototype.createQuadVbo = function()
 	return vbo;
 }
 
-Pathtracer.prototype.reset = function()
+SurfaceRenderer.prototype.reset = function()
 {
 	this.compileShaders();
-
 	this.currentState = 0;
 	this.pathStates[this.currentState].clear(this.fbo);
 }
 
 
-Pathtracer.prototype.compileShaders = function()
+SurfaceRenderer.prototype.compileShaders = function()
 {
 	// Inject code for the current scene SDF:
-	var sdfCode    = renderer.sceneObj.sdf();
+	var sceneObj = snelly.getLoadedScene();
+	if (sceneObj == null) return;
+	var sdfCode = sceneObj.sdf();
 
 	// Copy the current scene and material routines into the source code
 	// of the trace fragment shader
 	replacements = {};
 	replacements.SDF_FUNC        = sdfCode;
-	replacements.MAX_MARCH_STEPS = renderer.maxMarchSteps;
+	replacements.MAX_MARCH_STEPS = this.maxMarchSteps;
 
 	// shaderSources is a dict from name (e.g. "trace")
 	// to a dict {v:vertexShaderSource, f:fragmentShaderSource}
@@ -126,19 +128,30 @@ Pathtracer.prototype.compileShaders = function()
 }
 
 
-Pathtracer.prototype.render = function()
+SurfaceRenderer.prototype.render = function()
 {
+	var sceneObj = snelly.getLoadedScene();
+	if (sceneObj == null) return;
+
 	var gl = this.gl;
 	gl.viewport(0, 0, this.width, this.height);
 
 	this.pathtraceProgram.bind();
 
 	// set camera info 	
-	var camera = renderer.camera;
-	var camPos = camera.position;
+	var camera = snelly.getCamera();
+	var camPos = camera.position.clone();
 	var camDir = camera.getWorldDirection();
-	var camUp  = camera.up.transformDirection( camera.matrix );
-	var camX = camUp.cross(camDir);
+	var camUp = camera.up.clone();
+	camUp.transformDirection( camera.matrixWorld );
+
+	// Camera update
+	camera.near = 1.0e-3*sceneObj.getScale();
+	camera.far  = 1.0e3*sceneObj.getScale();
+	
+	var camX = new THREE.Vector3();
+	camX.crossVectors(camUp, camDir);
+
 	this.pathtraceProgram.uniform3Fv("camPos", [camPos.x, camPos.y, camPos.z]);
 	this.pathtraceProgram.uniform3Fv("camDir", [camDir.x, camDir.y, camDir.z]);
 	this.pathtraceProgram.uniform3Fv("camX", [camX.x, camX.y, camX.z]);
@@ -146,20 +159,26 @@ Pathtracer.prototype.render = function()
 	this.pathtraceProgram.uniformF("camNear", camera.near);
 	this.pathtraceProgram.uniformF("camFar", camera.far);
 	this.pathtraceProgram.uniformF("camFovy", camera.fov);
+	this.pathtraceProgram.uniformF("camZoom", camera.zoom);
+	this.pathtraceProgram.uniformF("camAspect", camera.aspect);
 	this.pathtraceProgram.uniform2Fv("resolution", [this.width, this.height]);
-	this.pathtraceProgram.uniformF("SceneScale", renderer.sceneObj.getScale()); 
-	
+	this.pathtraceProgram.uniformF("SceneScale", sceneObj.getScale()); 
+
 	var current = this.currentState;
 	var next    = 1 - current;
+
+	gl.disable(gl.BLEND);
 
 	this.fbo.bind();
 	this.fbo.drawBuffers(2);
 
-	// Ask to tead data from the 'current' state
+	// Read data from the 'current' state
 	this.pathStates[current].bind(this.pathtraceProgram);
 
-	// Ask to write data into the 'next' state
+	// Write data into the 'next' state
 	this.pathStates[next].attach(this.fbo);
+
+	sceneObj.syncShader(this.pathtraceProgram); 
 
 	// Trace one path per pixel
 	this.quadVbo.bind();
@@ -175,22 +194,27 @@ Pathtracer.prototype.render = function()
 	radianceTexCurrent.bind(0);
 	this.tonemapProgram.uniformTexture("Radiance", radianceTexCurrent);
 	
+	gl.blendFunc(gl.ONE, gl.ONE);
+	gl.enable(gl.BLEND);
+
 	this.quadVbo.bind();
 	this.quadVbo.draw(this.tonemapProgram, gl.TRIANGLE_FAN);
+
+	this.fbo.unbind();
+	gl.disable(gl.BLEND);
 
 	// Ping-pong ..
 	this.currentState = next;
 }
 
 
-
-Pathtracer.prototype.resize = function(width, height)
+SurfaceRenderer.prototype.resize = function(width, height)
 {
 	this.width = width;
 	this.height = height;
 
-	this.pathStates = [new PathState(this.width, this.height), 
-					   new PathState(this.width, this.height)];
+	this.pathStates = [new SurfaceRendererState(this.width, this.height), 
+					   new SurfaceRendererState(this.width, this.height)];
 
 	this.reset();
 }

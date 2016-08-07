@@ -1,3 +1,6 @@
+
+// A table of 256 vec4 RGB colors, corresponding to the 256 wavelength samples
+// between 360.0 and 750.0 nanometres
 function wavelengthToRgbTable() {
     return new Float32Array([
         +0.00045, -0.00048, +0.00344, 0.0, +0.00054, -0.00057, +0.00411, 0.0, +0.00064, -0.00068, +0.00491, 0.0, +0.00076, -0.00081, +0.00587, 0.0,

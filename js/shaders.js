@@ -23,6 +23,33 @@ float rand(inout vec4 rnd)
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
 
+/// Distance field utilities
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+	vec3 d = abs(X) - bounds;
+		return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+
+// Union
+float opU( float d1, float d2 )
+{
+    return min(d1,d2);
+}
+
+// Subtraction
+float opS(float A, float B)
+{
+    return max(-B, A);
+}
+
+// Intersection
+float opI( float d1, float d2 )
+{
+    return max(d1,d2);
+}
+
 uniform sampler2D Frame;
 uniform float Exposure;
 varying vec2 vTexCoord;
@@ -58,6 +85,33 @@ float rand(inout vec4 rnd)
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
 
+/// Distance field utilities
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+	vec3 d = abs(X) - bounds;
+		return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+
+// Union
+float opU( float d1, float d2 )
+{
+    return min(d1,d2);
+}
+
+// Subtraction
+float opS(float A, float B)
+{
+    return max(-B, A);
+}
+
+// Intersection
+float opI( float d1, float d2 )
+{
+    return max(d1,d2);
+}
+
 attribute vec3 Position;
 attribute vec2 TexCoord;
 
@@ -91,6 +145,33 @@ float rand(inout vec4 rnd)
     beta = (1.0 - sign(p))*0.5*m;
     rnd = p + beta;
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
+}
+
+/// Distance field utilities
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+	vec3 d = abs(X) - bounds;
+		return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+
+// Union
+float opU( float d1, float d2 )
+{
+    return min(d1,d2);
+}
+
+// Subtraction
+float opS(float A, float B)
+{
+    return max(-B, A);
+}
+
+// Intersection
+float opI( float d1, float d2 )
+{
+    return max(d1,d2);
 }
 
 uniform sampler2D RngData;
@@ -163,6 +244,33 @@ float rand(inout vec4 rnd)
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
 
+/// Distance field utilities
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+	vec3 d = abs(X) - bounds;
+		return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+
+// Union
+float opU( float d1, float d2 )
+{
+    return min(d1,d2);
+}
+
+// Subtraction
+float opS(float A, float B)
+{
+    return max(-B, A);
+}
+
+// Intersection
+float opI( float d1, float d2 )
+{
+    return max(d1,d2);
+}
+
 attribute vec3 Position;
 attribute vec2 TexCoord;
 
@@ -198,6 +306,33 @@ float rand(inout vec4 rnd)
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
 
+/// Distance field utilities
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+	vec3 d = abs(X) - bounds;
+		return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+
+// Union
+float opU( float d1, float d2 )
+{
+    return min(d1,d2);
+}
+
+// Subtraction
+float opS(float A, float B)
+{
+    return max(-B, A);
+}
+
+// Intersection
+float opI( float d1, float d2 )
+{
+    return max(d1,d2);
+}
+
 varying vec3 vColor;
 
 void main() 
@@ -227,6 +362,33 @@ float rand(inout vec4 rnd)
     beta = (1.0 - sign(p))*0.5*m;
     rnd = p + beta;
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
+}
+
+/// Distance field utilities
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+	vec3 d = abs(X) - bounds;
+		return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+
+// Union
+float opU( float d1, float d2 )
+{
+    return min(d1,d2);
+}
+
+// Subtraction
+float opS(float A, float B)
+{
+    return max(-B, A);
+}
+
+// Intersection
+float opI( float d1, float d2 )
+{
+    return max(d1,d2);
 }
 
 uniform sampler2D PosDataA;
@@ -277,6 +439,33 @@ float rand(inout vec4 rnd)
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
 
+/// Distance field utilities
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+	vec3 d = abs(X) - bounds;
+		return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+
+// Union
+float opU( float d1, float d2 )
+{
+    return min(d1,d2);
+}
+
+// Subtraction
+float opS(float A, float B)
+{
+    return max(-B, A);
+}
+
+// Intersection
+float opI( float d1, float d2 )
+{
+    return max(d1,d2);
+}
+
 uniform sampler2D Frame;
 varying vec2 vTexCoord;
 
@@ -307,6 +496,33 @@ float rand(inout vec4 rnd)
     beta = (1.0 - sign(p))*0.5*m;
     rnd = p + beta;
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
+}
+
+/// Distance field utilities
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+	vec3 d = abs(X) - bounds;
+		return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+
+// Union
+float opU( float d1, float d2 )
+{
+    return min(d1,d2);
+}
+
+// Subtraction
+float opS(float A, float B)
+{
+    return max(-B, A);
+}
+
+// Intersection
+float opI( float d1, float d2 )
+{
+    return max(d1,d2);
 }
 
 attribute vec3 Position;
@@ -344,11 +560,37 @@ float rand(inout vec4 rnd)
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
 
+/// Distance field utilities
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+	vec3 d = abs(X) - bounds;
+		return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+
+// Union
+float opU( float d1, float d2 )
+{
+    return min(d1,d2);
+}
+
+// Subtraction
+float opS(float A, float B)
+{
+    return max(-B, A);
+}
+
+// Intersection
+float opI( float d1, float d2 )
+{
+    return max(d1,d2);
+}
+
 uniform sampler2D Radiance;
 uniform sampler2D RngData;
 varying vec2 vTexCoord;
 
-// @todo:  camera details
 uniform vec2 resolution;
 
 uniform vec3 camPos;
@@ -359,6 +601,8 @@ uniform vec3 camY;
 uniform float camNear;
 uniform float camFar;
 uniform float camFovy; // degrees 
+uniform float camZoom;
+uniform float camAspect;
 
 uniform float SceneScale;
 
@@ -372,25 +616,51 @@ SDF_FUNC
 //////////////////////////////////////////////////////////////
 
 
-bool hit(inout vec3 X, vec3 D)
+bool hit(inout vec3 X, vec3 D, inout int numSteps)
 {
-	normalize(D);
 	float minMarchDist = 1.0e-5*SceneScale;
-	for (int i=0; i<MAX_MARCH_STEPS; i++)
-	{
-		float dist = abs(SDF(X));
-		X += dist*D;
-		if (dist < minMarchDist)
-		{
-			return true;
-		}
-		if (dist > 100.0*SceneScale)
-		{
-			return false;;
-		}
-	}
+	float maxMarchDist = 1.0e2*SceneScale;
+	float t = 0.0;
+	float h = 1.0;
+    for( int i=0; i<MAX_MARCH_STEPS; i++ )
+    {
+		if (h<minMarchDist || t>maxMarchDist) break;
+		h = SDF(X + D*t);
+        t += h;
+    }
+    X += t*D;
+	if (t<maxMarchDist) return true;
 	return false;
 }
+
+/*
+	numSteps = 0;
+	float d = 0.0;
+	for (int i=0; i<MAX_MARCH_STEPS; i++)
+	{
+		numSteps++;
+		vec3 currentPoint = X + D*d;
+		float sd = SDF(currentPoint);
+		d += sd;
+		if (sd < minMarchDist)
+		{
+			X = currentPoint;
+			return true;
+		}
+		if (d > 100.0*SceneScale)
+		{
+			return false;
+		}
+		//X += sd*D;
+		//numSteps++;
+		//if (d <= minMarchDist)
+		//{
+		//	return true;
+		//}
+	}
+	*/
+
+
 
 vec3 NORMAL( in vec3 pos )
 {
@@ -424,11 +694,11 @@ vec3 localToWorld(vec3 N, vec3 wiL)
 }
 
 
-vec3 cosineSampleHemisphere(vec3 N, vec4 rnd)
+vec3 cosineSampleHemisphere(vec3 N, inout vec4 rnd)
 {
 	// sample disk
 	float r = sqrt(rand(rnd));
-	float theta = 2.0 * M_PI * rand(rnd);
+	float theta = 2.0*M_PI*rand(rnd);
 	vec2 p = vec2(r*cos(theta), r*sin(theta));
 
 	// project
@@ -447,56 +717,66 @@ float computeClipDepth(float z, float zNear, float zFar)
 
 void main()
 {
+	vec4 rnd = texture2D(RngData, vTexCoord);
+
 	// Initialize world ray position
 	vec3 X = camPos;
 
-	// Compute world ray direction for this fragment
-	vec2 ndc = -1.0 + 2.0* (gl_FragCoord.xy/resolution.xy);
+	// Jitter over pixel
+	vec2 pixel = gl_FragCoord.xy;
+	pixel += -0.5+ 0.5*vec2(rand(rnd), rand(rnd));
 
-	/*
-	float aspect = resolution.x / resolution.y;
-	float fh = 2.0*camNear*tan(0.5*radians(camFovy)); // frustum height
-	float fw = aspect*fh;
-	vec3 s = 0.5*(fw*ndc.x*camX + fh*ndc.y*camY);
+	// Compute world ray direction for this fragment
+	vec2 ndc = -1.0 + 2.0*(pixel/resolution.xy);
+	float fh = camNear*tan(0.5*radians(camFovy)) / camZoom; // frustum height
+	float fw = camAspect*fh;
+
+	// @todo: jitter over pixel
+	vec3 s = -fw*ndc.x*camX + fh*ndc.y*camY;
 	vec3 D = normalize(camNear*camDir + s); // ray direction
 
 	// Raycast to first hit point
-	vec4 rnd  = texture2D(RngData, vTexCoord);
-	float zHit = camFar;
+	//float zHit = camFar;
+	float dist = abs(SDF(X));
 	vec3 L = vec3(0.0, 0.0, 0.0);
-	
-	if ( hit(X, D) )
+	int numSteps;	
+
+	if ( hit(X, D, numSteps) )
 	{
-		zHit = length(X - camPos);
+		//zHit = length(X - camPos);
 
 		// Construct a uniformly sampled AO 'shadow' ray in hemisphere of hit point
 		vec3 N = NORMAL(X);
+		L = 0.5*(1.0+N);
 
+		//float n = float(numSteps)/float(MAX_MARCH_STEPS);
+		//L = vec3(n, 0, 0);
+
+		/* AO:
 		// @todo: remind me why cosine-weighted sampling is the right thing here
 		vec3 wiL = cosineSampleHemisphere(N, rnd);
 		vec3 shadowRay = localToWorld(N, wiL);
+		float normalEpsilon = 2.0e-5*SceneScale;
+		X += normalEpsilon*N;
 		if ( !hit(X, shadowRay) )
 		{
 			// assume white background on ray escape
 			L = vec3(1.0, 1.0, 1.0);
 		}
+		else
+		{
+			L = vec3(0.0, 0.0, 0.0);
+		}
+		*/
 	}
 
 	// Write updated radiance and sample count
 	vec4 oldL = texture2D(Radiance, vTexCoord);
-
 	float oldN = oldL.w;
 	float newN = oldN + 1.0;
 	vec3 newL = (oldN*oldL.rgb + L) / newN;
-	*/
 
-	//vec4 oldL = texture2D(Radiance, vTexCoord);
-
-	vec3 L = vec3(ndc.x, ndc.y, 0.0);
-	gl_FragData[0] = vec4(L, 1.0);
-	
-	vec4 rnd  = texture2D(RngData, vTexCoord);
-	rand(rnd);
+	gl_FragData[0] = vec4(newL, newN); 
 	gl_FragData[1] = rnd;
 
 	//gl_FragDepth = computeClipDepth(zHit, camNear, camFar);
@@ -524,6 +804,33 @@ float rand(inout vec4 rnd)
     beta = (1.0 - sign(p))*0.5*m;
     rnd = p + beta;
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
+}
+
+/// Distance field utilities
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+	vec3 d = abs(X) - bounds;
+		return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+
+// Union
+float opU( float d1, float d2 )
+{
+    return min(d1,d2);
+}
+
+// Subtraction
+float opS(float A, float B)
+{
+    return max(-B, A);
+}
+
+// Intersection
+float opI( float d1, float d2 )
+{
+    return max(d1,d2);
 }
 
 attribute vec3 Position;
@@ -561,6 +868,33 @@ float rand(inout vec4 rnd)
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
 
+/// Distance field utilities
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+	vec3 d = abs(X) - bounds;
+		return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+
+// Union
+float opU( float d1, float d2 )
+{
+    return min(d1,d2);
+}
+
+// Subtraction
+float opS(float A, float B)
+{
+    return max(-B, A);
+}
+
+// Intersection
+float opI( float d1, float d2 )
+{
+    return max(d1,d2);
+}
+
 uniform sampler2D Radiance;
 varying vec2 vTexCoord;
 
@@ -573,7 +907,8 @@ void main()
 	float r = L.x; 
 	float g = L.y; 
 	float b = L.z;
-	vec3 Lp = vec3(r/(1.0+r), g/(1.0+g), b/(1.0+b));
+	//vec3 Lp = vec3(r/(1.0+r), g/(1.0+g), b/(1.0+b));
+	vec3 Lp = vec3(r, g, b);
 
 	gl_FragColor = vec4(pow(Lp, vec3(invGamma)), 1.0);
 }
@@ -600,6 +935,33 @@ float rand(inout vec4 rnd)
     beta = (1.0 - sign(p))*0.5*m;
     rnd = p + beta;
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
+}
+
+/// Distance field utilities
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+	vec3 d = abs(X) - bounds;
+		return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+
+// Union
+float opU( float d1, float d2 )
+{
+    return min(d1,d2);
+}
+
+// Subtraction
+float opS(float A, float B)
+{
+    return max(-B, A);
+}
+
+// Intersection
+float opI( float d1, float d2 )
+{
+    return max(d1,d2);
 }
 
 attribute vec3 Position;
@@ -634,6 +996,33 @@ float rand(inout vec4 rnd)
     beta = (1.0 - sign(p))*0.5*m;
     rnd = p + beta;
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
+}
+
+/// Distance field utilities
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+	vec3 d = abs(X) - bounds;
+		return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+
+// Union
+float opU( float d1, float d2 )
+{
+    return min(d1,d2);
+}
+
+// Subtraction
+float opS(float A, float B)
+{
+    return max(-B, A);
+}
+
+// Intersection
+float opI( float d1, float d2 )
+{
+    return max(d1,d2);
 }
 
 uniform sampler2D PosData;
@@ -837,11 +1226,9 @@ void raytrace(inout vec4 rnd,
 	bool hit = false;
 	normalize(D);
 	float minMarchDist = 1.0e-5*SceneScale;
-
 	for (int i=0; i<MAX_MARCH_STEPS; i++)
 	{
 		float dist = abs(SDF(X));
-		X += dist*D;
 		if (dist < minMarchDist)
 		{
 			hit = true;
@@ -851,6 +1238,7 @@ void raytrace(inout vec4 rnd,
 		{
 			break;
 		}
+		X += dist*D;
 	}
 
 	if (!hit)
@@ -902,6 +1290,33 @@ float rand(inout vec4 rnd)
     beta = (1.0 - sign(p))*0.5*m;
     rnd = p + beta;
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
+}
+
+/// Distance field utilities
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+	vec3 d = abs(X) - bounds;
+		return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+
+// Union
+float opU( float d1, float d2 )
+{
+    return min(d1,d2);
+}
+
+// Subtraction
+float opS(float A, float B)
+{
+    return max(-B, A);
+}
+
+// Intersection
+float opI( float d1, float d2 )
+{
+    return max(d1,d2);
 }
 
 attribute vec3 Position;

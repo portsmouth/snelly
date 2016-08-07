@@ -385,7 +385,7 @@ LaserPointer.prototype.onMouseMove = function(event)
 	obj = this.objects;
 	group = obj["group"];
 
-	var sceneObj = renderer.getLoadedScene();
+	var sceneObj = snelly.getLoadedScene();
 	var sceneScale = sceneObj.getScale();
 
 	if ( this.SELECTED )
@@ -401,7 +401,7 @@ LaserPointer.prototype.onMouseMove = function(event)
 			var shiftAbsolute = new THREE.Vector3();
 			shiftAbsolute.copy(shift);
 
-			var shiftDist =  Math.min(300.0*sceneScale, shift.length());
+			var shiftDist = shift.length();/// Math.min(300.0*sceneScale, shift.length());
 			shift.normalize();
 			this.mousedownPlaneHitpoint.copy(planeHitpoint);
 

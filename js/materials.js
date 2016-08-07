@@ -218,16 +218,6 @@ SellmeierDielectric.prototype.eraseGui = function(parentFolder) {}
 
 function createMaterials(renderer)
 {
-	// Dielectrics
-	renderer.addMaterial( new ConstantDielectric("constant", "Constant IOR dielectric", 1.5) ); 
-	renderer.addMaterial( new SellmeierDielectric("diamond", "Diamond",       0.0, 0.3306,     0.175,         4.3356,      0.1060,       0.0,        0.0       ) );
-	
-	var glass = new SellmeierDielectric("glass_bk7", "Glass (BK7)", 0.0, 1.03961212, 0.00600069867, 0.231792344, 0.0200179144, 1.01046945, 103.560653);
-	renderer.addMaterial(glass);
-
-	// Metals
-	renderer.addMaterial( new LinearMetal("aluminium", "Aluminium",  0.46555, 4.7121, 1.6620, 8.0439) );
-	renderer.addMaterial( new LinearMetal("gold", "Gold",            1.5275, 1.8394, 0.16918, 3.8816) );
 
 
 

@@ -200,11 +200,9 @@ void raytrace(inout vec4 rnd,
 	bool hit = false;
 	normalize(D);
 	float minMarchDist = 1.0e-5*SceneScale;
-
 	for (int i=0; i<MAX_MARCH_STEPS; i++)
 	{
 		float dist = abs(SDF(X));
-		X += dist*D;
 		if (dist < minMarchDist)
 		{
 			hit = true;
@@ -214,6 +212,7 @@ void raytrace(inout vec4 rnd,
 		{
 			break;
 		}
+		X += dist*D;
 	}
 
 	if (!hit)

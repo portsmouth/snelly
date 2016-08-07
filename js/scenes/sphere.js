@@ -64,7 +64,7 @@ SphereScene.prototype.setLaser = function(laser)
 SphereScene.prototype.initGui = function(parentFolder)
 {
 	this.radiusItem = parentFolder.add(this._settings, 'radius', 0.01, 10.0);
-	this.radiusItem.onChange( function(value) { renderer.reset(); } );
+	this.radiusItem.onChange( function(value) { snelly.reset(); } );
 }
 
 SphereScene.prototype.eraseGui = function(parentFolder)

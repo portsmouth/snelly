@@ -25,7 +25,7 @@ Scene.prototype.getSettings = function()
 // Initial emitter defaults
 Scene.prototype.setLaser = function(laser)
 {
-	var sceneObj = renderer.getLoadedScene();
+	var sceneObj = snelly.getLoadedScene();
 	var sceneScale = sceneObj.getScale();
 	laser.setEmissionRadius(0.01*sceneScale);
 	laser.setEmissionSpreadAngle(5.0);
@@ -34,17 +34,6 @@ Scene.prototype.setLaser = function(laser)
 }
 
 
-////////////////////////////////////////////////////////////////////////
-// Instantiate a variety of scenes
-////////////////////////////////////////////////////////////////////////
-
-function createScenes(renderer)
-{
-	renderer.addScene(new SphereScene("sphere", "Simple sphere"));
-	renderer.addScene(new FibreScene("fibre", "Simple optical fibre"));
-	renderer.addScene(new BoxScene("box", "Simple box"));
-
-}
 
 
 

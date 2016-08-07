@@ -68,10 +68,10 @@ FibreScene.prototype.setLaser = function(laser)
 FibreScene.prototype.initGui = function(parentFolder)
 {
 	this.radiusItem = parentFolder.add(this._settings, 'radius', 0.01, 10.0);
-	this.radiusItem.onChange( function(value) { renderer.reset(); } );
+	this.radiusItem.onChange( function(value) { snelly.reset(); } );
 
 	this.lengthItem = parentFolder.add(this._settings, 'length', 0.01, 100.0);
-	this.lengthItem.onChange( function(value) { renderer.reset(); } );
+	this.lengthItem.onChange( function(value) { snelly.reset(); } );
 }
 
 FibreScene.prototype.eraseGui = function(parentFolder)

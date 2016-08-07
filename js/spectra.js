@@ -124,7 +124,7 @@ FlatSpectrum.prototype.initGui = function(parentFolder)
 	{ 
 		if (ME['Minimum wavelength'] > ME['Maximum wavelength']-dw) 
 			ME['Minimum wavelength'] = ME['Maximum wavelength']-dw;
-		renderer.loadSpectrum(ME.getName());
+		snelly.getLightTracer().loadSpectrum(ME.getName());
 	});
 
 	this.maxItem = parentFolder.add(this, 'Maximum wavelength', 360.0, 750.0);
@@ -132,7 +132,7 @@ FlatSpectrum.prototype.initGui = function(parentFolder)
 	{ 
 		if (ME['Maximum wavelength'] < ME['Minimum wavelength']+dw) 
 			ME['Maximum wavelength'] = ME['Minimum wavelength']+dw;
-		renderer.loadSpectrum(ME.getName());
+		snelly.getLightTracer().loadSpectrum(ME.getName());
 	});
 }
 
@@ -175,17 +175,5 @@ BlackbodySpectrum.prototype.eraseGui = function(parentFolder)
 	parentFolder.remove(this.temperatureItem);
 }
 
-
-
-////////////////////////////////////////////////////////////////////////
-// Instantiate spectra
-////////////////////////////////////////////////////////////////////////
-
-function createSpectra(renderer)
-{
-	renderer.addSpectrum( new FlatSpectrum("flat", "Flat spectrum", 400.0, 700.0) );
-	renderer.addSpectrum( new BlackbodySpectrum("blackbody", "Blackbody spectrum", 6000.0) );
-	renderer.addSpectrum( new MonochromaticSpectrum("monochromatic", "Monochromatic spectrum", 650.0) ); 
-}
 
 

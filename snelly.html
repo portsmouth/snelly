@@ -21,15 +21,15 @@
 <script type="text/javascript" src="js/gl.js"></script>
 <script type="text/javascript" src="js/laser.js"></script>
 <script type="text/javascript" src="js/gui.js"></script>
-<script type="text/javascript" src="js/raystate.js"></script>
 
 <script type="text/javascript" src="js/wavelengthToRgb.js"></script>
 <script type="text/javascript" src="js/materials.js"></script>
 <script type="text/javascript" src="js/spectra.js"></script>
 <script type="text/javascript" src="js/scenes/scenes.js"></script>
 
-<script type="text/javascript" src="js/pathtracer.js"></script>
-<script type="text/javascript" src="js/renderer.js"></script>
+<script type="text/javascript" src="js/surfaceRenderer.js"></script>
+<script type="text/javascript" src="js/lightTracer.js"></script>
+<script type="text/javascript" src="js/snelly.js"></script>
 
 <?/* ----------------------------*/?>
 <?/*    scene definition files   */?>
@@ -38,20 +38,15 @@
 <script type="text/javascript" src="js/scenes/sphere.js"></script>
 <script type="text/javascript" src="js/scenes/box.js"></script>
 <script type="text/javascript" src="js/scenes/fibre.js"></script>
-
+<script type="text/javascript" src="js/scenes/ocean.js"></script>
 
 <?/* ----------------------------*/?>
 
 
 <script type="text/javascript">
 
-// Renderer object
-var renderer;
-var pathtracer;
-
-
-// GUI object
-var gui;
+// Snelly object
+var snelly;
 
 // shim layer with setTimeout fallback
 window.requestAnimFrame = (function(){
@@ -67,56 +62,28 @@ function onLoad()
 {
 	window.addEventListener( 'resize', onWindowResize, false );
 
-	// Instantiate renderer object
-	renderer = new Renderer();
+	// Instantiate Snelly
+	snelly = new Snelly();
 	
-	// Instantiate scenes and materials
-	createScenes(renderer);
-	createMaterials(renderer);
-	createSpectra(renderer);
-	
-	// Load the initial scene and material
-	renderer.loadScene("sphere");
-	renderer.loadMaterial("glass_bk7");
-	renderer.loadSpectrum("flat");
-
-	pathtracer = new Pathtracer();
-
-	// Create dat gui
-	gui = new GUI(renderer);
-
 	// Begin rendering
 	animateLoop();
 }
 
 function camChanged()
 {
-	//renderer.reset();
-	pathtracer.reset();
+	snelly.reset();
+	snelly.render();
 }
 
 function animateLoop() 
 {
-	//renderer.render();
-	pathtracer.render();
+	snelly.render();
 	requestAnimFrame(animateLoop);
 }
 
 function onWindowResize() 
 {
-	var render_canvas = document.getElementById('render-canvas');
-	render_canvas.width  = window.innerWidth;
-	render_canvas.height = window.innerHeight;
-
-	var ui_canvas = document.getElementById('ui-canvas');
-	ui_canvas.width  = window.innerWidth;
-	ui_canvas.height = window.innerHeight;
-
-	renderer.resize(render_canvas.width, render_canvas.height);
-	renderer.render();
-
-	pathtracer.resize(render_canvas.width, render_canvas.height);
-	pathtracer.render();
+	snelly.resize();
 }
 
 </script>

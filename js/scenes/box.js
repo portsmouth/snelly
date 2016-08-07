@@ -5,6 +5,7 @@ function BoxScene(name, desc)
 
 	// defaults
 	this._settings.bounds = new THREE.Vector3(1.0, 1.0, 1.0);
+	this._settings.shell = 0.0;
 }
 
 // NB, every function is mandatory and must be defined.
@@ -17,12 +18,17 @@ BoxScene.prototype = Object.create(Scene.prototype);
 BoxScene.prototype.sdf = function()
 {
 	return `
-				uniform vec3 _bounds;                
+				uniform vec3 _bounds;   
+				uniform float _shell;    
+
+
+
 
 				float SDF(vec3 X)                     
-				{                                     
-					vec3 d = abs(X) - _bounds;
-  					return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+				{                           
+					float outer = sdBox(X, _bounds);   
+					float inner = sdBox(X, _bounds*_shell);
+					return opS(outer, inner);
 				}                                     
 	`;
 }
@@ -36,6 +42,7 @@ BoxScene.prototype.syncShader = function(traceProgram)
 	traceProgram.uniform3Fv("_bounds", [this._settings.bounds.x, 
 										this._settings.bounds.y, 
 										this._settings.bounds.z]);
+	traceProgram.uniformF("_shell", this._settings.shell);
 }
 
 // Gives the raytracer some indication of (rough) scene size, so it
@@ -68,13 +75,16 @@ BoxScene.prototype.setLaser = function(laser)
 BoxScene.prototype.initGui = function(parentFolder)
 {
 	this.aItem = parentFolder.add(this._settings.bounds, 'x', 0.01, 10.0);
-	this.aItem.onChange( function(value) { renderer.reset(); } );
+	this.aItem.onChange( function(value) { snelly.reset(); } );
 
 	this.bItem = parentFolder.add(this._settings.bounds, 'y', 0.01, 10.0);
-	this.bItem.onChange( function(value) { renderer.reset(); } );
+	this.bItem.onChange( function(value) { snelly.reset(); } );
 
 	this.cItem = parentFolder.add(this._settings.bounds, 'z', 0.01, 10.0);
-	this.cItem.onChange( function(value) { renderer.reset(); } );
+	this.cItem.onChange( function(value) { snelly.reset(); } );
+
+	this.shellItem = parentFolder.add(this._settings, 'shell', 0.0, 1.0);
+	this.shellItem.onChange( function(value) { snelly.reset(); } );
 }
 
 BoxScene.prototype.eraseGui = function(parentFolder)
@@ -82,6 +92,7 @@ BoxScene.prototype.eraseGui = function(parentFolder)
 	parentFolder.remove(this.aItem);
 	parentFolder.remove(this.bItem);
 	parentFolder.remove(this.cItem);
+	parentFolder.remove(this.shellItem);
 }
 
 
