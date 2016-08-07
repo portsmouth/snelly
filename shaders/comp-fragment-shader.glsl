@@ -1,11 +1,12 @@
 
 uniform sampler2D Frame;
-uniform float Exposure;
+uniform float invNumPaths;
+uniform float exposure;
+uniform float invGamma;
 varying vec2 vTexCoord;
 
 void main() 
 {
-	// @todo: expose gamma here in UI.
-	// @todo: 'proper' tonemapping here.
-	gl_FragColor = vec4(pow(texture2D(Frame, vTexCoord).rgb*Exposure, vec3(1.0/2.2)), 1.0);
+	vec3 L = invNumPaths * pow(10.0, exposure) * texture2D(Frame, vTexCoord).rgb;
+	gl_FragColor = vec4(pow(L, vec3(invGamma)), 1.0);
 }

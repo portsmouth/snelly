@@ -350,6 +350,14 @@ LaserPointer.prototype.setDirection = function(direction)
 	group.updateMatrix();
 }
 
+LaserPointer.prototype.setTarget = function(target)
+{
+	var newDir = target.clone();
+	newDir.sub(this.getPoint());
+	newDir.normalize();
+	this.setDirection(newDir);
+}
+
 LaserPointer.prototype.setEmissionRadius = function(radius)
 {
 	this.emissionRadius = radius;

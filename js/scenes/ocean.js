@@ -75,10 +75,7 @@ OceanScene.prototype.sdf = function()
 
 			float SDF(vec3 X)                     
 			{                 
-				//float bounds = sdBox(X, vec3(10.0, 10.0, 10.0));
-				float water = ocean(X);
-				return water;
-				//return opI(bounds, water);      
+				return ocean(X);
 			}                                     
 	`;
 }
@@ -99,7 +96,7 @@ OceanScene.prototype.syncShader = function(traceProgram)
 // can set tolerances appropriately.
 OceanScene.prototype.getScale = function()
 {
-	return 1.0;
+	return 0.1;
 }
 
 

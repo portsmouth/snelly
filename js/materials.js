@@ -149,7 +149,7 @@ ConstantDielectric.prototype.syncShader = function(traceProgram)
 ConstantDielectric.prototype.initGui = function(parentFolder)
 {
 	this.iorItem = parentFolder.add(this, 'iorVal', 0.0, 5.0);
-	this.iorItem.onChange( function(value) { renderer.reset(); } );
+	this.iorItem.onChange( function(value) { snelly.reset(); } );
 }
 
 ConstantDielectric.prototype.eraseGui = function(parentFolder)
@@ -212,15 +212,5 @@ SellmeierDielectric.prototype.initGui = function(parentFolder) {}
 SellmeierDielectric.prototype.eraseGui = function(parentFolder) {}
 
 
-////////////////////////////////////////////////////////////////////////
-// Instantiate a variety of material models
-////////////////////////////////////////////////////////////////////////
-
-function createMaterials(renderer)
-{
-
-
-
-}
 
 

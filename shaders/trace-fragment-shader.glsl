@@ -191,6 +191,7 @@ vec3 NORMAL( in vec3 pos )
 	return normalize(nor);
 }
 
+/*
 void raytrace(inout vec4 rnd, 
 			  inout vec3 X, inout vec3 D,
 			  inout vec3 rgb, float wavelength)
@@ -225,6 +226,35 @@ void raytrace(inout vec4 rnd,
 		rgb *= SAMPLE(X, D, NORMAL(X), wavelength, rnd);
 	}
 }
+*/
+
+
+void raytrace(inout vec4 rnd, 
+			  inout vec3 X, inout vec3 D,
+			  inout vec3 rgb, float wavelength)
+{
+	if (length(rgb) < 1.0e-6) return;
+	float minMarchDist = 1.0e-5*SceneScale;
+	float maxMarchDist = 1.0e3*SceneScale;
+	float t = 0.0;
+	float h = 1.0;
+    for( int i=0; i<MAX_MARCH_STEPS; i++ )
+    {
+		if (h<minMarchDist || t>maxMarchDist) break;
+		h = abs(SDF(X + D*t));
+		t += h;
+    }
+    X += t*D;
+	if (t<maxMarchDist)
+	{
+		rgb *= SAMPLE(X, D, NORMAL(X), wavelength, rnd);
+	}
+	else
+	{
+		rgb *= 0.0; // terminate ray
+	}
+}
+
 
 void main()
 {

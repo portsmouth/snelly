@@ -31,7 +31,7 @@ SDF_FUNC
 bool hit(inout vec3 X, vec3 D, inout int numSteps)
 {
 	float minMarchDist = 1.0e-5*SceneScale;
-	float maxMarchDist = 1.0e2*SceneScale;
+	float maxMarchDist = 1.0e3*SceneScale;
 	float t = 0.0;
 	float h = 1.0;
     for( int i=0; i<MAX_MARCH_STEPS; i++ )
@@ -45,34 +45,6 @@ bool hit(inout vec3 X, vec3 D, inout int numSteps)
 	return false;
 }
 
-/*
-	numSteps = 0;
-	float d = 0.0;
-	for (int i=0; i<MAX_MARCH_STEPS; i++)
-	{
-		numSteps++;
-		vec3 currentPoint = X + D*d;
-		float sd = SDF(currentPoint);
-		d += sd;
-		if (sd < minMarchDist)
-		{
-			X = currentPoint;
-			return true;
-		}
-		if (d > 100.0*SceneScale)
-		{
-			return false;
-		}
-		//X += sd*D;
-		//numSteps++;
-		//if (d <= minMarchDist)
-		//{
-		//	return true;
-		//}
-	}
-	*/
-
-
 
 vec3 NORMAL( in vec3 pos )
 {
@@ -85,6 +57,7 @@ vec3 NORMAL( in vec3 pos )
 	    SDF(pos+eps.yyx) - SDF(pos-eps.yyx) );
 	return normalize(nor);
 }
+
 
 vec3 localToWorld(vec3 N, vec3 wiL)
 {
@@ -142,44 +115,18 @@ void main()
 	vec2 ndc = -1.0 + 2.0*(pixel/resolution.xy);
 	float fh = camNear*tan(0.5*radians(camFovy)) / camZoom; // frustum height
 	float fw = camAspect*fh;
-
-	// @todo: jitter over pixel
 	vec3 s = -fw*ndc.x*camX + fh*ndc.y*camY;
 	vec3 D = normalize(camNear*camDir + s); // ray direction
 
 	// Raycast to first hit point
 	//float zHit = camFar;
-	float dist = abs(SDF(X));
 	vec3 L = vec3(0.0, 0.0, 0.0);
 	int numSteps;	
-
 	if ( hit(X, D, numSteps) )
 	{
 		//zHit = length(X - camPos);
-
-		// Construct a uniformly sampled AO 'shadow' ray in hemisphere of hit point
 		vec3 N = NORMAL(X);
 		L = 0.5*(1.0+N);
-
-		//float n = float(numSteps)/float(MAX_MARCH_STEPS);
-		//L = vec3(n, 0, 0);
-
-		/* AO:
-		// @todo: remind me why cosine-weighted sampling is the right thing here
-		vec3 wiL = cosineSampleHemisphere(N, rnd);
-		vec3 shadowRay = localToWorld(N, wiL);
-		float normalEpsilon = 2.0e-5*SceneScale;
-		X += normalEpsilon*N;
-		if ( !hit(X, shadowRay) )
-		{
-			// assume white background on ray escape
-			L = vec3(1.0, 1.0, 1.0);
-		}
-		else
-		{
-			L = vec3(0.0, 0.0, 0.0);
-		}
-		*/
 	}
 
 	// Write updated radiance and sample count

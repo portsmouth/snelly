@@ -44,7 +44,6 @@ var Snelly = function()
 	this.glScene.add( light );
 
 
-
 	// Create user control system for camera
 	this.controls = new THREE.OrbitControls(this.camera, this.glRenderer.domElement);
 	this.controls.zoomSpeed = 2.0;
@@ -79,6 +78,7 @@ var Snelly = function()
 	this.glRenderer.domElement.addEventListener( 'mousemove', this, false );
 	this.glRenderer.domElement.addEventListener( 'mousedown', this, false );
 	this.glRenderer.domElement.addEventListener( 'mouseup',   this, false );
+	this.glRenderer.domElement.addEventListener( 'contextmenu',   this, false );
 
 	// Instantiate scenes
 	this.scenes = {}
@@ -88,6 +88,8 @@ var Snelly = function()
 		this.addScene(new FibreScene("fibre", "Simple optical fibre"));
 		this.addScene(new BoxScene("box", "Simple box"));
 		this.addScene(new OceanScene("ocean", "Ocean"));
+		this.addScene(new MengerScene("menger", "Menger Sponge"));
+		this.addScene(new EllipsoidScene("ellipsoid", "Ellipsoid"));
 
 		// ...
 	}
@@ -266,9 +268,10 @@ Snelly.prototype.handleEvent = function(event)
 {
 	switch (event.type)
 	{
-		case 'mousemove': this.onDocumentMouseMove(event); break;
-		case 'mousedown': this.onDocumentMouseDown(event); break;
-		case 'mouseup':   this.onDocumentMouseUp(event);   break;
+		case 'mousemove':   this.onDocumentMouseMove(event);  break;
+		case 'mousedown':   this.onDocumentMouseDown(event);  break;
+		case 'mouseup':     this.onDocumentMouseUp(event);    break;
+		case 'contextmenu': this.onDocumentRightClick(event); break;
 	}
 }
 
@@ -277,6 +280,7 @@ Snelly.prototype.onDocumentMouseMove = function(event)
 	this.controls.update();
 	event.preventDefault();
 	if (this.laser.onMouseMove(event)) this.reset();
+	this.render();
 }
 
 Snelly.prototype.onDocumentMouseDown = function(event)
@@ -293,6 +297,19 @@ Snelly.prototype.onDocumentMouseUp = function(event)
 	this.laser.onMouseUp(event);
 }
 
+Snelly.prototype.onDocumentRightClick = function(event)
+{
+	this.controls.update();
+	event.preventDefault();
+
+	var xPick =   (( event.clientX - this.glRenderer.domElement.offsetLeft ) / this.glRenderer.domElement.width)*2 - 1;
+	var yPick = - (( event.clientY - this.glRenderer.domElement.offsetTop ) / this.glRenderer.domElement.height)*2 + 1;
+
+	var pickDist = this.surfaceRenderer.pick(xPick, yPick);
+	if (pickDist < 0.0) return;
+
+	console.log('Got a pick event, hit dist: ', pickDist);	
+}
 
 
 

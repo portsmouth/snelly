@@ -73,9 +73,11 @@ var SurfaceRenderer = function()
 					   new SurfaceRendererState(this.width, this.height)];
 
 	this.maxMarchSteps = 512;
+	this.showSurface = true;
+	this.surfaceAlpha = 0.5;
 
 	// Load shaders
-	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper"]);
+	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper", "pick"]);
 	this.compileShaders();
 
 	gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -124,12 +126,77 @@ SurfaceRenderer.prototype.compileShaders = function()
 	// shaderSources is a dict from name (e.g. "trace")
 	// to a dict {v:vertexShaderSource, f:fragmentShaderSource}
 	this.pathtraceProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
-	this.tonemapProgram =   new GLU.Shader('tonemapper', this.shaderSources, null);
+	this.pickProgram      = new GLU.Shader('pick',       this.shaderSources, replacements);
+	this.tonemapProgram   = new GLU.Shader('tonemapper', this.shaderSources, null);
 }
 
 
+SurfaceRenderer.prototype.pick = function(xPick, yPick)
+{
+	var sceneObj = snelly.getLoadedScene();
+	if (sceneObj == null) return null;
+
+	var gl = this.gl;
+	gl.viewport(0, 0, 1, 1);
+
+	this.pickProgram.bind();
+
+	// sync camera info to shader	 
+	var camera = snelly.getCamera();
+	var camPos = camera.position.clone();
+	var camDir = camera.getWorldDirection();
+	var camUp = camera.up.clone();
+	camUp.transformDirection( camera.matrixWorld );
+
+	// Camera update
+	camera.near = 1.0e-3*sceneObj.getScale();
+	camera.far  = 1.0e3*sceneObj.getScale();
+	
+	var camX = new THREE.Vector3();
+	camX.crossVectors(camUp, camDir);
+
+	this.pickProgram.uniformF("ndcX", xPick);
+	this.pickProgram.uniformF("ndcY", yPick);
+	console.log('xPick: ', xPick);
+	console.log('yPick: ', yPick);
+
+	this.pickProgram.uniform3Fv("camPos", [camPos.x, camPos.y, camPos.z]);
+	this.pickProgram.uniform3Fv("camDir", [camDir.x, camDir.y, camDir.z]);
+	this.pickProgram.uniform3Fv("camX", [camX.x, camX.y, camX.z]);
+	this.pickProgram.uniform3Fv("camY", [camUp.x, camUp.y, camUp.z]);
+	this.pickProgram.uniformF("camNear", camera.near);
+	this.pickProgram.uniformF("camFovy", camera.fov);
+	this.pickProgram.uniformF("camZoom", camera.zoom);
+	this.pickProgram.uniformF("camAspect", camera.aspect);
+
+	var fbo = new GLU.RenderTarget();
+	fbo.bind();
+	fbo.drawBuffers(1);
+
+	var pickData = new Float32Array(4);
+	this.pickTex = new GLU.Texture(1, 1, 4, true, false, true, pickData);
+	fbo.attachTexture(this.pickTex, 0);
+
+	sceneObj.syncShader(this.pickProgram); 
+
+	// Trace pick ray
+	this.quadVbo.bind();
+	this.quadVbo.draw(this.pickProgram, gl.TRIANGLE_FAN);
+
+	var pixels = new Uint8Array(4);
+	gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+	pixels = new Float32Array(pixels.buffer);
+
+	fbo.unbind();
+	console.log('pixels: ', pixels);
+
+	return pixels[0];
+}
+
 SurfaceRenderer.prototype.render = function()
 {
+	if (!this.showSurface) return;
+
 	var sceneObj = snelly.getLoadedScene();
 	if (sceneObj == null) return;
 
@@ -138,7 +205,7 @@ SurfaceRenderer.prototype.render = function()
 
 	this.pathtraceProgram.bind();
 
-	// set camera info 	
+	// sync camera info to shader	 
 	var camera = snelly.getCamera();
 	var camPos = camera.position.clone();
 	var camDir = camera.getWorldDirection();
@@ -189,12 +256,13 @@ SurfaceRenderer.prototype.render = function()
 	this.tonemapProgram.bind();
 	this.tonemapProgram.uniformF("exposure", 1.0);
 	this.tonemapProgram.uniformF("invGamma", 1.0/2.2);
+	this.tonemapProgram.uniformF("alpha", this.surfaceAlpha);
 
 	var radianceTexCurrent = this.pathStates[current].radianceTex;
 	radianceTexCurrent.bind(0);
 	this.tonemapProgram.uniformTexture("Radiance", radianceTexCurrent);
 	
-	gl.blendFunc(gl.ONE, gl.ONE);
+	gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
 	gl.enable(gl.BLEND);
 
 	this.quadVbo.bind();

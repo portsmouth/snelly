@@ -1,4 +1,5 @@
 
+
 function SphereScene(name, desc) 
 {
 	Scene.call(this, name, desc);

@@ -21,8 +21,11 @@ BoxScene.prototype.sdf = function()
 				uniform vec3 _bounds;   
 				uniform float _shell;    
 
-
-
+				float sdBox(vec3 X, vec3 bounds)                     
+				{                                     
+					vec3 d = abs(X) - bounds;
+					return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+				} 
 
 				float SDF(vec3 X)                     
 				{                           

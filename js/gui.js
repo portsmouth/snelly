@@ -19,29 +19,41 @@ GUI.prototype.createLightTracerSettings = function()
 	this.lightTracerSettings = {};
 	var lightTracer = snelly.getLightTracer();
 
-	this.lightTracerSettings.exposure = 10.0;
-	this.lightTracerSettings.showSurface = false;
-	this.lightTracerSettings.surfaceAlpha = 0.5;
+	this.lightTracerSettings.enable = lightTracer.enabled;
+	this.lightTracerSettings.exposure = 1.0;
+	this.lightTracerSettings.gamma = 2.2;
 	this.lightTracerSettings.maxPathLength = lightTracer.maxPathLength;
 	this.lightTracerSettings.maxMarchSteps = lightTracer.maxMarchSteps;
 	this.lightTracerSettings.rayBufferSize = lightTracer.raySize;
 	
-	this.lightTracerFolder.add(this.lightTracerSettings, 'exposure', 0.0, 10.0, 0.01);
-	this.lightTracerFolder.add(this.lightTracerSettings, 'maxPathLength', 1, 1024).onChange( function(value) { snelly.getLightTracer().maxPathLength = Math.floor(value); lightTracer.reset(); } );
-	this.lightTracerFolder.add(this.lightTracerSettings, 'maxMarchSteps', 1, 1024).onChange( function(value) { snelly.getLightTracer().maxMarchSteps = Math.floor(value); lightTracer.reset(); } );
+	this.lightTracerFolder.add(this.lightTracerSettings, 'enable').onChange( function(value) { lightTracer.enabled = value;  } );
+	this.lightTracerFolder.add(this.lightTracerSettings, 'exposure', -6.0, 6.0, 0.01);
+	this.lightTracerFolder.add(this.lightTracerSettings, 'gamma', 0.0, 2.0, 0.01);
+	this.lightTracerFolder.add(this.lightTracerSettings, 'maxPathLength', 1, 1024).onChange( function(value) { lightTracer.maxPathLength = Math.floor(value); lightTracer.reset(); } );
+	this.lightTracerFolder.add(this.lightTracerSettings, 'maxMarchSteps', 1, 1024).onChange( function(value) { lightTracer.maxMarchSteps = Math.floor(value); lightTracer.reset(); } );
 	this.lightTracerFolder.add(this.lightTracerSettings, 'rayBufferSize', 16, 1024).onChange( function(value) { lightTracer.raySize = Math.floor(value); 
 																											    lightTracer.initStates(); 
 																												lightTracer.reset(); } );
-	this.lightTracerFolder.add(this.lightTracerSettings, 'showSurface');
-	this.lightTracerFolder.add(this.lightTracerSettings, 'surfaceAlpha');
 	this.gui.remember(this.lightTracerSettings);
-
 	this.lightTracerFolder.open();
 }
 
 GUI.prototype.createSurfaceRendererSettings = function()
 {
+	this.surfaceRendererFolder = this.gui.addFolder('Surface Renderer');
+	this.surfaceRendererSettings = {};
+	var surfaceRenderer = snelly.getSurfaceRenderer();
 
+	this.surfaceRendererSettings.showSurface = surfaceRenderer.showSurface;
+	this.surfaceRendererSettings.surfaceAlpha = surfaceRenderer.surfaceAlpha;
+	this.surfaceRendererSettings.maxMarchSteps = surfaceRenderer.maxMarchSteps;
+	
+	this.surfaceRendererFolder.add(this.surfaceRendererSettings, 'showSurface').onChange( function(value)            { surfaceRenderer.showSurface = value;  } );
+	this.surfaceRendererFolder.add(this.surfaceRendererSettings, 'surfaceAlpha', 0.0, 1.0).onChange( function(value) { surfaceRenderer.surfaceAlpha = value;  } );
+	this.surfaceRendererFolder.add(this.surfaceRendererSettings, 'maxMarchSteps', 1, 1024).onChange( function(value) { surfaceRenderer.maxMarchSteps = Math.floor(value); surfaceRenderer.reset(); } );
+
+	this.gui.remember(this.surfaceRendererSettings);
+	this.surfaceRendererFolder.open();
 }
 
 

@@ -70,6 +70,7 @@ var LightTracer = function()
 	this.raySize = 128;
 	this.maxMarchSteps = 512;
 	this.maxPathLength = 32;
+	this.enabled = true;
 	this.initStates();
 
 	// Create a quad VBO for rendering textures
@@ -236,11 +237,10 @@ LightTracer.prototype.composite = function()
 
 	// Normalize the emission by dividing by the total number of paths
 	// (and also apply gamma correction)
-	var numPaths = Math.max(this.pathsTraced, 1);
-	//this.compProgram.uniformF("Exposure", renderer.renderSettings.exposure / numPaths);
-
 	var gui = snelly.getGUI();
-	this.compProgram.uniformF("Exposure", gui.lightTracerSettings.exposure/numPaths);
+	this.compProgram.uniformF("invNumPaths", 1.0/Math.max(this.pathsTraced, 1));
+	this.compProgram.uniformF("exposure", gui.lightTracerSettings.exposure);
+	this.compProgram.uniformF("invGamma", 1.0/gui.lightTracerSettings.gamma);
 
 	this.quadVbo.draw(this.compProgram, this.gl.TRIANGLE_FAN);
 }
@@ -248,6 +248,8 @@ LightTracer.prototype.composite = function()
 
 LightTracer.prototype.render = function()
 {
+	if (!this.enabled) return;
+
 	var sceneObj = snelly.getLoadedScene();
 	if (sceneObj==null) return;
 
