@@ -7,6 +7,8 @@ var Snelly = function()
 	this.width = render_canvas.width;
 	this.height = render_canvas.height;
 
+	window.addEventListener( 'resize', this, false );
+
 	this.container = document.getElementById('container');
 	{
 		this.stats = new Stats();
@@ -173,6 +175,11 @@ Snelly.prototype.loadScene = function(sceneName)
 	this.sceneObj = this.scenes[sceneName];
 	this.sceneObj.setCam(this.controls, this.camera);
 	this.sceneObj.setLaser(this.laser);
+
+	// Camera frustum update
+	this.camera.near = 1.0e-3*this.sceneObj.getScale();
+	this.camera.far  = 1.0e3*this.sceneObj.getScale();
+
 	this.reset();
 }
 
@@ -238,6 +245,8 @@ Snelly.prototype.render = function()
 	this.stats.update();
 }
 
+
+
 Snelly.prototype.resize = function()
 {
 	var width = window.innerWidth;
@@ -268,6 +277,7 @@ Snelly.prototype.handleEvent = function(event)
 {
 	switch (event.type)
 	{
+		case 'resize':      this.resize();  break;
 		case 'mousemove':   this.onDocumentMouseMove(event);  break;
 		case 'mousedown':   this.onDocumentMouseDown(event);  break;
 		case 'mouseup':     this.onDocumentMouseUp(event);    break;
@@ -305,12 +315,18 @@ Snelly.prototype.onDocumentRightClick = function(event)
 	var xPick =   (( event.clientX - this.glRenderer.domElement.offsetLeft ) / this.glRenderer.domElement.width)*2 - 1;
 	var yPick = - (( event.clientY - this.glRenderer.domElement.offsetTop ) / this.glRenderer.domElement.height)*2 + 1;
 
-	var pickDist = this.surfaceRenderer.pick(xPick, yPick);
-	if (pickDist < 0.0) return;
+	var pickedPoint = this.surfaceRenderer.pick(xPick, yPick);
+	if (pickedPoint == null) return;
 
-	console.log('Got a pick event, hit dist: ', pickDist);	
+	this.laser.setTarget(pickedPoint);	
+	this.reset();
 }
 
+function camChanged()
+{
+	snelly.reset();
+	snelly.render();
+}
 
 
 

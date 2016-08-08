@@ -259,10 +259,6 @@ LightTracer.prototype.render = function()
 	var current = this.currentState;
 	var next    = 1 - current;
 
-	// Camera update
-	snelly.camera.near = 1.0e-3*sceneObj.getScale();
-	snelly.camera.far  = 1.0e3*sceneObj.getScale();
-
 	// trace light beams
 	this.fbo.bind();
 	var gl = GLU.gl;

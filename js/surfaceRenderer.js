@@ -135,39 +135,35 @@ SurfaceRenderer.prototype.pick = function(xPick, yPick)
 {
 	var sceneObj = snelly.getLoadedScene();
 	if (sceneObj == null) return null;
-
 	var gl = this.gl;
 	gl.viewport(0, 0, 1, 1);
 
 	this.pickProgram.bind();
+	sceneObj.syncShader(this.pickProgram); 
 
 	// sync camera info to shader	 
 	var camera = snelly.getCamera();
 	var camPos = camera.position.clone();
 	var camDir = camera.getWorldDirection();
-	var camUp = camera.up.clone();
-	camUp.transformDirection( camera.matrixWorld );
-
-	// Camera update
-	camera.near = 1.0e-3*sceneObj.getScale();
-	camera.far  = 1.0e3*sceneObj.getScale();
-	
+	var camY = camera.up.clone();
+	camY.transformDirection( camera.matrixWorld );
 	var camX = new THREE.Vector3();
-	camX.crossVectors(camUp, camDir);
+	camX.crossVectors(camY, camDir);
 
-	this.pickProgram.uniformF("ndcX", xPick);
-	this.pickProgram.uniformF("ndcY", yPick);
-	console.log('xPick: ', xPick);
-	console.log('yPick: ', yPick);
+	var ndcX = xPick;
+	var ndcY = yPick;
 
+	this.pickProgram.uniformF("ndcX", ndcX);
+	this.pickProgram.uniformF("ndcY", ndcY);
 	this.pickProgram.uniform3Fv("camPos", [camPos.x, camPos.y, camPos.z]);
 	this.pickProgram.uniform3Fv("camDir", [camDir.x, camDir.y, camDir.z]);
 	this.pickProgram.uniform3Fv("camX", [camX.x, camX.y, camX.z]);
-	this.pickProgram.uniform3Fv("camY", [camUp.x, camUp.y, camUp.z]);
+	this.pickProgram.uniform3Fv("camY", [camY.x, camY.y, camY.z]);
 	this.pickProgram.uniformF("camNear", camera.near);
 	this.pickProgram.uniformF("camFovy", camera.fov);
 	this.pickProgram.uniformF("camZoom", camera.zoom);
 	this.pickProgram.uniformF("camAspect", camera.aspect);
+	this.pickProgram.uniformF("SceneScale", sceneObj.getScale()); 
 
 	var fbo = new GLU.RenderTarget();
 	fbo.bind();
@@ -177,20 +173,38 @@ SurfaceRenderer.prototype.pick = function(xPick, yPick)
 	this.pickTex = new GLU.Texture(1, 1, 4, true, false, true, pickData);
 	fbo.attachTexture(this.pickTex, 0);
 
-	sceneObj.syncShader(this.pickProgram); 
-
 	// Trace pick ray
 	this.quadVbo.bind();
 	this.quadVbo.draw(this.pickProgram, gl.TRIANGLE_FAN);
 
+	// Read floating point hit distance output from pick fragment shader
 	var pixels = new Uint8Array(4);
 	gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
 	pixels = new Float32Array(pixels.buffer);
-
 	fbo.unbind();
-	console.log('pixels: ', pixels);
+	var hitDist = pixels[0];
+	if (hitDist < 0.0) return null;
 
-	return pixels[0];
+	// Compute hit point given pick NDC, camera, and the hit distance
+	var fh = camera.near * Math.tan(0.5*camera.fov*Math.PI/180.0) / camera.zoom;
+	var fw = camera.aspect * fh;
+
+	var sX = camX.clone();
+	var sY = camY.clone();
+	sX.multiplyScalar(-fw*ndcX);
+	sY.multiplyScalar(fh*ndcY);
+	var s = sX.clone();
+	s.add(sY);
+
+	var D = camDir.clone();
+	D.multiplyScalar(camera.near);
+	D.add(s);
+	D.normalize(); // ray direction through camPos, towards hit point
+	D.multiplyScalar(hitDist);
+
+	var hitPoint = camPos.clone();
+	hitPoint.add(D);
+	return hitPoint;
 }
 
 SurfaceRenderer.prototype.render = function()
@@ -212,10 +226,6 @@ SurfaceRenderer.prototype.render = function()
 	var camUp = camera.up.clone();
 	camUp.transformDirection( camera.matrixWorld );
 
-	// Camera update
-	camera.near = 1.0e-3*sceneObj.getScale();
-	camera.far  = 1.0e3*sceneObj.getScale();
-	
 	var camX = new THREE.Vector3();
 	camX.crossVectors(camUp, camDir);
 

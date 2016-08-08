@@ -482,7 +482,7 @@ bool hit(inout vec3 X, vec3 D, inout int numSteps)
     for( int i=0; i<MAX_MARCH_STEPS; i++ )
     {
 		if (h<minMarchDist || t>maxMarchDist) break;
-		h = SDF(X + D*t);
+		h = abs(SDF(X + D*t));
         t += h;
     }
     X += t*D;
@@ -554,7 +554,7 @@ void main()
 
 	// Jitter over pixel
 	vec2 pixel = gl_FragCoord.xy;
-	pixel += -0.5+ 0.5*vec2(rand(rnd), rand(rnd));
+	pixel += -0.5 + 0.5*vec2(rand(rnd), rand(rnd));
 
 	// Compute world ray direction for this fragment
 	vec2 ndc = -1.0 + 2.0*(pixel/resolution.xy);
@@ -695,7 +695,7 @@ SDF_FUNC
 bool hit(inout vec3 X, vec3 D)
 {
 	float minMarchDist = 1.0e-5*SceneScale;
-	float maxMarchDist = 1.0e2*SceneScale;
+	float maxMarchDist = 1.0e3*SceneScale;
 	float t = 0.0;
 	float h = 1.0;
     for( int i=0; i<MAX_MARCH_STEPS; i++ )
@@ -709,15 +709,9 @@ bool hit(inout vec3 X, vec3 D)
 	return false;
 }
 
-/*
-float computeClipDepth(float z, float zNear, float zFar)
-{
-	float zp = (zFar + zNear - 2.0*zFar*zNear/z) / (zFar - zNear);
-	zp = zp * 0.5 + 0.5;
-	return zp; // in [0,1] range as z ranges over [zNear, zFar]
-}
-*/
-
+///
+/// A neat trick to encode a float value in the frag color
+///
 float shift_right (float v, float amt) { 
     v = floor(v) + 0.5; 
     return floor(v / exp2(amt)); 
@@ -770,10 +764,10 @@ void main()
 	}
 	else
 	{
-		dist = ndc.x;
+		dist = -1.0;
 	}
-
-	 gl_FragColor = encode_float(dist);
+	
+	gl_FragColor = encode_float(dist);
 }
 `,
 
