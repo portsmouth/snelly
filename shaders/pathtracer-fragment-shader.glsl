@@ -37,7 +37,7 @@ bool hit(inout vec3 X, vec3 D, inout int numSteps)
     for( int i=0; i<MAX_MARCH_STEPS; i++ )
     {
 		if (h<minMarchDist || t>maxMarchDist) break;
-		h = SDF(X + D*t);
+		h = abs(SDF(X + D*t));
         t += h;
     }
     X += t*D;
@@ -109,7 +109,7 @@ void main()
 
 	// Jitter over pixel
 	vec2 pixel = gl_FragCoord.xy;
-	pixel += -0.5+ 0.5*vec2(rand(rnd), rand(rnd));
+	pixel += -0.5 + 0.5*vec2(rand(rnd), rand(rnd));
 
 	// Compute world ray direction for this fragment
 	vec2 ndc = -1.0 + 2.0*(pixel/resolution.xy);
