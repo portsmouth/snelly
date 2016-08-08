@@ -62,8 +62,6 @@ window.requestAnimFrame = (function(){
 
 function onLoad()
 {
-	window.addEventListener( 'resize', onWindowResize, false );
-
 	// Instantiate Snelly
 	snelly = new Snelly();
 	
@@ -71,22 +69,13 @@ function onLoad()
 	animateLoop();
 }
 
-function camChanged()
-{
-	snelly.reset();
-	snelly.render();
-}
-
 function animateLoop() 
 {
 	snelly.render();
-	requestAnimFrame(animateLoop);
+	window.requestAnimFrame(animateLoop);
 }
 
-function onWindowResize() 
-{
-	snelly.resize();
-}
+
 
 </script>
 </body>
