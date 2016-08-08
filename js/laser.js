@@ -137,7 +137,7 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 	
 	// back plane to implement dragging 
 	var backPlaneObj =  new THREE.Mesh(
-						new THREE.PlaneGeometry(20, 20),
+						new THREE.PlaneGeometry(2000, 2000),
 						new THREE.MeshBasicMaterial( { visible: false } ) );
 	backPlaneObj.position.x = 0.0;
 	backPlaneObj.position.y = 0.0;
@@ -382,34 +382,28 @@ LaserPointer.prototype.onMouseMove = function(event)
 	// (-1 to +1) for both components
 	this.mouse.x =   (( event.clientX - this.glRenderer.domElement.offsetLeft) / this.glRenderer.domElement.width)*2 - 1;
 	this.mouse.y = - (( event.clientY - this.glRenderer.domElement.offsetTop) / this.glRenderer.domElement.height)*2 + 1;
-
 	var mouseShift = new THREE.Vector2();
 	mouseShift.copy(this.mouse).sub(this.mousePrev);
 	this.mousePrev.copy(this.mouse);
 
 	// update the picking ray with the camera and mouse position
 	this.raycaster.setFromCamera( this.mouse, this.camera );
-
 	obj = this.objects;
 	group = obj["group"];
-
 	var sceneObj = snelly.getLoadedScene();
 	var sceneScale = sceneObj.getScale();
 
-	if ( this.SELECTED )
+	if ( this.SELECTED != null )
 	{
 		var backplaneIntersection = this.raycaster.intersectObject( obj['backPlane'] );
 		if ( backplaneIntersection.length > 0 )
 		{
 			var planeHitpoint = backplaneIntersection[0].point;
-
 			var shift = new THREE.Vector3(); // relative to mouse-down hit
 			shift.copy(planeHitpoint).sub(this.mousedownPlaneHitpoint);
-
 			var shiftAbsolute = new THREE.Vector3();
 			shiftAbsolute.copy(shift);
-
-			var shiftDist = shift.length();/// Math.min(300.0*sceneScale, shift.length());
+			var shiftDist = shift.length();
 			shift.normalize();
 			this.mousedownPlaneHitpoint.copy(planeHitpoint);
 
@@ -419,6 +413,7 @@ LaserPointer.prototype.onMouseMove = function(event)
 			if (this.SELECTED == obj['xHandleIntersection'])
 			{
 				var moveX = shiftDist / (shift.dot(this.getX()) + epsilonLength);
+				console.log('moveX: ', moveX);
 				var xTranslation = new THREE.Vector3();
 				xTranslation.copy(this.getX()).multiplyScalar(moveX);
 				group.position.add(xTranslation);
@@ -426,6 +421,7 @@ LaserPointer.prototype.onMouseMove = function(event)
 			else if (this.SELECTED == obj['yHandleIntersection'])
 			{
 				var moveY = shiftDist / (shift.dot(this.getY()) + epsilonLength);
+				console.log('moveY: ', moveY);
 				var yTranslation = new THREE.Vector3();
 				yTranslation.copy(this.getY()).multiplyScalar(moveY);
 				group.position.add(yTranslation);
@@ -433,6 +429,7 @@ LaserPointer.prototype.onMouseMove = function(event)
 			else if (this.SELECTED == obj['zHandleIntersection'])
 			{
 				var moveZ = shiftDist / (shift.dot(this.getZ()) + epsilonLength);
+				console.log('moveZ: ', moveZ);
 				var zTranslation = new THREE.Vector3();
 				zTranslation.copy(this.getZ()).multiplyScalar(moveZ);
 				group.position.add(zTranslation);
@@ -561,7 +558,6 @@ LaserPointer.prototype.onMouseMove = function(event)
 			}
 		}
 	}
-	
 
 	return false;
 }
@@ -583,7 +579,6 @@ LaserPointer.prototype.onMouseDown = function(event)
 		this.controls.enabled = false;
 		this.SELECTED           = intersections[0].object;
 		this.SELECTION_HITPOINT = intersections[0].point;
-
 		var backplaneIntersection = this.raycaster.intersectObject(obj['backPlane']);
 		if ( backplaneIntersection.length > 0 ) 
 		{
@@ -592,7 +587,6 @@ LaserPointer.prototype.onMouseDown = function(event)
 			// Record relative offset of mouse intersection and camera-aligned backplane
 			// (which we can assume is fixed in screen space during an active manipulation)
 			this.mousedownPlaneHitpoint.copy(planeHitpoint);
-
 			group = obj['group'];
 			this.groupPositionOnMouseDown   = group.position;
 			this.groupQuaternionOnMouseDown = group.quaternion;
