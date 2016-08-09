@@ -179,55 +179,17 @@ SAMPLE_FUNC
 //////////////////////////////////////////////////////////////
 
 
-vec3 NORMAL( in vec3 pos )
+vec3 NORMAL( in vec3 X )
 {
 	// Compute normal as gradient of SDF
 	float normalEpsilon = 2.0e-5*SceneScale;
 	vec3 eps = vec3(normalEpsilon, 0.0, 0.0);
 	vec3 nor = vec3(
-	    SDF(pos+eps.xyy) - SDF(pos-eps.xyy),
-	    SDF(pos+eps.yxy) - SDF(pos-eps.yxy),
-	    SDF(pos+eps.yyx) - SDF(pos-eps.yyx) );
+	    SDF(X+eps.xyy) - SDF(X-eps.xyy),
+	    SDF(X+eps.yxy) - SDF(X-eps.yxy),
+	    SDF(X+eps.yyx) - SDF(X-eps.yyx) );
 	return normalize(nor);
 }
-
-/*
-void raytrace(inout vec4 rnd, 
-			  inout vec3 X, inout vec3 D,
-			  inout vec3 rgb, float wavelength)
-{
-	if (length(rgb) < 1.0e-6) return;
-
-	bool hit = false;
-	normalize(D);
-	float minMarchDist = 1.0e-5*SceneScale;
-	for (int i=0; i<MAX_MARCH_STEPS; i++)
-	{
-		float dist = abs(SDF(X));
-		if (dist < minMarchDist)
-		{
-			hit = true;
-			break;
-		}
-		if (dist > 1000.0*SceneScale)
-		{
-			break;
-		}
-		X += dist*D;
-	}
-
-	if (!hit)
-	{
-		X += 1000.0*SceneScale*D;
-		rgb *= 0.0; // terminate ray
-	}
-	else
-	{
-		rgb *= SAMPLE(X, D, NORMAL(X), wavelength, rnd);
-	}
-}
-*/
-
 
 void raytrace(inout vec4 rnd, 
 			  inout vec3 X, inout vec3 D,
