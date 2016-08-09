@@ -27,8 +27,8 @@ GUI.prototype.createLightTracerSettings = function()
 	this.lightTracerSettings.rayBufferSize = lightTracer.raySize;
 	
 	this.lightTracerFolder.add(this.lightTracerSettings, 'enable').onChange( function(value) { lightTracer.enabled = value;  } );
-	this.lightTracerFolder.add(this.lightTracerSettings, 'exposure', -6.0, 6.0, 0.01);
-	this.lightTracerFolder.add(this.lightTracerSettings, 'gamma', 0.0, 2.0, 0.01);
+	this.lightTracerFolder.add(this.lightTracerSettings, 'exposure', -2.0, 4.0, 0.01);
+	this.lightTracerFolder.add(this.lightTracerSettings, 'gamma', 0.0, 4.0, 0.01);
 	this.lightTracerFolder.add(this.lightTracerSettings, 'maxPathLength', 1, 1024).onChange( function(value) { lightTracer.maxPathLength = Math.floor(value); lightTracer.reset(); } );
 	this.lightTracerFolder.add(this.lightTracerSettings, 'maxMarchSteps', 1, 1024).onChange( function(value) { lightTracer.maxMarchSteps = Math.floor(value); lightTracer.reset(); } );
 	this.lightTracerFolder.add(this.lightTracerSettings, 'rayBufferSize', 16, 1024).onChange( function(value) { lightTracer.raySize = Math.floor(value); 
@@ -44,13 +44,12 @@ GUI.prototype.createSurfaceRendererSettings = function()
 	this.surfaceRendererSettings = {};
 	var surfaceRenderer = snelly.getSurfaceRenderer();
 
-	this.surfaceRendererSettings.showSurface = surfaceRenderer.showSurface;
-	this.surfaceRendererSettings.surfaceAlpha = surfaceRenderer.surfaceAlpha;
-	this.surfaceRendererSettings.maxMarchSteps = surfaceRenderer.maxMarchSteps;
+	var renderModes = ['normals', 'blinn'];
 	
-	this.surfaceRendererFolder.add(this.surfaceRendererSettings, 'showSurface').onChange( function(value)            { surfaceRenderer.showSurface = value;  } );
-	this.surfaceRendererFolder.add(this.surfaceRendererSettings, 'surfaceAlpha', 0.0, 1.0).onChange( function(value) { surfaceRenderer.surfaceAlpha = value;  } );
-	this.surfaceRendererFolder.add(this.surfaceRendererSettings, 'maxMarchSteps', 1, 1024).onChange( function(value) { surfaceRenderer.maxMarchSteps = Math.floor(value); surfaceRenderer.reset(); } );
+	this.surfaceRendererFolder.add(surfaceRenderer, 'showSurface');
+	this.surfaceRendererFolder.add(surfaceRenderer, 'renderMode', renderModes).onChange( function(renderMode) { surfaceRenderer.reset(); });
+	this.surfaceRendererFolder.add(surfaceRenderer, 'surfaceAlpha', 0.0, 1.0);
+	this.surfaceRendererFolder.add(surfaceRenderer, 'maxMarchSteps', 1, 1024).onChange( function(value) { surfaceRenderer.maxMarchSteps = Math.floor(value); surfaceRenderer.reset(); } );
 
 	this.gui.remember(this.surfaceRendererSettings);
 	this.surfaceRendererFolder.open();

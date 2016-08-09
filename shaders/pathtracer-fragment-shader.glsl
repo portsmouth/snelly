@@ -25,6 +25,8 @@ uniform float SceneScale;
 
 SDF_FUNC
 
+LIGHTING_FUNC
+
 //////////////////////////////////////////////////////////////
 
 
@@ -37,7 +39,7 @@ bool hit(inout vec3 X, vec3 D, inout int numSteps)
     for( int i=0; i<MAX_MARCH_STEPS; i++ )
     {
 		if (h<minMarchDist || t>maxMarchDist) break;
-		h = abs(SDF(X + D*t));
+		h = SDF(X + D*t);
         t += h;
     }
     X += t*D;
@@ -46,15 +48,15 @@ bool hit(inout vec3 X, vec3 D, inout int numSteps)
 }
 
 
-vec3 NORMAL( in vec3 pos )
+vec3 NORMAL( in vec3 X )
 {
 	// Compute normal as gradient of SDF
 	float normalEpsilon = 2.0e-5*SceneScale;
 	vec3 eps = vec3(normalEpsilon, 0.0, 0.0);
 	vec3 nor = vec3(
-	    SDF(pos+eps.xyy) - SDF(pos-eps.xyy),
-	    SDF(pos+eps.yxy) - SDF(pos-eps.yxy),
-	    SDF(pos+eps.yyx) - SDF(pos-eps.yyx) );
+	    SDF(X+eps.xyy) - SDF(X-eps.xyy),
+	    SDF(X+eps.yxy) - SDF(X-eps.yxy),
+	    SDF(X+eps.yyx) - SDF(X-eps.yyx) );
 	return normalize(nor);
 }
 
@@ -126,7 +128,8 @@ void main()
 	{
 		//zHit = length(X - camPos);
 		vec3 N = NORMAL(X);
-		L = 0.5*(1.0+N);
+		vec3 V = normalize(camPos-X);
+		L = LIGHTING(V, N);
 	}
 
 	// Write updated radiance and sample count

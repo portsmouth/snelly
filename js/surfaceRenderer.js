@@ -75,6 +75,7 @@ var SurfaceRenderer = function()
 	this.maxMarchSteps = 512;
 	this.showSurface = true;
 	this.surfaceAlpha = 0.5;
+	this.renderMode = 'blinn';
 
 	// Load shaders
 	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper", "pick"]);
@@ -122,6 +123,42 @@ SurfaceRenderer.prototype.compileShaders = function()
 	replacements = {};
 	replacements.SDF_FUNC        = sdfCode;
 	replacements.MAX_MARCH_STEPS = this.maxMarchSteps;
+
+	switch (this.renderMode)
+	{
+		case "normals": replacements.LIGHTING_FUNC = `
+				vec3 LIGHTING( in vec3 V, in vec3 N )
+				{
+					return 0.5*(1.0+N);
+				}
+				`; break;
+
+		case "blinn": replacements.LIGHTING_FUNC = `
+				float saturate(float x) { return max(0.0, min(1.0, x)); }
+				vec3 LIGHTING( in vec3 V, in vec3 N )
+				{
+					vec3 Lights[2];
+					const float oosot = 1.0/sqrt(3.0);
+					Lights[0] = vec3( 1.0,  1.0,  1.0)*oosot;
+					Lights[1] = vec3(-1.0,  1.0, -1.0)*oosot;
+					vec3 kd[2];
+					kd[0] = vec3(0.25, 0.25, 1.0);
+					kd[1] = vec3(1.0, 0.25, 0.25);
+					vec3 ks = vec3(1.0, 1.0, 1.0);
+					vec3 ka = vec3(0.005, 0.005, 0.005);
+					vec3 C = vec3(0.0, 0.0, 0.0);
+					for (int l=0; l<2; ++l)
+					{
+						vec3 L = Lights[l];
+						vec3 H = normalize(L+V);
+						float NdotH = dot(N, H);
+						float NdotL = dot(N, L);
+						C += kd[l]*saturate(NdotL) + ks*pow(saturate(NdotH), 15.0);
+					}
+					return C + ka;
+				}
+				`; break;									 
+	}
 
 	// shaderSources is a dict from name (e.g. "trace")
 	// to a dict {v:vertexShaderSource, f:fragmentShaderSource}
@@ -265,7 +302,7 @@ SurfaceRenderer.prototype.render = function()
 	// Tonemap the 'current' radiance buffer to produce this frame's pixels
 	this.tonemapProgram.bind();
 	this.tonemapProgram.uniformF("exposure", 1.0);
-	this.tonemapProgram.uniformF("invGamma", 1.0/2.2);
+	this.tonemapProgram.uniformF("invGamma", 1.0);
 	this.tonemapProgram.uniformF("alpha", this.surfaceAlpha);
 
 	var radianceTexCurrent = this.pathStates[current].radianceTex;
