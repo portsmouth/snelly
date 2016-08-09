@@ -84,7 +84,7 @@ MonochromaticSpectrum.prototype.initGui = function(parentFolder)
 {
 	ME = this;
 	this.wavelengthItem = parentFolder.add(this, 'wavelength', 360.0, 750.0);
-	this.wavelengthItem.onChange( function(value) { renderer.loadSpectrum(ME.getName()); } );
+	this.wavelengthItem.onChange( function(value) { snelly.getLightTracer().loadSpectrum(ME.getName()); } );
 }
 
 MonochromaticSpectrum.prototype.eraseGui = function(parentFolder)
@@ -167,7 +167,7 @@ BlackbodySpectrum.prototype.initGui = function(parentFolder)
 {
 	ME = this;
 	this.temperatureItem = parentFolder.add(this, 'temperature', 300.0, 15000.0);
-	this.temperatureItem.onChange( function(value) { renderer.loadSpectrum(ME.getName()); } );
+	this.temperatureItem.onChange( function(value) { snelly.getLightTracer().loadSpectrum(ME.getName()); } );
 }
 
 BlackbodySpectrum.prototype.eraseGui = function(parentFolder)
