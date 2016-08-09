@@ -84,7 +84,6 @@ void main()
 	vec2 ndc = vec2(ndcX, ndcY);
 	float fh = camNear*tan(0.5*radians(camFovy)) / camZoom;
 	float fw = camAspect*fh;
-
 	vec3 s = -fw*ndc.x*camX + fh*ndc.y*camY;
 	vec3 D = normalize(camNear*camDir + s); // ray direction
 
