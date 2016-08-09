@@ -77,8 +77,8 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 	group.add(intersectionHandleGroup);
 
 	// translater intersection geo, for dragging
-	var translaterGeo      = new THREE.SphereGeometry(RI, 32, 32);
-	var translaterMaterial = new THREE.MeshPhongMaterial( { color: 0xff0000, visible: intersectionDebug } );
+	var translaterGeo      = new THREE.SphereGeometry(0.98*RI, 32, 32);
+	var translaterMaterial = new THREE.MeshPhongMaterial( { color: 0xff0000, visible: true } );
 	var translaterObj      = new THREE.Mesh( translaterGeo, translaterMaterial  );
 	group.add(translaterObj);
 
@@ -90,7 +90,7 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 	this.renderHandleGroup = new THREE.Object3D();
 	var renderHandleGroup = this.renderHandleGroup;
 
-	var rR = 0.02;
+	var rR = 0.06;
 	var hR = 8.0;
 	var RR = 2.0;
 
@@ -239,7 +239,7 @@ LaserPointer.prototype.render = function()
 	// (to be roughly constant size in screen space)
 	var camDist = new THREE.Vector3();
 	camDist.copy(this.objects["group"].position).sub(this.camera.position);
-	var C = 0.05*camDist.length();
+	var C = 0.03*camDist.length();
 
 	// Ensure that handles are always > emitter geo size
 	// (so on zooming in, body doesn't 'swallow' the manips).
@@ -413,7 +413,6 @@ LaserPointer.prototype.onMouseMove = function(event)
 			if (this.SELECTED == obj['xHandleIntersection'])
 			{
 				var moveX = shiftDist / (shift.dot(this.getX()) + epsilonLength);
-				console.log('moveX: ', moveX);
 				var xTranslation = new THREE.Vector3();
 				xTranslation.copy(this.getX()).multiplyScalar(moveX);
 				group.position.add(xTranslation);
@@ -421,7 +420,6 @@ LaserPointer.prototype.onMouseMove = function(event)
 			else if (this.SELECTED == obj['yHandleIntersection'])
 			{
 				var moveY = shiftDist / (shift.dot(this.getY()) + epsilonLength);
-				console.log('moveY: ', moveY);
 				var yTranslation = new THREE.Vector3();
 				yTranslation.copy(this.getY()).multiplyScalar(moveY);
 				group.position.add(yTranslation);
@@ -429,7 +427,6 @@ LaserPointer.prototype.onMouseMove = function(event)
 			else if (this.SELECTED == obj['zHandleIntersection'])
 			{
 				var moveZ = shiftDist / (shift.dot(this.getZ()) + epsilonLength);
-				console.log('moveZ: ', moveZ);
 				var zTranslation = new THREE.Vector3();
 				zTranslation.copy(this.getZ()).multiplyScalar(moveZ);
 				group.position.add(zTranslation);
