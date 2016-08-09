@@ -1,6 +1,6 @@
 
 
-function SphereScene(name, desc) 
+function OnionScene(name, desc) 
 {
 	Scene.call(this, name, desc);
 
@@ -10,12 +10,12 @@ function SphereScene(name, desc)
 
 // NB, every function is mandatory and must be defined.
 
-SphereScene.prototype = Object.create(Scene.prototype);
+OnionScene.prototype = Object.create(Scene.prototype);
 
 
 // This defines a solid body, whose interior
 // defined by the points with SDF<0.0, with a constant refractive index.
-SphereScene.prototype.sdf = function()
+OnionScene.prototype.sdf = function()
 {
 	return `
 				uniform float _radius;                
@@ -30,7 +30,7 @@ SphereScene.prototype.sdf = function()
 
 // Called whenever this scene UI was switched to, or changed while active,
 // and syncs the params of the trace shader to the current UI settings
-SphereScene.prototype.syncShader = function(traceProgram)
+OnionScene.prototype.syncShader = function(traceProgram)
 {
 	// (The shader parameter names here must be consistent with the GLSL sdf code defined above)
 	traceProgram.uniformF("_radius", this._settings.radius);
@@ -38,14 +38,14 @@ SphereScene.prototype.syncShader = function(traceProgram)
 
 // Gives the raytracer some indication of (rough) scene size, so it
 // can set tolerances appropriately.
-SphereScene.prototype.getScale = function()
+OnionScene.prototype.getScale = function()
 {
 	return this._settings.radius;
 }
 
 
 // Initial cam position default for this scene
-SphereScene.prototype.setCam = function(controls, camera)
+OnionScene.prototype.setCam = function(controls, camera)
 {
 	camera.position.set(-10.0, 10.0, 10.0)
 	controls.target.set(0.0, 0.0, 0.0);
@@ -53,7 +53,7 @@ SphereScene.prototype.setCam = function(controls, camera)
 
 
 // Initial laser position and direction defaults for this scene
-SphereScene.prototype.setLaser = function(laser)
+OnionScene.prototype.setLaser = function(laser)
 {
 	laser.setPosition(new THREE.Vector3(-6.0, 0.0, 0.0));
 	laser.setDirection(new THREE.Vector3(1.0, 0.0, 0.0));
@@ -62,13 +62,13 @@ SphereScene.prototype.setLaser = function(laser)
 
 
 // set up gui and callbacks for this scene
-SphereScene.prototype.initGui = function(parentFolder)
+OnionScene.prototype.initGui = function(parentFolder)
 {
 	this.radiusItem = parentFolder.add(this._settings, 'radius', 0.01, 10.0);
 	this.radiusItem.onChange( function(value) { snelly.reset(); } );
 }
 
-SphereScene.prototype.eraseGui = function(parentFolder)
+OnionScene.prototype.eraseGui = function(parentFolder)
 {
 	parentFolder.remove(this.radiusItem);
 }

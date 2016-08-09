@@ -6,6 +6,7 @@ function FibreScene(name, desc)
 	// defaults
 	this._settings.radius = 1.36;
 	this._settings.length = 100.0;
+	this._settings.twist = 0.0;
 }
 
 FibreScene.prototype = Object.create(Scene.prototype);

@@ -8,6 +8,7 @@ function OceanScene(name, desc)
 	this._settings.SEA_HEIGHT = 0.6;
 	this._settings.SEA_CHOPPY = 4.0;
 	this._settings.SEA_TIME = 0.0;
+	this._settings.SEA_OCTAVES = 4;
 }
 
 // NB, every function is mandatory and must be defined.
@@ -61,8 +62,7 @@ OceanScene.prototype.sdf = function()
 			    float choppy = SEA_CHOPPY;
 			    vec2 uv = p.xz; uv.x *= 0.75;
 			    float d, h = 0.0;    
-			    const int ITER_GEOMETRY = 3;
-			    for(int i = 0; i < ITER_GEOMETRY; i++) 
+			    for(int i = 0; i < ${this._settings.SEA_OCTAVES}; i++) 
 			    {        
 			    	d = sea_octave((uv+SEA_TIME)*freq,choppy);
 			    	d += sea_octave((uv-SEA_TIME)*freq,choppy);
@@ -121,14 +121,16 @@ OceanScene.prototype.setLaser = function(laser)
 OceanScene.prototype.initGui = function(parentFolder)
 {
 	this.itemSEA_FREQ = parentFolder.add(this._settings, 'SEA_FREQ', 0.0, 1.0);
-	this.itemSEA_HEIGHT = parentFolder.add(this._settings, 'SEA_HEIGHT', 0.0, 2.0);
+	this.itemSEA_HEIGHT = parentFolder.add(this._settings, 'SEA_HEIGHT', 0.0, 10.0);
 	this.itemSEA_CHOPPY = parentFolder.add(this._settings, 'SEA_CHOPPY', 0.0, 10.0);
-	this.itemSEA_TIME = parentFolder.add(this._settings, 'SEA_TIME', 0.0, 10.0);
+	this.itemSEA_TIME = parentFolder.add(this._settings, 'SEA_TIME', 0.0, 100.0);
+	this.itemSEA_OCTAVES = parentFolder.add(this._settings, 'SEA_OCTAVES', 1, 5, 1);
 
 	this.itemSEA_FREQ.onChange( function(value) { snelly.reset(); } );
 	this.itemSEA_HEIGHT.onChange( function(value) { snelly.reset(); } );
 	this.itemSEA_CHOPPY.onChange( function(value) { snelly.reset(); } );
 	this.itemSEA_TIME.onChange( function(value) { snelly.reset(); } );
+	this.itemSEA_OCTAVES.onChange( function(value) { snelly.reset(); } );
 }
 
 OceanScene.prototype.eraseGui = function(parentFolder)
@@ -137,6 +139,7 @@ OceanScene.prototype.eraseGui = function(parentFolder)
 	parentFolder.remove(this.itemSEA_HEIGHT);
 	parentFolder.remove(this.itemSEA_CHOPPY);
 	parentFolder.remove(this.itemSEA_TIME);	
+	parentFolder.remove(this.itemSEA_OCTAVES);	
 }
 
 
