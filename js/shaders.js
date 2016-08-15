@@ -34,7 +34,74 @@ float opS(float A, float B) { return max(-B, A); }
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
 
-uniform sampler2D Frame;
+
+float saturate(float x) { return max(0.0, min(1.0, x)); }
+
+// clip space depth calculation, given eye space depth
+float computeClipDepth(float ze, float zNear, float zFar)
+{
+	float zn = (zFar + zNear - 2.0*zFar*zNear/ze) / (zFar - zNear); // compute NDC depth
+	float zb = zn*0.5 + 0.5;                                        // convert to clip depth
+	return saturate(zb); // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+///
+/// A neat trick to return a extract a float value from a fragment shader
+///
+float shift_right (float v, float amt) { 
+    v = floor(v) + 0.5; 
+    return floor(v / exp2(amt)); 
+}
+float shift_left (float v, float amt) { 
+    return floor(v * exp2(amt) + 0.5); 
+}
+float mask_last (float v, float bits) { 
+    return mod(v, shift_left(1.0, bits)); 
+}
+float extract_bits (float num, float from, float to) { 
+    from = floor(from + 0.5); to = floor(to + 0.5); 
+    return mask_last(shift_right(num, from), to - from); 
+}
+vec4 encode_float (float val) { 
+    if (val == 0.0) return vec4(0, 0, 0, 0); 
+    float sign = val > 0.0 ? 0.0 : 1.0; 
+    val = abs(val); 
+    float exponent = floor(log2(val)); 
+    float biased_exponent = exponent + 127.0; 
+    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
+    float t = biased_exponent / 2.0; 
+    float last_bit_of_biased_exponent = fract(t) * 2.0; 
+    float remaining_bits_of_biased_exponent = floor(t); 
+    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
+    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
+    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
+    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
+    return vec4(byte4, byte3, byte2, byte1); 
+}
+
+/// Code to encode and decode depth values as vec4
+vec4 pack_depth(const in float depth)
+{
+    return vec4(depth, 0.0, 0.0, 1.0);
+    /*
+    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
+    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
+    vec4 res = fract(depth * bit_shift);
+    res -= res.xxyz * bit_mask;
+    return res;*/
+}
+
+float unpack_depth(const in vec4 rgba_depth)
+{
+    return rgba_depth.r;
+    /*
+    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
+    float depth = dot(rgba_depth, bit_shift);
+    return depth;*/
+}
+
+uniform sampler2D Fluence;
 uniform float invNumPaths;
 uniform float exposure;
 uniform float invGamma;
@@ -42,7 +109,7 @@ varying vec2 vTexCoord;
 
 void main() 
 {
-	vec3 L = invNumPaths * pow(10.0, exposure) * texture2D(Frame, vTexCoord).rgb;
+	vec3 L = invNumPaths * pow(10.0, exposure) * texture2D(Fluence, vTexCoord).rgb;
 	gl_FragColor = vec4(pow(L, vec3(invGamma)), 1.0);
 }
 `,
@@ -80,6 +147,73 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+
+float saturate(float x) { return max(0.0, min(1.0, x)); }
+
+// clip space depth calculation, given eye space depth
+float computeClipDepth(float ze, float zNear, float zFar)
+{
+	float zn = (zFar + zNear - 2.0*zFar*zNear/ze) / (zFar - zNear); // compute NDC depth
+	float zb = zn*0.5 + 0.5;                                        // convert to clip depth
+	return saturate(zb); // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+///
+/// A neat trick to return a extract a float value from a fragment shader
+///
+float shift_right (float v, float amt) { 
+    v = floor(v) + 0.5; 
+    return floor(v / exp2(amt)); 
+}
+float shift_left (float v, float amt) { 
+    return floor(v * exp2(amt) + 0.5); 
+}
+float mask_last (float v, float bits) { 
+    return mod(v, shift_left(1.0, bits)); 
+}
+float extract_bits (float num, float from, float to) { 
+    from = floor(from + 0.5); to = floor(to + 0.5); 
+    return mask_last(shift_right(num, from), to - from); 
+}
+vec4 encode_float (float val) { 
+    if (val == 0.0) return vec4(0, 0, 0, 0); 
+    float sign = val > 0.0 ? 0.0 : 1.0; 
+    val = abs(val); 
+    float exponent = floor(log2(val)); 
+    float biased_exponent = exponent + 127.0; 
+    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
+    float t = biased_exponent / 2.0; 
+    float last_bit_of_biased_exponent = fract(t) * 2.0; 
+    float remaining_bits_of_biased_exponent = floor(t); 
+    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
+    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
+    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
+    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
+    return vec4(byte4, byte3, byte2, byte1); 
+}
+
+/// Code to encode and decode depth values as vec4
+vec4 pack_depth(const in float depth)
+{
+    return vec4(depth, 0.0, 0.0, 1.0);
+    /*
+    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
+    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
+    vec4 res = fract(depth * bit_shift);
+    res -= res.xxyz * bit_mask;
+    return res;*/
+}
+
+float unpack_depth(const in vec4 rgba_depth)
+{
+    return rgba_depth.r;
+    /*
+    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
+    float depth = dot(rgba_depth, bit_shift);
+    return depth;*/
+}
 
 attribute vec3 Position;
 attribute vec2 TexCoord;
@@ -127,6 +261,73 @@ float opS(float A, float B) { return max(-B, A); }
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
 
+
+float saturate(float x) { return max(0.0, min(1.0, x)); }
+
+// clip space depth calculation, given eye space depth
+float computeClipDepth(float ze, float zNear, float zFar)
+{
+	float zn = (zFar + zNear - 2.0*zFar*zNear/ze) / (zFar - zNear); // compute NDC depth
+	float zb = zn*0.5 + 0.5;                                        // convert to clip depth
+	return saturate(zb); // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+///
+/// A neat trick to return a extract a float value from a fragment shader
+///
+float shift_right (float v, float amt) { 
+    v = floor(v) + 0.5; 
+    return floor(v / exp2(amt)); 
+}
+float shift_left (float v, float amt) { 
+    return floor(v * exp2(amt) + 0.5); 
+}
+float mask_last (float v, float bits) { 
+    return mod(v, shift_left(1.0, bits)); 
+}
+float extract_bits (float num, float from, float to) { 
+    from = floor(from + 0.5); to = floor(to + 0.5); 
+    return mask_last(shift_right(num, from), to - from); 
+}
+vec4 encode_float (float val) { 
+    if (val == 0.0) return vec4(0, 0, 0, 0); 
+    float sign = val > 0.0 ? 0.0 : 1.0; 
+    val = abs(val); 
+    float exponent = floor(log2(val)); 
+    float biased_exponent = exponent + 127.0; 
+    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
+    float t = biased_exponent / 2.0; 
+    float last_bit_of_biased_exponent = fract(t) * 2.0; 
+    float remaining_bits_of_biased_exponent = floor(t); 
+    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
+    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
+    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
+    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
+    return vec4(byte4, byte3, byte2, byte1); 
+}
+
+/// Code to encode and decode depth values as vec4
+vec4 pack_depth(const in float depth)
+{
+    return vec4(depth, 0.0, 0.0, 1.0);
+    /*
+    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
+    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
+    vec4 res = fract(depth * bit_shift);
+    res -= res.xxyz * bit_mask;
+    return res;*/
+}
+
+float unpack_depth(const in vec4 rgba_depth)
+{
+    return rgba_depth.r;
+    /*
+    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
+    float depth = dot(rgba_depth, bit_shift);
+    return depth;*/
+}
+
 uniform sampler2D RngData;
 uniform sampler2D WavelengthToRgb;
 uniform sampler2D ICDF;
@@ -135,7 +336,6 @@ uniform vec3 EmitterPos;
 uniform vec3 EmitterDir;
 uniform float EmitterRadius;
 uniform float EmitterSpread; // in degrees
-uniform float EmitterPower;
 
 varying vec2 vTexCoord;
 
@@ -145,8 +345,8 @@ void main()
 
 	// Sample photon wavelength from CDF of emission spectrum
 	// (here w is spectral offset, i.e. wavelength = 360.0 + (750.0 - 360.0)*w)
-    float w = texture2D(ICDF, vec2(rand(seed), 0.5)).r + rand(seed)*(1.0/256.0);
-  	vec3 rgb = EmitterPower * texture2D(WavelengthToRgb, vec2(w, 0.5)).rgb;
+    float w = texture2D(ICDF, vec2(rand(seed), 0.5)).r;// + rand(seed)*(1.0/256.0);
+  	vec3 rgb = texture2D(WavelengthToRgb, vec2(w, 0.5)).rgb;
 
 	// Make emission cross-section circular
 	float rPos   = EmitterRadius*sqrt(rand(seed));
@@ -208,6 +408,73 @@ float opS(float A, float B) { return max(-B, A); }
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
 
+
+float saturate(float x) { return max(0.0, min(1.0, x)); }
+
+// clip space depth calculation, given eye space depth
+float computeClipDepth(float ze, float zNear, float zFar)
+{
+	float zn = (zFar + zNear - 2.0*zFar*zNear/ze) / (zFar - zNear); // compute NDC depth
+	float zb = zn*0.5 + 0.5;                                        // convert to clip depth
+	return saturate(zb); // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+///
+/// A neat trick to return a extract a float value from a fragment shader
+///
+float shift_right (float v, float amt) { 
+    v = floor(v) + 0.5; 
+    return floor(v / exp2(amt)); 
+}
+float shift_left (float v, float amt) { 
+    return floor(v * exp2(amt) + 0.5); 
+}
+float mask_last (float v, float bits) { 
+    return mod(v, shift_left(1.0, bits)); 
+}
+float extract_bits (float num, float from, float to) { 
+    from = floor(from + 0.5); to = floor(to + 0.5); 
+    return mask_last(shift_right(num, from), to - from); 
+}
+vec4 encode_float (float val) { 
+    if (val == 0.0) return vec4(0, 0, 0, 0); 
+    float sign = val > 0.0 ? 0.0 : 1.0; 
+    val = abs(val); 
+    float exponent = floor(log2(val)); 
+    float biased_exponent = exponent + 127.0; 
+    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
+    float t = biased_exponent / 2.0; 
+    float last_bit_of_biased_exponent = fract(t) * 2.0; 
+    float remaining_bits_of_biased_exponent = floor(t); 
+    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
+    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
+    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
+    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
+    return vec4(byte4, byte3, byte2, byte1); 
+}
+
+/// Code to encode and decode depth values as vec4
+vec4 pack_depth(const in float depth)
+{
+    return vec4(depth, 0.0, 0.0, 1.0);
+    /*
+    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
+    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
+    vec4 res = fract(depth * bit_shift);
+    res -= res.xxyz * bit_mask;
+    return res;*/
+}
+
+float unpack_depth(const in vec4 rgba_depth)
+{
+    return rgba_depth.r;
+    /*
+    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
+    float depth = dot(rgba_depth, bit_shift);
+    return depth;*/
+}
+
 attribute vec3 Position;
 attribute vec2 TexCoord;
 
@@ -254,6 +521,73 @@ float opS(float A, float B) { return max(-B, A); }
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
 
+
+float saturate(float x) { return max(0.0, min(1.0, x)); }
+
+// clip space depth calculation, given eye space depth
+float computeClipDepth(float ze, float zNear, float zFar)
+{
+	float zn = (zFar + zNear - 2.0*zFar*zNear/ze) / (zFar - zNear); // compute NDC depth
+	float zb = zn*0.5 + 0.5;                                        // convert to clip depth
+	return saturate(zb); // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+///
+/// A neat trick to return a extract a float value from a fragment shader
+///
+float shift_right (float v, float amt) { 
+    v = floor(v) + 0.5; 
+    return floor(v / exp2(amt)); 
+}
+float shift_left (float v, float amt) { 
+    return floor(v * exp2(amt) + 0.5); 
+}
+float mask_last (float v, float bits) { 
+    return mod(v, shift_left(1.0, bits)); 
+}
+float extract_bits (float num, float from, float to) { 
+    from = floor(from + 0.5); to = floor(to + 0.5); 
+    return mask_last(shift_right(num, from), to - from); 
+}
+vec4 encode_float (float val) { 
+    if (val == 0.0) return vec4(0, 0, 0, 0); 
+    float sign = val > 0.0 ? 0.0 : 1.0; 
+    val = abs(val); 
+    float exponent = floor(log2(val)); 
+    float biased_exponent = exponent + 127.0; 
+    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
+    float t = biased_exponent / 2.0; 
+    float last_bit_of_biased_exponent = fract(t) * 2.0; 
+    float remaining_bits_of_biased_exponent = floor(t); 
+    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
+    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
+    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
+    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
+    return vec4(byte4, byte3, byte2, byte1); 
+}
+
+/// Code to encode and decode depth values as vec4
+vec4 pack_depth(const in float depth)
+{
+    return vec4(depth, 0.0, 0.0, 1.0);
+    /*
+    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
+    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
+    vec4 res = fract(depth * bit_shift);
+    res -= res.xxyz * bit_mask;
+    return res;*/
+}
+
+float unpack_depth(const in vec4 rgba_depth)
+{
+    return rgba_depth.r;
+    /*
+    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
+    float depth = dot(rgba_depth, bit_shift);
+    return depth;*/
+}
+
 varying vec3 vColor;
 
 void main() 
@@ -296,6 +630,73 @@ float opS(float A, float B) { return max(-B, A); }
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
 
+
+float saturate(float x) { return max(0.0, min(1.0, x)); }
+
+// clip space depth calculation, given eye space depth
+float computeClipDepth(float ze, float zNear, float zFar)
+{
+	float zn = (zFar + zNear - 2.0*zFar*zNear/ze) / (zFar - zNear); // compute NDC depth
+	float zb = zn*0.5 + 0.5;                                        // convert to clip depth
+	return saturate(zb); // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+///
+/// A neat trick to return a extract a float value from a fragment shader
+///
+float shift_right (float v, float amt) { 
+    v = floor(v) + 0.5; 
+    return floor(v / exp2(amt)); 
+}
+float shift_left (float v, float amt) { 
+    return floor(v * exp2(amt) + 0.5); 
+}
+float mask_last (float v, float bits) { 
+    return mod(v, shift_left(1.0, bits)); 
+}
+float extract_bits (float num, float from, float to) { 
+    from = floor(from + 0.5); to = floor(to + 0.5); 
+    return mask_last(shift_right(num, from), to - from); 
+}
+vec4 encode_float (float val) { 
+    if (val == 0.0) return vec4(0, 0, 0, 0); 
+    float sign = val > 0.0 ? 0.0 : 1.0; 
+    val = abs(val); 
+    float exponent = floor(log2(val)); 
+    float biased_exponent = exponent + 127.0; 
+    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
+    float t = biased_exponent / 2.0; 
+    float last_bit_of_biased_exponent = fract(t) * 2.0; 
+    float remaining_bits_of_biased_exponent = floor(t); 
+    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
+    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
+    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
+    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
+    return vec4(byte4, byte3, byte2, byte1); 
+}
+
+/// Code to encode and decode depth values as vec4
+vec4 pack_depth(const in float depth)
+{
+    return vec4(depth, 0.0, 0.0, 1.0);
+    /*
+    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
+    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
+    vec4 res = fract(depth * bit_shift);
+    res -= res.xxyz * bit_mask;
+    return res;*/
+}
+
+float unpack_depth(const in vec4 rgba_depth)
+{
+    return rgba_depth.r;
+    /*
+    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
+    float depth = dot(rgba_depth, bit_shift);
+    return depth;*/
+}
+
 uniform sampler2D PosDataA;
 uniform sampler2D PosDataB;
 uniform sampler2D RgbData;
@@ -304,20 +705,284 @@ uniform mat4 u_projectionMatrix;
 uniform mat4 u_modelViewMatrix;
 
 attribute vec3 TexCoord;
+
 varying vec3 vColor;
 
 void main()
 {
 	// Textures A and B contain line segment start and end points respectively
-	// (i.e. the geometry defined by this vertex shader comes from textures!)
+	// (i.e. the geometry defined by this vertex shader is stored in textures)
 	vec3 posA = texture2D(PosDataA, TexCoord.xy).xyz;
 	vec3 posB = texture2D(PosDataB, TexCoord.xy).xyz;
 
-	// Line segment vertex position
+	// Line segment vertex position (either posA or posB)
 	vec3 pos = mix(posA, posB, TexCoord.z);
 
 	gl_Position = u_projectionMatrix * u_modelViewMatrix * vec4(pos, 1.0);
 	vColor = texture2D(RgbData, TexCoord.xy).rgb;
+}
+`,
+
+'linedepth-fragment-shader': `
+#extension GL_EXT_draw_buffers : require
+//#extension GL_EXT_frag_depth : require
+precision highp float;
+
+#define M_PI 3.1415926535897932384626433832795
+
+/// GLSL float point pseudorandom number generator, from
+/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
+/// http://arxiv.org/pdf/1505.06022.pdf
+float rand(inout vec4 rnd) 
+{
+    const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
+    const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
+    const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
+    const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
+    vec4 beta = floor(rnd/q);
+    vec4 p = a*(rnd - beta*q) - beta*r;
+    beta = (1.0 - sign(p))*0.5*m;
+    rnd = p + beta;
+    return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
+}
+
+/// Distance field utilities
+
+// Union
+float opU( float d1, float d2 ) { return min(d1,d2); }
+
+// Subtraction
+float opS(float A, float B) { return max(-B, A); }
+
+// Intersection
+float opI( float d1, float d2 ) { return max(d1,d2); }
+
+
+float saturate(float x) { return max(0.0, min(1.0, x)); }
+
+// clip space depth calculation, given eye space depth
+float computeClipDepth(float ze, float zNear, float zFar)
+{
+	float zn = (zFar + zNear - 2.0*zFar*zNear/ze) / (zFar - zNear); // compute NDC depth
+	float zb = zn*0.5 + 0.5;                                        // convert to clip depth
+	return saturate(zb); // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+///
+/// A neat trick to return a extract a float value from a fragment shader
+///
+float shift_right (float v, float amt) { 
+    v = floor(v) + 0.5; 
+    return floor(v / exp2(amt)); 
+}
+float shift_left (float v, float amt) { 
+    return floor(v * exp2(amt) + 0.5); 
+}
+float mask_last (float v, float bits) { 
+    return mod(v, shift_left(1.0, bits)); 
+}
+float extract_bits (float num, float from, float to) { 
+    from = floor(from + 0.5); to = floor(to + 0.5); 
+    return mask_last(shift_right(num, from), to - from); 
+}
+vec4 encode_float (float val) { 
+    if (val == 0.0) return vec4(0, 0, 0, 0); 
+    float sign = val > 0.0 ? 0.0 : 1.0; 
+    val = abs(val); 
+    float exponent = floor(log2(val)); 
+    float biased_exponent = exponent + 127.0; 
+    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
+    float t = biased_exponent / 2.0; 
+    float last_bit_of_biased_exponent = fract(t) * 2.0; 
+    float remaining_bits_of_biased_exponent = floor(t); 
+    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
+    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
+    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
+    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
+    return vec4(byte4, byte3, byte2, byte1); 
+}
+
+/// Code to encode and decode depth values as vec4
+vec4 pack_depth(const in float depth)
+{
+    return vec4(depth, 0.0, 0.0, 1.0);
+    /*
+    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
+    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
+    vec4 res = fract(depth * bit_shift);
+    res -= res.xxyz * bit_mask;
+    return res;*/
+}
+
+float unpack_depth(const in vec4 rgba_depth)
+{
+    return rgba_depth.r;
+    /*
+    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
+    float depth = dot(rgba_depth, bit_shift);
+    return depth;*/
+}
+
+uniform sampler2D PosDataA;
+uniform sampler2D PosDataB;
+uniform sampler2D Depth;
+
+uniform float camNear;
+uniform float camFar;
+
+varying vec2 vTexCoord;
+varying float eye_z;
+
+
+void main() 
+{
+	float destClipDepth = unpack_depth( texture2D(Depth, vTexCoord) );
+	
+	float sourceClipDepth = computeClipDepth(eye_z, camNear, camFar);
+
+	if (sourceClipDepth < destClipDepth)
+	{
+		gl_FragColor = pack_depth(sourceClipDepth);
+	}
+	else
+	{
+		gl_FragColor = pack_depth(destClipDepth);
+	}
+}
+`,
+
+'linedepth-vertex-shader': `
+#extension GL_EXT_draw_buffers : require
+//#extension GL_EXT_frag_depth : require
+precision highp float;
+
+#define M_PI 3.1415926535897932384626433832795
+
+/// GLSL float point pseudorandom number generator, from
+/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
+/// http://arxiv.org/pdf/1505.06022.pdf
+float rand(inout vec4 rnd) 
+{
+    const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
+    const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
+    const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
+    const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
+    vec4 beta = floor(rnd/q);
+    vec4 p = a*(rnd - beta*q) - beta*r;
+    beta = (1.0 - sign(p))*0.5*m;
+    rnd = p + beta;
+    return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
+}
+
+/// Distance field utilities
+
+// Union
+float opU( float d1, float d2 ) { return min(d1,d2); }
+
+// Subtraction
+float opS(float A, float B) { return max(-B, A); }
+
+// Intersection
+float opI( float d1, float d2 ) { return max(d1,d2); }
+
+
+float saturate(float x) { return max(0.0, min(1.0, x)); }
+
+// clip space depth calculation, given eye space depth
+float computeClipDepth(float ze, float zNear, float zFar)
+{
+	float zn = (zFar + zNear - 2.0*zFar*zNear/ze) / (zFar - zNear); // compute NDC depth
+	float zb = zn*0.5 + 0.5;                                        // convert to clip depth
+	return saturate(zb); // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+///
+/// A neat trick to return a extract a float value from a fragment shader
+///
+float shift_right (float v, float amt) { 
+    v = floor(v) + 0.5; 
+    return floor(v / exp2(amt)); 
+}
+float shift_left (float v, float amt) { 
+    return floor(v * exp2(amt) + 0.5); 
+}
+float mask_last (float v, float bits) { 
+    return mod(v, shift_left(1.0, bits)); 
+}
+float extract_bits (float num, float from, float to) { 
+    from = floor(from + 0.5); to = floor(to + 0.5); 
+    return mask_last(shift_right(num, from), to - from); 
+}
+vec4 encode_float (float val) { 
+    if (val == 0.0) return vec4(0, 0, 0, 0); 
+    float sign = val > 0.0 ? 0.0 : 1.0; 
+    val = abs(val); 
+    float exponent = floor(log2(val)); 
+    float biased_exponent = exponent + 127.0; 
+    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
+    float t = biased_exponent / 2.0; 
+    float last_bit_of_biased_exponent = fract(t) * 2.0; 
+    float remaining_bits_of_biased_exponent = floor(t); 
+    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
+    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
+    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
+    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
+    return vec4(byte4, byte3, byte2, byte1); 
+}
+
+/// Code to encode and decode depth values as vec4
+vec4 pack_depth(const in float depth)
+{
+    return vec4(depth, 0.0, 0.0, 1.0);
+    /*
+    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
+    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
+    vec4 res = fract(depth * bit_shift);
+    res -= res.xxyz * bit_mask;
+    return res;*/
+}
+
+float unpack_depth(const in vec4 rgba_depth)
+{
+    return rgba_depth.r;
+    /*
+    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
+    float depth = dot(rgba_depth, bit_shift);
+    return depth;*/
+}
+
+uniform sampler2D PosDataA;
+uniform sampler2D PosDataB;
+uniform sampler2D Depth;
+
+uniform mat4 u_projectionMatrix;
+uniform mat4 u_modelViewMatrix;
+
+attribute vec3 TexCoord;
+
+//varying float zCoord;
+varying vec2 vTexCoord;
+
+varying float eye_z;
+varying float eye_w;
+
+
+void main()
+{
+	// Textures A and B contain line segment start and end points respectively
+	// (i.e. the geometry defined by this vertex shader is stored in textures)
+	vec3 posA = texture2D(PosDataA, TexCoord.xy).xyz;
+	vec3 posB = texture2D(PosDataB, TexCoord.xy).xyz;
+
+	// Line segment vertex position (either posA or posB)
+	vec3 pos = mix(posA, posB, TexCoord.z);
+
+	vec4 pEye = u_modelViewMatrix * vec4(pos, 1.0);
+	eye_z = -pEye.z; // Keep eye space depth for fragment shader
+
+	gl_Position = u_projectionMatrix * pEye; // Transform to clip space for vertex shader
 }
 `,
 
@@ -355,12 +1020,79 @@ float opS(float A, float B) { return max(-B, A); }
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
 
+
+float saturate(float x) { return max(0.0, min(1.0, x)); }
+
+// clip space depth calculation, given eye space depth
+float computeClipDepth(float ze, float zNear, float zFar)
+{
+	float zn = (zFar + zNear - 2.0*zFar*zNear/ze) / (zFar - zNear); // compute NDC depth
+	float zb = zn*0.5 + 0.5;                                        // convert to clip depth
+	return saturate(zb); // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+///
+/// A neat trick to return a extract a float value from a fragment shader
+///
+float shift_right (float v, float amt) { 
+    v = floor(v) + 0.5; 
+    return floor(v / exp2(amt)); 
+}
+float shift_left (float v, float amt) { 
+    return floor(v * exp2(amt) + 0.5); 
+}
+float mask_last (float v, float bits) { 
+    return mod(v, shift_left(1.0, bits)); 
+}
+float extract_bits (float num, float from, float to) { 
+    from = floor(from + 0.5); to = floor(to + 0.5); 
+    return mask_last(shift_right(num, from), to - from); 
+}
+vec4 encode_float (float val) { 
+    if (val == 0.0) return vec4(0, 0, 0, 0); 
+    float sign = val > 0.0 ? 0.0 : 1.0; 
+    val = abs(val); 
+    float exponent = floor(log2(val)); 
+    float biased_exponent = exponent + 127.0; 
+    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
+    float t = biased_exponent / 2.0; 
+    float last_bit_of_biased_exponent = fract(t) * 2.0; 
+    float remaining_bits_of_biased_exponent = floor(t); 
+    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
+    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
+    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
+    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
+    return vec4(byte4, byte3, byte2, byte1); 
+}
+
+/// Code to encode and decode depth values as vec4
+vec4 pack_depth(const in float depth)
+{
+    return vec4(depth, 0.0, 0.0, 1.0);
+    /*
+    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
+    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
+    vec4 res = fract(depth * bit_shift);
+    res -= res.xxyz * bit_mask;
+    return res;*/
+}
+
+float unpack_depth(const in vec4 rgba_depth)
+{
+    return rgba_depth.r;
+    /*
+    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
+    float depth = dot(rgba_depth, bit_shift);
+    return depth;*/
+}
+
 uniform sampler2D Frame;
 varying vec2 vTexCoord;
 
 void main() 
 {
-	gl_FragColor = vec4(texture2D(Frame, vTexCoord).rgb, 1.0);
+	gl_FragColor = vec4(texture2D(Frame, vTexCoord).rgba);
 }
 `,
 
@@ -397,6 +1129,73 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+
+float saturate(float x) { return max(0.0, min(1.0, x)); }
+
+// clip space depth calculation, given eye space depth
+float computeClipDepth(float ze, float zNear, float zFar)
+{
+	float zn = (zFar + zNear - 2.0*zFar*zNear/ze) / (zFar - zNear); // compute NDC depth
+	float zb = zn*0.5 + 0.5;                                        // convert to clip depth
+	return saturate(zb); // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+///
+/// A neat trick to return a extract a float value from a fragment shader
+///
+float shift_right (float v, float amt) { 
+    v = floor(v) + 0.5; 
+    return floor(v / exp2(amt)); 
+}
+float shift_left (float v, float amt) { 
+    return floor(v * exp2(amt) + 0.5); 
+}
+float mask_last (float v, float bits) { 
+    return mod(v, shift_left(1.0, bits)); 
+}
+float extract_bits (float num, float from, float to) { 
+    from = floor(from + 0.5); to = floor(to + 0.5); 
+    return mask_last(shift_right(num, from), to - from); 
+}
+vec4 encode_float (float val) { 
+    if (val == 0.0) return vec4(0, 0, 0, 0); 
+    float sign = val > 0.0 ? 0.0 : 1.0; 
+    val = abs(val); 
+    float exponent = floor(log2(val)); 
+    float biased_exponent = exponent + 127.0; 
+    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
+    float t = biased_exponent / 2.0; 
+    float last_bit_of_biased_exponent = fract(t) * 2.0; 
+    float remaining_bits_of_biased_exponent = floor(t); 
+    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
+    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
+    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
+    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
+    return vec4(byte4, byte3, byte2, byte1); 
+}
+
+/// Code to encode and decode depth values as vec4
+vec4 pack_depth(const in float depth)
+{
+    return vec4(depth, 0.0, 0.0, 1.0);
+    /*
+    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
+    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
+    vec4 res = fract(depth * bit_shift);
+    res -= res.xxyz * bit_mask;
+    return res;*/
+}
+
+float unpack_depth(const in vec4 rgba_depth)
+{
+    return rgba_depth.r;
+    /*
+    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
+    float depth = dot(rgba_depth, bit_shift);
+    return depth;*/
+}
 
 attribute vec3 Position;
 attribute vec2 TexCoord;
@@ -444,23 +1243,89 @@ float opS(float A, float B) { return max(-B, A); }
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
 
+
+float saturate(float x) { return max(0.0, min(1.0, x)); }
+
+// clip space depth calculation, given eye space depth
+float computeClipDepth(float ze, float zNear, float zFar)
+{
+	float zn = (zFar + zNear - 2.0*zFar*zNear/ze) / (zFar - zNear); // compute NDC depth
+	float zb = zn*0.5 + 0.5;                                        // convert to clip depth
+	return saturate(zb); // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+///
+/// A neat trick to return a extract a float value from a fragment shader
+///
+float shift_right (float v, float amt) { 
+    v = floor(v) + 0.5; 
+    return floor(v / exp2(amt)); 
+}
+float shift_left (float v, float amt) { 
+    return floor(v * exp2(amt) + 0.5); 
+}
+float mask_last (float v, float bits) { 
+    return mod(v, shift_left(1.0, bits)); 
+}
+float extract_bits (float num, float from, float to) { 
+    from = floor(from + 0.5); to = floor(to + 0.5); 
+    return mask_last(shift_right(num, from), to - from); 
+}
+vec4 encode_float (float val) { 
+    if (val == 0.0) return vec4(0, 0, 0, 0); 
+    float sign = val > 0.0 ? 0.0 : 1.0; 
+    val = abs(val); 
+    float exponent = floor(log2(val)); 
+    float biased_exponent = exponent + 127.0; 
+    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
+    float t = biased_exponent / 2.0; 
+    float last_bit_of_biased_exponent = fract(t) * 2.0; 
+    float remaining_bits_of_biased_exponent = floor(t); 
+    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
+    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
+    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
+    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
+    return vec4(byte4, byte3, byte2, byte1); 
+}
+
+/// Code to encode and decode depth values as vec4
+vec4 pack_depth(const in float depth)
+{
+    return vec4(depth, 0.0, 0.0, 1.0);
+    /*
+    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
+    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
+    vec4 res = fract(depth * bit_shift);
+    res -= res.xxyz * bit_mask;
+    return res;*/
+}
+
+float unpack_depth(const in vec4 rgba_depth)
+{
+    return rgba_depth.r;
+    /*
+    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
+    float depth = dot(rgba_depth, bit_shift);
+    return depth;*/
+}
+
 uniform sampler2D Radiance;
 uniform sampler2D RngData;
+uniform sampler2D Depth;
+
 varying vec2 vTexCoord;
 
 uniform vec2 resolution;
-
 uniform vec3 camPos;
 uniform vec3 camDir;
 uniform vec3 camX;
 uniform vec3 camY;
-
 uniform float camNear;
 uniform float camFar;
 uniform float camFovy; // degrees 
 uniform float camZoom;
 uniform float camAspect;
-
 uniform float SceneScale;
 
 
@@ -478,7 +1343,7 @@ LIGHTING_FUNC
 bool hit(inout vec3 X, vec3 D, inout int numSteps)
 {
 	float minMarchDist = 1.0e-5*SceneScale;
-	float maxMarchDist = 1.0e3*SceneScale;
+	float maxMarchDist = camFar;
 	float t = 0.0;
 	float h = 1.0;
     for( int i=0; i<MAX_MARCH_STEPS; i++ )
@@ -506,47 +1371,6 @@ vec3 NORMAL( in vec3 X )
 }
 
 
-vec3 localToWorld(vec3 N, vec3 wiL)
-{
-	vec3 T;
-	if (abs(N.z) < abs(N.x))
-	{
-		T.x =  N.z;
-		T.y =  0.0;
-		T.z = -N.x;
-	}
-	else
-	{
-		T.x =  0.0;
-		T.y =  N.z;
-		T.z = -N.y;
-	}
-	vec3 B = cross(N, T);
-	return T*wiL.x + B*wiL.y + N*wiL.z;
-}
-
-
-vec3 cosineSampleHemisphere(vec3 N, inout vec4 rnd)
-{
-	// sample disk
-	float r = sqrt(rand(rnd));
-	float theta = 2.0*M_PI*rand(rnd);
-	vec2 p = vec2(r*cos(theta), r*sin(theta));
-
-	// project
-	float z = sqrt(max(0.0, 1.0 - p.x*p.x - p.y*p.y));
-	return vec3(p.x, p.y, z);	
-}
-
-/*
-float computeClipDepth(float z, float zNear, float zFar)
-{
-	float zp = (zFar + zNear - 2.0*zFar*zNear/z) / (zFar - zNear);
-	zp = zp * 0.5 + 0.5;
-	return zp; // in [0,1] range as z ranges over [zNear, zFar]
-}
-*/
-
 void main()
 {
 	vec4 rnd = texture2D(RngData, vTexCoord);
@@ -566,16 +1390,18 @@ void main()
 	vec3 D = normalize(camNear*camDir + s); // ray direction
 
 	// Raycast to first hit point
-	//float zHit = camFar;
+	float zEye = camFar;
 	vec3 L = vec3(0.0, 0.0, 0.0);
 	int numSteps;	
 	if ( hit(X, D, numSteps) )
 	{
-		//zHit = length(X - camPos);
+		zEye = dot(X - camPos, camDir);
 		vec3 N = NORMAL(X);
 		vec3 V = normalize(camPos-X);
 		L = LIGHTING(V, N);
 	}
+
+	float clipDepth = computeClipDepth(zEye, camNear, camFar);
 
 	// Write updated radiance and sample count
 	vec4 oldL = texture2D(Radiance, vTexCoord);
@@ -583,10 +1409,9 @@ void main()
 	float newN = oldN + 1.0;
 	vec3 newL = (oldN*oldL.rgb + L) / newN;
 
-	gl_FragData[0] = vec4(newL, newN); 
+	gl_FragData[0] = vec4(newL, newN);
 	gl_FragData[1] = rnd;
-
-	//gl_FragDepth = computeClipDepth(zHit, camNear, camFar);
+	gl_FragData[2] = pack_depth(clipDepth);
 }
 `,
 
@@ -623,6 +1448,73 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+
+float saturate(float x) { return max(0.0, min(1.0, x)); }
+
+// clip space depth calculation, given eye space depth
+float computeClipDepth(float ze, float zNear, float zFar)
+{
+	float zn = (zFar + zNear - 2.0*zFar*zNear/ze) / (zFar - zNear); // compute NDC depth
+	float zb = zn*0.5 + 0.5;                                        // convert to clip depth
+	return saturate(zb); // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+///
+/// A neat trick to return a extract a float value from a fragment shader
+///
+float shift_right (float v, float amt) { 
+    v = floor(v) + 0.5; 
+    return floor(v / exp2(amt)); 
+}
+float shift_left (float v, float amt) { 
+    return floor(v * exp2(amt) + 0.5); 
+}
+float mask_last (float v, float bits) { 
+    return mod(v, shift_left(1.0, bits)); 
+}
+float extract_bits (float num, float from, float to) { 
+    from = floor(from + 0.5); to = floor(to + 0.5); 
+    return mask_last(shift_right(num, from), to - from); 
+}
+vec4 encode_float (float val) { 
+    if (val == 0.0) return vec4(0, 0, 0, 0); 
+    float sign = val > 0.0 ? 0.0 : 1.0; 
+    val = abs(val); 
+    float exponent = floor(log2(val)); 
+    float biased_exponent = exponent + 127.0; 
+    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
+    float t = biased_exponent / 2.0; 
+    float last_bit_of_biased_exponent = fract(t) * 2.0; 
+    float remaining_bits_of_biased_exponent = floor(t); 
+    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
+    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
+    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
+    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
+    return vec4(byte4, byte3, byte2, byte1); 
+}
+
+/// Code to encode and decode depth values as vec4
+vec4 pack_depth(const in float depth)
+{
+    return vec4(depth, 0.0, 0.0, 1.0);
+    /*
+    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
+    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
+    vec4 res = fract(depth * bit_shift);
+    res -= res.xxyz * bit_mask;
+    return res;*/
+}
+
+float unpack_depth(const in vec4 rgba_depth)
+{
+    return rgba_depth.r;
+    /*
+    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
+    float depth = dot(rgba_depth, bit_shift);
+    return depth;*/
+}
 
 attribute vec3 Position;
 attribute vec2 TexCoord;
@@ -670,6 +1562,73 @@ float opS(float A, float B) { return max(-B, A); }
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
 
+
+float saturate(float x) { return max(0.0, min(1.0, x)); }
+
+// clip space depth calculation, given eye space depth
+float computeClipDepth(float ze, float zNear, float zFar)
+{
+	float zn = (zFar + zNear - 2.0*zFar*zNear/ze) / (zFar - zNear); // compute NDC depth
+	float zb = zn*0.5 + 0.5;                                        // convert to clip depth
+	return saturate(zb); // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+///
+/// A neat trick to return a extract a float value from a fragment shader
+///
+float shift_right (float v, float amt) { 
+    v = floor(v) + 0.5; 
+    return floor(v / exp2(amt)); 
+}
+float shift_left (float v, float amt) { 
+    return floor(v * exp2(amt) + 0.5); 
+}
+float mask_last (float v, float bits) { 
+    return mod(v, shift_left(1.0, bits)); 
+}
+float extract_bits (float num, float from, float to) { 
+    from = floor(from + 0.5); to = floor(to + 0.5); 
+    return mask_last(shift_right(num, from), to - from); 
+}
+vec4 encode_float (float val) { 
+    if (val == 0.0) return vec4(0, 0, 0, 0); 
+    float sign = val > 0.0 ? 0.0 : 1.0; 
+    val = abs(val); 
+    float exponent = floor(log2(val)); 
+    float biased_exponent = exponent + 127.0; 
+    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
+    float t = biased_exponent / 2.0; 
+    float last_bit_of_biased_exponent = fract(t) * 2.0; 
+    float remaining_bits_of_biased_exponent = floor(t); 
+    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
+    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
+    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
+    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
+    return vec4(byte4, byte3, byte2, byte1); 
+}
+
+/// Code to encode and decode depth values as vec4
+vec4 pack_depth(const in float depth)
+{
+    return vec4(depth, 0.0, 0.0, 1.0);
+    /*
+    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
+    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
+    vec4 res = fract(depth * bit_shift);
+    res -= res.xxyz * bit_mask;
+    return res;*/
+}
+
+float unpack_depth(const in vec4 rgba_depth)
+{
+    return rgba_depth.r;
+    /*
+    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
+    float depth = dot(rgba_depth, bit_shift);
+    return depth;*/
+}
+
 uniform float ndcX; // NDC coordinates of pick
 uniform float ndcY;
 
@@ -710,40 +1669,6 @@ bool hit(inout vec3 X, vec3 D)
     X += t*D;
 	if (t<maxMarchDist) return true;
 	return false;
-}
-
-///
-/// A neat trick to encode a float value in the frag color
-///
-float shift_right (float v, float amt) { 
-    v = floor(v) + 0.5; 
-    return floor(v / exp2(amt)); 
-}
-float shift_left (float v, float amt) { 
-    return floor(v * exp2(amt) + 0.5); 
-}
-float mask_last (float v, float bits) { 
-    return mod(v, shift_left(1.0, bits)); 
-}
-float extract_bits (float num, float from, float to) { 
-    from = floor(from + 0.5); to = floor(to + 0.5); 
-    return mask_last(shift_right(num, from), to - from); 
-}
-vec4 encode_float (float val) { 
-    if (val == 0.0) return vec4(0, 0, 0, 0); 
-    float sign = val > 0.0 ? 0.0 : 1.0; 
-    val = abs(val); 
-    float exponent = floor(log2(val)); 
-    float biased_exponent = exponent + 127.0; 
-    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
-    float t = biased_exponent / 2.0; 
-    float last_bit_of_biased_exponent = fract(t) * 2.0; 
-    float remaining_bits_of_biased_exponent = floor(t); 
-    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
-    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
-    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
-    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
-    return vec4(byte4, byte3, byte2, byte1); 
 }
 
 void main()
@@ -807,6 +1732,73 @@ float opS(float A, float B) { return max(-B, A); }
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
 
+
+float saturate(float x) { return max(0.0, min(1.0, x)); }
+
+// clip space depth calculation, given eye space depth
+float computeClipDepth(float ze, float zNear, float zFar)
+{
+	float zn = (zFar + zNear - 2.0*zFar*zNear/ze) / (zFar - zNear); // compute NDC depth
+	float zb = zn*0.5 + 0.5;                                        // convert to clip depth
+	return saturate(zb); // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+///
+/// A neat trick to return a extract a float value from a fragment shader
+///
+float shift_right (float v, float amt) { 
+    v = floor(v) + 0.5; 
+    return floor(v / exp2(amt)); 
+}
+float shift_left (float v, float amt) { 
+    return floor(v * exp2(amt) + 0.5); 
+}
+float mask_last (float v, float bits) { 
+    return mod(v, shift_left(1.0, bits)); 
+}
+float extract_bits (float num, float from, float to) { 
+    from = floor(from + 0.5); to = floor(to + 0.5); 
+    return mask_last(shift_right(num, from), to - from); 
+}
+vec4 encode_float (float val) { 
+    if (val == 0.0) return vec4(0, 0, 0, 0); 
+    float sign = val > 0.0 ? 0.0 : 1.0; 
+    val = abs(val); 
+    float exponent = floor(log2(val)); 
+    float biased_exponent = exponent + 127.0; 
+    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
+    float t = biased_exponent / 2.0; 
+    float last_bit_of_biased_exponent = fract(t) * 2.0; 
+    float remaining_bits_of_biased_exponent = floor(t); 
+    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
+    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
+    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
+    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
+    return vec4(byte4, byte3, byte2, byte1); 
+}
+
+/// Code to encode and decode depth values as vec4
+vec4 pack_depth(const in float depth)
+{
+    return vec4(depth, 0.0, 0.0, 1.0);
+    /*
+    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
+    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
+    vec4 res = fract(depth * bit_shift);
+    res -= res.xxyz * bit_mask;
+    return res;*/
+}
+
+float unpack_depth(const in vec4 rgba_depth)
+{
+    return rgba_depth.r;
+    /*
+    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
+    float depth = dot(rgba_depth, bit_shift);
+    return depth;*/
+}
+
 attribute vec3 Position;
 attribute vec2 TexCoord;
 
@@ -853,12 +1845,84 @@ float opS(float A, float B) { return max(-B, A); }
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
 
+
+float saturate(float x) { return max(0.0, min(1.0, x)); }
+
+// clip space depth calculation, given eye space depth
+float computeClipDepth(float ze, float zNear, float zFar)
+{
+	float zn = (zFar + zNear - 2.0*zFar*zNear/ze) / (zFar - zNear); // compute NDC depth
+	float zb = zn*0.5 + 0.5;                                        // convert to clip depth
+	return saturate(zb); // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+///
+/// A neat trick to return a extract a float value from a fragment shader
+///
+float shift_right (float v, float amt) { 
+    v = floor(v) + 0.5; 
+    return floor(v / exp2(amt)); 
+}
+float shift_left (float v, float amt) { 
+    return floor(v * exp2(amt) + 0.5); 
+}
+float mask_last (float v, float bits) { 
+    return mod(v, shift_left(1.0, bits)); 
+}
+float extract_bits (float num, float from, float to) { 
+    from = floor(from + 0.5); to = floor(to + 0.5); 
+    return mask_last(shift_right(num, from), to - from); 
+}
+vec4 encode_float (float val) { 
+    if (val == 0.0) return vec4(0, 0, 0, 0); 
+    float sign = val > 0.0 ? 0.0 : 1.0; 
+    val = abs(val); 
+    float exponent = floor(log2(val)); 
+    float biased_exponent = exponent + 127.0; 
+    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
+    float t = biased_exponent / 2.0; 
+    float last_bit_of_biased_exponent = fract(t) * 2.0; 
+    float remaining_bits_of_biased_exponent = floor(t); 
+    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
+    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
+    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
+    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
+    return vec4(byte4, byte3, byte2, byte1); 
+}
+
+/// Code to encode and decode depth values as vec4
+vec4 pack_depth(const in float depth)
+{
+    return vec4(depth, 0.0, 0.0, 1.0);
+    /*
+    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
+    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
+    vec4 res = fract(depth * bit_shift);
+    res -= res.xxyz * bit_mask;
+    return res;*/
+}
+
+float unpack_depth(const in vec4 rgba_depth)
+{
+    return rgba_depth.r;
+    /*
+    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
+    float depth = dot(rgba_depth, bit_shift);
+    return depth;*/
+}
+
 uniform sampler2D Radiance;
+uniform sampler2D DepthSurface;
+uniform sampler2D DepthLight;
+
 varying vec2 vTexCoord;
 
 uniform float exposure;
 uniform float invGamma;
 uniform float alpha;
+uniform int enableDepthTest;
+
 
 void main()
 {
@@ -867,8 +1931,41 @@ void main()
 	float g = L.y; 
 	float b = L.z;
 	vec3 Lp = vec3(r/(1.0+r), g/(1.0+g), b/(1.0+b));
+	vec3 S = pow(Lp, vec3(invGamma));
+	vec3 Sp = S * alpha;
 
-	gl_FragColor = vec4(pow(Lp, vec3(invGamma)), alpha);
+	float surfaceDepth = unpack_depth(texture2D(DepthSurface, vTexCoord));
+	float   lightDepth = unpack_depth(texture2D(DepthLight, vTexCoord));
+
+	// Composite surface with light ray fragment
+	float A;
+	if (lightDepth < surfaceDepth)
+	{
+		// light in front of surface
+		A = 0.0;
+
+		// with gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+		// this should produce
+		//    rgb = Sp + Light
+		//      a = A + 1.0*(1-A) = 1.0
+    }
+    else
+    {
+    	// light behind surface
+    	A = alpha;
+
+		// with gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+		// this should produce
+		//    rgb = Sp + (1-alpha)*Light
+		//      a = A + 1.0*(1-A) = 1.0
+    }
+
+	gl_FragColor = vec4(Sp, A);
+
+
+
+	//gl_FragColor = vec4(packedLightClipDepth.rgb, 1);
+	//gl_FragColor = vec4(lightClipDepth, lightClipDepth, lightClipDepth, 1);
 }
 `,
 
@@ -905,6 +2002,73 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+
+float saturate(float x) { return max(0.0, min(1.0, x)); }
+
+// clip space depth calculation, given eye space depth
+float computeClipDepth(float ze, float zNear, float zFar)
+{
+	float zn = (zFar + zNear - 2.0*zFar*zNear/ze) / (zFar - zNear); // compute NDC depth
+	float zb = zn*0.5 + 0.5;                                        // convert to clip depth
+	return saturate(zb); // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+///
+/// A neat trick to return a extract a float value from a fragment shader
+///
+float shift_right (float v, float amt) { 
+    v = floor(v) + 0.5; 
+    return floor(v / exp2(amt)); 
+}
+float shift_left (float v, float amt) { 
+    return floor(v * exp2(amt) + 0.5); 
+}
+float mask_last (float v, float bits) { 
+    return mod(v, shift_left(1.0, bits)); 
+}
+float extract_bits (float num, float from, float to) { 
+    from = floor(from + 0.5); to = floor(to + 0.5); 
+    return mask_last(shift_right(num, from), to - from); 
+}
+vec4 encode_float (float val) { 
+    if (val == 0.0) return vec4(0, 0, 0, 0); 
+    float sign = val > 0.0 ? 0.0 : 1.0; 
+    val = abs(val); 
+    float exponent = floor(log2(val)); 
+    float biased_exponent = exponent + 127.0; 
+    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
+    float t = biased_exponent / 2.0; 
+    float last_bit_of_biased_exponent = fract(t) * 2.0; 
+    float remaining_bits_of_biased_exponent = floor(t); 
+    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
+    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
+    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
+    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
+    return vec4(byte4, byte3, byte2, byte1); 
+}
+
+/// Code to encode and decode depth values as vec4
+vec4 pack_depth(const in float depth)
+{
+    return vec4(depth, 0.0, 0.0, 1.0);
+    /*
+    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
+    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
+    vec4 res = fract(depth * bit_shift);
+    res -= res.xxyz * bit_mask;
+    return res;*/
+}
+
+float unpack_depth(const in vec4 rgba_depth)
+{
+    return rgba_depth.r;
+    /*
+    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
+    float depth = dot(rgba_depth, bit_shift);
+    return depth;*/
+}
 
 attribute vec3 Position;
 attribute vec2 TexCoord;
@@ -950,6 +2114,73 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+
+float saturate(float x) { return max(0.0, min(1.0, x)); }
+
+// clip space depth calculation, given eye space depth
+float computeClipDepth(float ze, float zNear, float zFar)
+{
+	float zn = (zFar + zNear - 2.0*zFar*zNear/ze) / (zFar - zNear); // compute NDC depth
+	float zb = zn*0.5 + 0.5;                                        // convert to clip depth
+	return saturate(zb); // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+///
+/// A neat trick to return a extract a float value from a fragment shader
+///
+float shift_right (float v, float amt) { 
+    v = floor(v) + 0.5; 
+    return floor(v / exp2(amt)); 
+}
+float shift_left (float v, float amt) { 
+    return floor(v * exp2(amt) + 0.5); 
+}
+float mask_last (float v, float bits) { 
+    return mod(v, shift_left(1.0, bits)); 
+}
+float extract_bits (float num, float from, float to) { 
+    from = floor(from + 0.5); to = floor(to + 0.5); 
+    return mask_last(shift_right(num, from), to - from); 
+}
+vec4 encode_float (float val) { 
+    if (val == 0.0) return vec4(0, 0, 0, 0); 
+    float sign = val > 0.0 ? 0.0 : 1.0; 
+    val = abs(val); 
+    float exponent = floor(log2(val)); 
+    float biased_exponent = exponent + 127.0; 
+    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
+    float t = biased_exponent / 2.0; 
+    float last_bit_of_biased_exponent = fract(t) * 2.0; 
+    float remaining_bits_of_biased_exponent = floor(t); 
+    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
+    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
+    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
+    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
+    return vec4(byte4, byte3, byte2, byte1); 
+}
+
+/// Code to encode and decode depth values as vec4
+vec4 pack_depth(const in float depth)
+{
+    return vec4(depth, 0.0, 0.0, 1.0);
+    /*
+    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
+    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
+    vec4 res = fract(depth * bit_shift);
+    res -= res.xxyz * bit_mask;
+    return res;*/
+}
+
+float unpack_depth(const in vec4 rgba_depth)
+{
+    return rgba_depth.r;
+    /*
+    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
+    float depth = dot(rgba_depth, bit_shift);
+    return depth;*/
+}
 
 uniform sampler2D PosData;
 uniform sampler2D DirData;
@@ -1220,6 +2451,73 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+
+float saturate(float x) { return max(0.0, min(1.0, x)); }
+
+// clip space depth calculation, given eye space depth
+float computeClipDepth(float ze, float zNear, float zFar)
+{
+	float zn = (zFar + zNear - 2.0*zFar*zNear/ze) / (zFar - zNear); // compute NDC depth
+	float zb = zn*0.5 + 0.5;                                        // convert to clip depth
+	return saturate(zb); // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+///
+/// A neat trick to return a extract a float value from a fragment shader
+///
+float shift_right (float v, float amt) { 
+    v = floor(v) + 0.5; 
+    return floor(v / exp2(amt)); 
+}
+float shift_left (float v, float amt) { 
+    return floor(v * exp2(amt) + 0.5); 
+}
+float mask_last (float v, float bits) { 
+    return mod(v, shift_left(1.0, bits)); 
+}
+float extract_bits (float num, float from, float to) { 
+    from = floor(from + 0.5); to = floor(to + 0.5); 
+    return mask_last(shift_right(num, from), to - from); 
+}
+vec4 encode_float (float val) { 
+    if (val == 0.0) return vec4(0, 0, 0, 0); 
+    float sign = val > 0.0 ? 0.0 : 1.0; 
+    val = abs(val); 
+    float exponent = floor(log2(val)); 
+    float biased_exponent = exponent + 127.0; 
+    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
+    float t = biased_exponent / 2.0; 
+    float last_bit_of_biased_exponent = fract(t) * 2.0; 
+    float remaining_bits_of_biased_exponent = floor(t); 
+    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
+    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
+    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
+    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
+    return vec4(byte4, byte3, byte2, byte1); 
+}
+
+/// Code to encode and decode depth values as vec4
+vec4 pack_depth(const in float depth)
+{
+    return vec4(depth, 0.0, 0.0, 1.0);
+    /*
+    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
+    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
+    vec4 res = fract(depth * bit_shift);
+    res -= res.xxyz * bit_mask;
+    return res;*/
+}
+
+float unpack_depth(const in vec4 rgba_depth)
+{
+    return rgba_depth.r;
+    /*
+    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
+    float depth = dot(rgba_depth, bit_shift);
+    return depth;*/
+}
 
 attribute vec3 Position;
 attribute vec2 TexCoord;

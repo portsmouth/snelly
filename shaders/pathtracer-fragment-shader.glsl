@@ -1,21 +1,20 @@
 
 uniform sampler2D Radiance;
 uniform sampler2D RngData;
+uniform sampler2D Depth;
+
 varying vec2 vTexCoord;
 
 uniform vec2 resolution;
-
 uniform vec3 camPos;
 uniform vec3 camDir;
 uniform vec3 camX;
 uniform vec3 camY;
-
 uniform float camNear;
 uniform float camFar;
 uniform float camFovy; // degrees 
 uniform float camZoom;
 uniform float camAspect;
-
 uniform float SceneScale;
 
 
@@ -33,7 +32,7 @@ LIGHTING_FUNC
 bool hit(inout vec3 X, vec3 D, inout int numSteps)
 {
 	float minMarchDist = 1.0e-5*SceneScale;
-	float maxMarchDist = 1.0e3*SceneScale;
+	float maxMarchDist = camFar;
 	float t = 0.0;
 	float h = 1.0;
     for( int i=0; i<MAX_MARCH_STEPS; i++ )
@@ -61,47 +60,6 @@ vec3 NORMAL( in vec3 X )
 }
 
 
-vec3 localToWorld(vec3 N, vec3 wiL)
-{
-	vec3 T;
-	if (abs(N.z) < abs(N.x))
-	{
-		T.x =  N.z;
-		T.y =  0.0;
-		T.z = -N.x;
-	}
-	else
-	{
-		T.x =  0.0;
-		T.y =  N.z;
-		T.z = -N.y;
-	}
-	vec3 B = cross(N, T);
-	return T*wiL.x + B*wiL.y + N*wiL.z;
-}
-
-
-vec3 cosineSampleHemisphere(vec3 N, inout vec4 rnd)
-{
-	// sample disk
-	float r = sqrt(rand(rnd));
-	float theta = 2.0*M_PI*rand(rnd);
-	vec2 p = vec2(r*cos(theta), r*sin(theta));
-
-	// project
-	float z = sqrt(max(0.0, 1.0 - p.x*p.x - p.y*p.y));
-	return vec3(p.x, p.y, z);	
-}
-
-/*
-float computeClipDepth(float z, float zNear, float zFar)
-{
-	float zp = (zFar + zNear - 2.0*zFar*zNear/z) / (zFar - zNear);
-	zp = zp * 0.5 + 0.5;
-	return zp; // in [0,1] range as z ranges over [zNear, zFar]
-}
-*/
-
 void main()
 {
 	vec4 rnd = texture2D(RngData, vTexCoord);
@@ -121,16 +79,18 @@ void main()
 	vec3 D = normalize(camNear*camDir + s); // ray direction
 
 	// Raycast to first hit point
-	//float zHit = camFar;
+	float zEye = camFar;
 	vec3 L = vec3(0.0, 0.0, 0.0);
 	int numSteps;	
 	if ( hit(X, D, numSteps) )
 	{
-		//zHit = length(X - camPos);
+		zEye = dot(X - camPos, camDir);
 		vec3 N = NORMAL(X);
 		vec3 V = normalize(camPos-X);
 		L = LIGHTING(V, N);
 	}
+
+	float clipDepth = computeClipDepth(zEye, camNear, camFar);
 
 	// Write updated radiance and sample count
 	vec4 oldL = texture2D(Radiance, vTexCoord);
@@ -138,10 +98,9 @@ void main()
 	float newN = oldN + 1.0;
 	vec3 newL = (oldN*oldL.rgb + L) / newN;
 
-	gl_FragData[0] = vec4(newL, newN); 
+	gl_FragData[0] = vec4(newL, newN);
 	gl_FragData[1] = rnd;
-
-	//gl_FragDepth = computeClipDepth(zHit, camNear, camFar);
+	gl_FragData[2] = pack_depth(clipDepth);
 }
 
 

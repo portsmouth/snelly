@@ -68,7 +68,6 @@ GUI.prototype.createEmissionSettings = function()
 	this.emissionFolder.add(this.emissionSettings, 'showLaserPointer').onChange( function(value) { laser.toggleVisibility(value); } );
 	this.emissionFolder.add(laser, 'emissionRadius', 0.0, 10.0).onChange( function(value) { laser.setEmissionRadius(value);      lightTracer.reset(); } );
 	this.emissionFolder.add(laser, 'emissionSpread', 0.0, 45.0).onChange( function(value) { laser.setEmissionSpreadAngle(value); lightTracer.reset(); } );
-	this.emissionFolder.add(laser, 'emissionPower', 0.0, 10.0).onChange( function(value)  { laser.setEmissionPower(value);       lightTracer.reset(); } );
 	this.gui.remember(laser);
 
 	// Spectrum selection

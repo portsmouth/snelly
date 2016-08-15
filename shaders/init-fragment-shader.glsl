@@ -7,7 +7,6 @@ uniform vec3 EmitterPos;
 uniform vec3 EmitterDir;
 uniform float EmitterRadius;
 uniform float EmitterSpread; // in degrees
-uniform float EmitterPower;
 
 varying vec2 vTexCoord;
 
@@ -17,8 +16,8 @@ void main()
 
 	// Sample photon wavelength from CDF of emission spectrum
 	// (here w is spectral offset, i.e. wavelength = 360.0 + (750.0 - 360.0)*w)
-    float w = texture2D(ICDF, vec2(rand(seed), 0.5)).r + rand(seed)*(1.0/256.0);
-  	vec3 rgb = EmitterPower * texture2D(WavelengthToRgb, vec2(w, 0.5)).rgb;
+    float w = texture2D(ICDF, vec2(rand(seed), 0.5)).r;// + rand(seed)*(1.0/256.0);
+  	vec3 rgb = texture2D(WavelengthToRgb, vec2(w, 0.5)).rgb;
 
 	// Make emission cross-section circular
 	float rPos   = EmitterRadius*sqrt(rand(seed));

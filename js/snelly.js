@@ -1,6 +1,8 @@
 
 var Snelly = function()
 {
+	this.initialized = false; 
+
 	var render_canvas = document.getElementById('render-canvas');
 	render_canvas.width  = window.innerWidth;
 	render_canvas.height = window.innerHeight;
@@ -22,7 +24,7 @@ var Snelly = function()
 	ui_canvas.style.top = 0;
 	ui_canvas.style.position = 'fixed' 
 
-	var VIEW_ANGLE = 65;
+	var VIEW_ANGLE = 45;
 	var ASPECT = this.width / this.height ;
 	var NEAR = 0.05;
 	var FAR = 1000;
@@ -129,6 +131,8 @@ var Snelly = function()
 
 	// Create dat gui
 	this.gui = new GUI();
+
+	this.initialized = true; 
 }
 
 Snelly.prototype.getLightTracer = function()
@@ -177,8 +181,8 @@ Snelly.prototype.loadScene = function(sceneName)
 	this.sceneObj.setLaser(this.laser);
 
 	// Camera frustum update
-	this.camera.near = 1.0e-3*this.sceneObj.getScale();
-	this.camera.far  = 1.0e3*this.sceneObj.getScale();
+	this.camera.near = 1.0e-2*this.sceneObj.getScale();
+	this.camera.far  = 1.0e2*this.sceneObj.getScale();
 
 	this.reset();
 }
@@ -221,6 +225,8 @@ Snelly.prototype.reset = function()
 {	
 	this.lightTracer.reset();
 	this.surfaceRenderer.reset();
+	if (this.initialized)
+		this.render();
 }
 
 // Render all 
@@ -230,6 +236,8 @@ Snelly.prototype.render = function()
 	
 	var gl = GLU.gl;
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+	gl.enable(gl.DEPTH_TEST);
+
 	gl.viewport(0, 0, this.width, this.height);
 
 	// Render laser pointer
@@ -290,7 +298,6 @@ Snelly.prototype.onDocumentMouseMove = function(event)
 	this.controls.update();
 	event.preventDefault();
 	if (this.laser.onMouseMove(event)) this.reset();
-	this.render();
 }
 
 Snelly.prototype.onDocumentMouseDown = function(event)
@@ -309,6 +316,9 @@ Snelly.prototype.onDocumentMouseUp = function(event)
 
 Snelly.prototype.onDocumentRightClick = function(event)
 {
+	// @todo: instead, do pick on left click,
+	//        rotate on alt-left click, save right click for pan
+
 	this.controls.update();
 	event.preventDefault();
 

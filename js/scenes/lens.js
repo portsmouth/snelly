@@ -18,7 +18,13 @@ LensScene.prototype = Object.create(Scene.prototype);
 LensScene.prototype.sdf = function()
 {
 	return `
-				uniform float _radius;                
+				uniform float _radiusA;
+				uniform float _radiusB;      
+
+ 				float sphere(vec3 X)                     
+				{                                     
+					return length(X) - _radius;       
+				}    
 
 				float SDF(vec3 X)                     
 				{                                     

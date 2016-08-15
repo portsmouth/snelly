@@ -239,11 +239,11 @@ LaserPointer.prototype.render = function()
 	// (to be roughly constant size in screen space)
 	var camDist = new THREE.Vector3();
 	camDist.copy(this.objects["group"].position).sub(this.camera.position);
-	var C = 0.03*camDist.length();
+	var C = 0.025*camDist.length();
 
 	// Ensure that handles are always > emitter geo size
 	// (so on zooming in, body doesn't 'swallow' the manips).
-	var C = Math.max(C, 0.333*this.getEmissionRadius());
+	var C = Math.max(C, 0.05*this.getEmissionRadius());
 
 	intersectionHandleGroup = this.objects["intersectionHandleGroup"];
 	intersectionHandleGroup.scale.set(C, C, C);
@@ -313,12 +313,6 @@ LaserPointer.prototype.getEmissionSpreadAngle = function()
 	return this.emissionSpread;
 }
 
-LaserPointer.prototype.getEmissionPower = function()
-{
-	return this.emissionPower;
-}
-
-
 /// Interactions:
 
 LaserPointer.prototype.toggleVisibility = function(visible)
@@ -369,12 +363,6 @@ LaserPointer.prototype.setEmissionSpreadAngle = function(spreadAngleDegrees)
 {
 	this.emissionSpread = spreadAngleDegrees;
 }
-
-LaserPointer.prototype.setEmissionPower = function(power)
-{
-	this.emissionPower = power;
-}
-
 
 LaserPointer.prototype.onMouseMove = function(event)
 {
@@ -530,6 +518,7 @@ LaserPointer.prototype.onMouseMove = function(event)
 			this.renderHandleObjects[n].material.emissive.set( 0x000000 );
 		}
 		this.emitterObj.material.emissive.set( 0x000000 );
+		translater.material.emissive.set( 0x000000 );
 
 		var intersections = this.raycaster.intersectObjects(this.intersectionHandleObjects);
 		if ( intersections.length > 0 )
@@ -539,6 +528,7 @@ LaserPointer.prototype.onMouseMove = function(event)
 			if (intersected == this.objects['translater'])
 			{
 				this.emitterObj.material.emissive.set( 0x404040 );
+				translater.material.emissive.set( 0x102010 );
 			}
 			else
 			{

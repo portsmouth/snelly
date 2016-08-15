@@ -1,14 +1,19 @@
 
 uniform sampler2D PosDataA;
 uniform sampler2D PosDataB;
-uniform sampler2D RgbData;
+uniform sampler2D Depth;
 
 uniform mat4 u_projectionMatrix;
 uniform mat4 u_modelViewMatrix;
 
 attribute vec3 TexCoord;
 
-varying vec3 vColor;
+//varying float zCoord;
+varying vec2 vTexCoord;
+
+varying float eye_z;
+varying float eye_w;
+
 
 void main()
 {
@@ -20,7 +25,9 @@ void main()
 	// Line segment vertex position (either posA or posB)
 	vec3 pos = mix(posA, posB, TexCoord.z);
 
-	gl_Position = u_projectionMatrix * u_modelViewMatrix * vec4(pos, 1.0);
-	vColor = texture2D(RgbData, TexCoord.xy).rgb;
+	vec4 pEye = u_modelViewMatrix * vec4(pos, 1.0);
+	eye_z = -pEye.z; // Keep eye space depth for fragment shader
+
+	gl_Position = u_projectionMatrix * pEye; // Transform to clip space for vertex shader
 }
 

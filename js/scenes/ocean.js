@@ -62,7 +62,7 @@ OceanScene.prototype.sdf = function()
 			    float choppy = SEA_CHOPPY;
 			    vec2 uv = p.xz; uv.x *= 0.75;
 			    float d, h = 0.0;    
-			    for(int i = 0; i < ${this._settings.SEA_OCTAVES}; i++) 
+			    for(int i = 0; i < ${Math.floor(this._settings.SEA_OCTAVES)}; i++) 
 			    {        
 			    	d = sea_octave((uv+SEA_TIME)*freq,choppy);
 			    	d += sea_octave((uv-SEA_TIME)*freq,choppy);
@@ -123,7 +123,7 @@ OceanScene.prototype.initGui = function(parentFolder)
 	this.itemSEA_FREQ = parentFolder.add(this._settings, 'SEA_FREQ', 0.0, 1.0);
 	this.itemSEA_HEIGHT = parentFolder.add(this._settings, 'SEA_HEIGHT', 0.0, 10.0);
 	this.itemSEA_CHOPPY = parentFolder.add(this._settings, 'SEA_CHOPPY', 0.0, 10.0);
-	this.itemSEA_TIME = parentFolder.add(this._settings, 'SEA_TIME', 0.0, 100.0);
+	this.itemSEA_TIME = parentFolder.add(this._settings, 'SEA_TIME', 0.0, 30.0);
 	this.itemSEA_OCTAVES = parentFolder.add(this._settings, 'SEA_OCTAVES', 1, 5, 1);
 
 	this.itemSEA_FREQ.onChange( function(value) { snelly.reset(); } );
