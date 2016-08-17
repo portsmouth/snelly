@@ -66,6 +66,7 @@ var LightTracer = function()
 
 	// Initialize textures containing ray states
 	this.raySize = 128;
+	this.activeBlock = this.raySize;
 	this.maxMarchSteps = 512;
 	this.maxPathLength = 32;
 	this.enabled = true;
@@ -123,34 +124,35 @@ LightTracer.prototype.reset = function()
 
 	this.compileShaders();
 
-	this.fbo.bind();
-	this.fbo.drawBuffers(1);
-	this.fbo.attachTexture(this.fluenceBuffer, 0);
+	// Clear fluence buffers
 	this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
+
+	this.fbo.bind(); this.fbo.drawBuffers(1);
+	this.fbo.attachTexture(this.fluenceBuffer[0], 0); 
 	this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 	this.fbo.unbind();
 
-	this.fbo.bind();
-	this.fbo.drawBuffers(1);
-	this.fbo.attachTexture(this.depthTex[0], 0);
-	this.gl.clearColor(1.0, 0.0, 0.0, 1.0);
+	this.fbo.bind(); this.fbo.drawBuffers(1);
+	this.fbo.attachTexture(this.fluenceBuffer[1], 0); 
 	this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 	this.fbo.unbind();
 
-	this.fbo.bind();
-	this.fbo.drawBuffers(1);
-	this.fbo.attachTexture(this.depthTex[1], 0);
-	this.gl.clearColor(1.0, 0.0, 0.0, 1.0);
+	// Clear depth buffers
+	this.gl.clearColor(1.0, 0.0, 0.0, 1.0); // init to clip depth 1.0 (in red channel only)
+	
+	this.fbo.bind(); this.fbo.drawBuffers(1);
+	this.fbo.attachTexture(this.depthTex[0], 0); 
 	this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 	this.fbo.unbind();
+
+	this.fbo.bind(); this.fbo.drawBuffers(1);
+	this.fbo.attachTexture(this.depthTex[1], 0); 
+	this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+	this.fbo.unbind();
+
+	this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
 }
 
-
-LightTracer.prototype.resetActiveBlock = function()
-{
-	//this.activeBlock = 4;
-	this.activeBlock = this.raySize;
-}
 
 
 LightTracer.prototype.compileShaders = function()
@@ -185,7 +187,6 @@ LightTracer.prototype.compileShaders = function()
 
 LightTracer.prototype.initStates = function()
 {
-	this.resetActiveBlock();
 	this.raySize = Math.floor(this.raySize);
 	this.rayCount = this.raySize*this.raySize;
 	this.currentState = 0;
@@ -242,10 +243,8 @@ LightTracer.prototype.getLoadedSpectrum = function()
 LightTracer.prototype.composite = function()
 {
 	// Normalize and tonemap the fluence buffer to produce final pixels
-	this.fluenceBuffer.bind(0);
 	this.compProgram.bind();
 	this.quadVbo.bind();
-	this.compProgram.uniformTexture("Fluence", this.fluenceBuffer);
 
 	// Normalize the emission by dividing by the total number of paths
 	// (and also apply gamma correction)
@@ -253,8 +252,34 @@ LightTracer.prototype.composite = function()
 	this.compProgram.uniformF("invNumPaths", 1.0/Math.max(this.pathsTraced, 1));
 	this.compProgram.uniformF("exposure", gui.lightTracerSettings.exposure);
 	this.compProgram.uniformF("invGamma", 1.0/gui.lightTracerSettings.gamma);
+	
+	var gl = GLU.gl;
 
-	this.quadVbo.draw(this.compProgram, this.gl.TRIANGLE_FAN);
+	gl.enable(gl.BLEND);
+	gl.blendEquation(gl.FUNC_ADD);
+	gl.blendFunc(gl.ONE, gl.ONE);
+
+	if ( !snelly.getSurfaceRenderer().depthTestEnabled() )
+	{
+		// Draw both interior and exterior rays
+		// (NB, if surface depth test is enabled, only exterior rays are shown)
+		this.fluenceBuffer[1].bind(0);
+		this.fluenceBuffer[0].bind(1);
+		this.compProgram.uniformI("drawInterior", 1);
+		this.compProgram.uniformTexture("FluenceExt", this.fluenceBuffer[1]);
+		this.compProgram.uniformTexture("FluenceInt", this.fluenceBuffer[0]);
+		this.quadVbo.draw(this.compProgram, this.gl.TRIANGLE_FAN);
+	}
+	else
+	{
+		// Draw exterior rays only
+		this.fluenceBuffer[1].bind(0);
+		this.compProgram.uniformI("drawInterior", 0);
+		this.compProgram.uniformTexture("FluenceExt", this.fluenceBuffer[1]);
+		this.quadVbo.draw(this.compProgram, this.gl.TRIANGLE_FAN);	
+	}
+
+	gl.disable(gl.BLEND);
 }
 
 
@@ -340,11 +365,16 @@ LightTracer.prototype.render = function()
 		gl.viewport(0, 0, this.width, this.height);
 		gl.disable(gl.DEPTH_TEST);
 		this.fbo.drawBuffers(1);
-		this.fbo.attachTexture(this.waveBuffer, 0); // write to wave buffer
+		
 		if (this.pathLength == 0 || this.wavesTraced==0)
 		{
 			// Clear wavebuffer before the first bounce
 			gl.clearColor(0.0, 0.0, 0.0, 1.0);
+
+			this.fbo.attachTexture(this.waveBuffer[0], 0); // write to interior wavebuffer
+			gl.clear(gl.COLOR_BUFFER_BIT);
+
+			this.fbo.attachTexture(this.waveBuffer[1], 0); // write to interior wavebuffer
 			gl.clear(gl.COLOR_BUFFER_BIT);
 		}
 
@@ -375,16 +405,21 @@ LightTracer.prototype.render = function()
 		this.lineProgram.uniformTexture("RgbData",  this.rayStates[current].rgbTex);
 
 		this.rayVbo.bind(); // Binds the TexCoord attribute
+
+		this.lineProgram.uniformF("sgn", -1.0);
+		this.fbo.attachTexture(this.waveBuffer[0], 0); // write to interior wavebuffer
+		this.rayVbo.draw(this.lineProgram, gl.LINES, this.raySize*this.activeBlock*2);
+
+		this.lineProgram.uniformF("sgn", 1.0);
+		this.fbo.attachTexture(this.waveBuffer[1], 0); // write to exterior wavebuffer
 		this.rayVbo.draw(this.lineProgram, gl.LINES, this.raySize*this.activeBlock*2);
 
 		this.raysTraced += this.raySize*this.activeBlock;
 		this.pathLength += 1;
-		//this.fbo.detachTexture(0);
 
 		// Line depth pass
 		{
 			gl.disable(gl.BLEND);
-			//gl.blendFunc(gl.ONE, gl.ZERO); // overwrite depth buffer each bounce
 
 			this.lineDepthProgram.bind();
 
@@ -411,14 +446,13 @@ LightTracer.prototype.render = function()
 			this.lineDepthProgram.uniformTexture("Depth",  this.depthTex[current]);
 			this.lineDepthProgram.uniformF("camNear", camera.near);
 			this.lineDepthProgram.uniformF("camFar", camera.far);
-			
+			this.lineDepthProgram.uniform2Fv("resolution", [this.width, this.height]);
+
 			this.fbo.drawBuffers(1);
 			this.fbo.attachTexture(this.depthTex[next], 0); // write to depthTex[next]
 
 			this.rayVbo.bind(); // Binds the TexCoord attribute
 			this.rayVbo.draw(this.lineDepthProgram, gl.LINES, this.raySize*this.activeBlock*2);
-
-			//this.fbo.detachTexture(0);
 		}
 	}
 
@@ -428,12 +462,21 @@ LightTracer.prototype.render = function()
 		// into the fluence buffer
 		gl.enable(gl.BLEND);
 		gl.blendFunc(gl.ONE, gl.ONE); // accumulate radiances of all line segments from current 'wave' of bounces
-		this.fbo.attachTexture(this.fluenceBuffer, 0);
-		this.waveBuffer.bind(0);
-		this.passProgram.bind();
-		this.passProgram.uniformTexture("Frame", this.waveBuffer);
+		
 		this.quadVbo.bind();
+
+		this.fbo.attachTexture(this.fluenceBuffer[0], 0); // write to interior fluence buffer
+		this.waveBuffer[0].bind(0);                       // read from interior wave buffer
+		this.passProgram.bind();
+		this.passProgram.uniformTexture("WaveBuffer", this.waveBuffer[0]);
 		this.quadVbo.draw(this.passProgram, gl.TRIANGLE_FAN);
+
+		this.fbo.attachTexture(this.fluenceBuffer[1], 0); // write to exterior fluence buffer
+		this.waveBuffer[1].bind(0);                       // read from exterior wave buffer
+		this.passProgram.bind();
+		this.passProgram.uniformTexture("WaveBuffer", this.waveBuffer[1]);
+		this.quadVbo.draw(this.passProgram, gl.TRIANGLE_FAN);
+
 		this.pathsTraced += this.raySize*this.activeBlock;
 		if (this.pathLength == this.maxPathLength)
 		{
@@ -443,11 +486,10 @@ LightTracer.prototype.render = function()
 	}
 
 	//this.activeBlock = Math.min(512, this.activeBlock + 4);
-
 	this.fbo.unbind();
 	gl.disable(gl.BLEND);
 
-	// Final composite of normalized fluenceBuffer to window
+	// Final composite of normalized fluenceBuffers to window
 	this.composite();
 
 	// Update raytracing state
@@ -466,11 +508,17 @@ LightTracer.prototype.resize = function(width, height)
 	this.width = width;
 	this.height = height;
 
-	this.fluenceBuffer = new GLU.Texture(width, height, 4, true, false, true, null);
-	this.waveBuffer    = new GLU.Texture(width, height, 4, true, false, true, null);
+	// 0 = interior, 1 = exterior
+	this.waveBuffer    = [new GLU.Texture(width, height, 4, true, false, true, null), 
+                          new GLU.Texture(width, height, 4, true, false, true, null)];
+
+    // 0 = interior, 1 = exterior
+	this.fluenceBuffer = [new GLU.Texture(width, height, 4, true, false, true, null), 
+                          new GLU.Texture(width, height, 4, true, false, true, null)];
+
 	this.depthTex      = [new GLU.Texture(width, height, 4, true, false, true, null), 
                           new GLU.Texture(width, height, 4, true, false, true, null)];
-	this.resetActiveBlock();
+	
 	this.reset();
 }
 

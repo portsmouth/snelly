@@ -182,7 +182,7 @@ Snelly.prototype.loadScene = function(sceneName)
 
 	// Camera frustum update
 	this.camera.near = 1.0e-2*this.sceneObj.getScale();
-	this.camera.far  = 1.0e2*this.sceneObj.getScale();
+	this.camera.far  = 1.0e4*this.sceneObj.getScale();
 
 	this.reset();
 }
@@ -223,8 +223,9 @@ var flag = 0;
 // Renderer reset on camera update
 Snelly.prototype.reset = function()
 {	
-	this.lightTracer.reset();
 	this.surfaceRenderer.reset();
+	this.lightTracer.reset();
+
 	if (this.initialized)
 		this.render();
 }

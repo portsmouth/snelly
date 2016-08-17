@@ -8,12 +8,7 @@ uniform mat4 u_modelViewMatrix;
 
 attribute vec3 TexCoord;
 
-//varying float zCoord;
-varying vec2 vTexCoord;
-
 varying float eye_z;
-varying float eye_w;
-
 
 void main()
 {

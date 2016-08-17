@@ -80,8 +80,9 @@ var SurfaceRenderer = function()
 					   new SurfaceRendererState(this.width, this.height)];
 
 	this.maxMarchSteps = 128;
-	this.showSurface = true;
-	this.surfaceAlpha = 0.5;
+	this.enable = true;
+	this.depthTest = false;
+	this.surfaceAlpha = 0.9;
 	this.renderMode = 'blinn';
 
 	// Load shaders
@@ -253,9 +254,19 @@ SurfaceRenderer.prototype.pick = function(xPick, yPick)
 	return hitPoint;
 }
 
+SurfaceRenderer.prototype.enabled = function()
+{
+	return this.enable;
+}
+
+SurfaceRenderer.prototype.depthTestEnabled = function()
+{
+	return this.depthTest;
+}
+
 SurfaceRenderer.prototype.render = function()
 {
-	if (!this.showSurface) return;
+	if (!this.enable) return;
 
 	var sceneObj = snelly.getLoadedScene();
 	if (sceneObj == null) return;
@@ -265,7 +276,7 @@ SurfaceRenderer.prototype.render = function()
 	////////////////////////////////////////////////
 	var gl = this.gl;
 	gl.disable(gl.DEPTH_TEST);
-	gl.viewport(0, 0, this.width, this.height);
+	//gl.viewport(0, 0, this.width, this.height);
 
 	this.pathtraceProgram.bind();
 
@@ -337,7 +348,7 @@ SurfaceRenderer.prototype.render = function()
 	// Get depth texture of light rays, to allow surface to 
 	// occlude rays and vice versa
 	var lightDepthTex = snelly.getLightTracer().getDepthTexture();
-	if (lightDepthTex != null && snelly.getLightTracer().isEnabled())
+	if (lightDepthTex != null && this.depthTest)
 	{
 		lightDepthTex.bind(2);
 		this.tonemapProgram.uniformTexture("DepthLight", lightDepthTex);
@@ -348,15 +359,6 @@ SurfaceRenderer.prototype.render = function()
 		this.tonemapProgram.uniformI("enableDepthTest", 0);
 	}
 
-	// Here:  destination = the light traced framebuffer
-	//        source      = the surface rendering
-
-	// In the surface tonemapping shader, we set the alpha of the surface
-	// according to the relative depths of light or surface, i.e.
-	//    - depth light >  depth surface :=> surface alpha = 1.0
-	//    - depth light <= depth surface :=> surface alpha = 0.0
-
-
 	gl.enable(gl.BLEND);
 	gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 	gl.blendEquation(gl.FUNC_ADD);
@@ -364,7 +366,6 @@ SurfaceRenderer.prototype.render = function()
 	this.quadVbo.bind();
 	this.quadVbo.draw(this.tonemapProgram, gl.TRIANGLE_FAN);
 
-	this.fbo.unbind();
 	gl.disable(gl.BLEND);
 
 	// Ping-pong ..

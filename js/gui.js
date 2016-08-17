@@ -46,7 +46,8 @@ GUI.prototype.createSurfaceRendererSettings = function()
 
 	var renderModes = ['normals', 'blinn'];
 	
-	this.surfaceRendererFolder.add(surfaceRenderer, 'showSurface');
+	this.surfaceRendererFolder.add(surfaceRenderer, 'enable');
+	this.surfaceRendererFolder.add(surfaceRenderer, 'depthTest');
 	this.surfaceRendererFolder.add(surfaceRenderer, 'renderMode', renderModes).onChange( function(renderMode) { surfaceRenderer.reset(); });
 	this.surfaceRendererFolder.add(surfaceRenderer, 'surfaceAlpha', 0.0, 1.0);
 	this.surfaceRendererFolder.add(surfaceRenderer, 'maxMarchSteps', 1, 1024).onChange( function(value) { surfaceRenderer.maxMarchSteps = Math.floor(value); surfaceRenderer.reset(); } );

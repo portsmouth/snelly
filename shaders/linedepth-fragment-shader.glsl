@@ -6,16 +6,16 @@ uniform sampler2D Depth;
 uniform float camNear;
 uniform float camFar;
 
-varying vec2 vTexCoord;
 varying float eye_z;
+uniform vec2 resolution;
 
 
 void main() 
 {
-	float destClipDepth = unpack_depth( texture2D(Depth, vTexCoord) );
+	vec2 viewportTexCoords = gl_FragCoord.xy/resolution;
+	float destClipDepth = unpack_depth( texture2D(Depth, viewportTexCoords) );
 	
 	float sourceClipDepth = computeClipDepth(eye_z, camNear, camFar);
-
 	if (sourceClipDepth < destClipDepth)
 	{
 		gl_FragColor = pack_depth(sourceClipDepth);

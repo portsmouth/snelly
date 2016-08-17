@@ -239,7 +239,7 @@ LaserPointer.prototype.render = function()
 	// (to be roughly constant size in screen space)
 	var camDist = new THREE.Vector3();
 	camDist.copy(this.objects["group"].position).sub(this.camera.position);
-	var C = 0.025*camDist.length();
+	var C = 0.015*camDist.length();
 
 	// Ensure that handles are always > emitter geo size
 	// (so on zooming in, body doesn't 'swallow' the manips).

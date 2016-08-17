@@ -101,16 +101,32 @@ float unpack_depth(const in vec4 rgba_depth)
     return depth;*/
 }
 
-uniform sampler2D Fluence;
+uniform sampler2D FluenceInt;
+uniform sampler2D FluenceExt;
+
 uniform float invNumPaths;
 uniform float exposure;
 uniform float invGamma;
+uniform bool drawInterior;
+
 varying vec2 vTexCoord;
 
 void main() 
 {
-	vec3 L = invNumPaths * pow(10.0, exposure) * texture2D(Fluence, vTexCoord).rgb;
-	gl_FragColor = vec4(pow(L, vec3(invGamma)), 1.0);
+	vec3 fluence = texture2D(FluenceExt, vTexCoord).rgb;
+	if (drawInterior)
+	{
+		fluence += texture2D(FluenceInt, vTexCoord).rgb;
+	}
+
+	vec3 L = invNumPaths * pow(10.0, exposure) * fluence;
+	float r = L.x; 
+	float g = L.y; 
+	float b = L.z;
+	vec3 Lp = vec3(r/(1.0+r), g/(1.0+g), b/(1.0+b));
+	vec3 S = pow(Lp, vec3(invGamma));
+
+	gl_FragColor = vec4(S, 1.0);
 }
 `,
 
@@ -703,6 +719,9 @@ uniform sampler2D RgbData;
 
 uniform mat4 u_projectionMatrix;
 uniform mat4 u_modelViewMatrix;
+uniform float sgn; // either +1 meaning we want to render only the exterior rays, 
+                   //     or -1 meaning we want to render only the interior rays
+                   //     or  0 meaning render all
 
 attribute vec3 TexCoord;
 
@@ -712,14 +731,17 @@ void main()
 {
 	// Textures A and B contain line segment start and end points respectively
 	// (i.e. the geometry defined by this vertex shader is stored in textures)
-	vec3 posA = texture2D(PosDataA, TexCoord.xy).xyz;
-	vec3 posB = texture2D(PosDataB, TexCoord.xy).xyz;
+	vec4 posA = texture2D(PosDataA, TexCoord.xy);
+	vec4 posB = texture2D(PosDataB, TexCoord.xy);
 
+	float sgnA = posA.w; // SDF sign: +1.0 for exterior rays, or -1.0 for interior rays
+	float kill = (1.0-abs(sgn)) + abs(sgn)*0.5*abs(sgnA + sgn); 
+	
 	// Line segment vertex position (either posA or posB)
-	vec3 pos = mix(posA, posB, TexCoord.z);
+	vec3 pos = mix(posA.xyz, posB.xyz, TexCoord.z);
 
 	gl_Position = u_projectionMatrix * u_modelViewMatrix * vec4(pos, 1.0);
-	vColor = texture2D(RgbData, TexCoord.xy).rgb;
+	vColor = kill * texture2D(RgbData, TexCoord.xy).rgb;
 }
 `,
 
@@ -831,16 +853,16 @@ uniform sampler2D Depth;
 uniform float camNear;
 uniform float camFar;
 
-varying vec2 vTexCoord;
 varying float eye_z;
+uniform vec2 resolution;
 
 
 void main() 
 {
-	float destClipDepth = unpack_depth( texture2D(Depth, vTexCoord) );
+	vec2 viewportTexCoords = gl_FragCoord.xy/resolution;
+	float destClipDepth = unpack_depth( texture2D(Depth, viewportTexCoords) );
 	
 	float sourceClipDepth = computeClipDepth(eye_z, camNear, camFar);
-
 	if (sourceClipDepth < destClipDepth)
 	{
 		gl_FragColor = pack_depth(sourceClipDepth);
@@ -962,12 +984,7 @@ uniform mat4 u_modelViewMatrix;
 
 attribute vec3 TexCoord;
 
-//varying float zCoord;
-varying vec2 vTexCoord;
-
 varying float eye_z;
-varying float eye_w;
-
 
 void main()
 {
@@ -1087,12 +1104,12 @@ float unpack_depth(const in vec4 rgba_depth)
     return depth;*/
 }
 
-uniform sampler2D Frame;
+uniform sampler2D WaveBuffer;
 varying vec2 vTexCoord;
 
 void main() 
 {
-	gl_FragColor = vec4(texture2D(Frame, vTexCoord).rgba);
+	gl_FragColor = vec4(texture2D(WaveBuffer, vTexCoord).rgba);
 }
 `,
 
@@ -1199,7 +1216,6 @@ float unpack_depth(const in vec4 rgba_depth)
 
 attribute vec3 Position;
 attribute vec2 TexCoord;
-
 varying vec2 vTexCoord;
 
 void main(void)
@@ -1921,7 +1937,7 @@ varying vec2 vTexCoord;
 uniform float exposure;
 uniform float invGamma;
 uniform float alpha;
-uniform int enableDepthTest;
+uniform bool enableDepthTest;
 
 
 void main()
@@ -1938,34 +1954,14 @@ void main()
 	float   lightDepth = unpack_depth(texture2D(DepthLight, vTexCoord));
 
 	// Composite surface with light ray fragment
-	float A;
-	if (lightDepth < surfaceDepth)
+	float A = 0.0;
+	if (enableDepthTest && (lightDepth > surfaceDepth))
 	{
-		// light in front of surface
-		A = 0.0;
-
-		// with gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-		// this should produce
-		//    rgb = Sp + Light
-		//      a = A + 1.0*(1-A) = 1.0
-    }
-    else
-    {
-    	// light behind surface
-    	A = alpha;
-
-		// with gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-		// this should produce
-		//    rgb = Sp + (1-alpha)*Light
-		//      a = A + 1.0*(1-A) = 1.0
-    }
-
+		// light behind surface
+		A = alpha;
+	}
+	
 	gl_FragColor = vec4(Sp, A);
-
-
-
-	//gl_FragColor = vec4(packedLightClipDepth.rgb, 1);
-	//gl_FragColor = vec4(lightClipDepth, lightClipDepth, lightClipDepth, 1);
 }
 `,
 
@@ -2411,7 +2407,9 @@ void main()
 	float wavelength = 360.0 + (750.0 - 360.0)*rgbw.w;
 	raytrace(rnd, X, D, rgbw.rgb, wavelength);
 
-	gl_FragData[0] = vec4(X, 1.0);
+	float sgn = sign( SDF(X) );
+
+	gl_FragData[0] = vec4(X, sgn);
 	gl_FragData[1] = vec4(D, 1.0);
 	gl_FragData[2] = rnd;
 	gl_FragData[3] = rgbw;

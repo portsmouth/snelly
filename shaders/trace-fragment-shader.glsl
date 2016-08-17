@@ -228,7 +228,9 @@ void main()
 	float wavelength = 360.0 + (750.0 - 360.0)*rgbw.w;
 	raytrace(rnd, X, D, rgbw.rgb, wavelength);
 
-	gl_FragData[0] = vec4(X, 1.0);
+	float sgn = sign( SDF(X) );
+
+	gl_FragData[0] = vec4(X, sgn);
 	gl_FragData[1] = vec4(D, 1.0);
 	gl_FragData[2] = rnd;
 	gl_FragData[3] = rgbw;

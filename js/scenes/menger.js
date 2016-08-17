@@ -104,7 +104,7 @@ MengerScene.prototype.getScale = function()
 // Initial cam position default for this scene
 MengerScene.prototype.setCam = function(controls, camera)
 {
-	camera.position.set(-1.0, 1.0, 1.0)
+	camera.position.set(-3.0, 3.0, 3.0)
 	controls.target.set(0.0, 0.0, 0.0);
 }
 

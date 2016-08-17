@@ -8,7 +8,7 @@ varying vec2 vTexCoord;
 uniform float exposure;
 uniform float invGamma;
 uniform float alpha;
-uniform int enableDepthTest;
+uniform bool enableDepthTest;
 
 
 void main()
@@ -25,32 +25,12 @@ void main()
 	float   lightDepth = unpack_depth(texture2D(DepthLight, vTexCoord));
 
 	// Composite surface with light ray fragment
-	float A;
-	if (lightDepth < surfaceDepth)
+	float A = 0.0;
+	if (enableDepthTest && (lightDepth > surfaceDepth))
 	{
-		// light in front of surface
-		A = 0.0;
-
-		// with gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-		// this should produce
-		//    rgb = Sp + Light
-		//      a = A + 1.0*(1-A) = 1.0
-    }
-    else
-    {
-    	// light behind surface
-    	A = alpha;
-
-		// with gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-		// this should produce
-		//    rgb = Sp + (1-alpha)*Light
-		//      a = A + 1.0*(1-A) = 1.0
-    }
-
+		// light behind surface
+		A = alpha;
+	}
+	
 	gl_FragColor = vec4(Sp, A);
-
-
-
-	//gl_FragColor = vec4(packedLightClipDepth.rgb, 1);
-	//gl_FragColor = vec4(lightClipDepth, lightClipDepth, lightClipDepth, 1);
 }
