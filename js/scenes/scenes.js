@@ -32,6 +32,14 @@ Scene.prototype.setLaser = function(laser)
 	laser.buildEmitterGeo();
 }
 
+Scene.prototype.getBox = function()
+{
+	var s = 2.0*this.getScale();
+	var min = new THREE.Vector3(-s, -s, -s);
+	var max = new THREE.Vector3( s,  s,  s);
+	return new THREE.Box3(min, max);
+}
+
 
 
 

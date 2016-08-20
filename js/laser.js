@@ -207,9 +207,14 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 	this.glRenderer = glRenderer;
 	this.glCamera = glCamera;
 
-	// Finally, add the laser pointer objects (and backplane for raycasting) to the scene
+	// Add the laser pointer objects (and backplane for raycasting) to the scene
 	glScene.add(group);
 	glScene.add(backPlaneObj);
+
+	// Add object for scene bbox display
+	this.bbox = new THREE.BoxHelper(undefined, 0xff0000);
+	this.objects['bbox'] = this.bbox;
+	glScene.add(this.bbox);
 
 	this.resize(window.innerWidth, window.innerHeight);
 }
@@ -258,23 +263,6 @@ LaserPointer.prototype.resize = function(width, height)
 }
 
 
-LaserPointer.prototype.renderBox = function()
-{
-	// For a basic UI giving some aid to getting a sense of the 
-	// orientation of the laser in 3d space:
-
-	// Draw the rough bbox of the scene,
-	// i.e. origin-centered cube of size e.g. 10*sceneScale
-
-
-	// Then draw 6 dotted lines projecting the laser center onto the
-	// 6 planes of the box, giving some sense of 
-
-
-	// Also draw a dotted line down the laser axis itself.
-
-}
-
 LaserPointer.prototype.render = function()
 {
 	// Ensure laser handles are scaled according to current camera position
@@ -306,6 +294,13 @@ LaserPointer.prototype.render = function()
 		this.glRenderer.render(this.glScene, this.glCamera, this.depthTarget);
 	}
 	*/
+
+	// Draw scene bounds
+	var sceneObj = snelly.getLoadedScene();
+	var bbox = this.objects['bbox'];
+	bbox.update(sceneObj.getBox());
+	var surfaceRenderer = snelly.getSurfaceRenderer();
+	bbox.visible = surfaceRenderer.enabled() && surfaceRenderer.showBounds;
 
 	this.glRenderer.render(this.glScene, this.glCamera);
 }

@@ -82,6 +82,7 @@ var SurfaceRenderer = function()
 	this.maxMarchSteps = 128;
 	this.enable = true;
 	this.depthTest = false;
+	this.showBounds = true;
 	this.surfaceAlpha = 1.0;
 	this.renderMode = 'blinn';
 	this.specPower = 20.0;
@@ -134,13 +135,6 @@ SurfaceRenderer.prototype.compileShaders = function()
 	replacements = {};
 	replacements.SDF_FUNC        = sdfCode;
 	replacements.MAX_MARCH_STEPS = this.maxMarchSteps;
-
-	if (isNaN(this.kd1[0])) this.kd1[0] = 1.0;
-	if (isNaN(this.kd1[1])) this.kd1[1] = 0.0;
-	if (isNaN(this.kd1[2])) this.kd1[2] = 0.0;
-	if (isNaN(this.kd2[0])) this.kd2[0] = 1.0;
-	if (isNaN(this.kd2[1])) this.kd2[1] = 0.0;
-	if (isNaN(this.kd2[2])) this.kd2[2] = 0.0;
 
 	switch (this.renderMode)
 	{

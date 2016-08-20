@@ -22,7 +22,7 @@ FibreScene.prototype.sdf = function()
 
 				float SDF(vec3 X)                      
 				{                                  
-					vec2 h = vec2(_radius, _length);                         
+					vec2 h = vec2(_radius, 0.5*_length);                         
 					vec2 d = abs(vec2(length(X.xy), X.z)) - h;         
 					return min(max(d.x,d.y),0.0) + length(max(d,0.0)); 
 				}                                                      
@@ -46,6 +46,15 @@ FibreScene.prototype.getScale = function()
 	return Math.max(this._settings.radius, this._settings.length);
 }
 
+
+FibreScene.prototype.getBox = function()
+{
+	var L = this._settings.length;
+	var r = this._settings.radius;
+	var min = new THREE.Vector3(-3.0*r, -3.0*r, -0.666*L);
+	var max = new THREE.Vector3( 3.0*r,  3.0*r,  0.666*L);
+	return new THREE.Box3(min, max);
+}
 
 // Initial cam position default for this scene
 FibreScene.prototype.setCam = function(controls, camera)
