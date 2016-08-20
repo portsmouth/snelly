@@ -210,6 +210,8 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 	// Finally, add the laser pointer objects (and backplane for raycasting) to the scene
 	glScene.add(group);
 	glScene.add(backPlaneObj);
+
+	this.resize(window.innerWidth, window.innerHeight);
 }
 
 
@@ -232,6 +234,46 @@ LaserPointer.prototype.buildEmitterGeo = function()
 	this.emitterObj = emitterObj;
 }
 
+
+LaserPointer.prototype.resize = function(width, height)
+{
+	// Set up depth buffer rendering
+	/* @todo: disabling for now
+	var gl = GLU.gl;
+	this.depthTarget = null;
+	if (GLU.depthTexExt != null)
+	{
+		this.depthTarget = new THREE.WebGLRenderTarget(width, height);
+		this.depthTarget.texture.format = THREE.RGBFormat;
+		this.depthTarget.texture.minFilter = THREE.NearestFilter;
+		this.depthTarget.texture.magFilter = THREE.NearestFilter;
+		this.depthTarget.texture.generateMipmaps = false;
+		this.depthTarget.stencilBuffer = false;
+		this.depthTarget.depthBuffer = true;
+
+		this.depthTarget.depthTexture = new THREE.DepthTexture();
+		this.depthTarget.depthTexture.type = THREE.UnsignedShortType;
+	}
+	*/
+}
+
+
+LaserPointer.prototype.renderBox = function()
+{
+	// For a basic UI giving some aid to getting a sense of the 
+	// orientation of the laser in 3d space:
+
+	// Draw the rough bbox of the scene,
+	// i.e. origin-centered cube of size e.g. 10*sceneScale
+
+
+	// Then draw 6 dotted lines projecting the laser center onto the
+	// 6 planes of the box, giving some sense of 
+
+
+	// Also draw a dotted line down the laser axis itself.
+
+}
 
 LaserPointer.prototype.render = function()
 {
@@ -257,10 +299,23 @@ LaserPointer.prototype.render = function()
 	renderHandleGroup.scale.set(C, C, C);
 	renderHandleGroup.updateMatrix();
 
+	// render scene to depth texture for later depth tests
+	/* @todo: disabling for now
+	if (GLU.depthTexExt != null)
+	{
+		this.glRenderer.render(this.glScene, this.glCamera, this.depthTarget);
+	}
+	*/
+
 	this.glRenderer.render(this.glScene, this.glCamera);
 }
 
 /// Queries:
+
+LaserPointer.prototype.getDepthTarget = function()
+{
+	return this.depthTarget;
+}
 
 // get world position of emission point
 LaserPointer.prototype.getPoint = function()
@@ -319,6 +374,12 @@ LaserPointer.prototype.toggleVisibility = function(visible)
 {
 	var group = this.objects["group"];
 	group.visible = visible;
+}
+
+LaserPointer.prototype.isVisible = function(visible)
+{
+	var group = this.objects["group"];
+	return group.visible;
 }
 
 

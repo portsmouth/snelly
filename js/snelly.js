@@ -277,6 +277,7 @@ Snelly.prototype.resize = function()
 	this.lightTracer.resize(width, height);
 	this.surfaceRenderer.resize(width, height);
 	this.glRenderer.setSize(width, height);
+	this.laser.resize(width, height);
 
 	this.render();
 }

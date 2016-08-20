@@ -254,7 +254,6 @@ LightTracer.prototype.composite = function()
 	this.compProgram.uniformF("invGamma", 1.0/gui.lightTracerSettings.gamma);
 	
 	var gl = GLU.gl;
-
 	gl.enable(gl.BLEND);
 	gl.blendEquation(gl.FUNC_ADD);
 	gl.blendFunc(gl.ONE, gl.ONE);
@@ -287,6 +286,7 @@ LightTracer.prototype.isEnabled = function()
 {
 	return this.enabled;
 }
+
 
 LightTracer.prototype.render = function()
 {

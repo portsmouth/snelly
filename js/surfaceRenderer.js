@@ -82,8 +82,11 @@ var SurfaceRenderer = function()
 	this.maxMarchSteps = 128;
 	this.enable = true;
 	this.depthTest = false;
-	this.surfaceAlpha = 0.9;
+	this.surfaceAlpha = 1.0;
 	this.renderMode = 'blinn';
+	this.specPower = 20.0;
+	this.kd1 = [0.25, 0.25, 1.0];
+	this.kd2 = [1.0, 0.25, 0.25];
 
 	// Load shaders
 	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper", "pick"]);
@@ -116,8 +119,6 @@ SurfaceRenderer.prototype.reset = function()
 	this.compileShaders();
 	this.currentState = 0;
 	this.pathStates[this.currentState].clear(this.fbo);
-	//this.pathStates[0].clear(this.fbo);
-	//this.pathStates[1].clear(this.fbo);
 }
 
 
@@ -151,8 +152,8 @@ SurfaceRenderer.prototype.compileShaders = function()
 					Lights[0] = vec3( 1.0,  1.0,  1.0)*oosot;
 					Lights[1] = vec3(-1.0,  1.0, -1.0)*oosot;
 					vec3 kd[2];
-					kd[0] = vec3(0.25, 0.25, 1.0);
-					kd[1] = vec3(1.0, 0.25, 0.25);
+					kd[0] = vec3(${this.kd1[0]}, ${this.kd1[1]}, ${this.kd1[2]});
+					kd[1] = vec3(${this.kd2[0]}, ${this.kd2[1]}, ${this.kd2[2]});
 					vec3 ks = vec3(1.0, 1.0, 1.0);
 					vec3 ka = vec3(0.005, 0.005, 0.005);
 					vec3 C = vec3(0.0, 0.0, 0.0);
@@ -162,7 +163,7 @@ SurfaceRenderer.prototype.compileShaders = function()
 						vec3 H = normalize(L+V);
 						float NdotH = dot(N, H);
 						float NdotL = dot(N, L);
-						C += kd[l]*saturate(NdotL) + ks*pow(saturate(NdotH), 25.0);
+						C += kd[l]*saturate(NdotL) + ks*pow(saturate(NdotH), float(${this.specPower}));
 					}
 					return C + ka;
 				}

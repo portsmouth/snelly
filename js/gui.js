@@ -52,6 +52,26 @@ GUI.prototype.createSurfaceRendererSettings = function()
 	this.surfaceRendererFolder.add(surfaceRenderer, 'surfaceAlpha', 0.0, 1.0);
 	this.surfaceRendererFolder.add(surfaceRenderer, 'maxMarchSteps', 1, 1024).onChange( function(value) { surfaceRenderer.maxMarchSteps = Math.floor(value); surfaceRenderer.reset(); } );
 
+	this.surfaceRendererSettings.diffuseCol1 = [surfaceRenderer.kd1[0]*255.0, surfaceRenderer.kd1[1]*255.0, surfaceRenderer.kd1[2]*255.0];
+	this.surfaceRendererSettings.diffuseCol2 = [surfaceRenderer.kd2[0]*255.0, surfaceRenderer.kd2[1]*255.0, surfaceRenderer.kd2[2]*255.0];
+
+	this.surfaceRendererFolder.addColor(this.surfaceRendererSettings, 'diffuseCol1').onChange( function(value) 
+	{
+		surfaceRenderer.kd1[0] = value[0] / 255.0;
+		surfaceRenderer.kd1[1] = value[1] / 255.0;
+		surfaceRenderer.kd1[2] = value[2] / 255.0;
+		surfaceRenderer.reset(); 
+	});
+	this.surfaceRendererFolder.addColor(this.surfaceRendererSettings, 'diffuseCol2').onChange( function(value) 
+	{ 
+		surfaceRenderer.kd2[0] = value[0] / 255.0;
+		surfaceRenderer.kd2[1] = value[1] / 255.0;
+		surfaceRenderer.kd2[2] = value[2] / 255.0;
+		surfaceRenderer.reset(); 
+	});
+
+	this.surfaceRendererFolder.add(surfaceRenderer, 'specPower', 1.0, 100.0).onChange( function(renderMode) { surfaceRenderer.reset(); });
+
 	this.gui.remember(this.surfaceRendererSettings);
 	this.surfaceRendererFolder.open();
 }

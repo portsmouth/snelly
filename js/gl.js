@@ -23,6 +23,7 @@ var GLU = {};
 		this.floatLinExt = gl.getExtension("OES_texture_float_linear");
 		this.floatBufExt = gl.getExtension("WEBGL_color_buffer_float");
 		this.multiBufExt = gl.getExtension("WEBGL_draw_buffers");
+		this.depthTexExt = gl.getExtension("WEBGL_depth_texture");
 		this.blendMinMaxExt = gl.getExtension("EXT_blend_minmax");
 
 		if (!this.floatExt || !this.floatLinExt) throw new Error("Your platform does not support float textures");

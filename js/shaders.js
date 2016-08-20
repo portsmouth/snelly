@@ -80,25 +80,15 @@ vec4 encode_float (float val) {
     return vec4(byte4, byte3, byte2, byte1); 
 }
 
-/// Code to encode and decode depth values as vec4
+
 vec4 pack_depth(const in float depth)
 {
     return vec4(depth, 0.0, 0.0, 1.0);
-    /*
-    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
-    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
-    vec4 res = fract(depth * bit_shift);
-    res -= res.xxyz * bit_mask;
-    return res;*/
 }
 
 float unpack_depth(const in vec4 rgba_depth)
 {
     return rgba_depth.r;
-    /*
-    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
-    float depth = dot(rgba_depth, bit_shift);
-    return depth;*/
 }
 
 uniform sampler2D FluenceInt;
@@ -210,25 +200,15 @@ vec4 encode_float (float val) {
     return vec4(byte4, byte3, byte2, byte1); 
 }
 
-/// Code to encode and decode depth values as vec4
+
 vec4 pack_depth(const in float depth)
 {
     return vec4(depth, 0.0, 0.0, 1.0);
-    /*
-    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
-    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
-    vec4 res = fract(depth * bit_shift);
-    res -= res.xxyz * bit_mask;
-    return res;*/
 }
 
 float unpack_depth(const in vec4 rgba_depth)
 {
     return rgba_depth.r;
-    /*
-    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
-    float depth = dot(rgba_depth, bit_shift);
-    return depth;*/
 }
 
 attribute vec3 Position;
@@ -323,25 +303,15 @@ vec4 encode_float (float val) {
     return vec4(byte4, byte3, byte2, byte1); 
 }
 
-/// Code to encode and decode depth values as vec4
+
 vec4 pack_depth(const in float depth)
 {
     return vec4(depth, 0.0, 0.0, 1.0);
-    /*
-    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
-    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
-    vec4 res = fract(depth * bit_shift);
-    res -= res.xxyz * bit_mask;
-    return res;*/
 }
 
 float unpack_depth(const in vec4 rgba_depth)
 {
     return rgba_depth.r;
-    /*
-    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
-    float depth = dot(rgba_depth, bit_shift);
-    return depth;*/
 }
 
 uniform sampler2D RngData;
@@ -470,25 +440,15 @@ vec4 encode_float (float val) {
     return vec4(byte4, byte3, byte2, byte1); 
 }
 
-/// Code to encode and decode depth values as vec4
+
 vec4 pack_depth(const in float depth)
 {
     return vec4(depth, 0.0, 0.0, 1.0);
-    /*
-    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
-    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
-    vec4 res = fract(depth * bit_shift);
-    res -= res.xxyz * bit_mask;
-    return res;*/
 }
 
 float unpack_depth(const in vec4 rgba_depth)
 {
     return rgba_depth.r;
-    /*
-    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
-    float depth = dot(rgba_depth, bit_shift);
-    return depth;*/
 }
 
 attribute vec3 Position;
@@ -583,25 +543,15 @@ vec4 encode_float (float val) {
     return vec4(byte4, byte3, byte2, byte1); 
 }
 
-/// Code to encode and decode depth values as vec4
+
 vec4 pack_depth(const in float depth)
 {
     return vec4(depth, 0.0, 0.0, 1.0);
-    /*
-    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
-    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
-    vec4 res = fract(depth * bit_shift);
-    res -= res.xxyz * bit_mask;
-    return res;*/
 }
 
 float unpack_depth(const in vec4 rgba_depth)
 {
     return rgba_depth.r;
-    /*
-    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
-    float depth = dot(rgba_depth, bit_shift);
-    return depth;*/
 }
 
 varying vec3 vColor;
@@ -692,25 +642,15 @@ vec4 encode_float (float val) {
     return vec4(byte4, byte3, byte2, byte1); 
 }
 
-/// Code to encode and decode depth values as vec4
+
 vec4 pack_depth(const in float depth)
 {
     return vec4(depth, 0.0, 0.0, 1.0);
-    /*
-    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
-    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
-    vec4 res = fract(depth * bit_shift);
-    res -= res.xxyz * bit_mask;
-    return res;*/
 }
 
 float unpack_depth(const in vec4 rgba_depth)
 {
     return rgba_depth.r;
-    /*
-    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
-    float depth = dot(rgba_depth, bit_shift);
-    return depth;*/
 }
 
 uniform sampler2D PosDataA;
@@ -825,25 +765,15 @@ vec4 encode_float (float val) {
     return vec4(byte4, byte3, byte2, byte1); 
 }
 
-/// Code to encode and decode depth values as vec4
+
 vec4 pack_depth(const in float depth)
 {
     return vec4(depth, 0.0, 0.0, 1.0);
-    /*
-    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
-    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
-    vec4 res = fract(depth * bit_shift);
-    res -= res.xxyz * bit_mask;
-    return res;*/
 }
 
 float unpack_depth(const in vec4 rgba_depth)
 {
     return rgba_depth.r;
-    /*
-    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
-    float depth = dot(rgba_depth, bit_shift);
-    return depth;*/
 }
 
 uniform sampler2D PosDataA;
@@ -954,25 +884,15 @@ vec4 encode_float (float val) {
     return vec4(byte4, byte3, byte2, byte1); 
 }
 
-/// Code to encode and decode depth values as vec4
+
 vec4 pack_depth(const in float depth)
 {
     return vec4(depth, 0.0, 0.0, 1.0);
-    /*
-    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
-    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
-    vec4 res = fract(depth * bit_shift);
-    res -= res.xxyz * bit_mask;
-    return res;*/
 }
 
 float unpack_depth(const in vec4 rgba_depth)
 {
     return rgba_depth.r;
-    /*
-    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
-    float depth = dot(rgba_depth, bit_shift);
-    return depth;*/
 }
 
 uniform sampler2D PosDataA;
@@ -1083,25 +1003,15 @@ vec4 encode_float (float val) {
     return vec4(byte4, byte3, byte2, byte1); 
 }
 
-/// Code to encode and decode depth values as vec4
+
 vec4 pack_depth(const in float depth)
 {
     return vec4(depth, 0.0, 0.0, 1.0);
-    /*
-    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
-    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
-    vec4 res = fract(depth * bit_shift);
-    res -= res.xxyz * bit_mask;
-    return res;*/
 }
 
 float unpack_depth(const in vec4 rgba_depth)
 {
     return rgba_depth.r;
-    /*
-    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
-    float depth = dot(rgba_depth, bit_shift);
-    return depth;*/
 }
 
 uniform sampler2D WaveBuffer;
@@ -1193,25 +1103,15 @@ vec4 encode_float (float val) {
     return vec4(byte4, byte3, byte2, byte1); 
 }
 
-/// Code to encode and decode depth values as vec4
+
 vec4 pack_depth(const in float depth)
 {
     return vec4(depth, 0.0, 0.0, 1.0);
-    /*
-    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
-    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
-    vec4 res = fract(depth * bit_shift);
-    res -= res.xxyz * bit_mask;
-    return res;*/
 }
 
 float unpack_depth(const in vec4 rgba_depth)
 {
     return rgba_depth.r;
-    /*
-    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
-    float depth = dot(rgba_depth, bit_shift);
-    return depth;*/
 }
 
 attribute vec3 Position;
@@ -1305,25 +1205,15 @@ vec4 encode_float (float val) {
     return vec4(byte4, byte3, byte2, byte1); 
 }
 
-/// Code to encode and decode depth values as vec4
+
 vec4 pack_depth(const in float depth)
 {
     return vec4(depth, 0.0, 0.0, 1.0);
-    /*
-    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
-    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
-    vec4 res = fract(depth * bit_shift);
-    res -= res.xxyz * bit_mask;
-    return res;*/
 }
 
 float unpack_depth(const in vec4 rgba_depth)
 {
     return rgba_depth.r;
-    /*
-    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
-    float depth = dot(rgba_depth, bit_shift);
-    return depth;*/
 }
 
 uniform sampler2D Radiance;
@@ -1511,25 +1401,15 @@ vec4 encode_float (float val) {
     return vec4(byte4, byte3, byte2, byte1); 
 }
 
-/// Code to encode and decode depth values as vec4
+
 vec4 pack_depth(const in float depth)
 {
     return vec4(depth, 0.0, 0.0, 1.0);
-    /*
-    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
-    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
-    vec4 res = fract(depth * bit_shift);
-    res -= res.xxyz * bit_mask;
-    return res;*/
 }
 
 float unpack_depth(const in vec4 rgba_depth)
 {
     return rgba_depth.r;
-    /*
-    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
-    float depth = dot(rgba_depth, bit_shift);
-    return depth;*/
 }
 
 attribute vec3 Position;
@@ -1624,25 +1504,15 @@ vec4 encode_float (float val) {
     return vec4(byte4, byte3, byte2, byte1); 
 }
 
-/// Code to encode and decode depth values as vec4
+
 vec4 pack_depth(const in float depth)
 {
     return vec4(depth, 0.0, 0.0, 1.0);
-    /*
-    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
-    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
-    vec4 res = fract(depth * bit_shift);
-    res -= res.xxyz * bit_mask;
-    return res;*/
 }
 
 float unpack_depth(const in vec4 rgba_depth)
 {
     return rgba_depth.r;
-    /*
-    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
-    float depth = dot(rgba_depth, bit_shift);
-    return depth;*/
 }
 
 uniform float ndcX; // NDC coordinates of pick
@@ -1794,25 +1664,15 @@ vec4 encode_float (float val) {
     return vec4(byte4, byte3, byte2, byte1); 
 }
 
-/// Code to encode and decode depth values as vec4
+
 vec4 pack_depth(const in float depth)
 {
     return vec4(depth, 0.0, 0.0, 1.0);
-    /*
-    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
-    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
-    vec4 res = fract(depth * bit_shift);
-    res -= res.xxyz * bit_mask;
-    return res;*/
 }
 
 float unpack_depth(const in vec4 rgba_depth)
 {
     return rgba_depth.r;
-    /*
-    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
-    float depth = dot(rgba_depth, bit_shift);
-    return depth;*/
 }
 
 attribute vec3 Position;
@@ -1907,25 +1767,15 @@ vec4 encode_float (float val) {
     return vec4(byte4, byte3, byte2, byte1); 
 }
 
-/// Code to encode and decode depth values as vec4
+
 vec4 pack_depth(const in float depth)
 {
     return vec4(depth, 0.0, 0.0, 1.0);
-    /*
-    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
-    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
-    vec4 res = fract(depth * bit_shift);
-    res -= res.xxyz * bit_mask;
-    return res;*/
 }
 
 float unpack_depth(const in vec4 rgba_depth)
 {
     return rgba_depth.r;
-    /*
-    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
-    float depth = dot(rgba_depth, bit_shift);
-    return depth;*/
 }
 
 uniform sampler2D Radiance;
@@ -2045,25 +1895,15 @@ vec4 encode_float (float val) {
     return vec4(byte4, byte3, byte2, byte1); 
 }
 
-/// Code to encode and decode depth values as vec4
+
 vec4 pack_depth(const in float depth)
 {
     return vec4(depth, 0.0, 0.0, 1.0);
-    /*
-    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
-    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
-    vec4 res = fract(depth * bit_shift);
-    res -= res.xxyz * bit_mask;
-    return res;*/
 }
 
 float unpack_depth(const in vec4 rgba_depth)
 {
     return rgba_depth.r;
-    /*
-    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
-    float depth = dot(rgba_depth, bit_shift);
-    return depth;*/
 }
 
 attribute vec3 Position;
@@ -2157,25 +1997,15 @@ vec4 encode_float (float val) {
     return vec4(byte4, byte3, byte2, byte1); 
 }
 
-/// Code to encode and decode depth values as vec4
+
 vec4 pack_depth(const in float depth)
 {
     return vec4(depth, 0.0, 0.0, 1.0);
-    /*
-    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
-    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
-    vec4 res = fract(depth * bit_shift);
-    res -= res.xxyz * bit_mask;
-    return res;*/
 }
 
 float unpack_depth(const in vec4 rgba_depth)
 {
     return rgba_depth.r;
-    /*
-    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
-    float depth = dot(rgba_depth, bit_shift);
-    return depth;*/
 }
 
 uniform sampler2D PosData;
@@ -2496,25 +2326,15 @@ vec4 encode_float (float val) {
     return vec4(byte4, byte3, byte2, byte1); 
 }
 
-/// Code to encode and decode depth values as vec4
+
 vec4 pack_depth(const in float depth)
 {
     return vec4(depth, 0.0, 0.0, 1.0);
-    /*
-    const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);
-    const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);
-    vec4 res = fract(depth * bit_shift);
-    res -= res.xxyz * bit_mask;
-    return res;*/
 }
 
 float unpack_depth(const in vec4 rgba_depth)
 {
     return rgba_depth.r;
-    /*
-    const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);
-    float depth = dot(rgba_depth, bit_shift);
-    return depth;*/
 }
 
 attribute vec3 Position;
