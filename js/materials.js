@@ -158,59 +158,262 @@ ConstantDielectric.prototype.eraseGui = function(parentFolder)
 }
 
 
-//
-// The standard Sellmeier model for dielectrics.
-//
-function SellmeierDielectric(name, desc, C1, C2, C3, C4, C5, C6, C7) 
+// The standard Sellmeier model for dielectrics (model 1 at refractiveindex.info)
+function SellmeierDielectric(name, desc, coeffs) 
 {
 	Dielectric.call(this, name, desc);
-	this.C1 = C1;
-	this.C2 = C2;
-	this.C3 = C3;
-	this.C4 = C4;
-	this.C5 = C5;
-	this.C6 = C6;
-	this.C7 = C7;
+	this.coeffs = coeffs;
 }
 
 SellmeierDielectric.prototype = Object.create(Dielectric.prototype);
 
 SellmeierDielectric.prototype.ior = function()
 {
+	var numTerms = (this.coeffs.length - 1)/2;
+	var IOR_FORMULA = `1.0 + _C1 `;
+	for (var t=1; t<=numTerms; ++t)
+	{
+		IOR_FORMULA += `+ _C${2*t}*l2/(l2 - _C${2*t+1}*_C${2*t+1})`;
+	}
+
 	// Defines a GLSL function which takes wavelength (in micrometres) and returns ior
-	return `
-				uniform float _C1;    
-				uniform float _C2;    
-				uniform float _C3;    
-				uniform float _C4;    
-				uniform float _C5;    
-				uniform float _C6;    
-				uniform float _C7;    
-				float IOR(float wavelength_nm) 
-				{                                                                                            
-					float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
-					float l2 = wavelength_um*wavelength_um;                                                                               
-					float n2 = 1.0 + _C1 + _C2*l2/(l2 - _C3*_C3) + _C4*l2/(l2 - _C5*_C5) + _C6*l2/(l2 - _C7*_C7); 
-					return sqrt(abs(n2));                                                                     
-				}
-	`;
+	var uniforms = '';
+	for (var n=1; n<=this.coeffs.length; ++n)
+	{
+		uniforms += `uniform float _C${n};\n`
+	}
+	var code = `${uniforms}    
+	float IOR(float wavelength_nm) 
+	{                                                                                            
+		float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
+		float l2 = wavelength_um*wavelength_um;                                                                               
+		float n2 = ${IOR_FORMULA}; 
+		return sqrt(abs(n2));                                                                     
+	}`;
+
+	console.log(this._name + ' ior code: ' + code);
+	return code;
 }
 
 SellmeierDielectric.prototype.syncShader = function(traceProgram)
 {
-	traceProgram.uniformF("_C1", this.C1);
-	traceProgram.uniformF("_C2", this.C2);
-	traceProgram.uniformF("_C3", this.C3);
-	traceProgram.uniformF("_C4", this.C4);
-	traceProgram.uniformF("_C5", this.C5);
-	traceProgram.uniformF("_C6", this.C6);
-	traceProgram.uniformF("_C7", this.C7);
+	for (var n=1; n<=this.coeffs.length; ++n)
+	{
+		traceProgram.uniformF(`_C${n}`, this.coeffs[n-1]);
+	}
 }
 
 // set up gui and callbacks for this material
 SellmeierDielectric.prototype.initGui = function(parentFolder) {}
 SellmeierDielectric.prototype.eraseGui = function(parentFolder) {}
 
+
+
+// The standard Sellmeier model for dielectrics (model 2 at refractiveindex.info)
+// coeffs array must have an odd number of elements (the constant, plus a pair per 'pole' term)
+function Sellmeier2Dielectric(name, desc, coeffs) 
+{
+	Dielectric.call(this, name, desc);
+	this.coeffs = coeffs;
+}
+
+Sellmeier2Dielectric.prototype = Object.create(Dielectric.prototype);
+
+Sellmeier2Dielectric.prototype.ior = function()
+{
+	var numTerms = (this.coeffs.length - 1)/2;
+	var IOR_FORMULA = `1.0 + _C1 `;
+	for (var t=1; t<=numTerms; ++t)
+	{
+		IOR_FORMULA += `+ _C${2*t}*l2/(l2 - _C${2*t+1})`;
+	}
+
+	// Defines a GLSL function which takes wavelength (in micrometres) and returns ior
+	var uniforms = '';
+	for (var n=1; n<=this.coeffs.length; ++n)
+	{
+		uniforms += `uniform float _C${n};\n`
+	}
+	var code = `${uniforms}    
+	float IOR(float wavelength_nm) 
+	{                                                                                            
+		float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
+		float l2 = wavelength_um*wavelength_um;                                                                               
+		float n2 = ${IOR_FORMULA}; 
+		return sqrt(abs(n2));                                                                     
+	}`;
+
+	console.log(this._name + ' ior code: ' + code);
+	return code;
+}
+
+Sellmeier2Dielectric.prototype.syncShader = function(traceProgram)
+{
+	for (var n=1; n<=this.coeffs.length; ++n)
+	{
+		traceProgram.uniformF(`_C${n}`, this.coeffs[n-1]);
+	}
+}
+
+// set up gui and callbacks for this material
+Sellmeier2Dielectric.prototype.initGui = function(parentFolder) {}
+Sellmeier2Dielectric.prototype.eraseGui = function(parentFolder) {}
+
+
+
+
+// Model 4 at Polyanskiy's refractiveindex.info:
+function PolyanskiyDielectric(name, desc, coeffs) 
+{
+	Dielectric.call(this, name, desc);
+	this.C1 = coeffs[0];
+	this.C2 = coeffs[1];
+	this.C3 = coeffs[2];
+	this.C4 = coeffs[3];
+	this.C5 = coeffs[4];
+}
+
+PolyanskiyDielectric.prototype = Object.create(Dielectric.prototype);
+
+PolyanskiyDielectric.prototype.ior = function()
+{
+	var IOR_FORMULA = ' _C1 + _C2*pow(l, _C3)/(l*l - pow(_C4, _C5))'; 
+
+	// Defines a GLSL function which takes wavelength (in micrometres) and returns ior
+	var code = `
+	uniform float _C1;
+	uniform float _C2;
+	uniform float _C3;
+	uniform float _C4;
+	uniform float _C5;
+	float IOR(float wavelength_nm) 
+	{                                                                                            
+		float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
+		float l = wavelength_um;                                                                               
+		float n2 = ${IOR_FORMULA}; 
+		return sqrt(abs(n2));                                                                     
+	}`;
+
+	console.log(this._name + ' ior code: ' + code);
+	return code;
+}
+
+PolyanskiyDielectric.prototype.syncShader = function(traceProgram)
+{
+	traceProgram.uniformF('_C1', this.C1);
+	traceProgram.uniformF('_C2', this.C2);
+	traceProgram.uniformF('_C3', this.C3);
+	traceProgram.uniformF('_C4', this.C4);
+	traceProgram.uniformF('_C5', this.C5);
+}
+
+// set up gui and callbacks for this material
+PolyanskiyDielectric.prototype.initGui = function(parentFolder) {}
+PolyanskiyDielectric.prototype.eraseGui = function(parentFolder) {}
+
+
+
+
+// Cauchy model for dielectrics (model 5 at refractiveindex.info)
+function CauchyDielectric(name, desc, coeffs) 
+{
+	Dielectric.call(this, name, desc);
+	this.coeffs = coeffs;
+}
+
+CauchyDielectric.prototype = Object.create(Dielectric.prototype);
+
+CauchyDielectric.prototype.ior = function()
+{
+	var numTerms = (this.coeffs.length - 1)/2;
+	var IOR_FORMULA = `_C1`;
+	for (var t=1; t<=numTerms; ++t)
+	{
+		IOR_FORMULA += ` + _C${2*t}*pow(l, _C${2*t+1})`;
+	}
+
+	// Defines a GLSL function which takes wavelength (in micrometres) and returns ior
+	var uniforms = '';
+	for (var n=1; n<=this.coeffs.length; ++n)
+	{
+		uniforms += `uniform float _C${n};\n`
+	}
+	var code = `${uniforms}    
+	float IOR(float wavelength_nm) 
+	{                                                                                            
+		float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
+		float l = wavelength_um;                                                                               
+		float n = ${IOR_FORMULA}; 
+		return n;                                                                     
+	}`;
+
+	console.log(this._name + ' ior code: ' + code);
+	return code;
+}
+
+CauchyDielectric.prototype.syncShader = function(traceProgram)
+{
+	for (var n=1; n<=this.coeffs.length; ++n)
+	{
+		traceProgram.uniformF(`_C${n}`, this.coeffs[n-1]);
+	}
+}
+
+// set up gui and callbacks for this material
+CauchyDielectric.prototype.initGui = function(parentFolder) {}
+CauchyDielectric.prototype.eraseGui = function(parentFolder) {}
+
+
+
+
+// Gases (model 6 at refractiveindex.info)
+function Gas(name, desc, coeffs) 
+{
+	Dielectric.call(this, name, desc);
+	this.coeffs = coeffs;
+}
+
+Gas.prototype = Object.create(Dielectric.prototype);
+
+Gas.prototype.ior = function()
+{
+	var numTerms = (this.coeffs.length - 1)/2;
+	var IOR_FORMULA = `1.0 + _C1 `;
+	for (var t=1; t<=numTerms; ++t)
+	{
+		IOR_FORMULA += `+ _C${2*t}/(_C${2*t+1} - invl2)`;
+	}
+
+	// Defines a GLSL function which takes wavelength (in micrometres) and returns ior
+	var uniforms = '';
+	for (var n=1; n<=this.coeffs.length; ++n)
+	{
+		uniforms += `uniform float _C${n};\n`
+	}
+	var code = `${uniforms}    
+	float IOR(float wavelength_nm) 
+	{                                                                                            
+		float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
+		float invl2 = 1.0 / (wavelength_um*wavelength_um);                                                                               
+		float n2 = ${IOR_FORMULA}; 
+		return sqrt(abs(n2));                                                                     
+	}`;
+
+	console.log(this._name + ' ior code: ' + code);
+	return code;
+}
+
+Gas.prototype.syncShader = function(traceProgram)
+{
+	for (var n=1; n<=this.coeffs.length; ++n)
+	{
+		traceProgram.uniformF(`_C${n}`, this.coeffs[n-1]);
+	}
+}
+
+// set up gui and callbacks for this material
+Gas.prototype.initGui = function(parentFolder) {}
+Gas.prototype.eraseGui = function(parentFolder) {}
 
 
 

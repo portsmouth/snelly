@@ -103,17 +103,45 @@ var Snelly = function()
 	this.materialObj = null;
 	{
 		// Dielectrics
-		this.addMaterial( new ConstantDielectric("constant", "Constant IOR dielectric", 1.5) ); 
-		this.addMaterial( new SellmeierDielectric("diamond", "Diamond",       0.0, 0.3306,     0.175,         4.3356,      0.1060,       0.0,        0.0       ) );
-		
-		var glass = new SellmeierDielectric("glass_bk7", "Glass (BK7)", 0.0, 1.03961212, 0.00600069867, 0.231792344, 0.0200179144, 1.01046945, 103.560653);
-		this.addMaterial(glass);
+		this.addMaterial( new ConstantDielectric("Constant IOR dielectric", "", 1.5) ); 
 
-		// Metals
-		this.addMaterial( new LinearMetal("aluminium", "Aluminium",  0.46555, 4.7121, 1.6620, 8.0439) );
-		this.addMaterial( new LinearMetal("gold", "Gold",            1.5275, 1.8394, 0.16918, 3.8816) );
+		this.addMaterial( new SellmeierDielectric("Diamond", "",         [0.0,        0.3306,     0.175,         4.3356,      0.1060]) );
+		this.addMaterial( new SellmeierDielectric("Glass (BK7)", "",     [0.0,        1.03961212, 0.00600069867, 0.231792344, 0.0200179144, 1.01046945, 103.560653]) );
+		this.addMaterial( new SellmeierDielectric("Glass (N-FK51A)", "", [0.0,        0.97124781, 0.00472301995, 0.216901417, 0.0153575612, 0.90465166, 168.68133]) );
+		this.addMaterial( new Sellmeier2Dielectric("Water", "",          [0.0,        5.67252e-1, 5.08555046e-3, 1.736581e-1, 1.8149386e-2, 2.12153e-2, 2.61726e-2, 1.1384932e-1, 1.073888e1]) );
+		this.addMaterial( new Sellmeier2Dielectric("Ethanol", "",        [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
+		this.addMaterial( new Sellmeier2Dielectric("Polycarbonate", "",  [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
+		this.addMaterial( new Sellmeier2Dielectric("Quartz", "",         [0.28851804, 1.09509924, 1.02101864e-2, 1.15662475,  100.0    ]) );
+		this.addMaterial( new SellmeierDielectric("Fused Silica", "",    [0.0,        0.6961663,  0.0684043,     0.4079426,  0.1162414, 0.8974794, 9.896161]) );
+		this.addMaterial( new SellmeierDielectric("Sapphire", "",        [0.0,        1.5039759,  0.0740288,     0.55069141, 0.1216529, 6.5927379, 20.072248]) );
 	
-		// ...
+		this.addMaterial( new SellmeierDielectric("Sodium Chloride", "", [0.00055,    0.19800,    0.050,         0.48398,     0.100,        0.38696,   0.128]) );
+
+		this.addMaterial( new CauchyDielectric("Glycerol", "",             [1.45797, 0.00598, -2, -0.00036, -4]) );
+		this.addMaterial( new CauchyDielectric("Liquid Crystal (E7)", "",  [1.4990,  0.0072,  -2,  0.0003,  -4]) );
+
+		this.addMaterial( new PolyanskiyDielectric("Proustite", "", [7.483, 0.474, 0.0, 0.09, 1.0]) );
+		this.addMaterial( new PolyanskiyDielectric("Rutile", "", [5.913, 0.2441, 0.0, 0.0803, 1.0]) );
+		this.addMaterial( new PolyanskiyDielectric("Silver Chloride", "", [4.00804, 0.079086, 0.0, 0.04584, 1.0]) );
+
+		// Gases
+		/*
+		this.addMaterial( new Gas("Air", "", [0.0, 0.05792105, 238.0185, 0.00167917, 57.362]) );
+		this.addMaterial( new Gas("Helium gas", "", [0.0, 0.01470091, 423.98]) );
+		this.addMaterial( new Gas("Nitrogen gas", "", [6.497378e-5, 3.0738649e-2, 144.0]) );
+		this.addMaterial( new Gas("Oxygen gas", "", [1.181494e-4, 9.708931e-3, 75.4]) );
+		this.addMaterial( new Gas("Ammonia gas", "", [0.0, 0.032953, 90.392]) );
+		this.addMaterial( new Gas("Argon gas", "", [0.0, 2.50141e-3, 91.012, 5.00283e-4, 87.892, 5.22343e-2, 214.02]) );
+		this.addMaterial( new Gas("Neon gas", "", [0.0, 0.00128145, 184.661, 0.0220486, 376.840]) );
+		this.addMaterial( new Gas("Krypton gas", "", [0.0, 0.00253637, 65.4742, 0.00273649, 73.698, 0.0620802, 181.08]) );
+		this.addMaterial( new Gas("Xenon gas", "", [0.0, 0.00322869, 46.301, 0.00355393, 50.578, 0.0606764, 112.74]) );
+		*/
+
+		// @todo: Metals. Need better approximations than the below: 
+		/*
+		this.addMaterial( new LinearMetal("Aluminium", "",  0.46555, 4.7121, 1.6620, 8.0439) );
+		this.addMaterial( new LinearMetal("Gold", "",            1.5275, 1.8394, 0.16918, 3.8816) );
+		*/
 	}
 
 	// Instantiate light tracer
@@ -127,7 +155,7 @@ var Snelly = function()
 
 	// Load the initial scene and material
 	this.loadScene("sphere");
-	this.loadMaterial("glass_bk7");
+	this.loadMaterial("Glass (BK7)");
 
 	// Create dat gui
 	this.gui = new GUI();
