@@ -38,6 +38,17 @@ GUI.prototype.createLightTracerSettings = function()
 	this.lightTracerFolder.open();
 }
 
+
+function hexToRgb(hex) {
+    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : null;
+}
+
+
 GUI.prototype.createSurfaceRendererSettings = function()
 {
 	this.surfaceRendererFolder = this.gui.addFolder('Surface Renderer');
@@ -57,16 +68,37 @@ GUI.prototype.createSurfaceRendererSettings = function()
 
 	this.surfaceRendererFolder.addColor(this.surfaceRendererSettings, 'diffuseCol1').onChange( function(value) 
 	{
-		surfaceRenderer.kd1[0] = value[0] / 255.0;
-		surfaceRenderer.kd1[1] = value[1] / 255.0;
-		surfaceRenderer.kd1[2] = value[2] / 255.0;
+		if (typeof value==='string' || value instanceof String)
+		{
+			var color = hexToRgb(value);
+			surfaceRenderer.kd1[0] = color.r / 255.0;
+			surfaceRenderer.kd1[1] = color.g / 255.0;
+			surfaceRenderer.kd1[2] = color.b / 255.0;
+		}
+		else
+		{
+			surfaceRenderer.kd1[0] = value[0] / 255.0;
+			surfaceRenderer.kd1[1] = value[1] / 255.0;
+			surfaceRenderer.kd1[2] = value[2] / 255.0;
+		}
 		surfaceRenderer.reset(); 
 	});
+
 	this.surfaceRendererFolder.addColor(this.surfaceRendererSettings, 'diffuseCol2').onChange( function(value) 
 	{ 
-		surfaceRenderer.kd2[0] = value[0] / 255.0;
-		surfaceRenderer.kd2[1] = value[1] / 255.0;
-		surfaceRenderer.kd2[2] = value[2] / 255.0;
+		if (typeof value==='string' || value instanceof String)
+		{
+			var color = hexToRgb(value);
+			surfaceRenderer.kd2[0] = color.r / 255.0;
+			surfaceRenderer.kd2[1] = color.g / 255.0;
+			surfaceRenderer.kd2[2] = color.b / 255.0;
+		}
+		else
+		{
+			surfaceRenderer.kd2[0] = value[0] / 255.0;
+			surfaceRenderer.kd2[1] = value[1] / 255.0;
+			surfaceRenderer.kd2[2] = value[2] / 255.0;
+		}
 		surfaceRenderer.reset(); 
 	});
 
