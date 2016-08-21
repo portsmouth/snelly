@@ -78,13 +78,13 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 
 	// translater intersection geo, for dragging
 	var translaterGeo      = new THREE.SphereGeometry(0.98*RI, 32, 32);
-	var translaterMaterial = new THREE.MeshPhongMaterial( { color: 0xff0000, visible: true } );
+	var translaterMaterial = new THREE.MeshPhongMaterial( { color: 0xa0b0c0, specular: 0xffffff, shininess: 10, visible: true } );
 	var translaterObj      = new THREE.Mesh( translaterGeo, translaterMaterial  );
 	group.add(translaterObj);
 
 
 	//////////////////////////////////////////////////////////////////////////////
-	// Rendered geometry for handle controls (thin, visually appealing lines)
+	// Rendered geometry for handle controls
 	//////////////////////////////////////////////////////////////////////////////
 	
 	this.renderHandleGroup = new THREE.Object3D();
@@ -231,11 +231,11 @@ LaserPointer.prototype.buildEmitterGeo = function()
 	}
 
 	// Laser emission geometry
-	var rPointer = 1.1*this.getEmissionRadius();
+	var rPointer = this.getEmissionRadius();
 	this.emitterLength = 0.01*rPointer;
 
 	var emitterGeo      = new THREE.CylinderGeometry(rPointer, rPointer, this.emitterLength, 32, 32);
-	var emitterMaterial = new THREE.MeshPhongMaterial( { color: 0xdddddd, specular: 0x999999, shininess: 60, visible: true } );
+	var emitterMaterial = new THREE.MeshPhongMaterial( { color: 0xa0b0c0, specular: 0xffffff, shininess: 10, visible: true } );
 	var emitterObj      = new THREE.Mesh( emitterGeo, emitterMaterial  );
 	group.add(emitterObj);
 	this.emitterObj = emitterObj;
@@ -518,7 +518,7 @@ LaserPointer.prototype.onMouseMove = function(event)
 			else if (this.SELECTED == obj['zRotHandleIntersection'])
 			{
 				this.unsetTarget();
-				
+
 				// apply angular motion induced by drag
 				var radiusVector = new THREE.Vector3();
 				radiusVector.copy(this.SELECTION_HITPOINT);
@@ -603,7 +603,7 @@ LaserPointer.prototype.onMouseMove = function(event)
 			if (intersected == this.objects['translater'])
 			{
 				this.emitterObj.material.emissive.set( 0x404040 );
-				translater.material.emissive.set( 0x102010 );
+				translater.material.emissive.set( 0x202020 );
 			}
 			else
 			{
