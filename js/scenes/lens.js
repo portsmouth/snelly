@@ -57,6 +57,15 @@ LensScene.prototype.setCam = function(controls, camera)
 	controls.target.set(0.0, 0.0, 0.0);
 }
 
+/*
+LensScene.prototype.getBox = function()
+{
+	var min = new THREE.Vector3(-100, -100, -100);
+	var max = new THREE.Vector3(100, 100, 100);
+	return new THREE.Box3(min, max);
+}
+*/
+
 
 // Initial laser position and direction defaults for this scene
 LensScene.prototype.setLaser = function(laser)

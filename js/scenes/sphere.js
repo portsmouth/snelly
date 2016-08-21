@@ -43,6 +43,16 @@ SphereScene.prototype.getScale = function()
 	return this._settings.radius;
 }
 
+/*
+SphereScene.prototype.getBox = function()
+{
+	var min = new THREE.Vector3(-100, -100, -100);
+	var max = new THREE.Vector3(100, 100, 100);
+	return new THREE.Box3(min, max);
+}
+*/
+
+
 
 // Initial cam position default for this scene
 SphereScene.prototype.setCam = function(controls, camera)
