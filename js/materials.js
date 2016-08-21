@@ -191,7 +191,6 @@ SellmeierDielectric.prototype.ior = function()
 		return sqrt(abs(n2));                                                                     
 	}`;
 
-	console.log(this._name + ' ior code: ' + code);
 	return code;
 }
 
@@ -243,7 +242,6 @@ Sellmeier2Dielectric.prototype.ior = function()
 		return sqrt(abs(n2));                                                                     
 	}`;
 
-	console.log(this._name + ' ior code: ' + code);
 	return code;
 }
 
@@ -294,7 +292,6 @@ PolyanskiyDielectric.prototype.ior = function()
 		return sqrt(abs(n2));                                                                     
 	}`;
 
-	console.log(this._name + ' ior code: ' + code);
 	return code;
 }
 
@@ -347,7 +344,6 @@ CauchyDielectric.prototype.ior = function()
 		return n;                                                                     
 	}`;
 
-	console.log(this._name + ' ior code: ' + code);
 	return code;
 }
 
@@ -399,7 +395,6 @@ Gas.prototype.ior = function()
 		return sqrt(abs(n2));                                                                     
 	}`;
 
-	console.log(this._name + ' ior code: ' + code);
 	return code;
 }
 
