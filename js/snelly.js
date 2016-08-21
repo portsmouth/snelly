@@ -105,23 +105,21 @@ var Snelly = function()
 		// Dielectrics
 		this.addMaterial( new ConstantDielectric("Constant IOR dielectric", "", 1.5) ); 
 
-		this.addMaterial( new SellmeierDielectric("Diamond", "",         [0.0,        0.3306,     0.175,         4.3356,      0.1060]) );
 		this.addMaterial( new SellmeierDielectric("Glass (BK7)", "",     [0.0,        1.03961212, 0.00600069867, 0.231792344, 0.0200179144, 1.01046945, 103.560653]) );
 		this.addMaterial( new SellmeierDielectric("Glass (N-FK51A)", "", [0.0,        0.97124781, 0.00472301995, 0.216901417, 0.0153575612, 0.90465166, 168.68133]) );
 		this.addMaterial( new Sellmeier2Dielectric("Water", "",          [0.0,        5.67252e-1, 5.08555046e-3, 1.736581e-1, 1.8149386e-2, 2.12153e-2, 2.61726e-2, 1.1384932e-1, 1.073888e1]) );
 		this.addMaterial( new Sellmeier2Dielectric("Ethanol", "",        [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
 		this.addMaterial( new Sellmeier2Dielectric("Polycarbonate", "",  [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
-		this.addMaterial( new Sellmeier2Dielectric("Quartz", "",         [0.28851804, 1.09509924, 1.02101864e-2, 1.15662475,  100.0    ]) );
-		this.addMaterial( new SellmeierDielectric("Fused Silica", "",    [0.0,        0.6961663,  0.0684043,     0.4079426,  0.1162414, 0.8974794, 9.896161]) );
-		this.addMaterial( new SellmeierDielectric("Sapphire", "",        [0.0,        1.5039759,  0.0740288,     0.55069141, 0.1216529, 6.5927379, 20.072248]) );
-	
-		this.addMaterial( new SellmeierDielectric("Sodium Chloride", "", [0.00055,    0.19800,    0.050,         0.48398,     0.100,        0.38696,   0.128]) );
-
 		this.addMaterial( new CauchyDielectric("Glycerol", "",             [1.45797, 0.00598, -2, -0.00036, -4]) );
 		this.addMaterial( new CauchyDielectric("Liquid Crystal (E7)", "",  [1.4990,  0.0072,  -2,  0.0003,  -4]) );
 
+		this.addMaterial( new SellmeierDielectric("Diamond", "",         [0.0,        0.3306,     0.175,         4.3356,      0.1060]) );
+		this.addMaterial( new SellmeierDielectric("Quartz", "",         [0.0, 0.6961663, 0.0684043, 0.4079426, 0.1162414, 0.8974794, 9.896161]) );
+		this.addMaterial( new SellmeierDielectric("Fused Silica", "",    [0.0,        0.6961663,  0.0684043,     0.4079426,  0.1162414, 0.8974794, 9.896161]) );
+		this.addMaterial( new SellmeierDielectric("Sapphire", "",        [0.0,        1.5039759,  0.0740288,     0.55069141, 0.1216529, 6.5927379, 20.072248]) );
+		this.addMaterial( new SellmeierDielectric("Sodium Chloride", "", [0.00055,    0.19800,    0.050,         0.48398,     0.100,        0.38696,   0.128]) );
 		this.addMaterial( new PolyanskiyDielectric("Proustite", "", [7.483, 0.474, 0.0, 0.09, 1.0]) );
-		this.addMaterial( new PolyanskiyDielectric("Rutile", "", [5.913, 0.2441, 0.0, 0.0803, 1.0]) );
+		this.addMaterial( new PolyanskiyDielectric("Rutile (Titanium Dioxide)", "", [5.913, 0.2441, 0.0, 0.0803, 1.0]) );
 		this.addMaterial( new PolyanskiyDielectric("Silver Chloride", "", [4.00804, 0.079086, 0.0, 0.04584, 1.0]) );
 
 		// Gases
@@ -207,6 +205,7 @@ Snelly.prototype.loadScene = function(sceneName)
 	this.sceneObj = this.scenes[sceneName];
 	this.sceneObj.setCam(this.controls, this.camera);
 	this.sceneObj.setLaser(this.laser);
+	this.laser.unsetTarget();
 
 	// Camera frustum update
 	this.camera.near = 1.0e-2*this.sceneObj.getScale();
@@ -346,9 +345,6 @@ Snelly.prototype.onDocumentMouseUp = function(event)
 
 Snelly.prototype.onDocumentRightClick = function(event)
 {
-	// @todo: instead, do pick on left click,
-	//        rotate on alt-left click, save right click for pan
-
 	this.controls.update();
 	event.preventDefault();
 
@@ -356,7 +352,11 @@ Snelly.prototype.onDocumentRightClick = function(event)
 	var yPick = - (( event.clientY - this.glRenderer.domElement.offsetTop ) / this.glRenderer.domElement.height)*2 + 1;
 
 	var pickedPoint = this.surfaceRenderer.pick(xPick, yPick);
-	if (pickedPoint == null) return;
+	if (pickedPoint == null)
+	{
+		this.laser.unsetTarget();
+		return;
+	} 
 
 	this.laser.setTarget(pickedPoint);	
 	this.reset();

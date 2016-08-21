@@ -216,6 +216,8 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 	this.objects['bbox'] = this.bbox;
 	glScene.add(this.bbox);
 
+	this.targetSet = false;
+
 	this.resize(window.innerWidth, window.innerHeight);
 }
 
@@ -398,6 +400,7 @@ LaserPointer.prototype.setDirection = function(direction)
 	group.quaternion.multiplyQuaternions(rot, group.quaternion);
 	group.quaternion.normalize();
 	group.updateMatrix();
+	this.unsetTarget();
 }
 
 LaserPointer.prototype.setTarget = function(target)
@@ -406,6 +409,13 @@ LaserPointer.prototype.setTarget = function(target)
 	newDir.sub(this.getPoint());
 	newDir.normalize();
 	this.setDirection(newDir);
+	this.targetSet = true;
+	this.target = target;
+}
+
+LaserPointer.prototype.unsetTarget = function()
+{
+	this.targetSet = false;
 }
 
 LaserPointer.prototype.setEmissionRadius = function(radius)
@@ -479,6 +489,8 @@ LaserPointer.prototype.onMouseMove = function(event)
 			// rotation on dragging 'rings'
 			else if (this.SELECTED == obj['xRotHandleIntersection'])
 			{
+				this.unsetTarget();
+
 				// apply angular motion induced by drag
 				var radiusVector = new THREE.Vector3();
 				radiusVector.copy(this.SELECTION_HITPOINT);
@@ -505,6 +517,8 @@ LaserPointer.prototype.onMouseMove = function(event)
 			}
 			else if (this.SELECTED == obj['zRotHandleIntersection'])
 			{
+				this.unsetTarget();
+				
 				// apply angular motion induced by drag
 				var radiusVector = new THREE.Vector3();
 				radiusVector.copy(this.SELECTION_HITPOINT);
@@ -562,6 +576,11 @@ LaserPointer.prototype.onMouseMove = function(event)
 			}
 
 			group.updateMatrix();
+
+			if (this.targetSet)
+			{
+				this.setTarget(this.target);
+			}
 		}
 
 		return true;
