@@ -6,11 +6,11 @@ var GUI = function()
 	this.gui = new dat.GUI();
 	var gui = this.gui;
 	
-	this.createLightTracerSettings();
-	this.createSurfaceRendererSettings();
 	this.createSceneSettings();
 	this.createMaterialSettings();
 	this.createEmissionSettings();
+	this.createLightTracerSettings();
+	this.createSurfaceRendererSettings();
 }
 
 GUI.prototype.createLightTracerSettings = function()
