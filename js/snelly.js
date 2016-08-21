@@ -88,12 +88,13 @@ var Snelly = function()
 	this.scenes = {}
 	this.sceneObj = null;
 	{
-		this.addScene(new SphereScene("sphere", "Simple sphere"));
-		this.addScene(new FibreScene("fibre", "Simple optical fibre"));
-		this.addScene(new BoxScene("box", "Simple box"));
-		this.addScene(new OceanScene("ocean", "Ocean"));
-		this.addScene(new MengerScene("menger", "Menger Sponge"));
-		this.addScene(new EllipsoidScene("ellipsoid", "Ellipsoid"));
+		this.addScene(new SphereScene("Simple sphere", ""));
+		this.addScene(new FibreScene("Simple optical fibre", ""));
+		this.addScene(new BoxScene("Simple box", ""));
+		this.addScene(new OceanScene("Ocean", ""));
+		this.addScene(new MengerScene("Menger Sponge", ""));
+		this.addScene(new EllipsoidScene("Ellipsoid", ""));
+		this.addScene(new StackScene("Stack of slabs", ""));
 
 		// ...
 	}
@@ -152,7 +153,7 @@ var Snelly = function()
 	this.resize();
 
 	// Load the initial scene and material
-	this.loadScene("sphere");
+	this.loadScene("Simple optical fibre");
 	this.loadMaterial("Glass (BK7)");
 
 	// Create dat gui
