@@ -1249,7 +1249,7 @@ LIGHTING_FUNC
 bool hit(inout vec3 X, vec3 D, inout int numSteps)
 {
 	float minMarchDist = 1.0e-5*SceneScale;
-	float maxMarchDist = camFar;
+	float maxMarchDist = 1.0e5*SceneScale;
 	float t = 0.0;
 	float h = 1.0;
     for( int i=0; i<MAX_MARCH_STEPS; i++ )
@@ -2206,7 +2206,7 @@ void raytrace(inout vec4 rnd,
 {
 	if (length(rgb) < 1.0e-6) return;
 	float minMarchDist = 1.0e-5*SceneScale;
-	float maxMarchDist = 1.0e3*SceneScale;
+	float maxMarchDist = 1.0e5*SceneScale;
 	float t = 0.0;
 	float h = 1.0;
     for( int i=0; i<MAX_MARCH_STEPS; i++ )
