@@ -91,6 +91,7 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 	var renderHandleGroup = this.renderHandleGroup;
 
 	var rR = 0.06;
+	this.rR = rR;
 	var hR = 8.0;
 	var RR = 2.0;
 
@@ -217,6 +218,9 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 	glScene.add(this.bbox);
 
 	this.targetSet = false;
+	this.setEmissionRadius(0.0);
+
+	this.eulerAngles = new THREE.Euler();
 
 	this.resize(window.innerWidth, window.innerHeight);
 }
@@ -232,7 +236,7 @@ LaserPointer.prototype.buildEmitterGeo = function()
 
 	// Laser emission geometry
 	var rPointer = this.getEmissionRadius();
-	this.emitterLength = 0.01*rPointer;
+	this.emitterLength = 0.01*this.rR; //0.01*rPointer;
 
 	var emitterGeo      = new THREE.CylinderGeometry(rPointer, rPointer, this.emitterLength, 32, 32);
 	var emitterMaterial = new THREE.MeshPhongMaterial( { color: 0xa0b0c0, specular: 0xffffff, shininess: 10, visible: true } );
@@ -330,6 +334,12 @@ LaserPointer.prototype.getDirection = function()
 	return this.getY();
 }
 
+
+LaserPointer.prototype.getEuler = function()
+{
+	return this.eulerAngles;
+}
+
 LaserPointer.prototype.getX = function()
 {
 	var worldX = new THREE.Vector3();
@@ -400,6 +410,14 @@ LaserPointer.prototype.setDirection = function(direction)
 	group.quaternion.multiplyQuaternions(rot, group.quaternion);
 	group.quaternion.normalize();
 	group.updateMatrix();
+	this.eulerAngles.setFromQuaternion(group.quaternion, 'XYZ');
+	this.unsetTarget();
+}
+
+LaserPointer.prototype.setEuler = function(euler)
+{
+	this.eulerAngles = euler;
+	this.group.quaternion.setFromEuler(euler);
 	this.unsetTarget();
 }
 
@@ -514,6 +532,7 @@ LaserPointer.prototype.onMouseMove = function(event)
 				var rotX = new THREE.Quaternion();
 				rotX.setFromAxisAngle(this.getX(), rotAngleX);
 				group.quaternion.multiplyQuaternions(rotX, group.quaternion);
+				this.eulerAngles.setFromQuaternion(group.quaternion, 'XYZ');
 			}
 			else if (this.SELECTED == obj['zRotHandleIntersection'])
 			{
@@ -542,6 +561,7 @@ LaserPointer.prototype.onMouseMove = function(event)
 				var rotZ = new THREE.Quaternion();
 				rotZ.setFromAxisAngle(this.getZ(), rotAngleZ);
 				group.quaternion.multiplyQuaternions(rotZ, group.quaternion);
+				this.eulerAngles.setFromQuaternion(group.quaternion, 'XYZ');
 			}
 
 			// translation on dragging laser 'housing'

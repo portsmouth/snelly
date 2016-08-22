@@ -13,6 +13,20 @@ var GUI = function()
 	this.createSurfaceRendererSettings();
 }
 
+function updateDisplay(gui) {
+    for (var i in gui.__controllers) {
+        gui.__controllers[i].updateDisplay();
+    }
+    for (var f in gui.__folders) {
+        updateDisplay(gui.__folders[f]);
+    }
+}
+
+GUI.prototype.sync = function()
+{
+	updateDisplay(this.gui);
+}
+
 GUI.prototype.createLightTracerSettings = function()
 {
 	this.lightTracerFolder = this.gui.addFolder('Light Tracer');
@@ -29,9 +43,9 @@ GUI.prototype.createLightTracerSettings = function()
 	this.lightTracerFolder.add(this.lightTracerSettings, 'enable').onChange( function(value) { lightTracer.enabled = value;  } );
 	this.lightTracerFolder.add(this.lightTracerSettings, 'exposure', -2.0, 4.0, 0.01);
 	this.lightTracerFolder.add(this.lightTracerSettings, 'gamma', 0.0, 4.0, 0.01);
-	this.lightTracerFolder.add(this.lightTracerSettings, 'maxPathLength', 1, 1024).onChange( function(value) { lightTracer.maxPathLength = Math.floor(value); lightTracer.reset(); } );
-	this.lightTracerFolder.add(this.lightTracerSettings, 'maxMarchSteps', 1, 1024).onChange( function(value) { lightTracer.maxMarchSteps = Math.floor(value); lightTracer.reset(); } );
-	this.lightTracerFolder.add(this.lightTracerSettings, 'rayBufferSize', 16, 1024).onChange( function(value) { lightTracer.raySize = Math.floor(value); 
+	this.lightTracerFolder.add(this.lightTracerSettings, 'maxPathLength', 4, 1024).onChange( function(value) { lightTracer.maxPathLength = Math.floor(value); lightTracer.reset(); } );
+	this.lightTracerFolder.add(this.lightTracerSettings, 'maxMarchSteps', 32, 1024).onChange( function(value) { lightTracer.maxMarchSteps = Math.floor(value); lightTracer.reset(); } );
+	this.lightTracerFolder.add(this.lightTracerSettings, 'rayBufferSize', 64, 1024).onChange( function(value) { lightTracer.raySize = Math.floor(value); 
 																											    lightTracer.initStates(); 
 																												lightTracer.reset(); } );
 	this.gui.remember(this.lightTracerSettings);
@@ -119,9 +133,16 @@ GUI.prototype.createEmissionSettings = function()
 	this.emissionSettings = {};
 	this.emissionSettings.showLaserPointer = true;
 	this.emissionSettings.spectrum = 'monochromatic';
+	this.emissionSettings.emissionRadius = 0.01; // (scene-scale relative)
 
 	this.emissionFolder.add(this.emissionSettings, 'showLaserPointer').onChange( function(value) { laser.toggleVisibility(value); } );
-	this.emissionFolder.add(laser, 'emissionRadius', 0.0, 10.0).onChange( function(value) { laser.setEmissionRadius(value);      lightTracer.reset(); } );
+	this.emissionFolder.add(this.emissionSettings, 'emissionRadius', 0.0, 3.0).onChange( function(value) 
+	{ 
+		var sceneObj = snelly.getLoadedScene();
+		var sceneScale = sceneObj.getScale();
+		laser.setEmissionRadius(sceneScale*value);      
+		lightTracer.reset(); 
+	} );
 	this.emissionFolder.add(laser, 'emissionSpread', 0.0, 45.0).onChange( function(value) { laser.setEmissionSpreadAngle(value); lightTracer.reset(); } );
 	this.gui.remember(laser);
 
@@ -149,6 +170,41 @@ GUI.prototype.createEmissionSettings = function()
 				 	} );
 
 	spectrumObj.initGui(this.emissionFolder);
+
+	// Laser transform sliders
+	this.emissionTranslationFolder = this.emissionFolder.addFolder('Translation');
+	var xT = this.emissionTranslationFolder.add(laser.group.position, 'x');
+	var yT = this.emissionTranslationFolder.add(laser.group.position, 'y');
+	var zT = this.emissionTranslationFolder.add(laser.group.position, 'z');
+	xT.onChange( function(value)  { snelly.reset(); } );
+	yT.onChange( function(value)  { snelly.reset(); } );
+	zT.onChange( function(value)  { snelly.reset(); } );
+
+	this.emissionRotationFolder = this.emissionFolder.addFolder('Rotation');
+	var xR = this.emissionRotationFolder.add(laser.eulerAngles, 'x', -Math.PI, Math.PI);
+	xR.onChange( function(value) 
+	{ 
+		var euler = laser.getEuler();
+		euler.x = value;
+		laser.setEuler(euler);
+		snelly.reset();
+	} );
+	var yR = this.emissionRotationFolder.add(laser.eulerAngles, 'y', -Math.PI, Math.PI);
+	yR.onChange( function(value) 
+	{ 
+		var euler = laser.getEuler();
+		euler.y = value;
+		laser.setEuler(euler);
+		snelly.reset();
+	} );
+	var zR = this.emissionRotationFolder.add(laser.eulerAngles, 'z', -Math.PI, Math.PI);
+	zR.onChange( function(value) 
+	{ 
+		var euler = laser.getEuler();
+		euler.z = value;
+		laser.setEuler(euler);
+		snelly.reset();
+	} );
 
 	this.gui.remember(this.emissionSettings);
 	this.emissionFolder.open();
