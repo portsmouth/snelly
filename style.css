@@ -4,7 +4,7 @@ body{
   overflow: hidden;
 }
 
-/* make the canvases, children of the this container */
+/* make the canvases children of this container */
 #container {
     position: relative;
     margin: 0px;
@@ -25,6 +25,16 @@ body{
     margin: 0px;
     padding: 0px;
     overflow: hidden;
-    z-index: 10;      /* position this canvas on top of the other one */
+    z-index: 10;      /* position this canvas on top of the web gl one */
 }
 
+/*
+#textContainer {
+    position: absolute;
+    margin: 0px;
+    overflow: hidden;
+    left: 0px;
+    top: 0px;
+    z-index: 100;
+}
+*/

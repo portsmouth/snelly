@@ -24,6 +24,17 @@ var Snelly = function()
 	ui_canvas.style.top = 0;
 	ui_canvas.style.position = 'fixed' 
 
+	// Setup HUD text canvas
+	// look up the text canvas.
+	/*
+	var text_canvas = document.getElementById("text-canvas");
+	this.textCtx = text_canvas.getContext("2d");
+	this.textCtx.fillStyle = "#333333"; 	// This determines the text colour, it can take a hex value or rgba value (e.g. rgba(255,0,0,0.5))
+	this.textCtx.textAlign = "center";   	// This determines the alignment of text, e.g. left, center, right
+	this.textCtx.textBaseline = "middle";	// This determines the baseline of the text, e.g. top, middle, bottom
+	this.textCtx.font = "12px monospace";	// This determines the size of the text and the font family used
+	*/
+
 	var VIEW_ANGLE = 45;
 	var ASPECT = this.width / this.height ;
 	var NEAR = 0.05;
@@ -88,14 +99,18 @@ var Snelly = function()
 	this.scenes = {}
 	this.sceneObj = null;
 	{
-		this.addScene(new SphereScene("Simple sphere", ""));
-		this.addScene(new FibreScene("Simple optical fibre", ""));
-		this.addScene(new BoxScene("Simple box", ""));
+		this.addScene(new GemScene("Gem stone", ""));
+		this.addScene(new ConvergingLensScene("Converging Lens", ""));
+		this.addScene(new DivergingLensScene("Diverging Lens", ""));
+		this.addScene(new SphereScene("Sphere", ""));
+		this.addScene(new EllipsoidScene("Ellipsoid", ""));
+		this.addScene(new FibreScene("Optical fibre", ""));
+		this.addScene(new BoxScene("Box", ""));
 		this.addScene(new OceanScene("Ocean", ""));
 		this.addScene(new MengerScene("Menger Sponge", ""));
-		this.addScene(new EllipsoidScene("Ellipsoid", ""));
 		this.addScene(new StackScene("Stack of slabs", ""));
-
+		this.addScene(new TumblerScene("Tumbler", ""));
+		this.addScene(new WineGlassScene("Wine glass", ""));
 		// ...
 	}
 
@@ -105,21 +120,26 @@ var Snelly = function()
 	{
 		// Dielectrics
 		this.addMaterial( new ConstantDielectric("Constant IOR dielectric", "", 1.5) ); 
-
-		this.addMaterial( new SellmeierDielectric("Glass (BK7)", "",     [0.0,        1.03961212, 0.00600069867, 0.231792344, 0.0200179144, 1.01046945, 103.560653]) );
-		this.addMaterial( new SellmeierDielectric("Glass (N-FK51A)", "", [0.0,        0.97124781, 0.00472301995, 0.216901417, 0.0153575612, 0.90465166, 168.68133]) );
-		this.addMaterial( new Sellmeier2Dielectric("Water", "",          [0.0,        5.67252e-1, 5.08555046e-3, 1.736581e-1, 1.8149386e-2, 2.12153e-2, 2.61726e-2, 1.1384932e-1, 1.073888e1]) );
-		this.addMaterial( new Sellmeier2Dielectric("Ethanol", "",        [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
-		this.addMaterial( new Sellmeier2Dielectric("Polycarbonate", "",  [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
+		this.addMaterial( new SellmeierDielectric("Glass (BK7)", "",       [0.0, 1.03961212, 0.00600069867, 0.231792344, 0.0200179144, 1.01046945,  103.560653]) );
+		this.addMaterial( new Sellmeier2Dielectric("Glass (K7)", "",       [0.0, 1.1273555,  0.00720341707, 0.124412303, 0.0269835916, 0.827100531, 100.384588]) );
+		this.addMaterial( new Sellmeier2Dielectric("Glass (F5)", "",       [0.0, 1.3104463,  0.00958633048, 0.19603426,  0.0457627627, 0.96612977,  115.011883]) );
+		this.addMaterial( new Sellmeier2Dielectric("Glass (LAFN7)", "",    [0.0, 1.66842615, 0.0103159999,  0.298512803, 0.0469216348, 1.0774376,   82.5078509]) );
+		this.addMaterial( new Sellmeier2Dielectric("Glass (LASF35)", "",   [0.0, 2.45505861, 0.0135670404,  0.453006077, 0.054580302,  2.3851308,   167.904715]) );
+		this.addMaterial( new Sellmeier2Dielectric("Glass (N-LAK33A)", "", [0.0, 1.44116999, 0.00680933877, 0.571749501, 0.0222291824, 1.16605226,  80.9379555]) );
+		this.addMaterial( new SellmeierDielectric("Glass (N-FK51A)", "",   [0.0, 0.97124781, 0.00472301995, 0.216901417, 0.0153575612, 0.90465166,  168.68133]) );
+		this.addMaterial( new Sellmeier2Dielectric("Glass (SF4)", "",      [0.0, 1.61957826, 0.0125502104,  0.339493189, 0.0544559822, 1.02566931,  117.652222]) );
+		this.addMaterial( new Sellmeier2Dielectric("Glass (SF67)", "",     [0.0, 1.97464225, 0.0145772324,  0.467095921, 0.0669790359, 2.43154209,  157.444895]) );
+		this.addMaterial( new Sellmeier2Dielectric("Water", "",            [0.0,        5.67252e-1, 5.08555046e-3, 1.736581e-1, 1.8149386e-2, 2.12153e-2, 2.61726e-2, 1.1384932e-1, 1.073888e1]) );
+		this.addMaterial( new Sellmeier2Dielectric("Ethanol", "",          [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
+		this.addMaterial( new Sellmeier2Dielectric("Polycarbonate", "",    [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
 		this.addMaterial( new CauchyDielectric("Glycerol", "",             [1.45797, 0.00598, -2, -0.00036, -4]) );
 		this.addMaterial( new CauchyDielectric("Liquid Crystal (E7)", "",  [1.4990,  0.0072,  -2,  0.0003,  -4]) );
-
-		this.addMaterial( new SellmeierDielectric("Diamond", "",         [0.0,        0.3306,     0.175,         4.3356,      0.1060]) );
-		this.addMaterial( new SellmeierDielectric("Quartz", "",         [0.0, 0.6961663, 0.0684043, 0.4079426, 0.1162414, 0.8974794, 9.896161]) );
-		this.addMaterial( new SellmeierDielectric("Fused Silica", "",    [0.0,        0.6961663,  0.0684043,     0.4079426,  0.1162414, 0.8974794, 9.896161]) );
-		this.addMaterial( new SellmeierDielectric("Sapphire", "",        [0.0,        1.5039759,  0.0740288,     0.55069141, 0.1216529, 6.5927379, 20.072248]) );
-		this.addMaterial( new SellmeierDielectric("Sodium Chloride", "", [0.00055,    0.19800,    0.050,         0.48398,     0.100,        0.38696,   0.128]) );
-		this.addMaterial( new PolyanskiyDielectric("Proustite", "", [7.483, 0.474, 0.0, 0.09, 1.0]) );
+		this.addMaterial( new SellmeierDielectric("Diamond", "",           [0.0,        0.3306,     0.175,         4.3356,      0.1060]) );
+		this.addMaterial( new SellmeierDielectric("Quartz", "",            [0.0, 0.6961663, 0.0684043, 0.4079426, 0.1162414, 0.8974794, 9.896161]) );
+		this.addMaterial( new SellmeierDielectric("Fused Silica", "",      [0.0,        0.6961663,  0.0684043,     0.4079426,  0.1162414, 0.8974794, 9.896161]) );
+		this.addMaterial( new SellmeierDielectric("Sapphire", "",          [0.0,        1.5039759,  0.0740288,     0.55069141, 0.1216529, 6.5927379, 20.072248]) );
+		this.addMaterial( new SellmeierDielectric("Sodium Chloride", "",   [0.00055,    0.19800,    0.050,         0.48398,     0.100,        0.38696,   0.128]) );
+		this.addMaterial( new PolyanskiyDielectric("Proustite", "",        [7.483, 0.474, 0.0, 0.09, 1.0]) );
 		this.addMaterial( new PolyanskiyDielectric("Rutile (Titanium Dioxide)", "", [5.913, 0.2441, 0.0, 0.0803, 1.0]) );
 		this.addMaterial( new PolyanskiyDielectric("Silver Chloride", "", [4.00804, 0.079086, 0.0, 0.04584, 1.0]) );
 
@@ -153,7 +173,7 @@ var Snelly = function()
 	this.resize();
 
 	// Load the initial scene and material
-	this.loadScene("Simple optical fibre");
+	this.loadScene("Gem stone");
 	this.loadMaterial("Glass (BK7)");
 
 	// Create dat gui
@@ -212,6 +232,7 @@ Snelly.prototype.loadScene = function(sceneName)
 	this.camera.near = 1.0e-2*this.sceneObj.getScale();
 	this.camera.far  = 1.0e4*this.sceneObj.getScale();
 
+	this.controls.update();	
 	this.reset();
 }
 
@@ -246,23 +267,25 @@ Snelly.prototype.getLoadedMaterial = function()
 }
 
 
-var flag = 0;
-
 // Renderer reset on camera update
 Snelly.prototype.reset = function()
 {	
 	this.surfaceRenderer.reset();
 	this.lightTracer.reset();
 
-	if (this.initialized)
-		this.render();
+	if (!this.initialized) return;
+	
+	this.gui.sync();
+
+	this.render();
 }
 
 // Render all 
 Snelly.prototype.render = function()
 {
+	if (!this.initialized) return;
 	if (this.sceneObj == null) return;
-	
+
 	var gl = GLU.gl;
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 	gl.enable(gl.DEPTH_TEST);
@@ -280,6 +303,10 @@ Snelly.prototype.render = function()
 
 	// Update stats
 	this.stats.update();
+
+	// Draw text HUD
+	//this.textCtx.clearRect(0, 0, this.textCtx.canvas.width, this.textCtx.canvas.height);
+	//this.textCtx.fillText('test message', 100, 100);
 }
 
 
@@ -299,6 +326,12 @@ Snelly.prototype.resize = function()
 	ui_canvas.width  = width;
 	ui_canvas.height = height;
 
+	/*
+	var text_canvas = document.getElementById("text-canvas");
+	text_canvas.width  = width;
+	text_canvas.height = height
+	*/
+
 	this.camera.aspect = width / height;
 	this.camera.updateProjectionMatrix();
 
@@ -307,7 +340,8 @@ Snelly.prototype.resize = function()
 	this.glRenderer.setSize(width, height);
 	this.laser.resize(width, height);
 
-	this.render();
+	if (this.initialized)
+		this.render();
 }
 
 

@@ -66,7 +66,7 @@ function MonochromaticSpectrum(name, desc, wavelength)
 
 MonochromaticSpectrum.prototype = Object.create(Spectrum.prototype);
 
-// A delta function spectrum has specialized inverse CDF generation
+// A delta function spectrum has specialized inverse CDF generation:
 MonochromaticSpectrum.prototype.inverseCDF = function(minwavelength, maxwavelength, numsamples)
 {
 	var wavelength = Math.max(minwavelength, Math.min(this.wavelength, maxwavelength));
