@@ -3,9 +3,7 @@
 function WineGlassScene(name, desc) 
 {
 	Scene.call(this, name, desc);
-
-	// defaults
-	this._settings.radius = 5.0;
+	this._settings.scaleHeight = 1.0;
 }
 
 // NB, every function is mandatory and must be defined.
@@ -18,12 +16,24 @@ WineGlassScene.prototype = Object.create(Scene.prototype);
 WineGlassScene.prototype.sdf = function()
 {
 	return `
-				uniform float _radius;                
+			uniform float _height;
 
-				float SDF(vec3 X)                     
-				{                                     
-					return length(X) - _radius;       
-				}                                     
+			float smin (in float a, in float b, in float k) 
+			{
+				float h = clamp (0.5 + 0.5 * (a - b) / k, 0.0, 1.0);
+				return mix (a, b, h) - k * h * (1.0 - h);
+			}
+
+			float SDF(vec3 p)
+			{
+				p.y /= _height;
+				float d = length (p);
+				float dxz = length (p.xz);
+				d = max (max (d - 1.45, 1.4 - d), p.y - 0.5);
+				d = min (d, max (dxz - 1.0, p.y + 3.0));
+				d = smin (d, max (dxz - 0.2, p.y + 1.4), 0.2);
+				return max (d, -p.y - 3.05);
+			}                                    
 	`;
 }
 
@@ -33,24 +43,25 @@ WineGlassScene.prototype.sdf = function()
 WineGlassScene.prototype.syncShader = function(traceProgram)
 {
 	// (The shader parameter names here must be consistent with the GLSL sdf code defined above)
-	traceProgram.uniformF("_radius", this._settings.radius);
+	traceProgram.uniformF("_height", this._settings.scaleHeight);
 }
 
 // Gives the raytracer some indication of (rough) scene size, so it
 // can set tolerances appropriately.
 WineGlassScene.prototype.getScale = function()
 {
-	return this._settings.radius;
+	return this._settings.scaleHeight;
 }
 
-/*
+
 WineGlassScene.prototype.getBox = function()
 {
-	var min = new THREE.Vector3(-100, -100, -100);
-	var max = new THREE.Vector3(100, 100, 100);
+	var h = this._settings.scaleHeight;
+	var min = new THREE.Vector3(-1.5*h, -3.5*h, -1.5*h);
+	var max = new THREE.Vector3(1.5*h, 1.5*h, 1.5*h);
 	return new THREE.Box3(min, max);
 }
-*/
+
 
 // Initial cam position default for this scene
 WineGlassScene.prototype.setCam = function(controls, camera)
@@ -72,13 +83,13 @@ WineGlassScene.prototype.setLaser = function(laser)
 // set up gui and callbacks for this scene
 WineGlassScene.prototype.initGui = function(parentFolder)
 {
-	this.radiusItem = parentFolder.add(this._settings, 'radius', 0.01, 10.0);
-	this.radiusItem.onChange( function(value) { snelly.reset(); } );
+	this.heightItem = parentFolder.add(this._settings, 'scaleHeight', 1.0, 2.0);
+	this.heightItem.onChange( function(value) { snelly.reset(); } );
 }
 
 WineGlassScene.prototype.eraseGui = function(parentFolder)
 {
-	parentFolder.remove(this.radiusItem);
+	parentFolder.remove(this.heightItem);
 }
 
 
