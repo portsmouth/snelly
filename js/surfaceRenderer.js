@@ -82,7 +82,7 @@ var SurfaceRenderer = function()
 	this.maxMarchSteps = 128;
 	this.enable = true;
 	this.depthTest = false;
-	this.showBounds = true;
+	this.showBounds = false;
 	this.surfaceAlpha = 1.0;
 	this.renderMode = 'blinn';
 	this.specPower = 20.0;
@@ -148,17 +148,19 @@ SurfaceRenderer.prototype.compileShaders = function()
 		case "blinn": replacements.LIGHTING_FUNC = `
 				vec3 LIGHTING( in vec3 V, in vec3 N )
 				{
-					vec3 Lights[2];
+					vec3 Lights[4];
 					const float oosot = 1.0/sqrt(3.0);
 					Lights[0] = vec3( 1.0,  1.0,  1.0)*oosot;
 					Lights[1] = vec3(-1.0,  1.0, -1.0)*oosot;
+					Lights[2] = vec3(-1.0,  -1.0, -1.0)*oosot;
+					Lights[3] = vec3(-1.0,  -1.0, -1.0)*oosot;
 					vec3 kd[2];
 					kd[0] = vec3(${this.kd1[0]}, ${this.kd1[1]}, ${this.kd1[2]});
 					kd[1] = vec3(${this.kd2[0]}, ${this.kd2[1]}, ${this.kd2[2]});
 					vec3 ks = vec3(1.0, 1.0, 1.0);
 					vec3 ka = vec3(0.005, 0.005, 0.005);
 					vec3 C = vec3(0.0, 0.0, 0.0);
-					for (int l=0; l<2; ++l)
+					for (int l=0; l<4; ++l)
 					{
 						vec3 L = Lights[l];
 						vec3 H = normalize(L+V);

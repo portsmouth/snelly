@@ -14,9 +14,10 @@ void main()
 {
 	vec4 seed = texture2D(RngData, vTexCoord);
 
-	// Sample photon wavelength from CDF of emission spectrum
+	// Sample photon wavelength via the inverse CDF of the emission spectrum
 	// (here w is spectral offset, i.e. wavelength = 360.0 + (750.0 - 360.0)*w)
-    float w = texture2D(ICDF, vec2(rand(seed), 0.5)).r;// + rand(seed)*(1.0/256.0);
+	// (linear interpolation into the inverse CDF texture and RGB table should ensure smooth sampling over the range)
+    float w = texture2D(ICDF, vec2(rand(seed), 0.5)).r; 
   	vec3 rgb = texture2D(WavelengthToRgb, vec2(w, 0.5)).rgb;
 
 	// Make emission cross-section circular

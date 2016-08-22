@@ -77,13 +77,13 @@ var LightTracer = function()
 
 	// Spectrum initialization
 	this.spectra = {}
-	this.SPECTRUM_SAMPLES = 256;
+	this.SPECTRUM_SAMPLES = 1024;
 	this.spectrumObj = null;
 	this.LAMBDA_MIN = 360.0;
     this.LAMBDA_MAX = 750.0;
 	var wToRgb = wavelengthToRgbTable();
 	this.wavelengthToRgb = new GLU.Texture(wToRgb.length/4, 1, 4, true,  true, true, wToRgb);
-	this.emissionIcdf    = new GLU.Texture(4*this.SPECTRUM_SAMPLES, 1, 1, true, false, true, null);
+	this.emissionIcdf    = new GLU.Texture(4*this.SPECTRUM_SAMPLES, 1, 1, true, true, true, null);
 
 	this.addSpectrum( new FlatSpectrum("flat", "Flat spectrum", 400.0, 700.0) );
 	this.addSpectrum( new BlackbodySpectrum("blackbody", "Blackbody spectrum", 6000.0) );
