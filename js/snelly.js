@@ -82,11 +82,41 @@ var Snelly = function()
 				else if ( 'mozCancelFullScreen'    in document ) element.mozRequestFullScreen();
 				else console.assert(false);
 				break;
+
 			case 70: // F key: focus on emitter
 				snelly.controls.object.zoom = snelly.controls.zoom0;
 				snelly.controls.target.copy(snelly.laser.getPoint());
 				snelly.controls.update();
-				break; 
+				break;
+
+			case 82: // R key: reset scene 
+				// @todo
+				break;
+
+			case 67: // C key: dev tool to dump cam and laser details, for setting scene defaults
+				var lp = snelly.laser.getPosition();
+				var ld = snelly.laser.getDirection();
+				var er = snelly.laser.getEmissionRadius();
+				var ex = snelly.laser.getEmissionSpreadAngle();
+				var t = snelly.controls.target;
+				var c = snelly.camera.position;
+
+				console.log(`laser.setPosition(new THREE.Vector3(${lp.x.toPrecision(6)}, ${lp.y.toPrecision(6)}, ${lp.z.toPrecision(6)}));`);
+				if (snelly.laser.targetSet)
+				{
+					var tg = snelly.laser.target;
+					console.log(`laser.setTarget(new THREE.Vector3(${tg.x.toPrecision(6)}, ${tg.y.toPrecision(6)}, ${tg.z.toPrecision(6)}));`);
+				}
+				else
+				{
+					console.log(`laser.setDirection(new THREE.Vector3(${ld.x.toPrecision(6)}, ${ld.y.toPrecision(6)}, ${ld.z.toPrecision(6)}));`);
+				}
+				console.log(`laser.setEmissionRadius(${er.toPrecision(6)});`);
+				console.log(`laser.setEmissionSpreadAngle(${ex.toPrecision(6)});`);
+				console.log(`controls.target.set(${t.x.toPrecision(6)}, ${t.y.toPrecision(6)}, ${t.z.toPrecision(6)});`);
+				console.log(`camera.position.set(${c.x.toPrecision(6)}, ${c.y.toPrecision(6)}, ${c.z.toPrecision(6)});`);
+				break;
+			
 		}
 	}, false);
 	
@@ -100,17 +130,16 @@ var Snelly = function()
 	this.sceneObj = null;
 	{
 		this.addScene(new GemScene("Gem stone", ""));
-		this.addScene(new ConvergingLensScene("Converging Lens", ""));
-		this.addScene(new DivergingLensScene("Diverging Lens", ""));
-		this.addScene(new SphereScene("Sphere", ""));
+		this.addScene(new ConvergingLensScene("Converging lens", ""));
+		this.addScene(new DivergingLensScene("Diverging lens", ""));
 		this.addScene(new EllipsoidScene("Ellipsoid", ""));
 		this.addScene(new FibreScene("Optical fibre", ""));
-		this.addScene(new BoxScene("Box", ""));
-		this.addScene(new OceanScene("Ocean", ""));
-		this.addScene(new MengerScene("Menger Sponge", ""));
-		this.addScene(new StackScene("Stack of slabs", ""));
+		this.addScene(new BoxScene("Twisted tube", ""));
+		this.addScene(new StackScene("Stack", ""));
 		this.addScene(new TumblerScene("Tumbler", ""));
 		this.addScene(new WineGlassScene("Wine glass", ""));
+		this.addScene(new OceanScene("Pool", ""));
+		this.addScene(new MengerScene("Menger sponge", ""));
 		// ...
 	}
 
@@ -223,11 +252,12 @@ Snelly.prototype.getScenes = function()
 
 Snelly.prototype.loadScene = function(sceneName)
 {
-	this.sceneObj = this.scenes[sceneName];
-	this.sceneObj.setCam(this.controls, this.camera);
-	this.sceneObj.setLaser(this.laser);
 	this.laser.unsetTarget();
 
+	this.sceneObj = this.scenes[sceneName];
+	this.sceneObj.init(this.controls, this.camera, this.laser);
+	Scene.prototype.setLaser.call(this.sceneObj, this.laser);
+	
 	// Camera frustum update
 	this.camera.near = 1.0e-2*this.sceneObj.getScale();
 	this.camera.far  = 1.0e4*this.sceneObj.getScale();
@@ -382,6 +412,7 @@ Snelly.prototype.onDocumentRightClick = function(event)
 {
 	this.controls.update();
 	event.preventDefault();
+	if (event.altKey) return; // don't pick if alt-right-clicking (panning)
 
 	var xPick =   (( event.clientX - this.glRenderer.domElement.offsetLeft ) / this.glRenderer.domElement.width)*2 - 1;
 	var yPick = - (( event.clientY - this.glRenderer.domElement.offsetTop ) / this.glRenderer.domElement.height)*2 + 1;
