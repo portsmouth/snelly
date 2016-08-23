@@ -25,10 +25,6 @@ Scene.prototype.getSettings = function()
 // Initial emitter defaults
 Scene.prototype.setLaser = function(laser)
 {
-	var sceneObj = snelly.getLoadedScene();
-	var sceneScale = sceneObj.getScale();
-	laser.setEmissionRadius(0.01*sceneScale);
-	laser.setEmissionSpreadAngle(5.0);
 	laser.buildEmitterGeo();
 }
 

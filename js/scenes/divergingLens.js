@@ -65,10 +65,14 @@ DivergingLensScene.prototype.getScale = function()
 
 
 // Initial cam position default for this scene
-DivergingLensScene.prototype.setCam = function(controls, camera)
+DivergingLensScene.prototype.init = function(controls, camera, laser)
 {
-	camera.position.set(-10.0, 10.0, 10.0)
-	controls.target.set(0.0, 0.0, 0.0);
+	laser.setPosition(new THREE.Vector3(-13.3410, 0.101274, -0.00490936));
+	laser.setDirection(new THREE.Vector3(1.00000, 3.33067e-16, 0.00000));
+	laser.setEmissionRadius(3.00000);
+	laser.setEmissionSpreadAngle(1.01480);
+	controls.target.set(6.23887, -1.60404, 1.39647);
+	camera.position.set(18.1117, 9.12804, 33.8416);
 }
 
 /*
@@ -79,16 +83,6 @@ DivergingLensScene.prototype.getBox = function()
 	return new THREE.Box3(min, max);
 }
 */
-
-
-// Initial laser position and direction defaults for this scene
-DivergingLensScene.prototype.setLaser = function(laser)
-{
-	laser.setPosition(new THREE.Vector3(-6.0, 0.0, 0.0));
-	laser.setDirection(new THREE.Vector3(1.0, 0.0, 0.0));
-	Scene.prototype.setLaser.call(this, laser);
-}
-
 
 // set up gui and callbacks for this scene
 DivergingLensScene.prototype.initGui = function(parentFolder)

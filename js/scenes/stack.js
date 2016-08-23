@@ -82,25 +82,14 @@ StackScene.prototype.getBox = function()
 
 
 // Initial cam position default for this scene
-StackScene.prototype.setCam = function(controls, camera)
+StackScene.prototype.init = function(controls, camera, laser)
 {
-	var s = this.getScale();
-	camera.position.set(-1.5*s, 1.5*s, 1.5*s)
-	controls.target.set(0.0, 0.0, 0.0);
-}
-
-
-// Initial laser position and direction defaults for this scene
-StackScene.prototype.setLaser = function(laser)
-{
-	var w = this._settings.extent;
-	var t = this._settings.thickness;
-	var s = this._settings.separation;
-	var n = this._settings.NUM_LAYERS;
-
-	laser.setPosition(new THREE.Vector3(0.0, 0.5*w, 0.0));
-	laser.setDirection(new THREE.Vector3(0.0, -1.0, 0.0));
-	Scene.prototype.setLaser.call(this, laser);
+	laser.setPosition(new THREE.Vector3(5.67454, 3.75873, -11.6149));
+	laser.setTarget(new THREE.Vector3(-1.97262, 0.157912, -4.99811));
+	laser.setEmissionRadius(0.0226195);
+	laser.setEmissionSpreadAngle(0.00000);
+	controls.target.set(4.63815, -5.08214, 2.59161);
+	camera.position.set(-31.0041, 1.10392, 3.01961);
 }
 
 

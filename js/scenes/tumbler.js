@@ -64,19 +64,14 @@ TumblerScene.prototype.getBox = function()
 */
 
 // Initial cam position default for this scene
-TumblerScene.prototype.setCam = function(controls, camera)
+TumblerScene.prototype.init = function(controls, camera, laser)
 {
-	camera.position.set(-4.0, 3.0, 4.0)
-	controls.target.set(0.0, 0.0, 0.0);
-}
-
-
-// Initial laser position and direction defaults for this scene
-TumblerScene.prototype.setLaser = function(laser)
-{
-	laser.setPosition(new THREE.Vector3(-2.0, 0.0, -2.0));
-	laser.setTarget(new THREE.Vector3(0.0, 0.0, 0.0));
-	Scene.prototype.setLaser.call(this, laser);
+	laser.setPosition(new THREE.Vector3(-5.48136, 3.41904, -0.0665851));
+	laser.setTarget(new THREE.Vector3(-0.598250, 1.00000, -0.956469));
+	laser.setEmissionRadius(0.0100000);
+	laser.setEmissionSpreadAngle(0.00000);
+	controls.target.set(2.12505, -1.61120, 1.04772);
+	camera.position.set(-8.34300, 6.04460, 1.13916);
 }
 
 

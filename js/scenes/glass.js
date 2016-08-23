@@ -59,19 +59,9 @@ GlassScene.prototype.getBox = function()
 */
 
 // Initial cam position default for this scene
-GlassScene.prototype.setCam = function(controls, camera)
+GlassScene.prototype.init = function(controls, camera, laser)
 {
-	camera.position.set(-10.0, 10.0, 10.0)
-	controls.target.set(0.0, 0.0, 0.0);
-}
 
-
-// Initial laser position and direction defaults for this scene
-WineGlassScene.prototype.setLaser = function(laser)
-{
-	laser.setPosition(new THREE.Vector3(-6.0, 6.0, -6.0));
-	laser.setDirection(new THREE.Vector3(1.0, 0.0, 0.0));
-	Scene.prototype.setLaser.call(this, laser);
 }
 
 

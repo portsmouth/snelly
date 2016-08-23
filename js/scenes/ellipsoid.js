@@ -5,9 +5,9 @@ function EllipsoidScene(name, desc)
 	Scene.call(this, name, desc);
 
 	// defaults
-	this._settings.a = 1.0;
-	this._settings.b = 2.0;
-	this._settings.c = 3.0;
+	this._settings.a = 2.0;
+	this._settings.b = 3.0;
+	this._settings.c = 5.0;
 }
 
 // NB, every function is mandatory and must be defined.
@@ -66,19 +66,14 @@ EllipsoidScene.prototype.getBox = function()
 
 
 // Initial cam position default for this scene
-EllipsoidScene.prototype.setCam = function(controls, camera)
+EllipsoidScene.prototype.init = function(controls, camera, laser)
 {
-	camera.position.set(-10.0, 10.0, 10.0)
-	controls.target.set(0.0, 0.0, 0.0);
-}
-
-
-// Initial laser position and direction defaults for this scene
-EllipsoidScene.prototype.setLaser = function(laser)
-{
-	laser.setPosition(new THREE.Vector3(-6.0, 0.0, 0.0));
-	laser.setDirection(new THREE.Vector3(1.0, 0.0, 0.0));
-	Scene.prototype.setLaser.call(this, laser);
+	laser.setPosition(new THREE.Vector3(-8.88858, 0.101274, -0.00490936));
+	laser.setDirection(new THREE.Vector3(1.00000, 2.22045e-16, 0.00000));
+	laser.setEmissionRadius(4.23984);
+	laser.setEmissionSpreadAngle(1.01480);
+	controls.target.set(5.86102, -1.76305, 1.53855);
+	camera.position.set(1.31630, 3.29438, 37.0716);
 }
 
 

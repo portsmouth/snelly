@@ -64,19 +64,14 @@ WineGlassScene.prototype.getBox = function()
 
 
 // Initial cam position default for this scene
-WineGlassScene.prototype.setCam = function(controls, camera)
+WineGlassScene.prototype.init = function(controls, camera, laser)
 {
-	camera.position.set(-10.0, 10.0, 10.0)
-	controls.target.set(0.0, 0.0, 0.0);
-}
-
-
-// Initial laser position and direction defaults for this scene
-WineGlassScene.prototype.setLaser = function(laser)
-{
-	laser.setPosition(new THREE.Vector3(-6.0, 0.0, 0.0));
-	laser.setDirection(new THREE.Vector3(1.0, 0.0, 0.0));
-	Scene.prototype.setLaser.call(this, laser);
+	laser.setPosition(new THREE.Vector3(-1.65450, 1.69287, -1.90594));
+	laser.setDirection(new THREE.Vector3(0.400671, -0.768580, 0.498746));
+	laser.setEmissionRadius(0.00000);
+	laser.setEmissionSpreadAngle(2.00000);
+	controls.target.set(1.30918, -1.19405, 0.224590);
+	camera.position.set(-8.30344, 2.52862, 2.53246);
 }
 
 

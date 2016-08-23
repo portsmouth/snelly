@@ -328,6 +328,12 @@ LaserPointer.prototype.getPoint = function()
 	return pWorld;
 }
 
+LaserPointer.prototype.getPosition = function()
+{
+	var group = this.objects["group"];
+	return group.position;
+}
+
 // get world direction of laser emitted from emission point
 LaserPointer.prototype.getDirection = function()
 {

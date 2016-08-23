@@ -4,8 +4,8 @@ function BoxScene(name, desc)
 	Scene.call(this, name, desc);
 
 	// defaults
-	this._settings.bounds = new THREE.Vector3(1.0, 1.0, 1.0);
-	this._settings.shell = 0.0;
+	this._settings.bounds = new THREE.Vector3(2.5, 2.5, 10.0);
+	this._settings.twist = 1.0;
 }
 
 // NB, every function is mandatory and must be defined.
@@ -19,7 +19,7 @@ BoxScene.prototype.sdf = function()
 {
 	return `
 				uniform vec3 _bounds;   
-				uniform float _shell;    
+				uniform float _twist;    
 
 				float sdBox(vec3 X, vec3 bounds)                     
 				{                                     
@@ -27,11 +27,18 @@ BoxScene.prototype.sdf = function()
 					return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
 				} 
 
+				float opTwist( vec3 p )
+				{
+				    float c = cos(_twist*p.y/_bounds.y);
+				    float s = sin(_twist*p.y/_bounds.y);
+				    mat2  m = mat2(c,-s,s,c);
+				    vec3  q = vec3(m*p.xz,p.y);
+				    return sdBox(q, _bounds);
+				}
+
 				float SDF(vec3 X)                     
 				{                           
-					float outer = sdBox(X, _bounds);   
-					float inner = sdBox(X, _bounds*_shell);
-					return opS(outer, inner);
+					return opTwist(X);
 				}                                     
 	`;
 }
@@ -45,7 +52,7 @@ BoxScene.prototype.syncShader = function(traceProgram)
 	traceProgram.uniform3Fv("_bounds", [this._settings.bounds.x, 
 										this._settings.bounds.y, 
 										this._settings.bounds.z]);
-	traceProgram.uniformF("_shell", this._settings.shell);
+	traceProgram.uniformF("_twist", this._settings.twist);
 }
 
 // Gives the raytracer some indication of (rough) scene size, so it
@@ -58,10 +65,14 @@ BoxScene.prototype.getScale = function()
 
 
 // Initial cam position default for this scene
-BoxScene.prototype.setCam = function(controls, camera)
+BoxScene.prototype.init = function(controls, camera, laser)
 {
-	camera.position.set(-5.0, 5.0, 5.0)
-	controls.target.set(0.0, 0.0, 0.0);
+	laser.setPosition(new THREE.Vector3(0.109110, 14.3273, 2.11155));
+	laser.setTarget(new THREE.Vector3(0.884006, 10.0001, -1.21589));
+	laser.setEmissionRadius(0.676533);
+	laser.setEmissionSpreadAngle(0.00000);
+	controls.target.set(3.30453, 1.84737, 1.72876);
+	camera.position.set(-31.8947, 18.7081, 10.8732);
 }
 
 /*
@@ -72,14 +83,6 @@ BoxScene.prototype.getBox = function()
 	return new THREE.Box3(min, max);
 }
 */
-
-// Initial laser position and direction defaults for this scene
-BoxScene.prototype.setLaser = function(laser)
-{
-	laser.setPosition(new THREE.Vector3(-6.0, 0.0, 0.0));
-	laser.setDirection(new THREE.Vector3(1.0, 0.0, 0.0));
-	Scene.prototype.setLaser.call(this, laser);
-}
 
 
 // set up gui and callbacks for this scene
@@ -94,8 +97,8 @@ BoxScene.prototype.initGui = function(parentFolder)
 	this.cItem = parentFolder.add(this._settings.bounds, 'z', 0.01, 10.0);
 	this.cItem.onChange( function(value) { snelly.reset(); } );
 
-	this.shellItem = parentFolder.add(this._settings, 'shell', 0.0, 1.0);
-	this.shellItem.onChange( function(value) { snelly.reset(); } );
+	this.twistItem = parentFolder.add(this._settings, 'twist', 0.0, 1.0);
+	this.twistItem.onChange( function(value) { snelly.reset(); } );
 }
 
 BoxScene.prototype.eraseGui = function(parentFolder)
@@ -103,7 +106,7 @@ BoxScene.prototype.eraseGui = function(parentFolder)
 	parentFolder.remove(this.aItem);
 	parentFolder.remove(this.bItem);
 	parentFolder.remove(this.cItem);
-	parentFolder.remove(this.shellItem);
+	parentFolder.remove(this.twistItem);
 }
 
 

@@ -22,7 +22,7 @@ FibreScene.prototype.sdf = function()
 
 				float SDF(vec3 X)                      
 				{                                  
-					vec2 h = vec2(_radius, 0.5*_length);                         
+					vec2 h = vec2(_radius, _length);                         
 					vec2 d = abs(vec2(length(X.xy), X.z)) - h;         
 					return min(max(d.x,d.y),0.0) + length(max(d,0.0)); 
 				}                                                      
@@ -57,20 +57,14 @@ FibreScene.prototype.getBox = function()
 }
 
 // Initial cam position default for this scene
-FibreScene.prototype.setCam = function(controls, camera)
+FibreScene.prototype.init = function(controls, camera, laser)
 {
-	camera.position.set(-13.0, 5.0, -39.0)
-	controls.target.set(-4.0, -1.0, -16.0);
-}
-
-
-// Initial laser position and direction defaults for this scene
-FibreScene.prototype.setLaser = function(laser)
-{
-	laser.setPosition(new THREE.Vector3(0.0, -1.0, -24.0));
-	laser.setDirection(new THREE.Vector3(1.0, 0.0, 0.0));
-
-	Scene.prototype.setLaser.call(this, laser);
+	laser.setPosition(new THREE.Vector3(-6.48839, 4.14743, -114.357));
+	laser.setTarget(new THREE.Vector3(0.188796, 0.149697, -100.000));
+	laser.setEmissionRadius(1.00000);
+	laser.setEmissionSpreadAngle(0.00000);
+	controls.target.set(8.08885, -34.1258, -8.56345);
+	camera.position.set(-15.6904, 19.2269, -132.803);
 }
 
 

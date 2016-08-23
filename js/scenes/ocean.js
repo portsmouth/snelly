@@ -131,19 +131,14 @@ OceanScene.prototype.getBox = function()
 
 
 // Initial cam position default for this scene
-OceanScene.prototype.setCam = function(controls, camera)
+OceanScene.prototype.init = function(controls, camera, laser)
 {
-	camera.position.set(80.0, 80.0, 80.0)
-	controls.target.set(0.0, 0.0, 0.0);
-}
-
-
-// Initial laser position and direction defaults for this scene
-OceanScene.prototype.setLaser = function(laser)
-{
-	laser.setPosition(new THREE.Vector3(0.0, 30.0, 0.0));
-	laser.setDirection(new THREE.Vector3(0.2, -1.0, 0.2));
-	Scene.prototype.setLaser.call(this, laser);
+	laser.setPosition(new THREE.Vector3(0.00000, 10.0000, 0.00000));
+	laser.setDirection(new THREE.Vector3(1.22465e-16, -1.00000, 0.00000));
+	laser.setEmissionRadius(3.00000);
+	laser.setEmissionSpreadAngle(45.0000);
+	controls.target.set(5.55635, -1.05045, 1.96451);
+	camera.position.set(50.8994, 20.0778, 35.8554);
 }
 
 

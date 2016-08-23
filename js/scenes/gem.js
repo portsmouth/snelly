@@ -75,13 +75,6 @@ GemScene.prototype.getScale = function()
 }
 
 
-// Initial cam position default for this scene
-GemScene.prototype.setCam = function(controls, camera)
-{
-	camera.position.set(-8.0, 3.0, 8.0)
-	controls.target.set(0.0, 0.0, 0.0);
-}
-
 /*
 GemScene.prototype.getBox = function()
 {
@@ -93,10 +86,14 @@ GemScene.prototype.getBox = function()
 
 
 // Initial laser position and direction defaults for this scene
-GemScene.prototype.setLaser = function(laser)
+GemScene.prototype.init = function(controls, camera, laser)
 {
-	laser.setPosition(new THREE.Vector3(3.0, 3.0, 3.0));
-	laser.setTarget(new THREE.Vector3(0.0, 0.0, 0.0));
+	laser.setPosition(new THREE.Vector3(4.61823e-16, -3.77107, 0.00000));
+	laser.setTarget(new THREE.Vector3(0.0, 1.0000, 0.0));
+	laser.setEmissionRadius(0.0100000);
+	laser.setEmissionSpreadAngle(19.2812);
+	controls.target.set(0.528535, -0.866200, 0.734853);
+	camera.position.set(-7.99006, 3.14907, 7.68548);
 	Scene.prototype.setLaser.call(this, laser);
 }
 
@@ -104,8 +101,8 @@ GemScene.prototype.setLaser = function(laser)
 // set up gui and callbacks for this scene
 GemScene.prototype.initGui = function(parentFolder)
 {
-	this.widthItem = parentFolder.add(this._settings, 'scaleWidth', 1.0, 5.0);
-	this.heightItem = parentFolder.add(this._settings, 'scaleHeight', 0.1, 3.0);
+	this.widthItem = parentFolder.add(this._settings, 'scaleWidth', 1.0, 2.0);
+	this.heightItem = parentFolder.add(this._settings, 'scaleHeight', 1.0, 4.0);
 	this.angularItem = parentFolder.add(this._settings, 'angularFacets', 1, 20, 1);
 
 	this.widthItem.onChange( function(value) { snelly.reset(); } );
