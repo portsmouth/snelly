@@ -17,8 +17,7 @@ var GLU = {};
 		if (!gl) throw new Error("Could not initialise WebGL");
 		this.gl = gl;
 
-		console.log('Supported webGL extensions: ' + gl.getSupportedExtensions());
-		
+		//console.log('Supported webGL extensions: ' + gl.getSupportedExtensions());
 		this.floatExt    = gl.getExtension("OES_texture_float");
 		this.floatLinExt = gl.getExtension("OES_texture_float_linear");
 		this.floatBufExt = gl.getExtension("WEBGL_color_buffer_float");
