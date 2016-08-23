@@ -28,6 +28,8 @@ GUI.prototype.sync = function()
 	this.emissionSettings.eulerAngles.x = laser.eulerAngles.x * 180.0/Math.PI;
 	this.emissionSettings.eulerAngles.y = laser.eulerAngles.y * 180.0/Math.PI;
 	this.emissionSettings.eulerAngles.z = laser.eulerAngles.z * 180.0/Math.PI;
+	this.emissionSettings.emissionRadius = laser.getEmissionRadius();
+	this.emissionSettings.emissionSpread = laser.getEmissionSpreadAngle();
 
 	updateDisplay(this.gui);
 }
@@ -138,14 +140,12 @@ GUI.prototype.createEmissionSettings = function()
 	this.emissionSettings = {};
 	this.emissionSettings.showLaserPointer = true;
 	this.emissionSettings.spectrum = 'monochromatic';
-	this.emissionSettings.emissionRadius = 0.01; // (scene-scale relative)
+	this.emissionSettings.emissionRadius = 0.01;
 
 	this.emissionFolder.add(this.emissionSettings, 'showLaserPointer').onChange( function(value) { laser.toggleVisibility(value); } );
 	this.emissionFolder.add(this.emissionSettings, 'emissionRadius', 0.0, 3.0).onChange( function(value) 
 	{ 
-		var sceneObj = snelly.getLoadedScene();
-		var sceneScale = sceneObj.getScale();
-		laser.setEmissionRadius(sceneScale*value);      
+		laser.setEmissionRadius(value);      
 		lightTracer.reset(); 
 	} );
 	this.emissionFolder.add(laser, 'emissionSpread', 0.0, 45.0).onChange( function(value) { laser.setEmissionSpreadAngle(value); lightTracer.reset(); } );
