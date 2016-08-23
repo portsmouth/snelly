@@ -24,6 +24,11 @@ function updateDisplay(gui) {
 
 GUI.prototype.sync = function()
 {
+	var laser = snelly.getLaser();
+	this.emissionSettings.eulerAngles.x = laser.eulerAngles.x * 180.0/Math.PI;
+	this.emissionSettings.eulerAngles.y = laser.eulerAngles.y * 180.0/Math.PI;
+	this.emissionSettings.eulerAngles.z = laser.eulerAngles.z * 180.0/Math.PI;
+
 	updateDisplay(this.gui);
 }
 
@@ -180,28 +185,33 @@ GUI.prototype.createEmissionSettings = function()
 	yT.onChange( function(value)  { snelly.reset(); } );
 	zT.onChange( function(value)  { snelly.reset(); } );
 
+	this.emissionSettings.eulerAngles = new THREE.Vector3();
+	this.emissionSettings.eulerAngles.x = laser.eulerAngles.x * 180.0/Math.PI;
+	this.emissionSettings.eulerAngles.y = laser.eulerAngles.y * 180.0/Math.PI;
+	this.emissionSettings.eulerAngles.z = laser.eulerAngles.z * 180.0/Math.PI;
+
 	this.emissionRotationFolder = this.emissionFolder.addFolder('Rotation');
-	var xR = this.emissionRotationFolder.add(laser.eulerAngles, 'x', -Math.PI, Math.PI);
+	var xR = this.emissionRotationFolder.add(this.emissionSettings.eulerAngles, 'x', -180.0, 180.0);
 	xR.onChange( function(value) 
 	{ 
 		var euler = laser.getEuler();
-		euler.x = value;
+		euler.x = value * Math.PI/180.0;
 		laser.setEuler(euler);
 		snelly.reset();
 	} );
-	var yR = this.emissionRotationFolder.add(laser.eulerAngles, 'y', -Math.PI, Math.PI);
+	var yR = this.emissionRotationFolder.add(this.emissionSettings.eulerAngles, 'y', -180.0, 180.0);
 	yR.onChange( function(value) 
 	{ 
 		var euler = laser.getEuler();
-		euler.y = value;
+		euler.y = value * Math.PI/180.0;
 		laser.setEuler(euler);
 		snelly.reset();
 	} );
-	var zR = this.emissionRotationFolder.add(laser.eulerAngles, 'z', -Math.PI, Math.PI);
+	var zR = this.emissionRotationFolder.add(this.emissionSettings.eulerAngles, 'z', -180.0, 180.0);
 	zR.onChange( function(value) 
 	{ 
 		var euler = laser.getEuler();
-		euler.z = value;
+		euler.z = value * Math.PI/180.0;
 		laser.setEuler(euler);
 		snelly.reset();
 	} );
