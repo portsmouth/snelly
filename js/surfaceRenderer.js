@@ -79,7 +79,7 @@ var SurfaceRenderer = function()
 	this.pathStates = [new SurfaceRendererState(this.width, this.height), 
 					   new SurfaceRendererState(this.width, this.height)];
 
-	this.maxMarchSteps = 128;
+	this.maxMarchSteps = 256;
 	this.enable = true;
 	this.depthTest = false;
 	this.showBounds = false;
