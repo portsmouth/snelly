@@ -2,6 +2,7 @@
 var Snelly = function()
 {
 	this.initialized = false; 
+	snelly = this;
 
 	var render_canvas = document.getElementById('render-canvas');
 	render_canvas.width  = window.innerWidth;
@@ -23,17 +24,6 @@ var Snelly = function()
 	var ui_canvas = document.getElementById('ui-canvas');
 	ui_canvas.style.top = 0;
 	ui_canvas.style.position = 'fixed' 
-
-	// Setup HUD text canvas
-	// look up the text canvas.
-	/*
-	var text_canvas = document.getElementById("text-canvas");
-	this.textCtx = text_canvas.getContext("2d");
-	this.textCtx.fillStyle = "#333333"; 	// This determines the text colour, it can take a hex value or rgba value (e.g. rgba(255,0,0,0.5))
-	this.textCtx.textAlign = "center";   	// This determines the alignment of text, e.g. left, center, right
-	this.textCtx.textBaseline = "middle";	// This determines the baseline of the text, e.g. top, middle, bottom
-	this.textCtx.font = "12px monospace";	// This determines the size of the text and the font family used
-	*/
 
 	var VIEW_ANGLE = 45;
 	var ASPECT = this.width / this.height ;
@@ -68,62 +58,6 @@ var Snelly = function()
 	this.laser = new LaserPointer(this.glRenderer, this.glScene, this.camera, this.controls);
 	this.laser.setPosition(new THREE.Vector3(-5.0, 0.0, 0.0));
 	this.laser.setDirection(new THREE.Vector3(1.0, 0.0, 0.0));
-
-	// Setup keypress and mouse events
-	snelly = this;
-	window.addEventListener('keydown', function(event) 
-	{
-		var charCode = (event.which) ? event.which : event.keyCode;
-		switch (charCode)
-		{
-			case 122: // F11 key: go fullscreen
-				var element	= document.body;
-				if      ( 'webkitCancelFullScreen' in document ) element.webkitRequestFullScreen();
-				else if ( 'mozCancelFullScreen'    in document ) element.mozRequestFullScreen();
-				else console.assert(false);
-				break;
-
-			case 70: // F key: focus on emitter
-				snelly.controls.object.zoom = snelly.controls.zoom0;
-				snelly.controls.target.copy(snelly.laser.getPoint());
-				snelly.controls.update();
-				break;
-
-			case 82: // R key: reset scene 
-				// @todo
-				break;
-
-			case 67: // C key: dev tool to dump cam and laser details, for setting scene defaults
-				var lp = snelly.laser.getPosition();
-				var ld = snelly.laser.getDirection();
-				var er = snelly.laser.getEmissionRadius();
-				var ex = snelly.laser.getEmissionSpreadAngle();
-				var t = snelly.controls.target;
-				var c = snelly.camera.position;
-
-				console.log(`laser.setPosition(new THREE.Vector3(${lp.x.toPrecision(6)}, ${lp.y.toPrecision(6)}, ${lp.z.toPrecision(6)}));`);
-				if (snelly.laser.targetSet)
-				{
-					var tg = snelly.laser.target;
-					console.log(`laser.setTarget(new THREE.Vector3(${tg.x.toPrecision(6)}, ${tg.y.toPrecision(6)}, ${tg.z.toPrecision(6)}));`);
-				}
-				else
-				{
-					console.log(`laser.setDirection(new THREE.Vector3(${ld.x.toPrecision(6)}, ${ld.y.toPrecision(6)}, ${ld.z.toPrecision(6)}));`);
-				}
-				console.log(`laser.setEmissionRadius(${er.toPrecision(6)});`);
-				console.log(`laser.setEmissionSpreadAngle(${ex.toPrecision(6)});`);
-				console.log(`controls.target.set(${t.x.toPrecision(6)}, ${t.y.toPrecision(6)}, ${t.z.toPrecision(6)});`);
-				console.log(`camera.position.set(${c.x.toPrecision(6)}, ${c.y.toPrecision(6)}, ${c.z.toPrecision(6)});`);
-				break;
-			
-		}
-	}, false);
-	
-	this.glRenderer.domElement.addEventListener( 'mousemove', this, false );
-	this.glRenderer.domElement.addEventListener( 'mousedown', this, false );
-	this.glRenderer.domElement.addEventListener( 'mouseup',   this, false );
-	this.glRenderer.domElement.addEventListener( 'contextmenu',   this, false );
 
 	// Instantiate scenes
 	this.scenes = {}
@@ -197,7 +131,7 @@ var Snelly = function()
 
 	// Instantiate distance field surface renderer
 	this.surfaceRenderer = new SurfaceRenderer();
-
+	
 	// Do initial resize:
 	this.resize();
 
@@ -207,6 +141,67 @@ var Snelly = function()
 
 	// Create dat gui
 	this.gui = new GUI();
+
+	// Setup keypress and mouse events
+	window.addEventListener('keydown', function(event) 
+	{
+		var charCode = (event.which) ? event.which : event.keyCode;
+		switch (charCode)
+		{
+			case 122: // F11 key: go fullscreen
+				var element	= document.body;
+				if      ( 'webkitCancelFullScreen' in document ) element.webkitRequestFullScreen();
+				else if ( 'mozCancelFullScreen'    in document ) element.mozRequestFullScreen();
+				else console.assert(false);
+				break;
+
+			case 70: // F key: focus on emitter
+				snelly.controls.object.zoom = snelly.controls.zoom0;
+				snelly.controls.target.copy(snelly.laser.getPoint());
+				snelly.controls.update();
+				break;
+
+			case 82: // R key: reset scene 
+				// @todo
+				break;
+
+			case 72: // H key: hide dat gui
+				snelly.getGUI().visible = !(snelly.getGUI().visible);
+				if  (snelly.getGUI().visible) snelly.stats.domElement.style.visibility = "visible";
+				else                          snelly.stats.domElement.style.visibility = "hidden";
+				break;
+
+			case 67: // C key: dev tool to dump cam and laser details, for setting scene defaults
+				var lp = snelly.laser.getPosition();
+				var ld = snelly.laser.getDirection();
+				var er = snelly.laser.getEmissionRadius();
+				var ex = snelly.laser.getEmissionSpreadAngle();
+				var t = snelly.controls.target;
+				var c = snelly.camera.position;
+
+				console.log(`laser.setPosition(new THREE.Vector3(${lp.x.toPrecision(6)}, ${lp.y.toPrecision(6)}, ${lp.z.toPrecision(6)}));`);
+				if (snelly.laser.targetSet)
+				{
+					var tg = snelly.laser.target;
+					console.log(`laser.setTarget(new THREE.Vector3(${tg.x.toPrecision(6)}, ${tg.y.toPrecision(6)}, ${tg.z.toPrecision(6)}));`);
+				}
+				else
+				{
+					console.log(`laser.setDirection(new THREE.Vector3(${ld.x.toPrecision(6)}, ${ld.y.toPrecision(6)}, ${ld.z.toPrecision(6)}));`);
+				}
+				console.log(`laser.setEmissionRadius(${er.toPrecision(6)});`);
+				console.log(`laser.setEmissionSpreadAngle(${ex.toPrecision(6)});`);
+				console.log(`controls.target.set(${t.x.toPrecision(6)}, ${t.y.toPrecision(6)}, ${t.z.toPrecision(6)});`);
+				console.log(`camera.position.set(${c.x.toPrecision(6)}, ${c.y.toPrecision(6)}, ${c.z.toPrecision(6)});`);
+				break;
+			
+		}
+	}, false);
+
+	this.glRenderer.domElement.addEventListener( 'mousemove', this, false );
+	this.glRenderer.domElement.addEventListener( 'mousedown', this, false );
+	this.glRenderer.domElement.addEventListener( 'mouseup',   this, false );
+	this.glRenderer.domElement.addEventListener( 'contextmenu',   this, false );
 
 	this.initialized = true; 
 }
@@ -304,7 +299,7 @@ Snelly.prototype.reset = function()
 	this.lightTracer.reset();
 
 	if (!this.initialized) return;
-	
+
 	this.gui.sync();
 
 	this.render();
@@ -315,6 +310,8 @@ Snelly.prototype.render = function()
 {
 	if (!this.initialized) return;
 	if (this.sceneObj == null) return;
+
+	this.stats.begin();
 
 	var gl = GLU.gl;
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -332,11 +329,24 @@ Snelly.prototype.render = function()
 	this.surfaceRenderer.render();
 
 	// Update stats
-	this.stats.update();
+	this.stats.end();
 
-	// Draw text HUD
-	//this.textCtx.clearRect(0, 0, this.textCtx.canvas.width, this.textCtx.canvas.height);
-	//this.textCtx.fillText('test message', 100, 100);
+	// Update HUD text canvas	
+	var text_canvas = document.getElementById("text-canvas");
+	this.textCtx = text_canvas.getContext("2d");
+	this.textCtx.textAlign = "left";   	// This determines the alignment of text, e.g. left, center, right
+	this.textCtx.textBaseline = "middle";	// This determines the baseline of the text, e.g. top, middle, bottom
+	this.textCtx.font = '12px monospace';	// This determines the size of the text and the font family used
+	this.textCtx.fillStyle = "#aaaaff";
+	this.textCtx.clearRect(0, 0, this.textCtx.canvas.width, this.textCtx.canvas.height);
+	this.textCtx.globalAlpha = 0.95;
+
+	if (snelly.getGUI().visible)
+	{
+	  	var lsStats = this.lightTracer.getStats();
+	  	this.textCtx.fillText('ray count:        ' + (lsStats.rayCount/1.0e6).toPrecision(3) + 'M', 14, this.textCtx.canvas.height - 35);
+	  	this.textCtx.fillText('waves traced:     ' + lsStats.wavesTraced,    14, this.textCtx.canvas.height - 20);
+	}
 }
 
 
@@ -356,11 +366,9 @@ Snelly.prototype.resize = function()
 	ui_canvas.width  = width;
 	ui_canvas.height = height;
 
-	/*
 	var text_canvas = document.getElementById("text-canvas");
 	text_canvas.width  = width;
 	text_canvas.height = height
-	*/
 
 	this.camera.aspect = width / height;
 	this.camera.updateProjectionMatrix();

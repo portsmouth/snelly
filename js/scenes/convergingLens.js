@@ -62,7 +62,7 @@ ConvergingLensScene.prototype.getScale = function()
 // Initial cam position default for this scene
 ConvergingLensScene.prototype.init = function(controls, camera, laser)
 {
-	laser.setPosition(new THREE.Vector3(-13.3410, 0.101274, -0.00490936));
+	laser.setPosition(new THREE.Vector3(-13.3410, 0.0, 0.0));
 	laser.setDirection(new THREE.Vector3(1.00000, 3.33067e-16, 0.00000));
 	laser.setEmissionRadius(3.00000);
 	laser.setEmissionSpreadAngle(1.01480);

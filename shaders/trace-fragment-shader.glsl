@@ -195,7 +195,7 @@ void raytrace(inout vec4 rnd,
 			  inout vec3 X, inout vec3 D,
 			  inout vec3 rgb, float wavelength)
 {
-	if (length(rgb) < 1.0e-6) return;
+	if (length(rgb) < 1.0e-8) return;
 	float minMarchDist = 1.0e-5*SceneScale;
 	float maxMarchDist = 1.0e5*SceneScale;
 	float t = 0.0;

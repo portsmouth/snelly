@@ -1,14 +1,14 @@
 
 uniform sampler2D Radiance;
-uniform sampler2D DepthSurface;
-uniform sampler2D DepthLight;
+//uniform sampler2D DepthSurface;
+//uniform sampler2D DepthLight;
 
 varying vec2 vTexCoord;
 
 uniform float exposure;
 uniform float invGamma;
 uniform float alpha;
-uniform bool enableDepthTest;
+//uniform bool enableDepthTest;
 
 
 void main()
@@ -21,16 +21,17 @@ void main()
 	vec3 S = pow(Lp, vec3(invGamma));
 	vec3 Sp = S * alpha;
 
-	float surfaceDepth = unpack_depth(texture2D(DepthSurface, vTexCoord));
-	float   lightDepth = unpack_depth(texture2D(DepthLight, vTexCoord));
+	//float surfaceDepth = unpack_depth(texture2D(DepthSurface, vTexCoord));
+	//float   lightDepth = unpack_depth(texture2D(DepthLight, vTexCoord));
 
 	// Composite surface with light ray fragment
 	float A = 0.0;
+	/*
 	if (enableDepthTest && (lightDepth > surfaceDepth))
 	{
 		// light behind surface
 		A = alpha;
 	}
-	
+	*/
 	gl_FragColor = vec4(Sp, A);
 }

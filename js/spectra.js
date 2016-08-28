@@ -47,9 +47,15 @@ Spectrum.prototype.inverseCDF = function(minwavelength, maxwavelength, numsample
 	var cdfIdx = 0;
 	for (var n=0; n<4*numsamples; ++n)
     {
-    	var spectrumOffset = Math.min((n+1)/(4*numsamples), 1.0);
-    	while (cdf[cdfIdx] < spectrumOffset) cdfIdx++;
-    	icdf[n] = (cdfIdx-1.0)/(numsamples);
+    	var xi = Math.min((n+1)/(4*numsamples), 1.0);
+    	while (cdf[cdfIdx] < xi) cdfIdx++;
+    	cdfIdx = Math.max(1, cdfIdx);
+    	var xiLo = cdf[cdfIdx-1];
+    	var xiHi = cdf[cdfIdx];
+    	var icdfLo = (cdfIdx-1.0)/numsamples;
+    	var icdfHi =     (cdfIdx)/numsamples;
+    	var icdfVal = icdfLo + (1.0/numsamples)*(xi - xiLo)/(xiHi - xiLo);
+    	icdf[n] = icdfVal;
     }
     return icdf;
 }
@@ -119,7 +125,7 @@ FlatSpectrum.prototype.initGui = function(parentFolder)
 {
 	ME = this;
 	var dw = (750.0-360.0)/256.0;
-	this.minItem = parentFolder.add(this, 'Minimum wavelength', 360.0, 750.0);
+	this.minItem = parentFolder.add(this, 'Minimum wavelength', 360.0, 750.0, 0.1);
 	this.minItem.onChange( function(value) 
 	{ 
 		if (ME['Minimum wavelength'] > ME['Maximum wavelength']-dw) 
@@ -127,7 +133,7 @@ FlatSpectrum.prototype.initGui = function(parentFolder)
 		snelly.getLightTracer().loadSpectrum(ME.getName());
 	});
 
-	this.maxItem = parentFolder.add(this, 'Maximum wavelength', 360.0, 750.0);
+	this.maxItem = parentFolder.add(this, 'Maximum wavelength', 360.0, 750.0, 0.1);
 	this.maxItem.onChange( function(value) 
 	{ 
 		if (ME['Maximum wavelength'] < ME['Minimum wavelength']+dw) 

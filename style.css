@@ -12,29 +12,28 @@ body{
 }
 
 #webglContainer {
-    position: relative;
+    position: absolute;
     margin: 0px;
     padding: 0px;
     overflow: hidden;
     pointer-events: none;   /* this element will not catch any events */
-    z-index: 8;    /* position this canvas at bottom of the other one */
+    z-index: 1;    /* position this canvas at bottom of the other one */
 }
 
 #threeContainer {
-    position: relative;
+    position: absolute;
     margin: 0px;
     padding: 0px;
     overflow: hidden;
-    z-index: 10;      /* position this canvas on top of the web gl one */
+    z-index: 2;      /* position this canvas on top of the web gl one */
 }
 
-/*
 #textContainer {
     position: absolute;
     margin: 0px;
     overflow: hidden;
     left: 0px;
     top: 0px;
-    z-index: 100;
+    pointer-events: none;   /* this element will not catch any events */
+    z-index: 3;
 }
-*/

@@ -70,6 +70,8 @@ var LightTracer = function()
 	this.maxMarchSteps = 512;
 	this.maxPathLength = 32;
 	this.enabled = true;
+	this.showExternal = true;
+	this.showInternal = true;
 	this.initStates();
 
 	// Create a quad VBO for rendering textures
@@ -77,7 +79,7 @@ var LightTracer = function()
 
 	// Spectrum initialization
 	this.spectra = {}
-	this.SPECTRUM_SAMPLES = 1024;
+	this.SPECTRUM_SAMPLES = 256;
 	this.spectrumObj = null;
 	this.LAMBDA_MIN = 360.0;
     this.LAMBDA_MAX = 750.0;
@@ -138,8 +140,9 @@ LightTracer.prototype.reset = function()
 	this.fbo.unbind();
 
 	// Clear depth buffers
-	this.gl.clearColor(1.0, 0.0, 0.0, 1.0); // init to clip depth 1.0 (in red channel only)
+	//this.gl.clearColor(1.0, 0.0, 0.0, 1.0); // init to clip depth 1.0 (in red channel only)
 	
+	/*
 	this.fbo.bind(); this.fbo.drawBuffers(1);
 	this.fbo.attachTexture(this.depthTex[0], 0); 
 	this.gl.clear(this.gl.COLOR_BUFFER_BIT);
@@ -149,7 +152,7 @@ LightTracer.prototype.reset = function()
 	this.fbo.attachTexture(this.depthTex[1], 0); 
 	this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 	this.fbo.unbind();
-
+	*/
 	this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
 }
 
@@ -179,7 +182,7 @@ LightTracer.prototype.compileShaders = function()
 	this.traceProgram = new GLU.Shader('trace', this.shaderSources, replacements);
 	this.initProgram  = new GLU.Shader('init',  this.shaderSources, null);
 	this.lineProgram  = new GLU.Shader('line',  this.shaderSources, null);
-	this.lineDepthProgram  = new GLU.Shader('linedepth',  this.shaderSources, null);
+	//this.lineDepthProgram  = new GLU.Shader('linedepth',  this.shaderSources, null);
 	this.compProgram  = new GLU.Shader('comp',  this.shaderSources, null);
 	this.passProgram  = new GLU.Shader('pass',  this.shaderSources, null);
 }
@@ -211,6 +214,16 @@ LightTracer.prototype.initStates = function()
 		}
 		this.rayVbo.copy(vboData);
 	}
+}
+
+
+LightTracer.prototype.getStats = function()
+{
+	stats = {};
+	stats.rayCount      = this.pathsTraced;
+	stats.wavesTraced   = this.wavesTraced;
+	stats.maxPathLength = this.maxPathLength;
+	return stats;
 }
 
 // emission spectrum management
@@ -258,25 +271,14 @@ LightTracer.prototype.composite = function()
 	gl.blendEquation(gl.FUNC_ADD);
 	gl.blendFunc(gl.ONE, gl.ONE);
 
-	if ( !snelly.getSurfaceRenderer().depthTestEnabled() )
-	{
-		// Draw both interior and exterior rays
-		// (NB, if surface depth test is enabled, only exterior rays are shown)
-		this.fluenceBuffer[1].bind(0);
-		this.fluenceBuffer[0].bind(1);
-		this.compProgram.uniformI("drawInterior", 1);
-		this.compProgram.uniformTexture("FluenceExt", this.fluenceBuffer[1]);
-		this.compProgram.uniformTexture("FluenceInt", this.fluenceBuffer[0]);
-		this.quadVbo.draw(this.compProgram, this.gl.TRIANGLE_FAN);
-	}
-	else
-	{
-		// Draw exterior rays only
-		this.fluenceBuffer[1].bind(0);
-		this.compProgram.uniformI("drawInterior", 0);
-		this.compProgram.uniformTexture("FluenceExt", this.fluenceBuffer[1]);
-		this.quadVbo.draw(this.compProgram, this.gl.TRIANGLE_FAN);	
-	}
+	this.fluenceBuffer[1].bind(0);
+	this.fluenceBuffer[0].bind(1);
+
+	this.compProgram.uniformI("drawInterior", this.showInternal ? 1 : 0);
+	this.compProgram.uniformI("drawExterior", this.showExternal ? 1 : 0);
+	this.compProgram.uniformTexture("FluenceExt", this.fluenceBuffer[1]);
+	this.compProgram.uniformTexture("FluenceInt", this.fluenceBuffer[0]);
+	this.quadVbo.draw(this.compProgram, this.gl.TRIANGLE_FAN);
 
 	gl.disable(gl.BLEND);
 }
@@ -418,6 +420,7 @@ LightTracer.prototype.render = function()
 		this.pathLength += 1;
 
 		// Line depth pass
+		/*
 		{
 			gl.disable(gl.BLEND);
 
@@ -454,6 +457,7 @@ LightTracer.prototype.render = function()
 			this.rayVbo.bind(); // Binds the TexCoord attribute
 			this.rayVbo.draw(this.lineDepthProgram, gl.LINES, this.raySize*this.activeBlock*2);
 		}
+		*/
 	}
 
 	if (this.pathLength==this.maxPathLength || this.wavesTraced<this.maxPathLength)
@@ -516,8 +520,8 @@ LightTracer.prototype.resize = function(width, height)
 	this.fluenceBuffer = [new GLU.Texture(width, height, 4, true, false, true, null), 
                           new GLU.Texture(width, height, 4, true, false, true, null)];
 
-	this.depthTex      = [new GLU.Texture(width, height, 4, true, false, true, null), 
-                          new GLU.Texture(width, height, 4, true, false, true, null)];
+	//this.depthTex      = [new GLU.Texture(width, height, 4, true, false, true, null), 
+    //                      new GLU.Texture(width, height, 4, true, false, true, null)];
 	
 	this.reset();
 }

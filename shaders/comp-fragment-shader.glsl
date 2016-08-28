@@ -6,15 +6,20 @@ uniform float invNumPaths;
 uniform float exposure;
 uniform float invGamma;
 uniform bool drawInterior;
+uniform bool drawExterior;
 
 varying vec2 vTexCoord;
 
 void main() 
 {
-	vec3 fluence = texture2D(FluenceExt, vTexCoord).rgb;
+	vec3 fluence = vec3(0.0, 0.0, 0.0);
 	if (drawInterior)
 	{
 		fluence += texture2D(FluenceInt, vTexCoord).rgb;
+	}
+	if (drawExterior)
+	{
+		fluence += texture2D(FluenceExt, vTexCoord).rgb;
 	}
 
 	vec3 L = invNumPaths * pow(10.0, exposure) * fluence;

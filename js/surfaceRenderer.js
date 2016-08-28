@@ -4,7 +4,7 @@ var SurfaceRendererState = function(width, height)
 {
 	var radianceData = new Float32Array(width*height*4); // Path radiance, and sample count 
 	var rngData      = new Float32Array(width*height*4); // Random number seed
-	var depthData    = new Float32Array(width*height*4); // Packed depth
+	//var depthData    = new Float32Array(width*height*4); // Packed depth
 	for (var i = 0; i<width*height; ++i)
 	{
 		for (var t = 0; t<4; ++t)
@@ -14,17 +14,17 @@ var SurfaceRendererState = function(width, height)
 	}
 	this.radianceTex = new GLU.Texture(width, height, 4, true, false, true, radianceData);
 	this.rngTex      = new GLU.Texture(width, height, 4, true, false, true, rngData);
-	this.depthTex    = new GLU.Texture(width, height, 4, true, false, true, depthData);
+	//this.depthTex    = new GLU.Texture(width, height, 4, true, false, true, depthData);
 }
 
 SurfaceRendererState.prototype.bind = function(shader)
 {
 	this.radianceTex.bind(0);
 	this.rngTex.bind(1);
-	this.depthTex.bind(2);
+	//this.depthTex.bind(2);
 	shader.uniformTexture("Radiance", this.radianceTex);
 	shader.uniformTexture("RngData", this.rngTex);
-	shader.uniformTexture("Depth", this.depthTex);
+	//shader.uniformTexture("Depth", this.depthTex);
 }
 
 SurfaceRendererState.prototype.attach = function(fbo)
@@ -32,7 +32,7 @@ SurfaceRendererState.prototype.attach = function(fbo)
 	var gl = GLU.gl;
 	fbo.attachTexture(this.radianceTex, 0);
 	fbo.attachTexture(this.rngTex, 1);
-	fbo.attachTexture(this.depthTex, 2);
+	//fbo.attachTexture(this.depthTex, 2);
 	if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) != gl.FRAMEBUFFER_COMPLETE) 
 	{
 		GLU.fail("Invalid framebuffer");
@@ -44,7 +44,7 @@ SurfaceRendererState.prototype.detach = function(fbo)
 	var gl = GLU.gl;
 	fbo.detachTexture(0);
 	fbo.detachTexture(1);
-	fbo.detachTexture(2);
+	//fbo.detachTexture(2);
 }
 
 SurfaceRendererState.prototype.clear = function(fbo)
@@ -81,7 +81,7 @@ var SurfaceRenderer = function()
 
 	this.maxMarchSteps = 256;
 	this.enable = true;
-	this.depthTest = false;
+	//this.depthTest = false;
 	this.showBounds = false;
 	this.surfaceAlpha = 0.5;
 	this.renderMode = 'blinn';
@@ -280,7 +280,7 @@ SurfaceRenderer.prototype.render = function()
 	////////////////////////////////////////////////
 	var gl = this.gl;
 	gl.disable(gl.DEPTH_TEST);
-	//gl.viewport(0, 0, this.width, this.height);
+	gl.viewport(0, 0, this.width, this.height);
 
 	this.pathtraceProgram.bind();
 
@@ -327,7 +327,6 @@ SurfaceRenderer.prototype.render = function()
 	this.quadVbo.bind();
 	this.quadVbo.draw(this.pathtraceProgram, gl.TRIANGLE_FAN);
 	
-	//this.pathStates[next].detach(this.fbo);
 	this.fbo.unbind();
 
 	////////////////////////////////////////////////
@@ -337,13 +336,13 @@ SurfaceRenderer.prototype.render = function()
 	this.tonemapProgram.bind();
 
 	var radianceTexCurrent = this.pathStates[next].radianceTex;
-	var depthTexCurrent = this.pathStates[next].depthTex;
+	//var depthTexCurrent = this.pathStates[next].depthTex;
 
 	radianceTexCurrent.bind(0);	
-	depthTexCurrent.bind(1);
+	//depthTexCurrent.bind(1);
 
 	this.tonemapProgram.uniformTexture("Radiance", radianceTexCurrent);
-	this.tonemapProgram.uniformTexture("DepthSurface", depthTexCurrent);
+	//this.tonemapProgram.uniformTexture("DepthSurface", depthTexCurrent);
 	this.tonemapProgram.uniformF("exposure", 1.0);
 	this.tonemapProgram.uniformF("invGamma", 1.0);
 	this.tonemapProgram.uniformF("alpha", this.surfaceAlpha);
@@ -351,6 +350,7 @@ SurfaceRenderer.prototype.render = function()
 	// Tonemap the 'current' radiance buffer to produce this frame's pixels
 	// Get depth texture of light rays, to allow surface to 
 	// occlude rays and vice versa
+	/*
 	var lightDepthTex = snelly.getLightTracer().getDepthTexture();
 	if (lightDepthTex != null && this.depthTest)
 	{
@@ -362,6 +362,7 @@ SurfaceRenderer.prototype.render = function()
 	{
 		this.tonemapProgram.uniformI("enableDepthTest", 0);
 	}
+	*/
 
 	gl.enable(gl.BLEND);
 	gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);

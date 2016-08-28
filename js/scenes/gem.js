@@ -88,7 +88,7 @@ GemScene.prototype.getBox = function()
 // Initial laser position and direction defaults for this scene
 GemScene.prototype.init = function(controls, camera, laser)
 {
-	laser.setPosition(new THREE.Vector3(4.61823e-16, -3.77107, 0.00000));
+	laser.setPosition(new THREE.Vector3(0.0, -3.77107, 0.00000));
 	laser.setTarget(new THREE.Vector3(0.0, 1.0000, 0.0));
 	laser.setEmissionRadius(0.0100000);
 	laser.setEmissionSpreadAngle(19.2812);

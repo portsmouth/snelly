@@ -98,15 +98,20 @@ uniform float invNumPaths;
 uniform float exposure;
 uniform float invGamma;
 uniform bool drawInterior;
+uniform bool drawExterior;
 
 varying vec2 vTexCoord;
 
 void main() 
 {
-	vec3 fluence = texture2D(FluenceExt, vTexCoord).rgb;
+	vec3 fluence = vec3(0.0, 0.0, 0.0);
 	if (drawInterior)
 	{
 		fluence += texture2D(FluenceInt, vTexCoord).rgb;
+	}
+	if (drawExterior)
+	{
+		fluence += texture2D(FluenceExt, vTexCoord).rgb;
 	}
 
 	vec3 L = invNumPaths * pow(10.0, exposure) * fluence;
@@ -329,9 +334,10 @@ void main()
 {
 	vec4 seed = texture2D(RngData, vTexCoord);
 
-	// Sample photon wavelength from CDF of emission spectrum
+	// Sample photon wavelength via the inverse CDF of the emission spectrum
 	// (here w is spectral offset, i.e. wavelength = 360.0 + (750.0 - 360.0)*w)
-    float w = texture2D(ICDF, vec2(rand(seed), 0.5)).r;// + rand(seed)*(1.0/256.0);
+	// (linear interpolation into the inverse CDF texture and RGB table should ensure smooth sampling over the range)
+    float w = texture2D(ICDF, vec2(rand(seed), 0.5)).r;
   	vec3 rgb = texture2D(WavelengthToRgb, vec2(w, 0.5)).rgb;
 
 	// Make emission cross-section circular
@@ -1779,15 +1785,15 @@ float unpack_depth(const in vec4 rgba_depth)
 }
 
 uniform sampler2D Radiance;
-uniform sampler2D DepthSurface;
-uniform sampler2D DepthLight;
+//uniform sampler2D DepthSurface;
+//uniform sampler2D DepthLight;
 
 varying vec2 vTexCoord;
 
 uniform float exposure;
 uniform float invGamma;
 uniform float alpha;
-uniform bool enableDepthTest;
+//uniform bool enableDepthTest;
 
 
 void main()
@@ -1800,17 +1806,18 @@ void main()
 	vec3 S = pow(Lp, vec3(invGamma));
 	vec3 Sp = S * alpha;
 
-	float surfaceDepth = unpack_depth(texture2D(DepthSurface, vTexCoord));
-	float   lightDepth = unpack_depth(texture2D(DepthLight, vTexCoord));
+	//float surfaceDepth = unpack_depth(texture2D(DepthSurface, vTexCoord));
+	//float   lightDepth = unpack_depth(texture2D(DepthLight, vTexCoord));
 
 	// Composite surface with light ray fragment
 	float A = 0.0;
+	/*
 	if (enableDepthTest && (lightDepth > surfaceDepth))
 	{
 		// light behind surface
 		A = alpha;
 	}
-	
+	*/
 	gl_FragColor = vec4(Sp, A);
 }
 `,
@@ -2204,7 +2211,7 @@ void raytrace(inout vec4 rnd,
 			  inout vec3 X, inout vec3 D,
 			  inout vec3 rgb, float wavelength)
 {
-	if (length(rgb) < 1.0e-6) return;
+	if (length(rgb) < 1.0e-8) return;
 	float minMarchDist = 1.0e-5*SceneScale;
 	float maxMarchDist = 1.0e5*SceneScale;
 	float t = 0.0;

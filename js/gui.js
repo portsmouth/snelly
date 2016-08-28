@@ -5,6 +5,8 @@ var GUI = function()
 	// Create dat gui
 	this.gui = new dat.GUI();
 	var gui = this.gui;
+
+	this.visible = true;
 	
 	this.createSceneSettings();
 	this.createMaterialSettings();
@@ -48,6 +50,8 @@ GUI.prototype.createLightTracerSettings = function()
 	this.lightTracerSettings.rayBufferSize = lightTracer.raySize;
 	
 	this.lightTracerFolder.add(this.lightTracerSettings, 'enable').onChange( function(value) { lightTracer.enabled = value;  } );
+	this.lightTracerFolder.add(lightTracer, 'showExternal');
+	this.lightTracerFolder.add(lightTracer, 'showInternal');
 	this.lightTracerFolder.add(this.lightTracerSettings, 'exposure', -2.0, 4.0, 0.01);
 	this.lightTracerFolder.add(this.lightTracerSettings, 'gamma', 0.0, 4.0, 0.01);
 	this.lightTracerFolder.add(this.lightTracerSettings, 'maxPathLength', 4, 1024).onChange( function(value) { lightTracer.maxPathLength = Math.floor(value); lightTracer.reset(); } );
@@ -79,9 +83,8 @@ GUI.prototype.createSurfaceRendererSettings = function()
 	var renderModes = ['normals', 'blinn'];
 	
 	this.surfaceRendererFolder.add(surfaceRenderer, 'enable');
-	this.surfaceRendererFolder.add(surfaceRenderer, 'depthTest');
+	//this.surfaceRendererFolder.add(surfaceRenderer, 'depthTest');
 	this.surfaceRendererFolder.add(surfaceRenderer, 'showBounds');
-
 	this.surfaceRendererFolder.add(surfaceRenderer, 'renderMode', renderModes).onChange( function(renderMode) { surfaceRenderer.reset(); });
 	this.surfaceRendererFolder.add(surfaceRenderer, 'surfaceAlpha', 0.0, 1.0);
 	this.surfaceRendererFolder.add(surfaceRenderer, 'maxMarchSteps', 1, 1024).onChange( function(value) { surfaceRenderer.maxMarchSteps = Math.floor(value); surfaceRenderer.reset(); } );

@@ -619,6 +619,7 @@ LaserPointer.prototype.onMouseMove = function(event)
 			this.renderHandleObjects[n].material.emissive.set( 0x000000 );
 		}
 		this.emitterObj.material.emissive.set( 0x000000 );
+
 		translater.material.emissive.set( 0x000000 );
 
 		var intersections = this.raycaster.intersectObjects(this.intersectionHandleObjects);
