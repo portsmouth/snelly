@@ -67,9 +67,9 @@ var Snelly = function()
 		this.addScene(new ConvergingLensScene("Converging lens", ""));
 		this.addScene(new DivergingLensScene("Diverging lens", ""));
 		this.addScene(new EllipsoidScene("Ellipsoid", ""));
-		this.addScene(new FibreScene("Optical fibre", ""));
-		this.addScene(new BoxScene("Twisted tube", ""));
-		this.addScene(new StackScene("Stack", ""));
+		this.addScene(new FibreScene("Coiled fibre", ""));
+		this.addScene(new TwistedTubeScene("Twisted tube", ""));
+		this.addScene(new StackScene("Slab stack", ""));
 		this.addScene(new TumblerScene("Tumbler", ""));
 		this.addScene(new WineGlassScene("Wine glass", ""));
 		this.addScene(new OceanScene("Pool", ""));

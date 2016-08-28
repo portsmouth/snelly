@@ -1,5 +1,5 @@
 
-function BoxScene(name, desc) 
+function TwistedTubeScene(name, desc) 
 {
 	Scene.call(this, name, desc);
 
@@ -10,12 +10,12 @@ function BoxScene(name, desc)
 
 // NB, every function is mandatory and must be defined.
 
-BoxScene.prototype = Object.create(Scene.prototype);
+TwistedTubeScene.prototype = Object.create(Scene.prototype);
 
 
 // This defines a solid body, whose interior
 // defined by the points with SDF<0.0, with a constant refractive index.
-BoxScene.prototype.sdf = function()
+TwistedTubeScene.prototype.sdf = function()
 {
 	return `
 				uniform vec3 _bounds;   
@@ -46,7 +46,7 @@ BoxScene.prototype.sdf = function()
 
 // Called whenever this scene UI was switched to, or changed while active,
 // and syncs the params of the trace shader to the current UI settings
-BoxScene.prototype.syncShader = function(traceProgram)
+TwistedTubeScene.prototype.syncShader = function(traceProgram)
 {
 	// (The shader parameter names here must be consistent with the GLSL sdf code defined above)
 	traceProgram.uniform3Fv("_bounds", [this._settings.bounds.x, 
@@ -57,7 +57,7 @@ BoxScene.prototype.syncShader = function(traceProgram)
 
 // Gives the raytracer some indication of (rough) scene size, so it
 // can set tolerances appropriately.
-BoxScene.prototype.getScale = function()
+TwistedTubeScene.prototype.getScale = function()
 {
 	var b = this._settings.bounds;
 	return Math.max(b.x, b.y, b.z);
@@ -65,7 +65,7 @@ BoxScene.prototype.getScale = function()
 
 
 // Initial cam position default for this scene
-BoxScene.prototype.init = function(controls, camera, laser)
+TwistedTubeScene.prototype.init = function(controls, camera, laser)
 {
 	laser.setPosition(new THREE.Vector3(0.109110, 14.3273, 2.11155));
 	laser.setTarget(new THREE.Vector3(0.884006, 10.0001, -1.21589));
@@ -76,7 +76,7 @@ BoxScene.prototype.init = function(controls, camera, laser)
 }
 
 /*
-BoxScene.prototype.getBox = function()
+TwistedTubeScene.prototype.getBox = function()
 {
 	var min = new THREE.Vector3(-100, -100, -100);
 	var max = new THREE.Vector3(100, 100, 100);
@@ -86,7 +86,7 @@ BoxScene.prototype.getBox = function()
 
 
 // set up gui and callbacks for this scene
-BoxScene.prototype.initGui = function(parentFolder)
+TwistedTubeScene.prototype.initGui = function(parentFolder)
 {
 	this.aItem = parentFolder.add(this._settings.bounds, 'x', 0.01, 10.0);
 	this.aItem.onChange( function(value) { snelly.reset(); } );
@@ -101,7 +101,7 @@ BoxScene.prototype.initGui = function(parentFolder)
 	this.twistItem.onChange( function(value) { snelly.reset(); } );
 }
 
-BoxScene.prototype.eraseGui = function(parentFolder)
+TwistedTubeScene.prototype.eraseGui = function(parentFolder)
 {
 	parentFolder.remove(this.aItem);
 	parentFolder.remove(this.bItem);
