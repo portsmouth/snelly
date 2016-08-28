@@ -344,8 +344,8 @@ Snelly.prototype.render = function()
 	if (snelly.getGUI().visible)
 	{
 	  	var lsStats = this.lightTracer.getStats();
-	  	this.textCtx.fillText('ray count:        ' + (lsStats.rayCount/1.0e6).toPrecision(3) + 'M', 14, this.textCtx.canvas.height - 35);
-	  	this.textCtx.fillText('waves traced:     ' + lsStats.wavesTraced,    14, this.textCtx.canvas.height - 20);
+	  	this.textCtx.fillText('ray count:    ' + (lsStats.rayCount/1.0e6).toPrecision(3) + 'M', 14, this.textCtx.canvas.height - 35);
+	  	this.textCtx.fillText('waves traced: ' + lsStats.wavesTraced,    14, this.textCtx.canvas.height - 20);
 	}
 }
 
