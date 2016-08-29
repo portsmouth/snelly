@@ -32,6 +32,7 @@ Browser support
 Currently only works in Chrome.
 
 
+---
 
 ![alt tag](https://raw.githubusercontent.com/portsmouth/snelly/master/images/gem.png)
 ![alt tag](https://raw.githubusercontent.com/portsmouth/snelly/master/images/fibre2.png)
