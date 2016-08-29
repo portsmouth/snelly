@@ -47,7 +47,7 @@ float computeClipDepth(float ze, float zNear, float zFar)
 
 
 ///
-/// A neat trick to return a extract a float value from a fragment shader
+/// A neat trick to return a float value from a webGL fragment shader
 ///
 float shift_right (float v, float amt) { 
     v = floor(v) + 0.5; 
@@ -172,7 +172,7 @@ float computeClipDepth(float ze, float zNear, float zFar)
 
 
 ///
-/// A neat trick to return a extract a float value from a fragment shader
+/// A neat trick to return a float value from a webGL fragment shader
 ///
 float shift_right (float v, float amt) { 
     v = floor(v) + 0.5; 
@@ -275,7 +275,7 @@ float computeClipDepth(float ze, float zNear, float zFar)
 
 
 ///
-/// A neat trick to return a extract a float value from a fragment shader
+/// A neat trick to return a float value from a webGL fragment shader
 ///
 float shift_right (float v, float amt) { 
     v = floor(v) + 0.5; 
@@ -413,7 +413,7 @@ float computeClipDepth(float ze, float zNear, float zFar)
 
 
 ///
-/// A neat trick to return a extract a float value from a fragment shader
+/// A neat trick to return a float value from a webGL fragment shader
 ///
 float shift_right (float v, float amt) { 
     v = floor(v) + 0.5; 
@@ -516,7 +516,7 @@ float computeClipDepth(float ze, float zNear, float zFar)
 
 
 ///
-/// A neat trick to return a extract a float value from a fragment shader
+/// A neat trick to return a float value from a webGL fragment shader
 ///
 float shift_right (float v, float amt) { 
     v = floor(v) + 0.5; 
@@ -615,7 +615,7 @@ float computeClipDepth(float ze, float zNear, float zFar)
 
 
 ///
-/// A neat trick to return a extract a float value from a fragment shader
+/// A neat trick to return a float value from a webGL fragment shader
 ///
 float shift_right (float v, float amt) { 
     v = floor(v) + 0.5; 
@@ -738,7 +738,7 @@ float computeClipDepth(float ze, float zNear, float zFar)
 
 
 ///
-/// A neat trick to return a extract a float value from a fragment shader
+/// A neat trick to return a float value from a webGL fragment shader
 ///
 float shift_right (float v, float amt) { 
     v = floor(v) + 0.5; 
@@ -857,7 +857,7 @@ float computeClipDepth(float ze, float zNear, float zFar)
 
 
 ///
-/// A neat trick to return a extract a float value from a fragment shader
+/// A neat trick to return a float value from a webGL fragment shader
 ///
 float shift_right (float v, float amt) { 
     v = floor(v) + 0.5; 
@@ -976,7 +976,7 @@ float computeClipDepth(float ze, float zNear, float zFar)
 
 
 ///
-/// A neat trick to return a extract a float value from a fragment shader
+/// A neat trick to return a float value from a webGL fragment shader
 ///
 float shift_right (float v, float amt) { 
     v = floor(v) + 0.5; 
@@ -1076,7 +1076,7 @@ float computeClipDepth(float ze, float zNear, float zFar)
 
 
 ///
-/// A neat trick to return a extract a float value from a fragment shader
+/// A neat trick to return a float value from a webGL fragment shader
 ///
 float shift_right (float v, float amt) { 
     v = floor(v) + 0.5; 
@@ -1178,7 +1178,7 @@ float computeClipDepth(float ze, float zNear, float zFar)
 
 
 ///
-/// A neat trick to return a extract a float value from a fragment shader
+/// A neat trick to return a float value from a webGL fragment shader
 ///
 float shift_right (float v, float amt) { 
     v = floor(v) + 0.5; 
@@ -1374,7 +1374,7 @@ float computeClipDepth(float ze, float zNear, float zFar)
 
 
 ///
-/// A neat trick to return a extract a float value from a fragment shader
+/// A neat trick to return a float value from a webGL fragment shader
 ///
 float shift_right (float v, float amt) { 
     v = floor(v) + 0.5; 
@@ -1477,7 +1477,7 @@ float computeClipDepth(float ze, float zNear, float zFar)
 
 
 ///
-/// A neat trick to return a extract a float value from a fragment shader
+/// A neat trick to return a float value from a webGL fragment shader
 ///
 float shift_right (float v, float amt) { 
     v = floor(v) + 0.5; 
@@ -1637,7 +1637,7 @@ float computeClipDepth(float ze, float zNear, float zFar)
 
 
 ///
-/// A neat trick to return a extract a float value from a fragment shader
+/// A neat trick to return a float value from a webGL fragment shader
 ///
 float shift_right (float v, float amt) { 
     v = floor(v) + 0.5; 
@@ -1740,7 +1740,7 @@ float computeClipDepth(float ze, float zNear, float zFar)
 
 
 ///
-/// A neat trick to return a extract a float value from a fragment shader
+/// A neat trick to return a float value from a webGL fragment shader
 ///
 float shift_right (float v, float amt) { 
     v = floor(v) + 0.5; 
@@ -1869,7 +1869,7 @@ float computeClipDepth(float ze, float zNear, float zFar)
 
 
 ///
-/// A neat trick to return a extract a float value from a fragment shader
+/// A neat trick to return a float value from a webGL fragment shader
 ///
 float shift_right (float v, float amt) { 
     v = floor(v) + 0.5; 
@@ -1971,7 +1971,7 @@ float computeClipDepth(float ze, float zNear, float zFar)
 
 
 ///
-/// A neat trick to return a extract a float value from a fragment shader
+/// A neat trick to return a float value from a webGL fragment shader
 ///
 float shift_right (float v, float amt) { 
     v = floor(v) + 0.5; 
@@ -2300,7 +2300,7 @@ float computeClipDepth(float ze, float zNear, float zFar)
 
 
 ///
-/// A neat trick to return a extract a float value from a fragment shader
+/// A neat trick to return a float value from a webGL fragment shader
 ///
 float shift_right (float v, float amt) { 
     v = floor(v) + 0.5; 
