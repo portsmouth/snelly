@@ -1,7 +1,7 @@
 
 # Snelly
 
-[Snelly](http://snelly.net) is a webGL ray dispersion visualization (inspired by [Tantalum](https://benedikt-bitterli.me/tantalum/)). 
+[Snelly](http://snelly.net) is a webGL ray [dispersion](https://en.wikipedia.org/wiki/Dispersion_(optics)) visualization (inspired by [Tantalum](https://benedikt-bitterli.me/tantalum/)). 
 
 A large number of light rays are cast into a transparent object from a laser, and drawn to the framebuffer. The resulting normalized image converges to a visualization (actually a volume rendering) of the "fluence" (i.e. energy density) of the light in the scene. 
 
