@@ -4,9 +4,11 @@ function MengerScene(name, desc)
 	Scene.call(this, name, desc);
 
 	// defaults
-	this._settings.MENGER_ITERATIONS = 4;
+	this._settings.iterations = 4;
 	this._settings.tile = false;
 	this._settings.tileScale = 1.0;
+	this._settings.rotate = 0.0;
+	this._settings.scale = 1.0;
 }
 
 // NB, every function is mandatory and must be defined.
@@ -19,7 +21,13 @@ MengerScene.prototype = Object.create(Scene.prototype);
 MengerScene.prototype.sdf = function()
 {
 	var code = `
-				float maxcomp(in vec3 p) { return max(p.x,max(p.y,p.z));}
+				uniform float _rotate;
+				uniform float _scale;
+				#define TWOPI 6.28318530718
+
+				vec2 rotate(vec2 v, float a) {
+					return vec2(cos(a)*v.x + sin(a)*v.y, -sin(a)*v.x + cos(a)*v.y); 
+				}
 
 				float sdBox(vec3 X, vec3 bounds)                     
 				{                                     
@@ -39,10 +47,12 @@ MengerScene.prototype.sdf = function()
 				float menger(vec3 X) 
 				{
 					float sd = sdBox(X, vec3(1.0));
-					float scale = 1.0;
-					const int iter = ${Math.floor(this._settings.MENGER_ITERATIONS)};
+					float scale = _scale;
+					const int iter = ${Math.floor(this._settings.iterations)};
 					for (int i=0; i<iter; i++) 
 					{
+						X.xy = rotate(X.xy, 2.0*sin(TWOPI*_rotate));
+
 						vec3 a = mod(X*scale, 2.0)-1.0;
       					scale *= 3.0;
       					vec3 r = abs(1.0 - 3.0*abs(a));
@@ -90,7 +100,9 @@ MengerScene.prototype.sdf = function()
 // and syncs the params of the trace shader to the current UI settings
 MengerScene.prototype.syncShader = function(traceProgram)
 {
-
+	// (The shader parameter names here must be consistent with the GLSL sdf code defined above)
+	traceProgram.uniformF("_rotate", this._settings.rotate);
+	traceProgram.uniformF("_scale", this._settings.scale);
 }
 
 // Gives the raytracer some indication of (rough) scene size, so it
@@ -128,8 +140,14 @@ MengerScene.prototype.init = function(controls, camera, laser)
 // set up gui and callbacks for this scene
 MengerScene.prototype.initGui = function(parentFolder)
 {
-	this.iterItem = parentFolder.add(this._settings, 'MENGER_ITERATIONS', 1, 8, 1);
+	this.iterItem = parentFolder.add(this._settings, 'iterations', 1, 8, 1);
 	this.iterItem.onChange( function(value) { snelly.reset(); } );
+
+	this.rotateItem = parentFolder.add(this._settings, 'rotate', 0.0, 1.0);
+	this.rotateItem.onChange( function(value) { snelly.reset(); } );
+
+	this.scaleItem = parentFolder.add(this._settings, 'scale', 0.0, 10.0);
+	this.scaleItem.onChange( function(value) { snelly.reset(); } );
 
 	this.tileItem = parentFolder.add(this._settings, 'tile', false);
 	this.tileItem.onChange( function(value) { snelly.reset(); } );
@@ -141,6 +159,8 @@ MengerScene.prototype.initGui = function(parentFolder)
 MengerScene.prototype.eraseGui = function(parentFolder)
 {
 	parentFolder.remove(this.iterItem);
+	parentFolder.remove(this.rotateItem);
+	parentFolder.remove(this.scaleItem);
 	parentFolder.remove(this.tileItem);
 	parentFolder.remove(this.tileScaleItem);
 }

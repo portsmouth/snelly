@@ -37,3 +37,9 @@ body{
     pointer-events: none;   /* this element will not catch any events */
     z-index: 3;
 }
+
+#gui { 
+    position: absolute; 
+    z-index: 100;
+    right: 0px;
+}

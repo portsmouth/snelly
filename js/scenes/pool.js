@@ -1,5 +1,5 @@
 
-function OceanScene(name, desc) 
+function PoolScene(name, desc) 
 {
 	Scene.call(this, name, desc);
 
@@ -13,12 +13,12 @@ function OceanScene(name, desc)
 
 // NB, every function is mandatory and must be defined.
 
-OceanScene.prototype = Object.create(Scene.prototype);
+PoolScene.prototype = Object.create(Scene.prototype);
 
 
 // This defines a solid body, whose interior
 // defined by the points with SDF<0.0, with a constant refractive index.
-OceanScene.prototype.sdf = function()
+PoolScene.prototype.sdf = function()
 {
 	return `
 			// Borrowed from https://www.shadertoy.com/view/Ms2SD1 by TDM
@@ -96,7 +96,7 @@ OceanScene.prototype.sdf = function()
 
 // Called whenever this scene UI was switched to, or changed while active,
 // and syncs the params of the trace shader to the current UI settings
-OceanScene.prototype.syncShader = function(traceProgram)
+PoolScene.prototype.syncShader = function(traceProgram)
 {
 	// (The shader parameter names here must be consistent with the GLSL sdf code defined above)
 	traceProgram.uniformF("SEA_FREQ", this._settings.SEA_FREQ);
@@ -111,13 +111,13 @@ OceanScene.prototype.syncShader = function(traceProgram)
 
 // Gives the raytracer some indication of (rough) scene size, so it
 // can set tolerances appropriately.
-OceanScene.prototype.getScale = function()
+PoolScene.prototype.getScale = function()
 {
 	return 50.0;
 }
 
 
-OceanScene.prototype.getBox = function()
+PoolScene.prototype.getBox = function()
 {
 	var h = this._settings.SEA_HEIGHT;
 	var d = this._settings.SEA_DEPTH;
@@ -131,7 +131,7 @@ OceanScene.prototype.getBox = function()
 
 
 // Initial cam position default for this scene
-OceanScene.prototype.init = function(controls, camera, laser)
+PoolScene.prototype.init = function(controls, camera, laser)
 {
 	laser.setPosition(new THREE.Vector3(0.00000, 10.0000, 0.00000));
 	laser.setDirection(new THREE.Vector3(1.22465e-16, -1.00000, 0.00000));
@@ -143,7 +143,7 @@ OceanScene.prototype.init = function(controls, camera, laser)
 
 
 // set up gui and callbacks for this scene
-OceanScene.prototype.initGui = function(parentFolder)
+PoolScene.prototype.initGui = function(parentFolder)
 {
 	this.itemSEA_FREQ = parentFolder.add(this._settings, 'SEA_FREQ', 0.0, 0.5);
 	this.itemSEA_HEIGHT = parentFolder.add(this._settings, 'SEA_HEIGHT', 0.0, 3.0);
@@ -160,7 +160,7 @@ OceanScene.prototype.initGui = function(parentFolder)
 	this.itemSEA_OCTAVES.onChange( function(value) { snelly.reset(); } );
 }
 
-OceanScene.prototype.eraseGui = function(parentFolder)
+PoolScene.prototype.eraseGui = function(parentFolder)
 {
 	parentFolder.remove(this.itemSEA_FREQ);
 	parentFolder.remove(this.itemSEA_HEIGHT);

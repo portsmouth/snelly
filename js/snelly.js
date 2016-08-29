@@ -1,4 +1,6 @@
 
+
+
 var Snelly = function()
 {
 	this.initialized = false; 
@@ -16,9 +18,15 @@ var Snelly = function()
 	{
 		this.stats = new Stats();
 		this.stats.domElement.style.position = 'absolute';
-		this.stats.domElement.style.top = '0px';
+		this.stats.domElement.style.left  = '0px'
+		this.stats.domElement.style.bottom    = '0px'
 		this.container.appendChild( this.stats.domElement );
 	}
+
+	// Text canvas
+	var text_canvas = document.getElementById("text-canvas");
+	this.textCtx = text_canvas.getContext("2d");
+	this.onSnellyLink = false;
 
 	// Setup THREE.js GL viewport renderer and camera
 	var ui_canvas = document.getElementById('ui-canvas');
@@ -72,8 +80,9 @@ var Snelly = function()
 		this.addScene(new StackScene("Slab stack", ""));
 		this.addScene(new TumblerScene("Tumbler", ""));
 		this.addScene(new WineGlassScene("Wine glass", ""));
-		this.addScene(new OceanScene("Pool", ""));
+		this.addScene(new PoolScene("Pool", ""));
 		this.addScene(new MengerScene("Menger sponge", ""));
+		this.addScene(new KnotScene("Knot", ""));
 		// ...
 	}
 
@@ -142,6 +151,7 @@ var Snelly = function()
 	// Create dat gui
 	this.gui = new GUI();
 
+
 	// Setup keypress and mouse events
 	window.addEventListener('keydown', function(event) 
 	{
@@ -167,8 +177,8 @@ var Snelly = function()
 
 			case 72: // H key: hide dat gui
 				snelly.getGUI().visible = !(snelly.getGUI().visible);
-				if  (snelly.getGUI().visible) snelly.stats.domElement.style.visibility = "visible";
-				else                          snelly.stats.domElement.style.visibility = "hidden";
+				if  (snelly.getGUI().visible) { snelly.stats.domElement.style.visibility = "visible"; }
+				else                          { snelly.stats.domElement.style.visibility = "hidden"; }
 				break;
 
 			case 67: // C key: dev tool to dump cam and laser details, for setting scene defaults
@@ -202,6 +212,7 @@ var Snelly = function()
 	this.glRenderer.domElement.addEventListener( 'mousedown', this, false );
 	this.glRenderer.domElement.addEventListener( 'mouseup',   this, false );
 	this.glRenderer.domElement.addEventListener( 'contextmenu',   this, false );
+	this.glRenderer.domElement.addEventListener( 'click', this, false );
 
 	this.initialized = true; 
 }
@@ -311,8 +322,6 @@ Snelly.prototype.render = function()
 	if (!this.initialized) return;
 	if (this.sceneObj == null) return;
 
-	this.stats.begin();
-
 	var gl = GLU.gl;
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 	gl.enable(gl.DEPTH_TEST);
@@ -328,25 +337,36 @@ Snelly.prototype.render = function()
 	// Render distance field surface
 	this.surfaceRenderer.render();
 
-	// Update stats
-	this.stats.end();
-
 	// Update HUD text canvas	
-	var text_canvas = document.getElementById("text-canvas");
-	this.textCtx = text_canvas.getContext("2d");
 	this.textCtx.textAlign = "left";   	// This determines the alignment of text, e.g. left, center, right
 	this.textCtx.textBaseline = "middle";	// This determines the baseline of the text, e.g. top, middle, bottom
 	this.textCtx.font = '12px monospace';	// This determines the size of the text and the font family used
-	this.textCtx.fillStyle = "#aaaaff";
+	
 	this.textCtx.clearRect(0, 0, this.textCtx.canvas.width, this.textCtx.canvas.height);
 	this.textCtx.globalAlpha = 0.95;
 
 	if (snelly.getGUI().visible)
 	{
 	  	var lsStats = this.lightTracer.getStats();
-	  	this.textCtx.fillText('ray count:    ' + (lsStats.rayCount/1.0e6).toPrecision(3) + 'M', 14, this.textCtx.canvas.height - 35);
-	  	this.textCtx.fillText('waves traced: ' + lsStats.wavesTraced,    14, this.textCtx.canvas.height - 20);
+
+	  	if (this.onSnellyLink)
+	  	{
+	  		this.textCtx.fillStyle = "#ff5500";
+	  	}
+	  	else
+	  	{
+	  		this.textCtx.fillStyle = "#ffff00";
+	  	}
+	  	
+	  	this.textCtx.fillText('Snelly renderer', 14, 20);
+
+	  	this.textCtx.fillStyle = "#aaaaff";
+	  	this.textCtx.fillText('ray count:    ' + (lsStats.rayCount/1.0e6).toPrecision(3) + 'M', 14, 35);
+	  	this.textCtx.fillText('waves traced: ' + lsStats.wavesTraced,    14, 50);
 	}
+
+	// Update stats
+	this.stats.update();
 }
 
 
@@ -392,11 +412,36 @@ Snelly.prototype.handleEvent = function(event)
 		case 'mousedown':   this.onDocumentMouseDown(event);  break;
 		case 'mouseup':     this.onDocumentMouseUp(event);    break;
 		case 'contextmenu': this.onDocumentRightClick(event); break;
+		case 'click':       this.onClick(event);  break;
 	}
+}
+
+Snelly.prototype.onClick = function(event)
+{
+	if (this.onSnellyLink) 
+	{
+    	window.location = "https://github.com/portsmouth/snelly";
+    }
+	event.preventDefault();
 }
 
 Snelly.prototype.onDocumentMouseMove = function(event)
 {
+	// Check whether user is trying to click the Snelly home link
+	var textCtx = this.textCtx;
+	var x = event.layerX;
+    var y = event.layerY;
+	var linkWidth = this.textCtx.measureText('Snelly renderer').width;
+	if (x>14 && x<14+linkWidth &&
+		y>15 && y<25 )
+	{
+		this.onSnellyLink = true;
+	}
+	else
+	{
+		this.onSnellyLink = false;
+	}
+
 	this.controls.update();
 	event.preventDefault();
 	if (this.laser.onMouseMove(event)) this.reset();

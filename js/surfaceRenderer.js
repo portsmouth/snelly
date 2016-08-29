@@ -86,8 +86,8 @@ var SurfaceRenderer = function()
 	this.surfaceAlpha = 0.5;
 	this.renderMode = 'blinn';
 	this.specPower = 20.0;
-	this.kd1 = [0.25, 0.25, 1.0];
-	this.kd2 = [1.0, 0.25, 0.25];
+	this.kd1 = [140.0/255.0, 140.0/255.0, 1.0];
+	this.kd2 = [72.0/255.0, 1.0, 126.0/255.0];
 
 	// Load shaders
 	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper", "pick"]);

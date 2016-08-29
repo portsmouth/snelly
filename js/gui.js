@@ -4,6 +4,7 @@ var GUI = function()
 {
 	// Create dat gui
 	this.gui = new dat.GUI();
+	this.gui.domElement.id = 'gui';
 	var gui = this.gui;
 
 	this.visible = true;
