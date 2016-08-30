@@ -132,7 +132,7 @@ GUI.prototype.createSurfaceRendererSettings = function()
 	this.surfaceRendererFolder.add(surfaceRenderer, 'specPower', 1.0, 100.0).onChange( function(renderMode) { surfaceRenderer.reset(); });
 
 	this.gui.remember(this.surfaceRendererSettings);
-	this.surfaceRendererFolder.open();
+	//this.surfaceRendererFolder.open();
 }
 
 
