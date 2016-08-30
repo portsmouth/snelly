@@ -147,7 +147,9 @@ GUI.prototype.createEmissionSettings = function()
 	this.emissionSettings.emissionRadius = 0.01;
 
 	this.emissionFolder.add(this.emissionSettings, 'showLaserPointer').onChange( function(value) { laser.toggleVisibility(value); } );
-	this.emissionFolder.add(this.emissionSettings, 'emissionRadius', 0.0, 3.0).onChange( function(value) 
+	
+	this.emissionRadiusControl = this.emissionFolder.add(this.emissionSettings, 'emissionRadius', 0.0, 3.0);
+	this.emissionRadiusControl.onChange( function(value) 
 	{ 
 		laser.setEmissionRadius(value);      
 		lightTracer.reset(); 

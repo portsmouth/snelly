@@ -65,7 +65,7 @@ var LightTracer = function()
 	var gl = GLU.gl;
 
 	// Initialize textures containing ray states
-	this.raySize = 128;
+	this.raySize = 256;
 	this.activeBlock = this.raySize;
 	this.maxMarchSteps = 512;
 	this.maxPathLength = 100;

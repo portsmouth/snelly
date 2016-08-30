@@ -7,7 +7,7 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-/// GLSL float point pseudorandom number generator, from
+/// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
@@ -132,7 +132,7 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-/// GLSL float point pseudorandom number generator, from
+/// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
@@ -235,7 +235,7 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-/// GLSL float point pseudorandom number generator, from
+/// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
@@ -350,6 +350,7 @@ void main()
 	{
 		u = cross(X, EmitterDir);
 	}
+	u = normalize(u);
 	vec3 v = cross(EmitterDir, u);
 	vec3 pos = EmitterPos + rPos*(u*cos(phiPos) + v*sin(phiPos)); 
 
@@ -373,7 +374,7 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-/// GLSL float point pseudorandom number generator, from
+/// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
@@ -476,7 +477,7 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-/// GLSL float point pseudorandom number generator, from
+/// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
@@ -575,7 +576,7 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-/// GLSL float point pseudorandom number generator, from
+/// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
@@ -698,7 +699,7 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-/// GLSL float point pseudorandom number generator, from
+/// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
@@ -817,7 +818,7 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-/// GLSL float point pseudorandom number generator, from
+/// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
@@ -936,7 +937,7 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-/// GLSL float point pseudorandom number generator, from
+/// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
@@ -1036,7 +1037,7 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-/// GLSL float point pseudorandom number generator, from
+/// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
@@ -1138,7 +1139,7 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-/// GLSL float point pseudorandom number generator, from
+/// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
@@ -1334,7 +1335,7 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-/// GLSL float point pseudorandom number generator, from
+/// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
@@ -1437,7 +1438,7 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-/// GLSL float point pseudorandom number generator, from
+/// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
@@ -1597,7 +1598,7 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-/// GLSL float point pseudorandom number generator, from
+/// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
@@ -1700,7 +1701,7 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-/// GLSL float point pseudorandom number generator, from
+/// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
@@ -1829,7 +1830,7 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-/// GLSL float point pseudorandom number generator, from
+/// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
@@ -1931,7 +1932,7 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-/// GLSL float point pseudorandom number generator, from
+/// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 
@@ -2260,7 +2261,7 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
-/// GLSL float point pseudorandom number generator, from
+/// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
 float rand(inout vec4 rnd) 

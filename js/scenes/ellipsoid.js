@@ -24,15 +24,14 @@ EllipsoidScene.prototype.sdf = function()
 				uniform float _b; 
 				uniform float _c;            
 
-				float sphere(vec3 X, float radius)                     
+				float sdSphere(vec3 X, float radius)                     
 				{                                     
 					return length(X) - radius;       
 				}      
 
 				float SDF(vec3 X)                     
 				{                       
-					float x = X.x/_a; float y = X.y/_b; float z = X.z/_c;
-					return sphere(vec3(x, y, z), 1.0);       
+					return sdSphere(vec3(X.x/_a, X.y/_b, X.z/_c), 1.0);       
 				}                                     
 	`;
 }
@@ -52,7 +51,7 @@ EllipsoidScene.prototype.syncShader = function(traceProgram)
 // can set tolerances appropriately.
 EllipsoidScene.prototype.getScale = function()
 {
-	return Math.max(this._settings.a, this._settings.b, this._settings.c);
+	return Math.min(this._settings.a, this._settings.b, this._settings.c);
 }
 
 /*

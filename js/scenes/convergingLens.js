@@ -55,7 +55,7 @@ ConvergingLensScene.prototype.syncShader = function(traceProgram)
 // can set tolerances appropriately.
 ConvergingLensScene.prototype.getScale = function()
 {
-	return Math.max(this._settings.radiusA, this._settings.radiusB);
+	return Math.min(this._settings.radiusA, this._settings.radiusB);
 }
 
 

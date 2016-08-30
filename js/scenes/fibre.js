@@ -61,7 +61,7 @@ FibreScene.prototype.syncShader = function(traceProgram)
 // can set tolerances appropriately.
 FibreScene.prototype.getScale = function()
 {
-	return Math.max(this._settings.fibreRadius, this._settings.coilRadius, this._settings.length);
+	return Math.min(this._settings.fibreRadius, this._settings.coilRadius);
 }
 
 /*
@@ -80,7 +80,7 @@ FibreScene.prototype.init = function(controls, camera, laser)
 {
 	laser.setPosition(new THREE.Vector3(0.272821, -0.782129, -115.617));
 	laser.setTarget(new THREE.Vector3(2.27983, -5.68264, -100.000));
-	laser.setEmissionRadius(1.69133);
+	laser.setEmissionRadius(0.69133);
 	laser.setEmissionSpreadAngle(0.00000);
 	controls.target.set(-23.9941, 9.32417, -130.227);
 	camera.position.set(-28.3761, 14.5968, -147.678);

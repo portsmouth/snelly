@@ -51,7 +51,7 @@ KnotScene.prototype.syncShader = function(traceProgram)
 // can set tolerances appropriately.
 KnotScene.prototype.getScale = function()
 {
-	return 10.0;
+	return this._settings.radius;
 }
 
 

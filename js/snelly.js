@@ -59,7 +59,7 @@ var Snelly = function()
 
 	// Create user control system for camera
 	this.controls = new THREE.OrbitControls(this.camera, this.glRenderer.domElement);
-	this.controls.zoomSpeed = 2.0;
+	this.controls.zoomSpeed = 5.0;
 	this.controls.addEventListener( 'change', camChanged );
 
 	// Setup Laser pointer
@@ -83,6 +83,8 @@ var Snelly = function()
 		this.addScene(new PoolScene("Pool", ""));
 		this.addScene(new MengerScene("Menger sponge", ""));
 		this.addScene(new KnotScene("Knot", ""));
+		this.addScene(new SphereCrystalScene("SphereCrystal", ""));
+
 		// ...
 	}
 
@@ -145,6 +147,7 @@ var Snelly = function()
 	this.resize();
 
 	// Load the initial scene and material
+	this.gui = null;
 	this.loadScene("Gem stone");
 	this.loadMaterial("Glass (LASF35)");
 
@@ -263,10 +266,16 @@ Snelly.prototype.loadScene = function(sceneName)
 	this.sceneObj = this.scenes[sceneName];
 	this.sceneObj.init(this.controls, this.camera, this.laser);
 	Scene.prototype.setLaser.call(this.sceneObj, this.laser);
+
+	var gui = this.getGUI();
+	if (gui)
+	{
+		gui.emissionRadiusControl.max(4.0*this.sceneObj.getScale());
+	}
 	
 	// Camera frustum update
-	this.camera.near = 1.0e-2*this.sceneObj.getScale();
-	this.camera.far  = 1.0e4*this.sceneObj.getScale();
+	this.camera.near = Math.max(1.0e-4, 1.0e-2*this.sceneObj.getScale());
+	this.camera.far  = Math.max(1.0e4,   1.0e4*this.sceneObj.getScale());
 
 	this.controls.update();	
 	this.reset();

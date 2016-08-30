@@ -30,6 +30,7 @@ void main()
 	{
 		u = cross(X, EmitterDir);
 	}
+	u = normalize(u);
 	vec3 v = cross(EmitterDir, u);
 	vec3 pos = EmitterPos + rPos*(u*cos(phiPos) + v*sin(phiPos)); 
 

@@ -71,7 +71,7 @@ GemScene.prototype.syncShader = function(traceProgram)
 // can set tolerances appropriately.
 GemScene.prototype.getScale = function()
 {
-	return Math.max(this._settings.scaleHeight, this._settings.scaleWidth);
+	return Math.min(this._settings.scaleHeight, this._settings.scaleWidth);
 }
 
 
@@ -88,12 +88,12 @@ GemScene.prototype.getBox = function()
 // Initial laser position and direction defaults for this scene
 GemScene.prototype.init = function(controls, camera, laser)
 {
-	laser.setPosition(new THREE.Vector3(0.0, -3.77107, 0.00000));
-	laser.setTarget(new THREE.Vector3(0.0, 1.0000, 0.0));
+	laser.setPosition(new THREE.Vector3(2.14233e-7, 2.27653, -1.42807));
+	laser.setTarget(new THREE.Vector3(0.110644, 0.254047, 2.29894));
 	laser.setEmissionRadius(0.0100000);
-	laser.setEmissionSpreadAngle(19.2812);
-	controls.target.set(0.528535, -0.866200, 0.734853);
-	camera.position.set(-7.99006, 3.14907, 7.68548);
+	laser.setEmissionSpreadAngle(1.00000);
+	controls.target.set(0.661976, -0.511723, 0.693621);
+	camera.position.set(-7.73283, 3.69481, 7.68164);
 	Scene.prototype.setLaser.call(this, laser);
 }
 
