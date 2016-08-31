@@ -61,7 +61,7 @@ FibreScene.prototype.syncShader = function(traceProgram)
 // can set tolerances appropriately.
 FibreScene.prototype.getScale = function()
 {
-	return Math.min(this._settings.fibreRadius, this._settings.coilRadius);
+	return Math.max(this._settings.fibreRadius, this._settings.coilRadius);
 }
 
 /*

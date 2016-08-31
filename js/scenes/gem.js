@@ -71,7 +71,7 @@ GemScene.prototype.syncShader = function(traceProgram)
 // can set tolerances appropriately.
 GemScene.prototype.getScale = function()
 {
-	return Math.min(this._settings.scaleHeight, this._settings.scaleWidth);
+	return Math.max(this._settings.scaleHeight, this._settings.scaleWidth);
 }
 
 

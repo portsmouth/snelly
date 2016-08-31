@@ -60,7 +60,7 @@ TwistedTubeScene.prototype.syncShader = function(traceProgram)
 TwistedTubeScene.prototype.getScale = function()
 {
 	var b = this._settings.bounds;
-	return Math.min(b.x, b.y, b.z);
+	return Math.max(b.x, b.y, b.z);
 }
 
 

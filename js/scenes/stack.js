@@ -67,7 +67,7 @@ StackScene.prototype.getScale = function()
 	var t = this._settings.thickness;
 	var s = this._settings.separation;
 	var n = this._settings.NUM_LAYERS;
-	return Math.min(w, (t + s)*n);
+	return Math.max(w, (t + s)*n);
 }
 
 /*

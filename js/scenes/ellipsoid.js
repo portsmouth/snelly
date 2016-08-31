@@ -51,7 +51,7 @@ EllipsoidScene.prototype.syncShader = function(traceProgram)
 // can set tolerances appropriately.
 EllipsoidScene.prototype.getScale = function()
 {
-	return Math.min(this._settings.a, this._settings.b, this._settings.c);
+	return Math.max(this._settings.a, this._settings.b, this._settings.c);
 }
 
 /*
