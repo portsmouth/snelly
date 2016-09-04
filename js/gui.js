@@ -154,7 +154,7 @@ GUI.prototype.createEmissionSettings = function()
 		laser.setEmissionRadius(value);      
 		lightTracer.reset(); 
 	} );
-	this.emissionFolder.add(laser, 'emissionSpread', 0.0, 45.0).onChange( function(value) { laser.setEmissionSpreadAngle(value); lightTracer.reset(); } );
+	this.emissionFolder.add(laser, 'emissionSpread', 0.0, 90.0).onChange( function(value) { laser.setEmissionSpreadAngle(value); lightTracer.reset(); } );
 	this.gui.remember(laser);
 
 	// Spectrum selection
