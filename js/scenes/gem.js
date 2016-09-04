@@ -71,7 +71,7 @@ GemScene.prototype.syncShader = function(traceProgram)
 // can set tolerances appropriately.
 GemScene.prototype.getScale = function()
 {
-	return Math.max(this._settings.scaleHeight, this._settings.scaleWidth);
+	return Math.min(this._settings.scaleHeight, this._settings.scaleWidth);
 }
 
 
@@ -94,7 +94,6 @@ GemScene.prototype.init = function(controls, camera, laser)
 	laser.setEmissionSpreadAngle(1.00000);
 	controls.target.set(0.661976, -0.511723, 0.693621);
 	camera.position.set(-7.73283, 3.69481, 7.68164);
-	Scene.prototype.setLaser.call(this, laser);
 }
 
 

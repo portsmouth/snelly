@@ -84,7 +84,6 @@ FibreScene.prototype.init = function(controls, camera, laser)
 	laser.setEmissionSpreadAngle(0.00000);
 	controls.target.set(-23.9941, 9.32417, -130.227);
 	camera.position.set(-28.3761, 14.5968, -147.678);
-	Scene.prototype.setLaser.call(this, laser);
 }
 
 

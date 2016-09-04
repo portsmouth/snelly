@@ -95,7 +95,6 @@ SphereCrystalScene.prototype.init = function(controls, camera, laser)
 	laser.setEmissionSpreadAngle(0.00000);
 	controls.target.set(2.85618, -3.76422, 1.09919);
 	camera.position.set(-25.3435, 12.2641, 34.7719);
-	Scene.prototype.setLaser.call(this, laser);
 }
 
 

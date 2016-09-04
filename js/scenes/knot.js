@@ -74,7 +74,6 @@ KnotScene.prototype.init = function(controls, camera, laser)
 	laser.setEmissionSpreadAngle(0.100000);
 	controls.target.set(3.10339, -0.445047, -0.634240);
 	camera.position.set(5.15669, -0.275832, 23.2782);
-	Scene.prototype.setLaser.call(this, laser);
 }
 
 

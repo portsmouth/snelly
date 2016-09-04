@@ -362,7 +362,7 @@ void main()
 	vec3 pos = EmitterPos + rPos*(u*cos(phiPos) + v*sin(phiPos)); 
 
 	// Emit in a cone with the given spread
-	float spreadAngle = abs(EmitterSpread)*M_PI/180.0;
+	float spreadAngle = 0.5*abs(EmitterSpread)*M_PI/180.0;
 	float rDir = min(tan(spreadAngle), 1.0e6) * sqrt(rand(seed));
 	float phiDir = 2.0*M_PI*rand(seed);
 	vec3 dir = normalize(EmitterDir + rDir*(u*cos(phiDir) + v*sin(phiDir)));

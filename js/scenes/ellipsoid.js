@@ -73,7 +73,6 @@ EllipsoidScene.prototype.init = function(controls, camera, laser)
 	laser.setEmissionSpreadAngle(1.01480);
 	controls.target.set(1.66261, -1.28846, 0.929629);
 	camera.position.set(4.60906, -2.68147, 17.3705);
-	Scene.prototype.setLaser.call(this, laser);
 }
 
 

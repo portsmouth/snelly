@@ -96,7 +96,6 @@ MetaShapesScene.prototype.init = function(controls, camera, laser)
 	laser.setEmissionSpreadAngle(0.500000);
 	controls.target.set(-1.88619, -1.29066, 0.156162);
 	camera.position.set(9.37386, 2.10021, -8.10325);
-	Scene.prototype.setLaser.call(this, laser);
 }
 
 

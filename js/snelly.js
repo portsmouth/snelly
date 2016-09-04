@@ -86,6 +86,7 @@ var Snelly = function()
 		this.addScene(new SphereCrystalScene("Lattice of spheres", ""));
 		this.addScene(new MetaShapesScene("Metashapes", ""));
 		this.addScene(new KIFSScene("KIFS fractal", ""));
+		this.addScene(new WavesScene("Waves", ""));
 
 		// ...
 	}
