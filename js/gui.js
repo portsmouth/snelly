@@ -53,7 +53,7 @@ GUI.prototype.createLightTracerSettings = function()
 	this.lightTracerFolder.add(this.lightTracerSettings, 'enable').onChange( function(value) { lightTracer.enabled = value;  } );
 	this.lightTracerFolder.add(lightTracer, 'showExternal');
 	this.lightTracerFolder.add(lightTracer, 'showInternal');
-	this.lightTracerFolder.add(this.lightTracerSettings, 'exposure', -2.0, 4.0, 0.01);
+	this.lightTracerFolder.add(this.lightTracerSettings, 'exposure', -10.0, 10.0, 0.01);
 	this.lightTracerFolder.add(this.lightTracerSettings, 'gamma', 0.0, 4.0, 0.01);
 	this.lightTracerFolder.add(this.lightTracerSettings, 'maxPathLength', 4, 1024).onChange( function(value) { lightTracer.maxPathLength = Math.floor(value); lightTracer.reset(); } );
 	this.lightTracerFolder.add(this.lightTracerSettings, 'maxMarchSteps', 32, 1024).onChange( function(value) { lightTracer.maxMarchSteps = Math.floor(value); lightTracer.reset(); } );

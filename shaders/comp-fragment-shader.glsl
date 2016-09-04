@@ -22,12 +22,19 @@ void main()
 		fluence += texture2D(FluenceExt, vTexCoord).rgb;
 	}
 
-	vec3 L = invNumPaths * pow(10.0, exposure) * fluence;
-	float r = L.x; 
-	float g = L.y; 
-	float b = L.z;
-	vec3 Lp = vec3(r/(1.0+r), g/(1.0+g), b/(1.0+b));
-	vec3 S = pow(Lp, vec3(invGamma));
+	vec3 phi = invNumPaths * fluence; // normalized fluence
 
-	gl_FragColor = vec4(S, 1.0);
+	// Apply exposure 
+	float gain = pow(2.0, exposure);
+	float r = gain*phi.x; 
+	float g = gain*phi.y; 
+	float b = gain*phi.z;
+	
+	// Reinhard tonemap
+	vec3 C = vec3(r/(1.0+r), g/(1.0+g), b/(1.0+b)) ;
+
+	// Apply gamma
+	C = pow(C, vec3(invGamma));
+
+	gl_FragColor = vec4(C, 1.0);
 }
