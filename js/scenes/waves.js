@@ -162,7 +162,6 @@ WavesScene.prototype.eraseGui = function(parentFolder)
 	parentFolder.remove(this.itemLength);
 	parentFolder.remove(this.itemWidth);
 	parentFolder.remove(this.itemDepth);
-	parentFolder.remove(this.itemTime);
 }
 
 
