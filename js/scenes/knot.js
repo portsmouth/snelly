@@ -68,12 +68,12 @@ KnotScene.prototype.getBox = function()
 // Initial laser position and direction defaults for this scene
 KnotScene.prototype.init = function(controls, camera, laser)
 {
-	laser.setPosition(new THREE.Vector3(-0.412294, -7.09606, 1.35382));
-	laser.setDirection(new THREE.Vector3(-0.807465, 0.484682, -0.336279));
-	laser.setEmissionRadius(0.0100000);
-	laser.setEmissionSpreadAngle(0.300000);
-	controls.target.set(2.90170, -0.573916, -0.616009);
-	camera.position.set(4.95500, -0.404701, 23.2964);
+	laser.setPosition(new THREE.Vector3(-0.644805, -0.485412, 0.689038));
+	laser.setTarget(new THREE.Vector3(-1.39783, -5.32853, -0.593458));
+	laser.setEmissionRadius(0.00000);
+	laser.setEmissionSpreadAngle(0.100000);
+	controls.target.set(3.10339, -0.445047, -0.634240);
+	camera.position.set(5.15669, -0.275832, 23.2782);
 	Scene.prototype.setLaser.call(this, laser);
 }
 

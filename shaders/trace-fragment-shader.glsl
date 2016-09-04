@@ -135,8 +135,9 @@ float reflectionDielectric(vec3 D, vec3 N, float ior)
 	
 	float cost = sqrt(max(0.0, 1.0 - sint*sint));
 	float cosip = abs(cosi);
-	float rParallel      = ( et*cosip - ei*cost) / ( et*cosip + ei*cost);
-	float rPerpendicular = ( ei*cosip - et*cost) / ( ei*cosip + et*cost);
+	const float epsilon = 1.0e-8;
+	float rParallel      = ( et*cosip - ei*cost) / ( et*cosip + ei*cost + epsilon );
+	float rPerpendicular = ( ei*cosip - et*cost) / ( ei*cosip + et*cost + epsilon );
 	return 0.5 * (rParallel*rParallel + rPerpendicular*rPerpendicular);
 }
 

@@ -68,11 +68,12 @@ EllipsoidScene.prototype.getBox = function()
 EllipsoidScene.prototype.init = function(controls, camera, laser)
 {
 	laser.setPosition(new THREE.Vector3(-8.88858, 0.101274, -0.00490936));
-	laser.setDirection(new THREE.Vector3(1.00000, 2.22045e-16, 0.00000));
-	laser.setEmissionRadius(4.23984);
+	laser.setTarget(new THREE.Vector3(0.252166, -2.76093, 1.85217));
+	laser.setEmissionRadius(0.250000);
 	laser.setEmissionSpreadAngle(1.01480);
-	controls.target.set(5.86102, -1.76305, 1.53855);
-	camera.position.set(1.31630, 3.29438, 37.0716);
+	controls.target.set(1.66261, -1.28846, 0.929629);
+	camera.position.set(4.60906, -2.68147, 17.3705);
+	Scene.prototype.setLaser.call(this, laser);
 }
 
 
