@@ -59,10 +59,10 @@ var Snelly = function()
 
 	// Create user control system for camera
 	this.controls = new THREE.OrbitControls(this.camera, this.glRenderer.domElement);
-	this.controls.zoomSpeed = 5.0;
+	this.controls.zoomSpeed = 2.0;
 	this.controls.addEventListener( 'change', camChanged );
 
-	// Setup Laser pointer
+	// Setup laser pointer
 	this.laser = new LaserPointer(this.glRenderer, this.glScene, this.camera, this.controls);
 	this.laser.setPosition(new THREE.Vector3(-5.0, 0.0, 0.0));
 	this.laser.setDirection(new THREE.Vector3(1.0, 0.0, 0.0));
@@ -83,7 +83,9 @@ var Snelly = function()
 		this.addScene(new PoolScene("Pool", ""));
 		this.addScene(new MengerScene("Menger sponge", ""));
 		this.addScene(new KnotScene("Knot", ""));
-		this.addScene(new SphereCrystalScene("SphereCrystal", ""));
+		this.addScene(new SphereCrystalScene("Lattice of spheres", ""));
+		this.addScene(new MetaShapesScene("Metashapes", ""));
+		this.addScene(new KIFSScene("KIFS fractal", ""));
 
 		// ...
 	}
@@ -130,10 +132,10 @@ var Snelly = function()
 		this.addMaterial( new Gas("Xenon gas", "", [0.0, 0.00322869, 46.301, 0.00355393, 50.578, 0.0606764, 112.74]) );
 		*/
 
-		// @todo: Metals. Need better approximations than the below: 
+		// @todo: Metals. Need a much better approximation than 'LinearMetal' for plausible metals 
 		/*
 		this.addMaterial( new LinearMetal("Aluminium", "",  0.46555, 4.7121, 1.6620, 8.0439) );
-		this.addMaterial( new LinearMetal("Gold", "",            1.5275, 1.8394, 0.16918, 3.8816) );
+		this.addMaterial( new LinearMetal("Gold", "",       1.5275, 1.8394, 0.16918, 3.8816) );
 		*/
 	}
 

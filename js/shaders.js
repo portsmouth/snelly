@@ -114,14 +114,21 @@ void main()
 		fluence += texture2D(FluenceExt, vTexCoord).rgb;
 	}
 
-	vec3 L = invNumPaths * pow(10.0, exposure) * fluence;
-	float r = L.x; 
-	float g = L.y; 
-	float b = L.z;
-	vec3 Lp = vec3(r/(1.0+r), g/(1.0+g), b/(1.0+b));
-	vec3 S = pow(Lp, vec3(invGamma));
+	vec3 phi = invNumPaths * fluence; // normalized fluence
 
-	gl_FragColor = vec4(S, 1.0);
+	// Apply exposure 
+	float gain = pow(2.0, exposure);
+	float r = gain*phi.x; 
+	float g = gain*phi.y; 
+	float b = gain*phi.z;
+	
+	// Reinhard tonemap
+	vec3 C = vec3(r/(1.0+r), g/(1.0+g), b/(1.0+b)) ;
+
+	// Apply gamma
+	C = pow(C, vec3(invGamma));
+
+	gl_FragColor = vec4(C, 1.0);
 }
 `,
 
@@ -2152,8 +2159,9 @@ float reflectionDielectric(vec3 D, vec3 N, float ior)
 	
 	float cost = sqrt(max(0.0, 1.0 - sint*sint));
 	float cosip = abs(cosi);
-	float rParallel      = ( et*cosip - ei*cost) / ( et*cosip + ei*cost);
-	float rPerpendicular = ( ei*cosip - et*cost) / ( ei*cosip + et*cost);
+	const float epsilon = 1.0e-8;
+	float rParallel      = ( et*cosip - ei*cost) / ( et*cosip + ei*cost + epsilon );
+	float rPerpendicular = ( ei*cosip - et*cost) / ( ei*cosip + et*cost + epsilon );
 	return 0.5 * (rParallel*rParallel + rPerpendicular*rPerpendicular);
 }
 
