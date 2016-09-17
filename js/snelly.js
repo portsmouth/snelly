@@ -74,7 +74,8 @@ var Snelly = function()
 		this.addScene(new GemScene("Gem stone", ""));
 		this.addScene(new ConvergingLensScene("Converging lens", ""));
 		this.addScene(new DivergingLensScene("Diverging lens", ""));
-		this.addScene(new EllipsoidScene("Ellipsoid", ""));
+		this.addScene(new LatticeScene("Lattice", ""));
+		this.addScene(new SuperEllipsoidScene("Super-ellipsoid", ""));
 		this.addScene(new FibreScene("Coiled fibre", ""));
 		this.addScene(new TwistedTubeScene("Twisted tube", ""));
 		this.addScene(new StackScene("Slab stack", ""));
@@ -83,11 +84,11 @@ var Snelly = function()
 		this.addScene(new PoolScene("Pool", ""));
 		this.addScene(new MengerScene("Menger sponge", ""));
 		this.addScene(new KnotScene("Knot", ""));
-		this.addScene(new SphereCrystalScene("Lattice of spheres", ""));
 		this.addScene(new MetaShapesScene("Metashapes", ""));
 		this.addScene(new KIFSScene("KIFS fractal", ""));
 		this.addScene(new WavesScene("Waves", ""));
-
+		this.addScene(new PrismScene("Prism", ""));
+		
 		// ...
 	}
 

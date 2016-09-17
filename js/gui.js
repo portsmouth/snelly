@@ -44,7 +44,7 @@ GUI.prototype.createLightTracerSettings = function()
 	var lightTracer = snelly.getLightTracer();
 
 	this.lightTracerSettings.enable = lightTracer.enabled;
-	this.lightTracerSettings.exposure = 1.0;
+	this.lightTracerSettings.exposure = 0.0;
 	this.lightTracerSettings.gamma = 2.2;
 	this.lightTracerSettings.maxPathLength = lightTracer.maxPathLength;
 	this.lightTracerSettings.maxMarchSteps = lightTracer.maxMarchSteps;
