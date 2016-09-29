@@ -152,7 +152,7 @@ var Snelly = function()
 
 	// Load the initial scene and material
 	this.gui = null;
-	this.loadScene("Gem stone");
+	this.loadScene("Lattice");
 	this.loadMaterial("Glass (LASF35)");
 
 	// Create dat gui

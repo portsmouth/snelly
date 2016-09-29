@@ -14,7 +14,7 @@ function LatticeScene(name, desc)
 	this._settings.height = 7.0;
 	this._settings.depth = 9.0;
 	this._settings.offset = 0.0;
-	this._settings.bulge = 0.0;
+	this._settings.bulge = 0.25;
 }
 
 // NB, every function is mandatory and must be defined.
