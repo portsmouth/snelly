@@ -61,7 +61,7 @@ GUI.prototype.createLightTracerSettings = function()
 																											    lightTracer.initStates(); 
 																												lightTracer.reset(); } );
 	this.gui.remember(this.lightTracerSettings);
-	this.lightTracerFolder.open();
+	this.lightTracerFolder.close();
 }
 
 
@@ -132,7 +132,7 @@ GUI.prototype.createSurfaceRendererSettings = function()
 	this.surfaceRendererFolder.add(surfaceRenderer, 'specPower', 1.0, 100.0).onChange( function(renderMode) { surfaceRenderer.reset(); });
 
 	this.gui.remember(this.surfaceRendererSettings);
-	//this.surfaceRendererFolder.open();
+	this.surfaceRendererFolder.close();
 }
 
 
@@ -223,7 +223,7 @@ GUI.prototype.createEmissionSettings = function()
 	} );
 
 	this.gui.remember(this.emissionSettings);
-	this.emissionFolder.open();
+	this.emissionFolder.close();
 	return this.emissionFolder;
 }
 
