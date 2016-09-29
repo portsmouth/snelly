@@ -460,7 +460,7 @@ LightTracer.prototype.render = function()
 		*/
 	}
 
-	if (this.pathLength==this.maxPathLength || this.wavesTraced<this.maxPathLength)
+	//if (this.pathLength==this.maxPathLength || this.wavesTraced<this.maxPathLength)
 	{
 		// Add the wavebuffer contents, a complete set of rendered path segments,
 		// into the fluence buffer

@@ -269,7 +269,7 @@ Snelly.prototype.loadScene = function(sceneName)
 
 	this.sceneObj = this.scenes[sceneName];
 	this.sceneObj.init(this.controls, this.camera, this.laser);
-	Scene.prototype.setLaser.call(this.sceneObj, this.laser);
+	this.laser.buildEmitterGeo();
 
 	var gui = this.getGUI();
 	if (gui)

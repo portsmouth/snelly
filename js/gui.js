@@ -289,7 +289,7 @@ GUI.prototype.createMaterialSettings = function()
 				 		// init gui for new material
 				 		materialObj = snelly.getLoadedMaterial();
 				 		materialObj.initGui(GUI.materialFolder);
-				 		
+
 				 	} );
 	
 	materialObj.initGui(this.materialFolder);

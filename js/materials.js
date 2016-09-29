@@ -8,6 +8,7 @@ function Material(name, desc)
 {
 	this._name = name;
 	this._desc = desc;
+	this.roughness = 0.001;
 }
 
 Material.prototype.getName = function()
@@ -18,6 +19,27 @@ Material.prototype.getName = function()
 Material.prototype.getDesc = function()
 {
 	return this._desc;
+}
+
+Material.prototype.getRoughness = function()
+{
+	return this.roughness;
+}
+
+Material.prototype.initGui  = function(parentFolder) 
+{ 
+	this.roughnessItem = parentFolder.add(this, 'roughness', 0.0, 1.0);
+	this.roughnessItem.onChange( function(value) { snelly.reset(); } );
+}
+
+Material.prototype.eraseGui = function(parentFolder) 
+{ 
+	parentFolder.remove(this.roughnessItem);
+}
+
+Material.prototype.syncShader = function(traceProgram)
+{
+	traceProgram.uniformF("roughness", this.roughness);
 }
 
 
@@ -82,6 +104,7 @@ LinearMetal.prototype.syncShader = function(traceProgram)
 	traceProgram.uniformF("_n700", this.n700);
 	traceProgram.uniformF("_k400", this.k400);
 	traceProgram.uniformF("_k400", this.k700);
+	Material.prototype.syncShader.call(this, traceProgram);
 }
 
 // set up gui and callbacks for this material
@@ -94,6 +117,9 @@ LinearMetal.prototype.eraseGui = function(parentFolder)
 {
 
 }
+
+LinearMetal.prototype.initGui  = function(parentFolder) { Material.prototype.initGui.call(this, parentFolder) }
+LinearMetal.prototype.eraseGui = function(parentFolder) { Material.prototype.eraseGui.call(this, parentFolder) }
 
 
 ////////////////////////////////////////////////////////
@@ -143,6 +169,7 @@ ConstantDielectric.prototype.ior = function()
 ConstantDielectric.prototype.syncShader = function(traceProgram)
 {
 	traceProgram.uniformF("_iorVal", this.iorVal);
+	Material.prototype.syncShader.call(this, traceProgram);
 }
 
 // set up gui and callbacks for this material
@@ -150,11 +177,13 @@ ConstantDielectric.prototype.initGui = function(parentFolder)
 {
 	this.iorItem = parentFolder.add(this, 'iorVal', 0.0, 5.0);
 	this.iorItem.onChange( function(value) { snelly.reset(); } );
+	Material.prototype.initGui.call(this, parentFolder);
 }
 
 ConstantDielectric.prototype.eraseGui = function(parentFolder)
 {
 	parentFolder.remove(this.iorItem);
+	Material.prototype.eraseGui.call(this, parentFolder)
 }
 
 
@@ -188,7 +217,7 @@ SellmeierDielectric.prototype.ior = function()
 		float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
 		float l2 = wavelength_um*wavelength_um;                                                                               
 		float n2 = ${IOR_FORMULA}; 
-		return sqrt(abs(n2));                                                                     
+		return max(sqrt(abs(n2)), 1.0e-3);                                                                     
 	}`;
 
 	return code;
@@ -200,12 +229,12 @@ SellmeierDielectric.prototype.syncShader = function(traceProgram)
 	{
 		traceProgram.uniformF(`_C${n}`, this.coeffs[n-1]);
 	}
+	Material.prototype.syncShader.call(this, traceProgram);
 }
 
 // set up gui and callbacks for this material
-SellmeierDielectric.prototype.initGui = function(parentFolder) {}
-SellmeierDielectric.prototype.eraseGui = function(parentFolder) {}
-
+SellmeierDielectric.prototype.initGui  = function(parentFolder) { Material.prototype.initGui.call(this, parentFolder) }
+SellmeierDielectric.prototype.eraseGui = function(parentFolder) { Material.prototype.eraseGui.call(this, parentFolder) }
 
 
 // The standard Sellmeier model for dielectrics (model 2 at refractiveindex.info)
@@ -239,7 +268,7 @@ Sellmeier2Dielectric.prototype.ior = function()
 		float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
 		float l2 = wavelength_um*wavelength_um;                                                                               
 		float n2 = ${IOR_FORMULA}; 
-		return sqrt(abs(n2));                                                                     
+		return max(sqrt(abs(n2)), 1.0e-3);                                                                     
 	}`;
 
 	return code;
@@ -251,12 +280,12 @@ Sellmeier2Dielectric.prototype.syncShader = function(traceProgram)
 	{
 		traceProgram.uniformF(`_C${n}`, this.coeffs[n-1]);
 	}
+	Material.prototype.syncShader.call(this, traceProgram);
 }
 
 // set up gui and callbacks for this material
-Sellmeier2Dielectric.prototype.initGui = function(parentFolder) {}
-Sellmeier2Dielectric.prototype.eraseGui = function(parentFolder) {}
-
+Sellmeier2Dielectric.prototype.initGui  = function(parentFolder) { Material.prototype.initGui.call(this, parentFolder) }
+Sellmeier2Dielectric.prototype.eraseGui = function(parentFolder) { Material.prototype.eraseGui.call(this, parentFolder) }
 
 
 
@@ -289,7 +318,7 @@ PolyanskiyDielectric.prototype.ior = function()
 		float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
 		float l = wavelength_um;                                                                               
 		float n2 = ${IOR_FORMULA}; 
-		return sqrt(abs(n2));                                                                     
+		return max(sqrt(abs(n2)), 1.0e-3);                                                                     
 	}`;
 
 	return code;
@@ -302,13 +331,12 @@ PolyanskiyDielectric.prototype.syncShader = function(traceProgram)
 	traceProgram.uniformF('_C3', this.C3);
 	traceProgram.uniformF('_C4', this.C4);
 	traceProgram.uniformF('_C5', this.C5);
+	Material.prototype.syncShader.call(this, traceProgram);
 }
 
 // set up gui and callbacks for this material
-PolyanskiyDielectric.prototype.initGui = function(parentFolder) {}
-PolyanskiyDielectric.prototype.eraseGui = function(parentFolder) {}
-
-
+PolyanskiyDielectric.prototype.initGui  = function(parentFolder) { Material.prototype.initGui.call(this, parentFolder) }
+PolyanskiyDielectric.prototype.eraseGui = function(parentFolder) { Material.prototype.eraseGui.call(this, parentFolder) }
 
 
 // Cauchy model for dielectrics (model 5 at refractiveindex.info)
@@ -341,7 +369,7 @@ CauchyDielectric.prototype.ior = function()
 		float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
 		float l = wavelength_um;                                                                               
 		float n = ${IOR_FORMULA}; 
-		return n;                                                                     
+		return max(n, 1.0e-3);                                                                     
 	}`;
 
 	return code;
@@ -353,12 +381,12 @@ CauchyDielectric.prototype.syncShader = function(traceProgram)
 	{
 		traceProgram.uniformF(`_C${n}`, this.coeffs[n-1]);
 	}
+	Material.prototype.syncShader.call(this, traceProgram);
 }
 
 // set up gui and callbacks for this material
-CauchyDielectric.prototype.initGui = function(parentFolder) {}
-CauchyDielectric.prototype.eraseGui = function(parentFolder) {}
-
+CauchyDielectric.prototype.initGui  = function(parentFolder) { Material.prototype.initGui.call(this, parentFolder) }
+CauchyDielectric.prototype.eraseGui = function(parentFolder) { Material.prototype.eraseGui.call(this, parentFolder) }
 
 
 
@@ -392,7 +420,7 @@ Gas.prototype.ior = function()
 		float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
 		float invl2 = 1.0 / (wavelength_um*wavelength_um);                                                                               
 		float n2 = ${IOR_FORMULA}; 
-		return sqrt(abs(n2));                                                                     
+		return max(sqrt(abs(n2)), 1.0e-3);                                                                     
 	}`;
 
 	return code;
@@ -404,11 +432,11 @@ Gas.prototype.syncShader = function(traceProgram)
 	{
 		traceProgram.uniformF(`_C${n}`, this.coeffs[n-1]);
 	}
+	Material.prototype.syncShader.call(this, traceProgram);
 }
 
 // set up gui and callbacks for this material
-Gas.prototype.initGui = function(parentFolder) {}
-Gas.prototype.eraseGui = function(parentFolder) {}
-
+Gas.prototype.initGui  = function(parentFolder) { Material.prototype.initGui.call(this, parentFolder) }
+Gas.prototype.eraseGui = function(parentFolder) { Material.prototype.eraseGui.call(this, parentFolder) }
 
 
