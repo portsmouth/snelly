@@ -71,10 +71,7 @@ var SurfaceRenderer = function()
 	this.width = render_canvas.width;
 	this.height = render_canvas.height;
 
-	this.quadVbo = this.createQuadVbo();
-	this.fbo = new GLU.RenderTarget();
-	
-	// Initialize pathtracing textures and fbo:
+	// Initialize pathtracing textures:
 	this.currentState = 0;
 	this.pathStates = [new SurfaceRendererState(this.width, this.height), 
 					   new SurfaceRendererState(this.width, this.height)];
@@ -83,11 +80,26 @@ var SurfaceRenderer = function()
 	this.enable = true;
 	//this.depthTest = false;
 	this.showBounds = false;
-	this.surfaceAlpha = 0.2;
+	this.surfaceAlpha = 1.0;
 	this.renderMode = 'blinn';
 	this.specPower = 20.0;
 	this.kd1 = [140.0/255.0, 140.0/255.0, 1.0];
 	this.kd2 = [72.0/255.0, 1.0, 126.0/255.0];
+
+    // Spectrum initialization
+	this.spectra = {}
+	this.SPECTRUM_SAMPLES = 256;
+	this.spectrumObj = null;
+	this.LAMBDA_MIN = 360.0;
+    this.LAMBDA_MAX = 750.0;
+	var wToRgb = wavelengthToRgbTable();
+	this.wavelengthToRgb = new GLU.Texture(wToRgb.length/4, 1, 4, true,  true, true, wToRgb);
+	this.emissionIcdf    = new GLU.Texture(4*this.SPECTRUM_SAMPLES, 1, 1, true, true, true, null);
+	this.addSpectrum( new FlatSpectrum("flat", "Flat spectrum", 400.0, 700.0) );
+	this.addSpectrum( new BlackbodySpectrum("blackbody", "Blackbody spectrum", 6000.0) );
+	this.addSpectrum( new MonochromaticSpectrum("monochromatic", "Monochromatic spectrum", 650.0) ); 
+	this.fbo == null;
+	this.loadSpectrum("flat");
 
 	// Load shaders
 	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper", "pick"]);
@@ -96,6 +108,9 @@ var SurfaceRenderer = function()
 	gl.clearColor(0.0, 0.0, 0.0, 1.0);
 	gl.blendFunc(gl.ONE, gl.ONE);
 
+	this.quadVbo = this.createQuadVbo();
+	this.fbo = new GLU.RenderTarget();
+	
 	// Trigger initial buffer generation
 	this.resize(this.width, this.height);
 }
@@ -120,6 +135,33 @@ SurfaceRenderer.prototype.reset = function()
 	this.compileShaders();
 	this.currentState = 0;
 	this.pathStates[this.currentState].clear(this.fbo);
+}
+
+
+// emission spectrum management
+SurfaceRenderer.prototype.addSpectrum = function(spectrumObj)
+{
+	this.spectra[spectrumObj.getName()] = spectrumObj;
+}
+
+SurfaceRenderer.prototype.getSpectra = function()
+{
+	return this.spectra;
+}
+
+SurfaceRenderer.prototype.loadSpectrum = function(spectrumName)
+{
+	this.spectrumObj = this.spectra[spectrumName];
+	var inverseCDF = this.spectrumObj.inverseCDF(this.LAMBDA_MIN, this.LAMBDA_MAX, this.SPECTRUM_SAMPLES);
+	this.emissionIcdf.bind(0);
+    this.emissionIcdf.copy(inverseCDF);
+    if (this.fbo != null)
+		this.reset();
+}
+
+SurfaceRenderer.prototype.getLoadedSpectrum = function()
+{
+	return this.spectrumObj;
 }
 
 
@@ -305,6 +347,29 @@ SurfaceRenderer.prototype.render = function()
 	this.pathtraceProgram.uniformF("camAspect", camera.aspect);
 	this.pathtraceProgram.uniform2Fv("resolution", [this.width, this.height]);
 	this.pathtraceProgram.uniformF("SceneScale", sceneObj.getScale()); 
+
+	// Read wavelength -> RGB table
+	this.wavelengthToRgb.bind(1);
+	this.emissionIcdf.bind(2);
+	this.pathtraceProgram.uniformTexture("WavelengthToRgb", this.wavelengthToRgb);
+	this.pathtraceProgram.uniformTexture("ICDF", this.emissionIcdf);
+	
+	// Emitter data
+	var laser = snelly.laser;
+	emitterPos = laser.getPoint();
+	emitterDir = laser.getDirection();
+	emitterRadius = laser.getEmissionRadius();
+	emissionSpread = laser.getEmissionSpreadAngle();
+	this.pathtraceProgram.uniform3F("EmitterPos", emitterPos.x, emitterPos.y, emitterPos.z);
+	this.pathtraceProgram.uniform3F("EmitterDir", emitterDir.x, emitterDir.y, emitterDir.z);
+	this.pathtraceProgram.uniformF("EmitterRadius", emitterRadius);
+	this.pathtraceProgram.uniformF("EmitterSpread", emissionSpread);
+
+
+
+
+
+
 
 	this.fbo.bind();
 	this.fbo.drawBuffers(3);

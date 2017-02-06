@@ -34,7 +34,7 @@ SuperEllipsoidScene.prototype.sdf = function()
 					return pow(xp + yp + zp, 1.0/p)  - 1.0;       
 				}      
 
-				float SDF(vec3 X)                     
+				float SDF_DIELE(vec3 X)                     
 				{                       
 					return sdSuperEllipsoid(X, _a, _b, _c, _p);       
 				}                                     

@@ -26,7 +26,6 @@ WavesScene.prototype = Object.create(Scene.prototype);
 WavesScene.prototype.sdf = function()
 {
 	return `
-			// Borrowed from https://www.shadertoy.com/view/Ms2SD1 by TDM
 			uniform float _waveFreq1;
 			uniform float _waveFreq2;
 			uniform float _waveHeight1;
@@ -61,7 +60,7 @@ WavesScene.prototype.sdf = function()
 			    return p.y - (h1 + h2);
 			}
 
-			float SDF(vec3 X)                     
+			float SDF_DIELE(vec3 X)                     
 			{                 
 				vec3 bmax = vec3(_length,  4.0*(_waveHeight1 + _waveHeight2), _width);
 				vec3 bmin = vec3(-_length,     -_depth, -_width);	

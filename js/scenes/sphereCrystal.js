@@ -48,7 +48,7 @@ SphereCrystalScene.prototype.sdf = function()
 					return sdSphere(q, _sphereRadius);
 				}   
 
-				float SDF(vec3 X)                     
+				float SDF_DIELE(vec3 X)                     
 				{
 					return opI( sdBox(X, vec3(_width, _height, _depth)), 
 								sphereLattice(X, _sphereSpacing) );

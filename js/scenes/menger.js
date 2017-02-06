@@ -71,7 +71,7 @@ MengerScene.prototype.sdf = function()
 	if (!this._settings.tile)
 	{
 		sdfCode = code + `
-			float SDF(vec3 X)
+			float SDF_DIELE(vec3 X)
 			{
 				return menger(X);
 			}
@@ -85,7 +85,7 @@ MengerScene.prototype.sdf = function()
 				vec3 q = mod(p,c)-0.5*c;
 				return menger(q);
 			}
-			float SDF(vec3 X)
+			float SDF_DIELE(vec3 X)
 			{
 				float s = float(${this._settings.tileScale});
 				return opRep(X, vec3(s, s, s));

@@ -42,7 +42,7 @@ KIFSScene.prototype.sdf = function()
 						);
 				}
 
-				float SDF(vec3 p) 
+				float SDF_DIELE(vec3 p) 
 				{
 					p=p.zxy;
 					float a=1.5+sin(_time*.3578)*.5;

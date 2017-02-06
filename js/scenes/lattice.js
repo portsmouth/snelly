@@ -108,7 +108,7 @@ LatticeScene.prototype.sdf = function()
 					return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
 				} 
 
-				float SDF(vec3 X)                     
+				float SDF_DIELE(vec3 X)                     
 				{
 					return opI( sdBox(X, vec3(_width, _height, _depth)), 
 								lattice(X, _spacing) );

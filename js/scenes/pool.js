@@ -83,7 +83,7 @@ PoolScene.prototype.sdf = function()
 			    return p.y - h;
 			}
 
-			float SDF(vec3 X)                     
+			float SDF_DIELE(vec3 X)                     
 			{                 
 				vec3 bmax = vec3(SEA_BOUNDS,  4.0*SEA_HEIGHT, SEA_BOUNDS);
 				vec3 bmin = vec3(-SEA_BOUNDS,     -SEA_DEPTH, -SEA_BOUNDS);	

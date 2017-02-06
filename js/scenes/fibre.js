@@ -38,7 +38,7 @@ FibreScene.prototype.sdf = function()
 				    return sdCylinder(q);
 				}
 
-				float SDF(vec3 X)                     
+				float SDF_DIELE(vec3 X)                     
 				{                           
 					return opCoil(X);
 				}                                                

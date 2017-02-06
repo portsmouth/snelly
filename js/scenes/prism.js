@@ -65,13 +65,11 @@ PrismScene.prototype.sdf = function()
 				    return sdPrism(q);
 				}
 
-				float SDF(vec3 X)                     
+				float SDF_DIELE(vec3 X)                     
 				{                           
 					return opTwist(X);
-				}   
-
-                               
-	`;
+				}      
+		`;
 }
 
 

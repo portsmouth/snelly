@@ -69,7 +69,7 @@ var LightTracer = function()
 	this.activeBlock = this.raySize;
 	this.maxMarchSteps = 512;
 	this.maxPathLength = 100;
-	this.enabled = true;
+	this.enabled = false;
 	this.showExternal = true;
 	this.showInternal = true;
 	this.initStates();

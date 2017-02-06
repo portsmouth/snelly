@@ -287,7 +287,7 @@ void raytrace(inout vec4 rnd,
     for( int i=0; i<MAX_MARCH_STEPS; i++ )
     {
 		if (h<minMarchDist || t>maxMarchDist) break;
-		h = abs(SDF(X + D*t));
+		h = abs(SDF_DIELE(X + D*t));
 		t += h;
     }
     X += t*D;

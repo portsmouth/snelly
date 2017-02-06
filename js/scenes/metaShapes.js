@@ -46,7 +46,7 @@ MetaShapesScene.prototype.sdf = function()
 					return 0.5 - (exp(-k*d1)+exp(-k*d2)+exp(-k*d3))/k;
 				}
 
-				float SDF(vec3 pos)                    
+				float SDF_DIELE(vec3 pos)                    
 				{                        
       				float t = _time;
     

@@ -19,7 +19,7 @@ TumblerScene.prototype.sdf = function()
 			// Borrowed from https://www.shadertoy.com/view/4s2GDV by mu6k
 			uniform float _height;
 			
-			float SDF(vec3 p)
+			float SDF_DIELE(vec3 p)
 			{
 				p.y /= _height;
 				float a = (length(p.xz)-1.0-p.y*.15)*.85;

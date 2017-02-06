@@ -24,14 +24,20 @@ WineGlassScene.prototype.sdf = function()
 				return mix (a, b, h) - k * h * (1.0 - h);
 			}
 
-			float SDF(vec3 p)
+			float smax (in float a, in float b, in float k) 
+			{
+				float s = pow(exp(a),k) + pow(exp(b),k);
+				return log(pow(s, 1.0/k));
+			}
+
+			float SDF_DIELE(vec3 p)
 			{
 				p.y /= _height;
 				float d = length (p);
 				float dxz = length (p.xz);
-				d = max (max (d - 1.45, 1.4 - d), p.y - 0.5);
+				d = smax (max (d - 1.45, 1.4 - d), p.y - 0.5, _height);
 				d = min (d, max (dxz - 1.0, p.y + 3.0));
-				d = smin (d, max (dxz - 0.2, p.y + 1.4), 0.2);
+				d = smin (d, max (dxz - 0.2, p.y + 1.4), 0.5);
 				return max (d, -p.y - 3.05);
 			}                                    
 	`;
@@ -78,7 +84,7 @@ WineGlassScene.prototype.init = function(controls, camera, laser)
 // set up gui and callbacks for this scene
 WineGlassScene.prototype.initGui = function(parentFolder)
 {
-	this.heightItem = parentFolder.add(this._settings, 'scaleHeight', 1.0, 2.0);
+	this.heightItem = parentFolder.add(this._settings, 'scaleHeight', 1.0, 10.0);
 	this.heightItem.onChange( function(value) { snelly.reset(); } );
 }
 

@@ -33,7 +33,7 @@ DivergingLensScene.prototype.sdf = function()
 				return length(X) - r;       
 			}    
 
-			float SDF(vec3 X)                     
+			float SDF_DIELE(vec3 X)                     
 			{            
 				float r = max(_radius, 3.0*_thickness);
 				float y = 0.333*r;

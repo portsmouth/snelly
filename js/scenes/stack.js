@@ -31,7 +31,7 @@ StackScene.prototype.sdf = function()
 					return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
 				}              
 
-				float SDF(vec3 X)                     
+				float SDF_DIELE(vec3 X)                     
 				{               
 					float inf = 1.0e9;
 					float sd = inf;

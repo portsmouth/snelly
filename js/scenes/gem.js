@@ -24,9 +24,10 @@ GemScene.prototype.sdf = function()
 				uniform float _scaleWidth;                 
 				uniform float _scaleHeight;  
 
-				vec3 vRotateY (in vec3 p, in float angle) {
-					float c = cos (angle);
-					float s = sin (angle);
+				vec3 vRotateY (in vec3 p, in float angle) 
+				{
+					float c = cos(angle);
+					float s = sin(angle);
 					return vec3 (c * p.x - s * p.z, p.y, c * p.z + s * p.x);
 				}
 
@@ -36,7 +37,7 @@ GemScene.prototype.sdf = function()
 				vec3 normalBottomA = normalize (vec3 (0.0, -1.0, 1.0));
 				vec3 normalBottomB = normalize (vec3 (0.0, -1.0, 1.6));
 
-				float SDF(vec3 p)                    
+				float SDF_DIELE(vec3 p)                    
 				{                        
 				    p.xz /= _scaleWidth;
 				    p.y  /= _scaleHeight;

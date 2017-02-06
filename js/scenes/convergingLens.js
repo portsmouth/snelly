@@ -29,7 +29,7 @@ ConvergingLensScene.prototype.sdf = function()
 					return length(X) - r;       
 				}    
 
-				float SDF(vec3 X)
+				float SDF_DIELE(vec3 X)
 				{ 
 					float t = min(_thickness, _radiusA + _radiusB);
 					float l = _radiusA + _radiusB - t;

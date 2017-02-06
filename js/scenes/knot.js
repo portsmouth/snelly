@@ -24,7 +24,7 @@ KnotScene.prototype.sdf = function()
 				uniform float _r;             
 				#define TWOPI 6.28318530718
 
-				float SDF(vec3 p)                    
+				float SDF_DIELE(vec3 p)                    
 				{                        
 				    float r = length(p.xy);
 				    float oa, a = atan(p.y, p.x); oa = _k*a;

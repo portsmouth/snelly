@@ -138,7 +138,7 @@ Dielectric.prototype.sample = function()
 	return `
 				float SAMPLE(inout vec3 X, inout vec3 D, vec3 N, float wavelength_nm, inout vec4 rnd)
 				{                                                          
-					return sampleDielectric(X, D, N, IOR(wavelength_nm), rnd);       
+					return sampleDielectric(X, D, N, IOR_DIELE(wavelength_nm), rnd);       
 				}
 	`;
 }
@@ -156,10 +156,9 @@ ConstantDielectric.prototype = Object.create(Dielectric.prototype);
 
 ConstantDielectric.prototype.ior = function()
 {
-	// Defines a GLSL function which takes wavelength (in micrometres) and returns ior
 	return `
 				uniform float _iorVal;
-				float IOR(float wavelength_nm)  
+				float IOR_DIELE(float wavelength_nm)  
 				{                     
 					return _iorVal;   
 				}
@@ -212,7 +211,7 @@ SellmeierDielectric.prototype.ior = function()
 		uniforms += `uniform float _C${n};\n`
 	}
 	var code = `${uniforms}    
-	float IOR(float wavelength_nm) 
+	float IOR_DIELE(float wavelength_nm) 
 	{                                                                                            
 		float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
 		float l2 = wavelength_um*wavelength_um;                                                                               
@@ -256,14 +255,14 @@ Sellmeier2Dielectric.prototype.ior = function()
 		IOR_FORMULA += `+ _C${2*t}*l2/(l2 - _C${2*t+1})`;
 	}
 
-	// Defines a GLSL function which takes wavelength (in micrometres) and returns ior
+	// Defines a GLSL function which takes wavelength (in nanometres) and returns ior
 	var uniforms = '';
 	for (var n=1; n<=this.coeffs.length; ++n)
 	{
 		uniforms += `uniform float _C${n};\n`
 	}
 	var code = `${uniforms}    
-	float IOR(float wavelength_nm) 
+	float IOR_DIELE(float wavelength_nm) 
 	{                                                                                            
 		float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
 		float l2 = wavelength_um*wavelength_um;                                                                               
@@ -306,14 +305,14 @@ PolyanskiyDielectric.prototype.ior = function()
 {
 	var IOR_FORMULA = ' _C1 + _C2*pow(l, _C3)/(l*l - pow(_C4, _C5))'; 
 
-	// Defines a GLSL function which takes wavelength (in micrometres) and returns ior
+	// Defines a GLSL function which takes wavelength (in nanometres) and returns ior
 	var code = `
 	uniform float _C1;
 	uniform float _C2;
 	uniform float _C3;
 	uniform float _C4;
 	uniform float _C5;
-	float IOR(float wavelength_nm) 
+	float IOR_DIELE(float wavelength_nm) 
 	{                                                                                            
 		float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
 		float l = wavelength_um;                                                                               
@@ -357,7 +356,7 @@ CauchyDielectric.prototype.ior = function()
 		IOR_FORMULA += ` + _C${2*t}*pow(l, _C${2*t+1})`;
 	}
 
-	// Defines a GLSL function which takes wavelength (in micrometres) and returns ior
+	// Defines a GLSL function which takes wavelength (in nanometres) and returns ior
 	var uniforms = '';
 	for (var n=1; n<=this.coeffs.length; ++n)
 	{
@@ -408,7 +407,7 @@ Gas.prototype.ior = function()
 		IOR_FORMULA += `+ _C${2*t}/(_C${2*t+1} - invl2)`;
 	}
 
-	// Defines a GLSL function which takes wavelength (in micrometres) and returns ior
+	// Defines a GLSL function which takes wavelength (in nanometres) and returns ior
 	var uniforms = '';
 	for (var n=1; n<=this.coeffs.length; ++n)
 	{
