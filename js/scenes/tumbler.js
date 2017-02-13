@@ -34,7 +34,10 @@ TumblerScene.prototype.sdf = function()
 				p2.xz = vec2(cos(angle),sin(angle))*mag;
 				a = max(a,(-length(p2+vec3(-7.0,0.0,0.0))+6.05)*.85);
 				return a;
-			}                                  
+			}               
+
+			float SDF_METAL(vec3 X) { return 1.0; }
+			float SDF_DIFFU(vec3 X) { return 1.0; }                       
 	`;
 }
 

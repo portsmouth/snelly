@@ -87,11 +87,11 @@ LinearMetal.prototype.ior = function()
 				uniform float _n700;
 				uniform float _k400;
 				uniform float _k700;
-				float IOR(float wavelength_nm)
+				float IOR_METAL(float wavelength_nm)
 				{                                                       
 					return abs(_n400 + (wavelength_nm-400.0)*(_n700-_n400)/300.0); 
 				}                                                       
-				float K(float wavelength_nm)                                      
+				float K_METAL(float wavelength_nm)                                      
 				{                                                       
 					return abs(_k400 + (wavelength_nm-400.0)*(_k700-_k400)/300.0); 
 				}

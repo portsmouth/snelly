@@ -68,7 +68,10 @@ PrismScene.prototype.sdf = function()
 				float SDF_DIELE(vec3 X)                     
 				{                           
 					return opTwist(X);
-				}      
+				}   
+
+				float SDF_METAL(vec3 X) { return 1.0; }
+				float SDF_DIFFU(vec3 X) { return 1.0; }       
 		`;
 }
 

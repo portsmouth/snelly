@@ -39,7 +39,10 @@ WineGlassScene.prototype.sdf = function()
 				d = min (d, max (dxz - 1.0, p.y + 3.0));
 				d = smin (d, max (dxz - 0.2, p.y + 1.4), 0.5);
 				return max (d, -p.y - 3.05);
-			}                                    
+			}
+
+			float SDF_METAL(vec3 X) { return 1.0; }
+			float SDF_DIFFU(vec3 X) { return 1.0; }
 	`;
 }
 

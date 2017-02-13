@@ -28,6 +28,7 @@ uniform float EmitterSpread; // in degrees
 uniform float roughnessDiele;
 uniform float roughnessMetal;
 
+
 //////////////////////////////////////////////////////////////
 // Dynamically injected code
 //////////////////////////////////////////////////////////////
@@ -41,18 +42,85 @@ LIGHTING_FUNC
 //////////////////////////////////////////////////////////////
 
 
+///////////////////////////////////////////////////////////////////////////////////
+// SDF raymarcher
+///////////////////////////////////////////////////////////////////////////////////
+
+bool trace(in vec3 start, vec3 dir, inout vec3 hit, inout uint material)
+{
+	const uint MAT_DIELE  = 0;
+	const uint MAT_METAL  = 1;
+	const uint MAT_DIFFU  = 2;
+
+	float minMarchDist = 1.0e-5*SceneScale;
+	float maxMarchDist = 1.0e5*SceneScale;
+	t = 0.0;
+	float hDIELE = SceneScale;
+	float hMETAL = SceneScale;
+	float hDIFFU = SceneScale;
+    for( int i=0; i<MAX_MARCH_STEPS; i++ )
+    {
+		if (hDIELE<minMarchDist) { material = MAT_DIELE; break; }
+		if (hMETAL<minMarchDist) { material = MAT_METAL; break; }
+		if (hDIFFU<minMarchDist) { material = MAT_DIFFU; break; }
+		if (t>maxMarchDist) break;
+
+		vec3 pW = start + t*dir;
+
+		hDIELE = SDF_DIELE(pW);
+		hMETAL = SDF_METAL(pW);
+		hDIFFU = SDF_DIFFU(pW);
+        t += min(hDIELE, min(hMETAL, hDIFFU));
+    }
+	if (t>maxMarchDist) return false;
+	hit = start + t*dir;
+	return true;
+}
+
+vec3 normal(in vec3 pW, uint material)
+{
+	const uint MAT_DIELE  = 0;
+	const uint MAT_METAL  = 1;
+	const uint MAT_DIFFU  = 2;
+	
+	// Compute normal as gradient of SDF
+	float normalEpsilon = 2.0e-5*SceneScale;
+	vec3 e = vec3(normalEpsilon, 0.0, 0.0);
+	vec3 xyyp = pW+e.xyy; vec3 xyyn = pW-e.xyy;
+	vec3 yxyp = pW+e.yxy; vec3 yxyn = pW-e.yxy;
+	vec3 yyxp = pW+e.yyx; vec3 yyxn = pW-e.yyx;
+	vec3 N;
+	if      (material==MAT_DIELE) { N = vec3(SDF_DIELE(xyyp)-SDF_DIELE(xyyn), SDF_DIELE(yxyp)-SDF_DIELE(yxyn), SDF_DIELE(yyxp) - SDF_DIELE(yyxn)); }
+	else if (material==MAT_METAL) { N = vec3(SDF_METAL(xyyp)-SDF_METAL(xyyn), SDF_METAL(yxyp)-SDF_METAL(yxyn), SDF_METAL(yyxp) - SDF_METAL(yyxn)); }
+	else                          { N = vec3(SDF_DIFFU(xyyp)-SDF_DIFFU(xyyn), SDF_DIFFU(yxyp)-SDF_DIFFU(yxyn), SDF_DIFFU(yyxp) - SDF_DIFFU(yyxn)); }
+	return normalize(N);
+}
+
+bool Visible(in vec3 start, in vec3 end)
+{
+	float eps = 2.0e-5*SceneScale;
+	vec3 dir = normalize(end - start);
+	vec3 delta = eps * dir;
+	start += delta;
+	end   -= delta;
+	vec3 p;
+	uint material;
+	bool hit = trace(start, end, p, material);
+	return !hit;
+}
+
+
+
 /////////////////////////////////////////////////////////////////////////
 // Basis transforms
 /////////////////////////////////////////////////////////////////////////
 
-float CosTheta2(in vec3 nLocal) { return nLocal.z*nLocal.z; }
-float TanTheta2(in vec3 nLocal)
-{
-	float ct2 = CosTheta2(nLocal);
-	return max(0.0, 1.0 - ct2) / max(ct2, 1.0e-7);
-}
-
-float TanTheta(in vec3 nLocal)  { return sqrt(max(0.0, TanTheta2(nLocal))); }
+float cosTheta2(in vec3 nLocal) { return nLocal.z*nLocal.z; }
+float cosTheta(in vec3 nLocal)  { return nLocal.z; }
+float sinTheta2(in vec3 nLocal) { return 1.0 - cosTheta2(nLocal); }
+float sinTheta(in vec3 nLocal)  { return sqrtf(max(0.0, sinTheta2(nLocal))); }
+float tanTheta2(in vec3 nLocal) { float ct2 = cosTheta2(nLocal); return max(0.0, 1.0 - ct2) / max(ct2, 1.0e-7); }
+float tanTheta(in vec3 nLocal)  { return sqrt(max(0.0, tanTheta2(nLocal))); }
 
 struct Basis
 {
@@ -116,7 +184,19 @@ vec3 sampleHemisphere(inout vec4 rnd)
 /////////////////////////////////////////////////////////////////////////
 
 // m = the microfacet normal (in the local space where z = the macrosurface normal)
-vec3 microfacetSample(inout vec4 rnd, float roughness)
+float microfacetEval(in vec3 m, in float roughness)
+{
+	float tanTheta2 = tanTheta2(m);
+	float cosTheta2 = cosTheta2(m);
+	float roughnessSqr = roughness*roughness;
+	float epsilon = 1.0e-5;
+	float exponent = tanTheta2 / (roughnessSqr + epsilon);
+	float D = exp(-exponent) / (M_PI * roughnessSqr * cosTheta2*cosTheta2);
+	return D;
+}
+
+// m = the microfacet normal (in the local space where z = the macrosurface normal)
+vec3 microfacetSample(inout vec4 rnd, in float roughness)
 {
 	float phiM = (2.0 * M_PI) * rand(rnd);
 	float cosPhiM = cos(phiM);
@@ -125,6 +205,11 @@ vec3 microfacetSample(inout vec4 rnd, float roughness)
 	float cosThetaM = 1.0 / sqrt(1.0 + tanThetaMSqr);
 	float sinThetaM = sqrt(max(0.0, 1.0 - cosThetaM*cosThetaM));
 	return normalize(vec3(sinThetaM*cosPhiM, sinThetaM*sinPhiM, cosThetaM));
+}
+
+float microfacetPDF(in vec3 m, in float roughness)
+{
+	return microfacetEval(m, roughness) * cosTheta(m);
 }
 
 // Shadow-masking function
@@ -150,29 +235,255 @@ float smithG2(in vec3 woL, in vec3 wiL, in vec3 mLocal, float roughness)
 // BRDF functions
 /////////////////////////////////////////////////////////////////////////
 
+
+/// @todo:
+/// In general, have to deal with interfaces:
+///		- dielectric <-> metal        (vacuum is a special case of dielectric)
+///		- dielectric <-> diffuse      (vacuum is a special case of dielectric)
+///		- dielectric <-> dielectric
+
+/// Ray is either travelling in vacuum, or within the dielectric.
+
+
 // ****************************        Dielectric        ****************************
+
+/// Compute Fresnel reflectance at a dielectric interface (which has an "interior" and an "exterior").
+/// cosi is the cosine to the (interior-to-exterior) normal of the incident ray
+/// direction wi, (where we use the PBRT convention that the light
+/// travels in the opposite direction to wi, i.e. wi is the direction
+/// *from* which the light arrives at the surface point).
+/// The Boolean "entering" indicates whether the ray is entering or exiting the dielectric.
+float fresnelDielectricReflectance(in float cosi, in float iorInternal, in float iorExternal)
+{
+	bool entering = cosi > 0.0;
+	float ei, et;
+	if (entering)
+	{
+		ei = iorExternal; // Incident from external medium, if entering
+		et = iorInternal; // Transmitted to internal medium, if entering
+	}
+	else
+	{
+		ei = iorInternal; // Incident from internal medium, if exiting
+		et = iorExternal; // Transmitted to external medium, if exiting
+	}
+
+	// Compute sint from Snell's law:
+	const float sint = ei/et * sqrt(max(0.0, 1.0 - cosi*cosi));
+
+	// Handle total internal reflection
+	if (sint >= 1.0) return 1.0;
+
+	float cost = sqrtf(max(0.0, 1.0 - sint*sint));
+	float cosip = fabs(cosi);
+	const float rParallel      = (et*cosip - ei*cost) / (et*cosip + ei*cost);
+	const float rPerpendicular = (ei*cosip - et*cost) / (ei*cosip + et*cost);
+	return 0.5 * (rParallel*rParallel + rPerpendicular*rPerpendicular);
+}
+
+// Given the direction (wt) of a beam transmitted through a plane dielectric interface
+// with the given normal (n) (with n pointing away from the transmitted half-space, i.e. wt.n<0),
+// and the ratio eta = et/ei of the incident IOR (ei) and transmitted IOR (et),
+// compute the direction of the incident beam (wi).
+// Returns false if no such beam exists, due to total internal reflection.
+bool refraction(in vec3 n, in float eta, in vec3 wt, inout vec3 wi)
+{
+	vec3 x = normalize(cross(cross(n, wt), n));
+	float sint = dot(wt, x);
+	float sini = eta * sint; // Snell's law
+	float sini2 = sini*sini;
+	if (sini2 >= 1.0) return false; // Total internal reflection
+	float cosi2 = (1.0 - sini*sini);
+	float cosi = max(0.0, sqrtf(cosi2));
+	wi = -cosi*n + sini*x;
+	return true;
+}
 
 float evaluateDielectric( in vec3 woL, in vec3 wiL, in float roughness, in float wavelength_nm )
 {
 	float ior = IOR_DIELE(wavelength_nm);
-	return vec3(0.0, 0.0, 0.0);
+	bool reflected = cosTheta(wiL) * cosTheta(woL) > 0.0;
+
+	// We call this when vertex is *on* the dielectric surface, which implies
+	// in our case it is adjacent to vacuum. 
+	float R = fresnelDielectricReflectance(woL.z, ior, 1.0);
+
+	// Compute the reflection half-vector
+	vec3 h;
+	float eta; // IOR ratio, et/ei
+	if (reflected)
+	{
+		h = normalize(wiL + woL);
+	}
+	else
+	{
+		// Compute reflection half-vector
+		bool entering = cosTheta(wiL) > 0.0;
+		eta = entering ? ior : 1.0/ior;
+		h = normalize(wiL + eta*woL);
+	}
+	if (cosTheta(h)<0.0) h *= -1.0; // make sure half-vector points out
+
+	float D = microfacetEval(h, roughness);
+	float G = smithG2(woL, wiL, h, roughness);
+	float DENOM_TOLERANCE = 1.0e-7;
+	float f;
+	if (reflected)
+	{
+		f = R * D * G / (4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)) + DENOM_TOLERANCE);
+	}
+	else
+	{
+		float im = dot(wiL, h);
+		float om = dot(woL, h);
+		float sqrtDenom = im + eta*om;
+		float dwh_dwo = eta*eta * abs(om) / (sqrtDenom*sqrtDenom);
+		f = (1.0 - R) * G * D * abs(im) * dwh_dwo / (abs(cosTheta(wiL))*abs(cosTheta(woL)) + DENOM_TOLERANCE);
+	}
+	return f;
 }
 
 float pdfDielectric( in vec3 woL, in vec3 wiL, in float roughness, in float wavelength_nm )
 {
 	float ior = IOR_DIELE(wavelength_nm);
-	return 0.0;
+	bool reflected = cosTheta(wiL) * cosTheta(woL) > 0.0;
+
+	// We call this when vertex is *on* the dielectric surface, which implies
+	// in our case it is adjacent to vacuum. 
+	float R = fresnelDielectricReflectance(woL.z, ior, 1.0);
+
+	// Compute the reflection half-vector, and the Jacobian of the half-direction mapping
+	vec3 h;
+	float dwh_dwo;
+	float pdf;
+	if (reflected)
+	{
+		h = normalize(wiL + woL);
+		dwh_dwo = 1.0 / (4.0*dot(woL, h) + DENOM_TOLERANCE);
+		pdf = R;
+	}
+	else
+	{
+		// Compute reflection half-vector
+		bool entering = cosTheta(wiL) > 0.0;
+		float eta = entering ? ior : 1.0/ior;
+		vec3 h = normalize(wiL + eta*woL);
+		float im = dot(wiL, h);
+		float om = dot(woL, h);
+		float sqrtDenom = im + eta*om;
+		dwh_dwo = eta*eta * abs(om) / (sqrtDenom*sqrtDenom + DENOM_TOLERANCE);
+		pdf = 1.0 - R;
+	}
+	if (cosTheta(h)<0.0) h *= -1.0; // make sure half-vector points out
+
+	pdf *= microfacetPDF(h, roughness);
+	return abs(pdf * dwh_dwo);
 }
 
 float sampleDielectric( in vec3 woL, in float roughness, in float wavelength_nm,
 				   	    inout vec3 wiL, inout float pdfOut, inout vec4 rnd )
 {
 	float ior = IOR_DIELE(wavelength_nm);
-	return vec3(0.0, 0.0, 0.0);
+
+	// We call this when vertex is *on* the dielectric surface, which implies
+	// in our case it is adjacent to vacuum. 
+	float R = fresnelDielectricReflectance(woL.z, ior, 1.0);
+	vec3 m = microfacetSample(rnd, roughness); // Sample microfacet normal m
+	float microPDF = microfacetPDF(m, roughness);
+	float reflectProb = R;
+
+	// Choose whether to reflect or transmit randomly
+	if (rand(rnd) < reflectProb)
+	{
+		// Compute specularly reflected ray direction
+		wiL = -woL + 2.0*dot(woL, m)*m; // Compute incident direction by reflecting woL about m
+
+		// Microfacet distribution
+		vec3 wh = m; // microfacet normal m = reflection half-vector
+		float D = microfacetEval(wh, roughness);
+		float G = smithG2(woL, wiL, h, roughness); // Shadow-masking function
+		vec3 f = R * D * G / (4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)) + DENOM_TOLERANCE);
+
+		// Return total BRDF and corresponding pdf
+		pdfOut = reflectProb * microPDF;
+		return f;
+	}
+
+	// transmission
+	else
+	{
+		// Note, for transmission:
+		//	woL.m < 0 means the transmitted light is entering the dielectric *from* the (vacuum) exterior of the microfacet
+		//	woL.m > 0 means the transmitted light is exiting the dielectric *to* the (vacuum) exterior of the microfacet
+		bool entering = dot(woL, m) < 0.0;
+
+		// Compute transmitted (specularly refracted) ray direction
+		float eta;
+		vec3 ni; // normal pointing into incident halfspace
+		if (entering)
+		{
+			// Entering, incident halfspace is outside microfacet
+			eta = ior;
+			ni = m;
+		}
+		else
+		{
+			// Exiting, incident halfspace is inside microfacet
+			eta = 1.0/ior;
+			ni = -m;
+		}
+
+		// Compute incident direction corresponding to known transmitted direction
+		if ( !refraction(ni, eta, woL, wiL) )
+		{
+			return vec3(0.0, 0.0, 0.0); // total internal reflection occurred
+		}
+		wiL = -wiL; // As refract() computes the incident beam direction, and wiL is defined to be opposite to that.
+	
+		// Compute Fresnel transmittance
+		float cosi = dot(wiL, m);
+		float R = fresnelDielectricReflectance(cosi, ior, 1.0);
+		float T = 1.0 - R;
+
+		// Evaluate microfacet distribution for the sampled half direction
+		vec3 wh = m; // refraction half-vector = m
+		float D = microfacetEval(wh, roughness);
+		float G = smithG2(woL, wiL, wh, roughness); // Shadow-masking function
+
+		float dwh_dwo; // Jacobian of the half-direction mapping
+		float im = dot(wiL, m);
+		{
+			float om = dot(woL, m);
+			float sqrtDenom = im + eta*om;
+			dwh_dwo = eta*eta * fabs(om) / (sqrtDenom*sqrtDenom + DENOM_TOLERANCE);
+		}
+
+		vec3 f = abs(im) * dwh_dwo * T * G * D / (abs(cosTheta(wiL))*abs(cosTheta(woL)) + DENOM_TOLERANCE);
+		pdfOut = (1.0-reflectProb) * microPDF * abs(dwh_dwo);
+		return f;
+	}
 }
 
 
 // ****************************        Metal        ****************************
+
+/// cosi is the cosine to the (outward) normal of the incident ray direction wi,
+/// ior is the index of refraction of the metal, and k its absorption coefficient
+float fresnelMetalReflectance(in float cosi, in float ior, in float k)
+{
+	float cosip = fabs(cosi);
+	float cosi2 = cosip * cosip;
+	float tmp = (m_ior * m_ior + m_k * m_k) * cosi2;
+
+	float twoEtaCosi = 2.f * m_ior * cosip;
+	float Rparl2 = (tmp - twoEtaCosi + 1.0f) / (tmp + twoEtaCosi + 1.0f);
+
+	float tmp_f = m_ior * m_ior + m_k * m_k;
+	float Rperp2 = (tmp_f - twoEtaCosi + cosi2) / (tmp_f + twoEtaCosi + cosi2);
+
+	return 0.5f * (Rparl2 + Rperp2);
+}
+
 
 float evaluateMetal( in vec3 woL, in vec3 wiL, in float roughness, in float wavelength_nm )
 {
@@ -213,14 +524,12 @@ float pdfDiffuse(in vec3 woL, in vec3 wiL)
 float sampleDiffuse(in vec3 woL, in vec3 wiL, 
 				   inout float pdfOut, inout vec4 rnd)
 {
-	float r = rand(rnd);
-
 	// Do cosine-weighted sampling of hemisphere
 	vec3 wiL = sampleHemisphere(rnd);
 	pdfOut = abs(wiL.z)/M_PI;
 }
 
-// ****************************        interface        ****************************
+// ****************************        BSDF common interface        ****************************
 
 float evaluateBsdf( in vec3 woL, in vec3 wiL, in uint material, in float wavelength_nm, 
 	 			   inout vec4 rnd )
@@ -246,34 +555,9 @@ float pdfBsdf( in vec3 woL, in vec3 wiL, in uint material, in float wavelength_n
 }
 
 
-vec3 normal(in vec3 pW, uint material)
-{
-	const uint MAT_DIELE  = 0;
-	const uint MAT_METAL  = 1;
-	const uint MAT_DIFFU  = 2;
-	// Compute normal as gradient of SDF
-	float normalEpsilon = 2.0e-5*SceneScale;
-	vec3 e = vec3(normalEpsilon, 0.0, 0.0);
-	vec3 xyyp = pW+e.xyy; vec3 xyyn = pW-e.xyy;
-	vec3 yxyp = pW+e.yxy; vec3 yxyn = pW-e.yxy;
-	vec3 yyxp = pW+e.yyx; vec3 yyxn = pW-e.yyx;
-	vec3 N;
-	if      (material==MAT_DIELE) { N = vec3(SDF_DIELE(xyyp)-SDF_DIELE(xyyn), SDF_DIELE(yxyp)-SDF_DIELE(yxyn), SDF_DIELE(yyxp) - SDF_DIELE(yyxn)); }
-	else if (material==MAT_METAL) { N = vec3(SDF_METAL(xyyp)-SDF_METAL(xyyn), SDF_METAL(yxyp)-SDF_METAL(yxyn), SDF_METAL(yyxp) - SDF_METAL(yyxn)); }
-	else                          { N = vec3(SDF_DIFFU(xyyp)-SDF_DIFFU(xyyn), SDF_DIFFU(yxyp)-SDF_DIFFU(yxyn), SDF_DIFFU(yyxp) - SDF_DIFFU(yyxn)); }
-	return normalize(N);
-}
-
-bool Visible(in vec3 start, in vec3 end)
-{
-	float eps = 2.0e-5*SceneScale;
-	start += eps;
-	end   -= eps;
-	vec3 dir = normalize(end - start);
-	float t;
-	bool hit = trace(start, end, t);
-	return !hit;
-}
+////////////////////////////////////////////////////////////////////////////////
+// Pathtracing logic
+////////////////////////////////////////////////////////////////////////////////
 
 
 float environmentRadiance(in vec3 dir, float wavelength_nm)
@@ -355,9 +639,7 @@ float directLighting(in vec3 pW, Basis basis, in vec3 woW, in float emitterBrigh
 		{
 			vec3 wiL = sampleHemisphere(rnd);
 			lightPdf = (1.0 - emissionProb) * abs(wiL.z) / M_PI;
-
 			wiW = localToWorld(wiL, basis);
-
 			Li = environmentRadiance(wiW, wavelength_nm);
 		}
 
@@ -397,40 +679,6 @@ float directLighting(in vec3 pW, Basis basis, in vec3 woW, in float emitterBrigh
 }
 
 
-
-bool trace(in vec3 start, vec3 dir, inout vec3 hit, inout uint material)
-{
-	const uint MAT_DIELE  = 0;
-	const uint MAT_METAL  = 1;
-	const uint MAT_DIFFU  = 2;
-
-	float minMarchDist = 1.0e-5*SceneScale;
-	float maxMarchDist = 1.0e5*SceneScale;
-	t = 0.0;
-	float hDIELE = SceneScale;
-	float hMETAL = SceneScale;
-	float hDIFFU = SceneScale;
-    for( int i=0; i<MAX_MARCH_STEPS; i++ )
-    {
-		if (hDIELE<minMarchDist) { material = MAT_DIELE; break; }
-		if (hMETAL<minMarchDist) { material = MAT_METAL; break; }
-		if (hDIFFU<minMarchDist) { material = MAT_DIFFU; break; }
-		if (t>maxMarchDist) break;
-
-		vec3 pW = start + t*dir;
-
-		hDIELE = SDF_DIELE(pW);
-		hMETAL = SDF_METAL(pW);
-		hDIFFU = SDF_DIFFU(pW);
-
-        t += min(hDIELE, min(hMETAL, hDIFFU));
-    }
-	if (t>maxMarchDist) return false;
-	hit = start + t*dir;
-	return true;
-}
-
-
 void main()
 {
 	vec4 rnd  = texture2D(RngData, vTexCoord);
@@ -456,19 +704,18 @@ void main()
 	vec3 primaryDir = normalize(camNear*camDir + s); // ray direction
 
 	// Raycast to first hit point
-	float zEye = camFar;
 	float L = vec3(0.0, 0.0, 0.0);
 	int numSteps;	
-
-	float russianRouletteProb = 0.95;
 
 	vec3 pW;
 	vec3 woW = -primaryDir;
 	uint material;
 	bool hit = trace(camPos, primaryDir, pW, material);
+	float zHit;
 
 	if ( !hit )
 	{
+		zHit = camFar;
 		L = envMap(D);
 	}
 	else
@@ -476,6 +723,7 @@ void main()
 		int maxBounces = 3; // debug
 		int bounce = 0;
 		float throughput = 1.0;
+		zHit = dot(pW - camPos, camDir);
 
 		while (bounce < maxBounces)
 		{
@@ -511,7 +759,7 @@ void main()
 				break;
 			}
 
-			// @todo: add BSDF-sampled emission term
+			// @todo: add BSDF-sampled emission term!
 			{
 				// check if ray segment (pW, pW_next) intersects the emitter disk.
 				// if it does, add contribution (depending on spread) and terminate path.
@@ -523,7 +771,6 @@ void main()
 			bounce++;
 		}
 	}
-
 
 	float clipDepth = computeClipDepth(zEye, camNear, camFar);
 

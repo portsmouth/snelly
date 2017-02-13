@@ -153,7 +153,9 @@ var Snelly = function()
 	// Load the initial scene and material
 	this.gui = null;
 	this.loadScene("Gem stone");
-	this.loadMaterial("Glass (LASF35)");
+
+	this.loadDielectricMaterial("Glass (LASF35)");
+	this.loadMetalMaterial("Copper");
 
 	// Create dat gui
 	this.gui = new GUI();
@@ -304,15 +306,27 @@ Snelly.prototype.getMaterials = function()
 	return this.materials;
 }
 
-Snelly.prototype.loadMaterial = function(materialName)
+
+Snelly.prototype.loadDielectricMaterial = function(dielectricMaterialName)
 {
-	this.materialObj = this.materials[materialName];
+	this.dielectricMaterialObj = this.materials[dielectricMaterialName];
 	this.reset();
 }
 
-Snelly.prototype.getLoadedMaterial = function()
+Snelly.prototype.loadMetalMaterial = function(metalMaterialName)
 {
-	return this.materialObj;
+	this.metalMaterialObj = this.materials[metalMaterialName];
+	this.reset();
+}
+
+Snelly.prototype.getLoadedDielectricMaterial = function()
+{
+	return this.dielectricMaterialObj;
+}
+
+Snelly.prototype.getLoadedMetalMaterial = function()
+{
+	return this.metalMaterialObj;
 }
 
 

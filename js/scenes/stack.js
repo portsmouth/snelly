@@ -44,7 +44,10 @@ StackScene.prototype.sdf = function()
 			    		sd = min(sd, slab);
 			    	}	    
 					return sd;       
-				}                                     
+				}   
+
+				float SDF_METAL(vec3 X) { return 1.0; }
+				float SDF_DIFFU(vec3 X) { return 1.0; }                                      
 	`;
 }
 

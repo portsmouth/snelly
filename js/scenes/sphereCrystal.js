@@ -52,7 +52,10 @@ SphereCrystalScene.prototype.sdf = function()
 				{
 					return opI( sdBox(X, vec3(_width, _height, _depth)), 
 								sphereLattice(X, _sphereSpacing) );
-				}                                     
+				}      
+
+				float SDF_METAL(vec3 X) { return 1.0; }
+				float SDF_DIFFU(vec3 X) { return 1.0; }                                   
 	`;
 }
 

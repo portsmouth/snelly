@@ -267,32 +267,48 @@ GUI.prototype.createSceneSettings = function()
 GUI.prototype.createMaterialSettings = function()
 {
 	this.materialFolder = this.gui.addFolder('Material');
-	var materialObj = snelly.getLoadedMaterial();
-	var materialName = materialObj.getName();
-	materials = snelly.getMaterials();
-	var materialNames = Object.keys(materials);
+	var dieleMaterialObj = snelly.getLoadedDielectricMaterial();
+	var metalMaterialObj = snelly.getLoadedMetalMaterial();
+
+	var dieleMaterialName = dieleMaterialObj.getName();
+	dieleMaterials = snelly.getDielectricMaterials();
+	var dieleMaterialNames = Object.keys(dieleMaterials);
+
+	var metalMaterialName = metalMaterialObj.getName();
+	metalMaterials = snelly.getMetalMaterials();
+	var metalMaterialNames = Object.keys(metalMaterials);
 
 	// Material selection menu
 	this.materialSettings = {};
-	this.materialSettings["material selection"] = materialName;
+	this.materialSettings["dielectric material"] = dieleMaterialName;
+	this.materialSettings["metal material"]      = metalMaterialName;
+
 	var GUI = this;
 
-	this.materialFolder.add(this.materialSettings, 'material selection', materialNames).onChange( function(materialName) {
-
+	this.materialFolder.add(this.materialSettings, 'dielectric material', dieleMaterialNames).onChange( function(materialName) {
 						// remove gui for current material
-						var materialObj = snelly.getLoadedMaterial();
+						var materialObj = snelly.getLoadedDielectricMaterial();
 						materialObj.eraseGui(GUI.materialFolder);
-
 						// load new material
-				 		snelly.loadMaterial(materialName);
-
+				 		snelly.loadDielectricMaterial(materialName);
 				 		// init gui for new material
-				 		materialObj = snelly.getLoadedMaterial();
+				 		materialObj = snelly.getLoadedDielectricMaterial();
 				 		materialObj.initGui(GUI.materialFolder);
-
 				 	} );
 	
-	materialObj.initGui(this.materialFolder);
+	this.materialFolder.add(this.materialSettings, 'metal material', metalMaterialNames).onChange( function(materialName) {
+					// remove gui for current material
+					var materialObj = snelly.getLoadedMetalMaterial();
+					materialObj.eraseGui(GUI.materialFolder);
+					// load new material
+			 		snelly.loadMetalMaterial(materialName);
+			 		// init gui for new material
+			 		materialObj = snelly.getLoadedMetalMaterial();
+			 		materialObj.initGui(GUI.materialFolder);
+			 	} );
+
+	dieleMaterialObj.initGui(this.materialFolder);
+	metalMaterialObj.initGui(this.materialFolder);
 	this.materialFolder.open();
 
 	this.gui.remember(this.materialSettings);

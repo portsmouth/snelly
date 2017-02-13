@@ -33,7 +33,11 @@ KnotScene.prototype.sdf = function()
 				    p.xz = cos(oa)*p.xz + sin(oa)*vec2(-p.z, p.x);
 				    p.x = abs(p.x) - 1.35; 
 				    return length(p) - _r;
-				}                                     
+				}
+				       
+				float SDF_METAL(vec3 X) { return 1.0; }
+				float SDF_DIFFU(vec3 X) { return 1.0; }
+
 	`;
 }
 

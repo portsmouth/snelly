@@ -172,12 +172,21 @@ SurfaceRenderer.prototype.compileShaders = function()
 	if (sceneObj == null) return;
 	var sdfCode = sceneObj.sdf();
 
+	// @todo: insert material GLSL code
+	var dielectricMaterialObj = snelly.getLoadedDielectricMaterial();
+	var      metalMaterialObj = snelly.getLoadedMetalMaterial();
+
+	iorCodeDiele    = dielectricMaterialObj.ior();
+	iorCodeMetal    = metalMaterialObj.ior();
+
 	// Copy the current scene and material routines into the source code
 	// of the trace fragment shader
 	replacements = {};
 	replacements.SDF_FUNC        = sdfCode;
+	replacements.IOR_FUNC        = iorCodeDiele + '\n' + iorCodeMetal;
 	replacements.MAX_MARCH_STEPS = this.maxMarchSteps;
 
+	/*
 	switch (this.renderMode)
 	{
 		case "normals": replacements.LIGHTING_FUNC = `
@@ -214,6 +223,7 @@ SurfaceRenderer.prototype.compileShaders = function()
 				}
 				`; break;									 
 	}
+	*/
 
 	// shaderSources is a dict from name (e.g. "trace")
 	// to a dict {v:vertexShaderSource, f:fragmentShaderSource}
@@ -364,12 +374,6 @@ SurfaceRenderer.prototype.render = function()
 	this.pathtraceProgram.uniform3F("EmitterDir", emitterDir.x, emitterDir.y, emitterDir.z);
 	this.pathtraceProgram.uniformF("EmitterRadius", emitterRadius);
 	this.pathtraceProgram.uniformF("EmitterSpread", emissionSpread);
-
-
-
-
-
-
 
 	this.fbo.bind();
 	this.fbo.drawBuffers(3);

@@ -42,7 +42,10 @@ DivergingLensScene.prototype.sdf = function()
 				float sA = sdSphere(X + vec3( r + 0.5*_thickness, 0.0, 0.0), r); 
 				float sB = sdSphere(X + vec3(-r - 0.5*_thickness, 0.0, 0.0), r);   
 				return opS(block, opU(sA, sB));                       
-			}                                     
+			}                                    
+
+			float SDF_METAL(vec3 X) { return 1.0; }
+			float SDF_DIFFU(vec3 X) { return 1.0; }
 	`;
 }
 

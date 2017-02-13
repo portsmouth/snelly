@@ -55,7 +55,10 @@ MetaShapesScene.prototype.sdf = function()
 				    float s = box(2.0*(pos + 3.0 * vec3(cos(t*1.1),cos(t*1.3),cos(t*1.7))))/2.0;
 
 				    return blob3(p, b, s);
-				}                                     
+				} 
+
+				float SDF_METAL(vec3 X) { return 1.0; }
+				float SDF_DIFFU(vec3 X) { return 1.0; }
 	`;
 }
 
