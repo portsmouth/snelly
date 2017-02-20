@@ -1,7 +1,8 @@
 
-uniform sampler2D Radiance;
-uniform sampler2D RngData;
-uniform sampler2D Depth;
+uniform sampler2D Radiance;         // 0
+uniform sampler2D RngData;          // 1
+uniform sampler2D WavelengthToRgb;  // 2
+uniform sampler2D ICDF;             // 3
 
 varying vec2 vTexCoord;
 
@@ -17,9 +18,6 @@ uniform float camZoom;
 uniform float camAspect;
 uniform float SceneScale;
 
-uniform sampler2D WavelengthToRgb;
-uniform sampler2D ICDF;
-
 uniform vec3 EmitterPos;
 uniform vec3 EmitterDir;
 uniform float EmitterRadius;
@@ -28,6 +26,11 @@ uniform float EmitterSpread; // in degrees
 uniform float roughnessDiele;
 uniform float roughnessMetal;
 
+#define DENOM_TOLERANCE 1.0e-7
+
+#define MAT_DIELE  0
+#define MAT_METAL  1
+#define MAT_DIFFU  2
 
 //////////////////////////////////////////////////////////////
 // Dynamically injected code
@@ -37,24 +40,16 @@ SDF_FUNC
 
 IOR_FUNC
 
-LIGHTING_FUNC
-
-//////////////////////////////////////////////////////////////
-
 
 ///////////////////////////////////////////////////////////////////////////////////
 // SDF raymarcher
 ///////////////////////////////////////////////////////////////////////////////////
 
-bool trace(in vec3 start, vec3 dir, inout vec3 hit, inout uint material)
+bool trace(in vec3 start, vec3 dir, inout vec3 hit, inout int material)
 {
-	const uint MAT_DIELE  = 0;
-	const uint MAT_METAL  = 1;
-	const uint MAT_DIFFU  = 2;
-
 	float minMarchDist = 1.0e-5*SceneScale;
 	float maxMarchDist = 1.0e5*SceneScale;
-	t = 0.0;
+	float t = 0.0;
 	float hDIELE = SceneScale;
 	float hMETAL = SceneScale;
 	float hDIFFU = SceneScale;
@@ -77,12 +72,8 @@ bool trace(in vec3 start, vec3 dir, inout vec3 hit, inout uint material)
 	return true;
 }
 
-vec3 normal(in vec3 pW, uint material)
+vec3 normal(in vec3 pW, int material)
 {
-	const uint MAT_DIELE  = 0;
-	const uint MAT_METAL  = 1;
-	const uint MAT_DIFFU  = 2;
-	
 	// Compute normal as gradient of SDF
 	float normalEpsilon = 2.0e-5*SceneScale;
 	vec3 e = vec3(normalEpsilon, 0.0, 0.0);
@@ -104,7 +95,7 @@ bool Visible(in vec3 start, in vec3 end)
 	start += delta;
 	end   -= delta;
 	vec3 p;
-	uint material;
+	int material;
 	bool hit = trace(start, end, p, material);
 	return !hit;
 }
@@ -118,7 +109,7 @@ bool Visible(in vec3 start, in vec3 end)
 float cosTheta2(in vec3 nLocal) { return nLocal.z*nLocal.z; }
 float cosTheta(in vec3 nLocal)  { return nLocal.z; }
 float sinTheta2(in vec3 nLocal) { return 1.0 - cosTheta2(nLocal); }
-float sinTheta(in vec3 nLocal)  { return sqrtf(max(0.0, sinTheta2(nLocal))); }
+float sinTheta(in vec3 nLocal)  { return sqrt(max(0.0, sinTheta2(nLocal))); }
 float tanTheta2(in vec3 nLocal) { float ct2 = cosTheta2(nLocal); return max(0.0, 1.0 - ct2) / max(ct2, 1.0e-7); }
 float tanTheta(in vec3 nLocal)  { return sqrt(max(0.0, tanTheta2(nLocal))); }
 
@@ -216,10 +207,10 @@ float microfacetPDF(in vec3 m, in float roughness)
 // Approximation from Walter et al (v = arbitrary direction, m = microfacet normal)
 float smithG1(in vec3 vLocal, in vec3 mLocal, float roughness)
 {
-	float tanTheta = abs(TanTheta(vLocal));
-	if (tanTheta < 1.0e-6) return 1.0; // perpendicular incidence -- no shadowing/masking
+	float tanThetaAbs = abs(tanTheta(vLocal));
+	if (tanThetaAbs < 1.0e-6) return 1.0; // perpendicular incidence -- no shadowing/masking
 	if (dot(vLocal, mLocal) * vLocal.z <= 0.0) return 0.0; // Back side is not visible from the front side, and the reverse.
-	float a = 1.0 / (roughness * tanTheta); // Rational approximation to the shadowing/masking function (Walter et al)  (<0.35% rel. error)
+	float a = 1.0 / (roughness * tanThetaAbs); // Rational approximation to the shadowing/masking function (Walter et al)  (<0.35% rel. error)
 	if (a >= 1.6) return 1.0;
 	float aSqr = a*a;
 	return (3.535*a + 2.181*aSqr) / (1.0 + 2.276*a + 2.577*aSqr);
@@ -269,15 +260,15 @@ float fresnelDielectricReflectance(in float cosi, in float iorInternal, in float
 	}
 
 	// Compute sint from Snell's law:
-	const float sint = ei/et * sqrt(max(0.0, 1.0 - cosi*cosi));
+	float sint = ei/et * sqrt(max(0.0, 1.0 - cosi*cosi));
 
 	// Handle total internal reflection
 	if (sint >= 1.0) return 1.0;
 
-	float cost = sqrtf(max(0.0, 1.0 - sint*sint));
-	float cosip = fabs(cosi);
-	const float rParallel      = (et*cosip - ei*cost) / (et*cosip + ei*cost);
-	const float rPerpendicular = (ei*cosip - et*cost) / (ei*cosip + et*cost);
+	float cost = sqrt(max(0.0, 1.0 - sint*sint));
+	float cosip = abs(cosi);
+	float rParallel      = (et*cosip - ei*cost) / (et*cosip + ei*cost);
+	float rPerpendicular = (ei*cosip - et*cost) / (ei*cosip + et*cost);
 	return 0.5 * (rParallel*rParallel + rPerpendicular*rPerpendicular);
 }
 
@@ -294,7 +285,7 @@ bool refraction(in vec3 n, in float eta, in vec3 wt, inout vec3 wi)
 	float sini2 = sini*sini;
 	if (sini2 >= 1.0) return false; // Total internal reflection
 	float cosi2 = (1.0 - sini*sini);
-	float cosi = max(0.0, sqrtf(cosi2));
+	float cosi = max(0.0, sqrt(cosi2));
 	wi = -cosi*n + sini*x;
 	return true;
 }
@@ -326,7 +317,6 @@ float evaluateDielectric( in vec3 woL, in vec3 wiL, in float roughness, in float
 
 	float D = microfacetEval(h, roughness);
 	float G = smithG2(woL, wiL, h, roughness);
-	float DENOM_TOLERANCE = 1.0e-7;
 	float f;
 	if (reflected)
 	{
@@ -340,6 +330,7 @@ float evaluateDielectric( in vec3 woL, in vec3 wiL, in float roughness, in float
 		float dwh_dwo = eta*eta * abs(om) / (sqrtDenom*sqrtDenom);
 		f = (1.0 - R) * G * D * abs(im) * dwh_dwo / (abs(cosTheta(wiL))*abs(cosTheta(woL)) + DENOM_TOLERANCE);
 	}
+
 	return f;
 }
 
@@ -401,11 +392,11 @@ float sampleDielectric( in vec3 woL, in float roughness, in float wavelength_nm,
 		// Microfacet distribution
 		vec3 wh = m; // microfacet normal m = reflection half-vector
 		float D = microfacetEval(wh, roughness);
-		float G = smithG2(woL, wiL, h, roughness); // Shadow-masking function
-		vec3 f = R * D * G / (4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)) + DENOM_TOLERANCE);
+		float G = smithG2(woL, wiL, m, roughness); // Shadow-masking function
+		float f = R * D * G / (4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)) + DENOM_TOLERANCE);
 
 		// Return total BRDF and corresponding pdf
-		pdfOut = reflectProb * microPDF;
+		pdfOut = microPDF * reflectProb;
 		return f;
 	}
 
@@ -436,7 +427,7 @@ float sampleDielectric( in vec3 woL, in float roughness, in float wavelength_nm,
 		// Compute incident direction corresponding to known transmitted direction
 		if ( !refraction(ni, eta, woL, wiL) )
 		{
-			return vec3(0.0, 0.0, 0.0); // total internal reflection occurred
+			return 0.0; // total internal reflection occurred
 		}
 		wiL = -wiL; // As refract() computes the incident beam direction, and wiL is defined to be opposite to that.
 	
@@ -455,10 +446,10 @@ float sampleDielectric( in vec3 woL, in float roughness, in float wavelength_nm,
 		{
 			float om = dot(woL, m);
 			float sqrtDenom = im + eta*om;
-			dwh_dwo = eta*eta * fabs(om) / (sqrtDenom*sqrtDenom + DENOM_TOLERANCE);
+			dwh_dwo = eta*eta * abs(om) / (sqrtDenom*sqrtDenom + DENOM_TOLERANCE);
 		}
 
-		vec3 f = abs(im) * dwh_dwo * T * G * D / (abs(cosTheta(wiL))*abs(cosTheta(woL)) + DENOM_TOLERANCE);
+		float f = abs(im) * dwh_dwo * T * G * D / (abs(cosTheta(wiL))*abs(cosTheta(woL)) + DENOM_TOLERANCE);
 		pdfOut = (1.0-reflectProb) * microPDF * abs(dwh_dwo);
 		return f;
 	}
@@ -471,31 +462,27 @@ float sampleDielectric( in vec3 woL, in float roughness, in float wavelength_nm,
 /// ior is the index of refraction of the metal, and k its absorption coefficient
 float fresnelMetalReflectance(in float cosi, in float ior, in float k)
 {
-	float cosip = fabs(cosi);
+	float cosip = abs(cosi);
 	float cosi2 = cosip * cosip;
-	float tmp = (m_ior * m_ior + m_k * m_k) * cosi2;
-
-	float twoEtaCosi = 2.f * m_ior * cosip;
-	float Rparl2 = (tmp - twoEtaCosi + 1.0f) / (tmp + twoEtaCosi + 1.0f);
-
-	float tmp_f = m_ior * m_ior + m_k * m_k;
+	float tmp = (ior*ior + k*k) * cosi2;
+	float twoEtaCosi = 2.0*ior*cosip;
+	float Rparl2 = (tmp - twoEtaCosi + 1.0) / (tmp + twoEtaCosi + 1.0);
+	float tmp_f = ior*ior + k*k;
 	float Rperp2 = (tmp_f - twoEtaCosi + cosi2) / (tmp_f + twoEtaCosi + cosi2);
-
-	return 0.5f * (Rparl2 + Rperp2);
+	return 0.5*(Rparl2 + Rperp2);
 }
-
 
 float evaluateMetal( in vec3 woL, in vec3 wiL, in float roughness, in float wavelength_nm )
 {
 	float ior = IOR_METAL(wavelength_nm);
-	float   k = K_METAL(wavelength_nm);
-	return vec3(0.0, 0.0, 0.0);
+	float k = K_METAL(wavelength_nm);
+	return 0.0;
 }
 
 float pdfMetal( in vec3 woL, in vec3 wiL, in float roughness, in float wavelength_nm )
 {
 	float ior = IOR_METAL(wavelength_nm);
-	float   k = K_METAL(wavelength_nm);
+	float k = K_METAL(wavelength_nm);
 	return 0.0;
 }
 
@@ -503,8 +490,8 @@ float sampleMetal( in vec3 woL, in float roughness, in float wavelength_nm,
 				   inout vec3 wiL, inout float pdfOut, inout vec4 rnd )
 {
 	float ior = IOR_METAL(wavelength_nm);
-	float   k = K_METAL(wavelength_nm);
-	return vec3(0.0, 0.0, 0.0);
+	float k = K_METAL(wavelength_nm);
+	return 0.0;
 }
 
 
@@ -521,37 +508,42 @@ float pdfDiffuse(in vec3 woL, in vec3 wiL)
 	return abs(wiL.z)/M_PI;
 }
 
-float sampleDiffuse(in vec3 woL, in vec3 wiL, 
+float sampleDiffuse(in vec3 woL, inout vec3 wiL, 
 				   inout float pdfOut, inout vec4 rnd)
 {
 	// Do cosine-weighted sampling of hemisphere
-	vec3 wiL = sampleHemisphere(rnd);
+	wiL = sampleHemisphere(rnd);
 	pdfOut = abs(wiL.z)/M_PI;
+	float diffuseAlbedo = 0.5; // @todo: make this a wavelength-dependent color parameter
+	return diffuseAlbedo / M_PI;
 }
 
 // ****************************        BSDF common interface        ****************************
 
-float evaluateBsdf( in vec3 woL, in vec3 wiL, in uint material, in float wavelength_nm, 
+float evaluateBsdf( in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm, 
 	 			   inout vec4 rnd )
 {
-	if      (material==MAT_DIELE) { return evaluateDielectric(woL, wiL, roughnessDiele, wavelength_nm); }
-	else if (material==MAT_METAL) { return      evaluateMetal(woL, wiL, roughnessMetal, wavelength_nm); }
-	else                          { return    evaluateDiffuse(woL, wiL);                                }
+	return evaluateDielectric(woL, wiL, roughnessDiele, wavelength_nm);
+	//if      (material==MAT_DIELE) { return evaluateDielectric(woL, wiL, roughnessDiele, wavelength_nm); }
+	//else if (material==MAT_METAL) { return      evaluateMetal(woL, wiL, roughnessMetal, wavelength_nm); }
+	//else                          { return    evaluateDiffuse(woL, wiL);                                }
 }
 
-float sampleBsdf( in vec3 woL, in uint material, in float wavelength_nm,
+float sampleBsdf( in vec3 woL, in int material, in float wavelength_nm,
 				 inout vec3 wiL, inout float pdfOut, inout vec4 rnd ) 
 {
-	if      (material==MAT_DIELE) { return sampleDielectric(woL, roughnessDiele, wavelength_nm, wiL, pdfOut, rnd); }
-	else if (material==MAT_METAL) { return      sampleMetal(woL, roughnessMetal, wavelength_nm, wiL, pdfOut, rnd); }
-	else                          { return    sampleDiffuse(woL,                                wiL, pdfOut, rnd); }
+	return sampleDielectric(woL, roughnessDiele, wavelength_nm, wiL, pdfOut, rnd);
+	//if      (material==MAT_DIELE) { return sampleDielectric(woL, roughnessDiele, wavelength_nm, wiL, pdfOut, rnd); }
+	//else if (material==MAT_METAL) { return      sampleMetal(woL, roughnessMetal, wavelength_nm, wiL, pdfOut, rnd); }
+	//else                          { return    sampleDiffuse(woL,                                wiL, pdfOut, rnd); }
 }
 
-float pdfBsdf( in vec3 woL, in vec3 wiL, in uint material, in float wavelength_nm )
+float pdfBsdf( in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm )
 {
-	if      (material==MAT_DIELE) { return pdfDielectric(woL, wiL, roughnessDiele, wavelength_nm); }
-	else if (material==MAT_METAL) { return      pdfMetal(woL, wiL, roughnessMetal, wavelength_nm); }
-	else                          { return    pdfDiffuse(woL, wiL);                                }
+	return pdfDielectric(woL, wiL, roughnessDiele, wavelength_nm);
+	//if      (material==MAT_DIELE) { return pdfDielectric(woL, wiL, roughnessDiele, wavelength_nm); }
+	//else if (material==MAT_METAL) { return      pdfMetal(woL, wiL, roughnessMetal, wavelength_nm); }
+	//else                          { return    pdfDiffuse(woL, wiL);                                }
 }
 
 
@@ -565,17 +557,14 @@ float environmentRadiance(in vec3 dir, float wavelength_nm)
 	// For now, env-map is just a 'sky' which is a uniform blackbody with a specified temperature.
 	const float sky_temp = 6500.0; // @todo: should be a param
 	float boltzmann_factor = 1.43877737467e7 / (wavelength_nm*sky_temp);
-    var l = wavelength_nm/360.0; // wavelength relative to 360nm
-    return 1.0 / (l*l*l*l*l*(Math.exp(boltzmann_factor) - 1.0));
+    float l = wavelength_nm/360.0; // wavelength relative to 360nm
+    return 1000.0 / (l*l*l*l*l*(exp(boltzmann_factor) - 1.0)) * cos(16.0*M_PI*dir.y) * 0.5*(1.0 + dir.x*dir.z);
 }
 
 
 bool emitterSample( in vec3 pW, in vec3 nW, 
-			    	inout vec3 onLight, inout float lightPdf, inout inout vec4 rnd )
-{
-	// No contribution if vertex normal points away from light:
-	if (dot(wiW, nW) < 0.f) return false;
-	
+			    	inout vec3 onLight, inout float lightPdf, inout vec4 rnd )
+{	
 	// project vertex onto emission plane
 	float dPerp = dot(pW - EmitterPos, EmitterDir);
 	vec3 pProj = pW - dPerp*EmitterDir;
@@ -598,7 +587,7 @@ bool emitterSample( in vec3 pW, in vec3 nW,
 	}
 	u = normalize(u);
 	vec3 v = cross(EmitterDir, u); // @todo, pass these u,v vectors to shader
-	vec3 samplePos = rSample*(u*cos(phiPos) + v*sin(phiPos)); 
+	vec3 samplePos = rSample*(u*cos(phiSample) + v*sin(phiSample)); 
 	if ( dot(samplePos, samplePos) > EmitterRadius*EmitterRadius )
 	{
 		// sample actually outside the emission disk
@@ -611,51 +600,61 @@ bool emitterSample( in vec3 pW, in vec3 nW,
 	float diskArea = M_PI*rProjected*rProjected;
 	vec3 toLight = onLight - pW;
 	vec3 wiW = normalize(toLight);
-	const float eps = 1.0e-6;
-	const float jacobian = dot(toLight, toLight) / (abs(dot(EmitterDir, wiW)) + eps);
+
+	// No contribution if sampled light point is in opposite hemisphere to surface vertex:
+	if (dot(wiW, nW) < 0.0) return false;
+
+	float eps = 1.0e-6;
+ 	float jacobian = dot(toLight, toLight) / (abs(dot(EmitterDir, wiW)) + eps);
 	lightPdf = jacobian / diskArea;
 	return true;	
 }
 
 float powerHeuristic(const float a, const float b)
 {
-	const float t = a*a;
+	float t = a*a;
 	return t / (t + b*b);
 }
 
 
 float directLighting(in vec3 pW, Basis basis, in vec3 woW, in float emitterBrightness, 
-	          		 in uint material, float wavelength_nm, inout vec4 rnd)
+	          		 in int material, float wavelength_nm, inout vec4 rnd)
 {
 	// choose whether to sample emitter or env map, (@todo: for now, just 50/50)
-	float emissionProb = 0.5;
+	float emissionProb = 0.0;
 
 	float lightPdf;
 	float Li;
 	vec3 wiW;
 	{
 		// Env-map sampling
-		if ( rand(rnd) > emissionProb )
+		//if ( rand(rnd) > emissionProb )
 		{
 			vec3 wiL = sampleHemisphere(rnd);
 			lightPdf = (1.0 - emissionProb) * abs(wiL.z) / M_PI;
 			wiW = localToWorld(wiL, basis);
-			Li = environmentRadiance(wiW, wavelength_nm);
+
+			vec3 end = pW + wiW*SceneScale;
+			bool visible = Visible(pW, end);
+			if (!visible) Li = 0.0;
+			else Li = environmentRadiance(wiW, wavelength_nm);
 		}
+		return Li;
 
 		// emitter sampling
+		/*
 		else
 		{
 			// sample a point on the emission disk
 			vec3 onLight;
-			if ( !emitterSample(pW, basis.nW, onLight, lightPdf, rand(rnd)) ) Li = vec3(0.0, 0.0, 0.0);
+			if ( !emitterSample(pW, basis.nW, onLight, lightPdf, rnd) ) Li = 0.0;
 			else
 			{
 				// direction of direct light (*towards* the light)
 				wiW = normalize(onLight - pW);
 
 				// If light pointing away from vertex, or occluded, no direct light contribution.
-				if (dot(wiW, basis.nW) < 0.f || !Visible(pW, onLight)) Li = vec3(0.0, 0.0, 0.0);
+				if (dot(wiW, basis.nW) < 0.0 || !Visible(pW, onLight)) Li = 0.0;
 				else
 				{
 					lightPdf *= emissionProb;
@@ -663,18 +662,19 @@ float directLighting(in vec3 pW, Basis basis, in vec3 woW, in float emitterBrigh
 				}
 			}
 		}
+		*/
 	}
 	
-	// Apply MIS weight with the BSDF pdf for the sampled direction
+	// Apply MIS weight with the BSDF pdf for the sampled direction#
 	vec3 woL = worldToLocal(woW, basis);
 	vec3 wiL = worldToLocal(wiW, basis);
 
-	const float bsdfPdf = pdfBsdf(woL, wiL, material, wavelength_nm);
+	float bsdfPdf = pdfBsdf(woL, wiL, material, wavelength_nm);
 	const float PDF_EPSILON = 1.0e-5;
-	if ( bsdfPdf<PDF_EPSILON ) return vec3(0.0, 0.0, 0.0);
+	if ( bsdfPdf<PDF_EPSILON ) return 0.0;
 
-	const float f = evaluateBsdf(woL, wiL, material, wavelength_nm, rnd);
-	const float misWeight = powerHeuristic(lightPdf, bsdfPdf);
+	float f = evaluateBsdf(woL, wiL, material, wavelength_nm, rnd);
+	float misWeight = powerHeuristic(lightPdf, bsdfPdf);
 	return f * Li * abs(dot(wiW, basis.nW)) * misWeight / max(PDF_EPSILON, lightPdf);
 }
 
@@ -687,10 +687,14 @@ void main()
 	// Sample photon wavelength via the inverse CDF of the emission spectrum
 	// (here w is spectral offset, i.e. wavelength = 360.0 + (750.0 - 360.0)*w)
 	// (linear interpolation into the inverse CDF texture and RGB table should ensure smooth sampling over the range)
-    float w = texture2D(ICDF, vec2(rand(seed), 0.5)).r;
+    float w = texture2D(ICDF, vec2(rand(rnd), 0.5)).r;
     float wavelength_nm = 360.0 + (750.0 - 360.0)*w;
-  	vec3 emissionRgb = texture2D(WavelengthToRgb, vec2(w, 0.5)).rgb;
-  	float emitterBrightness = 1.0; // @todo: some overall scaling of the emitter radiance
+
+    // @todo: we really need the physical 3-channel sensor sensitivies at the given wavelength
+  	vec3 channelResponse = texture2D(WavelengthToRgb, vec2(w, 0.5)).rgb;
+
+  	// Need something which gives the relative intensity of the emitter and the sky
+  	float emitterBrightness = 1.0;
 
 	// Jitter over pixel
 	vec2 pixel = gl_FragCoord.xy;
@@ -704,58 +708,61 @@ void main()
 	vec3 primaryDir = normalize(camNear*camDir + s); // ray direction
 
 	// Raycast to first hit point
-	float L = vec3(0.0, 0.0, 0.0);
-	int numSteps;	
-
 	vec3 pW;
 	vec3 woW = -primaryDir;
-	uint material;
+	int material;
 	bool hit = trace(camPos, primaryDir, pW, material);
 	float zHit;
+
+	float L;
+	float throughput; 
 
 	if ( !hit )
 	{
 		zHit = camFar;
-		L = envMap(D);
+		L = environmentRadiance(primaryDir, wavelength_nm);
+		throughput = 1.0;
 	}
 	else
 	{
-		int maxBounces = 3; // debug
-		int bounce = 0;
-		float throughput = 1.0;
+		const int maxBounces = 4; // debug
+		
+		L = 0.0;
+		throughput = 1.0;
 		zHit = dot(pW - camPos, camDir);
 
-		while (bounce < maxBounces)
+		for (int bounce=0; bounce<maxBounces; ++bounce)
 		{
 			// Compute normal at current surface vertex
 			vec3 nW = normal(pW, material);
 			Basis basis = makeBasis(nW);
 
 			// Add direct lighting term
-			L += throughput * directLighting(pW, basis, woW, emitterBrightness, material, wavelength_nm, rnd);
+			//L += throughput * directLighting(pW, basis, woW, emitterBrightness, material, wavelength_nm, rnd);
 
 			// Sample BSDF for the next bounce direction
-			float3 woL = worldToLocal(woW, basis);
+			vec3 woL = worldToLocal(woW, basis);
 			vec3 wiL;
 			float bsdfPdf;
 			float f = sampleBsdf(woL, material, wavelength_nm, wiL, bsdfPdf, rnd);
-			const vec3 wiW = localToWorld(wiL, basis);
+			vec3 wiW = localToWorld(wiL, basis);
 
 			// Update path throughput
-			throughPut *= f * fabs(dot(wiW, nW)) / max(PDF_EPSILON, bsdfPdf);
+			throughput *= f * abs(dot(wiW, nW)) / max(PDF_EPSILON, bsdfPdf);
 
 			// Trace bounce ray
+			float eps = 5.0e-5*SceneScale;
+			pW += nW * dot(wiW, nW) * eps; // perturb vertex in direction of scattered ray
 			vec3 pW_next;
-			bool hit = trace(pW, wiW, pW_next);
-			vec3 rayDir = normalize(pW_next - pW);
-
+			bool hit = trace(pW, wiW, pW_next, material);
+			
 			// Exit now if ray missed
 			if (!hit)
 			{
-				float lightPdf = 0.5;
-				const float misWeight = powerHeuristic(bsdfPdf, lightPdf);
-				float Li = environmentRadiance(rayDir, wavelength_nm);
-				L += throughPut * Li * misWeight;
+				float lightPdf = 1.0; //0.5;
+				float misWeight = powerHeuristic(bsdfPdf, lightPdf);
+				float Li = environmentRadiance(wiW, wavelength_nm);
+				L += throughput * Li * misWeight;
 				break;
 			}
 
@@ -766,19 +773,21 @@ void main()
 			}
 
 			// Update vertex
+			vec3 rayDir = normalize(pW_next - pW);
 			woW = -rayDir;
 			pW = pW_next;
-			bounce++;
 		}
 	}
 
-	float clipDepth = computeClipDepth(zEye, camNear, camFar);
+	vec3 color = channelResponse * L;
+
+	float clipDepth = computeClipDepth(zHit, camNear, camFar);
 
 	// Write updated radiance and sample count
 	vec4 oldL = texture2D(Radiance, vTexCoord);
 	float oldN = oldL.w;
 	float newN = oldN + 1.0;
-	vec3 newL = (oldN*oldL.rgb + L) / newN;
+	vec3 newL = (oldN*oldL.rgb + color) / newN;
 
 	gl_FragData[0] = vec4(newL, newN);
 	gl_FragData[1] = rnd;

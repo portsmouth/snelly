@@ -37,9 +37,9 @@ ConvergingLensScene.prototype.sdf = function()
 					float sB = sdSphere(X + vec3(-_radiusB + 0.5*t, 0.0, 0.0), _radiusB);
 					return opI(sA, sB);
 				}
-
-				float SDF_METAL(vec3 X) { return 1.0; }
-				float SDF_DIFFU(vec3 X) { return 1.0; }
+				
+				float SDF_METAL(vec3 X) { return HUGE_VAL; }
+				float SDF_DIFFU(vec3 X) { return HUGE_VAL; }
 	`;
 }
 

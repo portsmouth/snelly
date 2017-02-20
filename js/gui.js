@@ -132,7 +132,7 @@ GUI.prototype.createSurfaceRendererSettings = function()
 	this.surfaceRendererFolder.add(surfaceRenderer, 'specPower', 1.0, 100.0).onChange( function(renderMode) { surfaceRenderer.reset(); });
 
 	this.gui.remember(this.surfaceRendererSettings);
-	this.surfaceRendererFolder.close();
+	this.surfaceRendererFolder.open();
 }
 
 
@@ -140,6 +140,7 @@ GUI.prototype.createEmissionSettings = function()
 {
 	this.emissionFolder = this.gui.addFolder('Emission');
 	var lightTracer = snelly.getLightTracer();
+	var surfaceRenderer = snelly.getSurfaceRenderer();
 	var laser = snelly.getLaser();
 	this.emissionSettings = {};
 	this.emissionSettings.showLaserPointer = true;
@@ -153,6 +154,7 @@ GUI.prototype.createEmissionSettings = function()
 	{ 
 		laser.setEmissionRadius(value);      
 		lightTracer.reset(); 
+		surfaceRenderer.reset();
 	} );
 	this.emissionFolder.add(laser, 'emissionSpread', 0.0, 90.0).onChange( function(value) { laser.setEmissionSpreadAngle(value); lightTracer.reset(); } );
 	this.gui.remember(laser);
@@ -173,6 +175,7 @@ GUI.prototype.createEmissionSettings = function()
 
 						// load new scene
 				 		lightTracer.loadSpectrum(spectrumName);
+				 		surfaceRenderer.loadSpectrum(spectrumName);
 
 				 		// init gui for new scene
 				 		spectrumObj = lightTracer.getLoadedSpectrum();
@@ -223,7 +226,7 @@ GUI.prototype.createEmissionSettings = function()
 	} );
 
 	this.gui.remember(this.emissionSettings);
-	this.emissionFolder.close();
+	this.emissionFolder.open();
 	return this.emissionFolder;
 }
 
@@ -257,7 +260,7 @@ GUI.prototype.createSceneSettings = function()
 				 	} );
 
 	sceneObj.initGui(this.sceneFolder);
-	this.sceneFolder.open();
+	this.sceneFolder.close();
 
 	this.gui.remember(this.sceneSettings);
 	return this.sceneFolder;
@@ -266,51 +269,56 @@ GUI.prototype.createSceneSettings = function()
 
 GUI.prototype.createMaterialSettings = function()
 {
-	this.materialFolder = this.gui.addFolder('Material');
-	var dieleMaterialObj = snelly.getLoadedDielectricMaterial();
-	var metalMaterialObj = snelly.getLoadedMetalMaterial();
-
-	var dieleMaterialName = dieleMaterialObj.getName();
-	dieleMaterials = snelly.getDielectricMaterials();
-	var dieleMaterialNames = Object.keys(dieleMaterials);
-
-	var metalMaterialName = metalMaterialObj.getName();
-	metalMaterials = snelly.getMetalMaterials();
-	var metalMaterialNames = Object.keys(metalMaterials);
-
-	// Material selection menu
-	this.materialSettings = {};
-	this.materialSettings["dielectric material"] = dieleMaterialName;
-	this.materialSettings["metal material"]      = metalMaterialName;
-
 	var GUI = this;
+	this.materialFolder = this.gui.addFolder('Material');
 
-	this.materialFolder.add(this.materialSettings, 'dielectric material', dieleMaterialNames).onChange( function(materialName) {
+	// Dielectric settings
+	this.dielectricFolder = this.materialFolder.addFolder('Dielectric');
+	var dielectricObj = snelly.getLoadedDielectric();
+	var dielectricName = dielectricObj.getName();
+	dielectrics = snelly.getDielectrics();
+	var dielectricNames = Object.keys(dielectrics);
+	this.dielMaterialSettings = {};
+	this.dielMaterialSettings["dielectric material"] = dielectricName;
+	this.dielectricFolder.add(this.dielMaterialSettings, 'dielectric material', dielectricNames).onChange( function(materialName) {
+					
 						// remove gui for current material
-						var materialObj = snelly.getLoadedDielectricMaterial();
-						materialObj.eraseGui(GUI.materialFolder);
+						var materialObj = snelly.getLoadedDielectric();
+						materialObj.eraseGui(GUI.dielectricFolder);
+						
 						// load new material
-				 		snelly.loadDielectricMaterial(materialName);
+				 		snelly.loadDielectric(materialName);
+				 		
 				 		// init gui for new material
-				 		materialObj = snelly.getLoadedDielectricMaterial();
-				 		materialObj.initGui(GUI.materialFolder);
+				 		materialObj = snelly.getLoadedDielectric();
+				 		materialObj.initGui(GUI.dielectricFolder);
 				 	} );
-	
-	this.materialFolder.add(this.materialSettings, 'metal material', metalMaterialNames).onChange( function(materialName) {
-					// remove gui for current material
-					var materialObj = snelly.getLoadedMetalMaterial();
-					materialObj.eraseGui(GUI.materialFolder);
-					// load new material
-			 		snelly.loadMetalMaterial(materialName);
-			 		// init gui for new material
-			 		materialObj = snelly.getLoadedMetalMaterial();
-			 		materialObj.initGui(GUI.materialFolder);
+	dielectricObj.initGui(this.dielectricFolder);
+
+	// Metal settings
+	this.metalFolder = this.materialFolder.addFolder('Metal');
+	var metalObj = snelly.getLoadedMetal();
+	var metalName = metalObj.getName();
+	metals = snelly.getMetals();
+	var metalNames = Object.keys(metals);
+	this.metalMaterialSettings = {};
+	this.metalMaterialSettings["metal material"] = metalName;
+	this.metalFolder.add(this.metalMaterialSettings, 'metal material', metalNames).onChange( function(materialName) {
+						
+						// remove gui for current material
+						var materialObj = snelly.getLoadedMetal();
+						materialObj.eraseGui(GUI.metalFolder);
+						
+						// load new material
+				 		snelly.loadMetal(materialName);
+				 		
+				 		// init gui for new material
+				 		materialObj = snelly.getLoadedMetal();
+				 		materialObj.initGui(GUI.metalFolder);
 			 	} );
-
-	dieleMaterialObj.initGui(this.materialFolder);
-	metalMaterialObj.initGui(this.materialFolder);
+	metalObj.initGui(this.metalFolder);
+	
 	this.materialFolder.open();
-
 	this.gui.remember(this.materialSettings);
 	return this.materialFolder;
 }

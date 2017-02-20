@@ -5,6 +5,8 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
+#define HUGE_VAL 1.0e12
+
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf

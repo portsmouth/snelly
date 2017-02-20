@@ -161,13 +161,13 @@ LightTracer.prototype.reset = function()
 LightTracer.prototype.compileShaders = function()
 {
 	var sceneObj = snelly.getLoadedScene();
-	var materialObj = snelly.getLoadedMaterial();
-	if (sceneObj==null || materialObj==null) return;
+	var dielectricObj = snelly.getLoadedDielectric();
+	if (sceneObj==null || dielectricObj==null) return;
 	
 	// Inject code for the current scene and material:
 	sdfCode    = sceneObj.sdf();
-	iorCode    = materialObj.ior();
-	sampleCode = materialObj.sample();
+	iorCode    = dielectricObj.ior();
+	sampleCode = dielectricObj.sample();
 
 	// Copy the current scene and material routines into the source code
 	// of the trace fragment shader
@@ -297,8 +297,11 @@ LightTracer.prototype.render = function()
 	var sceneObj = snelly.getLoadedScene();
 	if (sceneObj==null) return;
 
-	var materialObj = snelly.getLoadedMaterial();
-	if (materialObj==null) return;
+	var metalObj = snelly.getLoadedMetal();
+	if (metalObj==null) return;
+
+	var dielectricObj = snelly.getLoadedDielectric();
+	if (dielectricObj==null) return;
 
 	var current = this.currentState;
 	var next    = 1 - current;
@@ -324,8 +327,8 @@ LightTracer.prototype.render = function()
 
 		// Read wavelength -> RGB table 
 		this.wavelengthToRgb.bind(1);
-		this.emissionIcdf.bind(2);
 		this.initProgram.uniformTexture("WavelengthToRgb", this.wavelengthToRgb);
+		this.emissionIcdf.bind(2);
 		this.initProgram.uniformTexture("ICDF", this.emissionIcdf);
 		
 		// Emitter data
@@ -357,7 +360,8 @@ LightTracer.prototype.render = function()
 		this.rayStates[current].bind(this.traceProgram);       // Use the current state as the initial conditions
 		this.traceProgram.uniformF("SceneScale", sceneObj.getScale()); 
 		sceneObj.syncShader(this.traceProgram);                // upload current scene SDF shader parameters
-		materialObj.syncShader(this.traceProgram);             // upload current material IOR parameters
+		dielectricObj.syncShader(this.traceProgram);           // upload current dielectric IOR parameters
+		metalObj.syncShader(this.traceProgram);                // upload current metal IOR parameters
 		this.quadVbo.draw(this.traceProgram, gl.TRIANGLE_FAN); // Generate the next ray state
 		this.rayStates[next].detach(this.fbo);
 	}

@@ -269,9 +269,9 @@ vec3 NORMAL( in vec3 X )
 	float normalEpsilon = 2.0e-5*SceneScale;
 	vec3 eps = vec3(normalEpsilon, 0.0, 0.0);
 	vec3 nor = vec3(
-	    SDF(X+eps.xyy) - SDF(X-eps.xyy),
-	    SDF(X+eps.yxy) - SDF(X-eps.yxy),
-	    SDF(X+eps.yyx) - SDF(X-eps.yyx) );
+	    SDF_DIELE(X+eps.xyy) - SDF_DIELE(X-eps.xyy),
+	    SDF_DIELE(X+eps.yxy) - SDF_DIELE(X-eps.yxy),
+	    SDF_DIELE(X+eps.yyx) - SDF_DIELE(X-eps.yyx) );
 	return normalize(nor);
 }
 
@@ -312,7 +312,7 @@ void main()
 	float wavelength = 360.0 + (750.0 - 360.0)*rgbw.w;
 	raytrace(rnd, X, D, rgbw.rgb, wavelength);
 
-	float sgn = sign( SDF(X) );
+	float sgn = sign( SDF_DIELE(X) );
 
 	gl_FragData[0] = vec4(X, sgn);
 	gl_FragData[1] = vec4(D, 1.0);

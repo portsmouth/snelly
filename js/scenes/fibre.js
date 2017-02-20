@@ -43,8 +43,8 @@ FibreScene.prototype.sdf = function()
 					return opCoil(X);
 				}             
 
-				float SDF_METAL(vec3 X) { return 1.0; }
-				float SDF_DIFFU(vec3 X) { return 1.0; }                                   
+				float SDF_METAL(vec3 X) { return HUGE_VAL; }
+				float SDF_DIFFU(vec3 X) { return HUGE_VAL; }                                
 	`;
 }
 

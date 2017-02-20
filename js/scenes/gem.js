@@ -55,9 +55,9 @@ GemScene.prototype.sdf = function()
 					float bottomB = dot (q, normalBottomB) - 1.9;
 					return max(topCut, max(topA, max(topB, max(topC, max (bottomA, bottomB)))));    
 				}     
-
-				float SDF_METAL(vec3 X) { return 1.0; }
-				float SDF_DIFFU(vec3 X) { return 1.0; }                                
+				
+				float SDF_METAL(vec3 X) { return HUGE_VAL; }
+				float SDF_DIFFU(vec3 X) { return HUGE_VAL; }                            
 	`;
 }
 

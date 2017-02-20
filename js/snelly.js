@@ -93,33 +93,35 @@ var Snelly = function()
 	}
 
 	// Instantiate materials
-	this.materials = {}
-	this.materialObj = null;
+	this.dielectrics = {}
+	this.metals = {}
+	this.dielectricObj = null;
+	this.metalObj = null;
 	{
 		// Dielectrics
-		this.addMaterial( new ConstantDielectric("Constant IOR dielectric", "", 1.5) ); 
-		this.addMaterial( new SellmeierDielectric("Glass (BK7)", "",       [0.0, 1.03961212, 0.00600069867, 0.231792344, 0.0200179144, 1.01046945,  103.560653]) );
-		this.addMaterial( new Sellmeier2Dielectric("Glass (K7)", "",       [0.0, 1.1273555,  0.00720341707, 0.124412303, 0.0269835916, 0.827100531, 100.384588]) );
-		this.addMaterial( new Sellmeier2Dielectric("Glass (F5)", "",       [0.0, 1.3104463,  0.00958633048, 0.19603426,  0.0457627627, 0.96612977,  115.011883]) );
-		this.addMaterial( new Sellmeier2Dielectric("Glass (LAFN7)", "",    [0.0, 1.66842615, 0.0103159999,  0.298512803, 0.0469216348, 1.0774376,   82.5078509]) );
-		this.addMaterial( new Sellmeier2Dielectric("Glass (LASF35)", "",   [0.0, 2.45505861, 0.0135670404,  0.453006077, 0.054580302,  2.3851308,   167.904715]) );
-		this.addMaterial( new Sellmeier2Dielectric("Glass (N-LAK33A)", "", [0.0, 1.44116999, 0.00680933877, 0.571749501, 0.0222291824, 1.16605226,  80.9379555]) );
-		this.addMaterial( new SellmeierDielectric("Glass (N-FK51A)", "",   [0.0, 0.97124781, 0.00472301995, 0.216901417, 0.0153575612, 0.90465166,  168.68133]) );
-		this.addMaterial( new Sellmeier2Dielectric("Glass (SF4)", "",      [0.0, 1.61957826, 0.0125502104,  0.339493189, 0.0544559822, 1.02566931,  117.652222]) );
-		this.addMaterial( new Sellmeier2Dielectric("Glass (SF67)", "",     [0.0, 1.97464225, 0.0145772324,  0.467095921, 0.0669790359, 2.43154209,  157.444895]) );
-		this.addMaterial( new Sellmeier2Dielectric("Water", "",            [0.0,        5.67252e-1, 5.08555046e-3, 1.736581e-1, 1.8149386e-2, 2.12153e-2, 2.61726e-2, 1.1384932e-1, 1.073888e1]) );
-		this.addMaterial( new Sellmeier2Dielectric("Ethanol", "",          [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
-		this.addMaterial( new Sellmeier2Dielectric("Polycarbonate", "",    [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
-		this.addMaterial( new CauchyDielectric("Glycerol", "",             [1.45797, 0.00598, -2, -0.00036, -4]) );
-		this.addMaterial( new CauchyDielectric("Liquid Crystal (E7)", "",  [1.4990,  0.0072,  -2,  0.0003,  -4]) );
-		this.addMaterial( new SellmeierDielectric("Diamond", "",           [0.0,        0.3306,     0.175,         4.3356,      0.1060]) );
-		this.addMaterial( new SellmeierDielectric("Quartz", "",            [0.0, 0.6961663, 0.0684043, 0.4079426, 0.1162414, 0.8974794, 9.896161]) );
-		this.addMaterial( new SellmeierDielectric("Fused Silica", "",      [0.0,        0.6961663,  0.0684043,     0.4079426,  0.1162414, 0.8974794, 9.896161]) );
-		this.addMaterial( new SellmeierDielectric("Sapphire", "",          [0.0,        1.5039759,  0.0740288,     0.55069141, 0.1216529, 6.5927379, 20.072248]) );
-		this.addMaterial( new SellmeierDielectric("Sodium Chloride", "",   [0.00055,    0.19800,    0.050,         0.48398,     0.100,        0.38696,   0.128]) );
-		this.addMaterial( new PolyanskiyDielectric("Proustite", "",        [7.483, 0.474, 0.0, 0.09, 1.0]) );
-		this.addMaterial( new PolyanskiyDielectric("Rutile (Titanium Dioxide)", "", [5.913, 0.2441, 0.0, 0.0803, 1.0]) );
-		this.addMaterial( new PolyanskiyDielectric("Silver Chloride", "", [4.00804, 0.079086, 0.0, 0.04584, 1.0]) );
+		this.addDielectric( new ConstantDielectric("Constant IOR dielectric", "", 1.5) ); 
+		this.addDielectric( new SellmeierDielectric("Glass (BK7)", "",       [0.0, 1.03961212, 0.00600069867, 0.231792344, 0.0200179144, 1.01046945,  103.560653]) );
+		this.addDielectric( new Sellmeier2Dielectric("Glass (K7)", "",       [0.0, 1.1273555,  0.00720341707, 0.124412303, 0.0269835916, 0.827100531, 100.384588]) );
+		this.addDielectric( new Sellmeier2Dielectric("Glass (F5)", "",       [0.0, 1.3104463,  0.00958633048, 0.19603426,  0.0457627627, 0.96612977,  115.011883]) );
+		this.addDielectric( new Sellmeier2Dielectric("Glass (LAFN7)", "",    [0.0, 1.66842615, 0.0103159999,  0.298512803, 0.0469216348, 1.0774376,   82.5078509]) );
+		this.addDielectric( new Sellmeier2Dielectric("Glass (LASF35)", "",   [0.0, 2.45505861, 0.0135670404,  0.453006077, 0.054580302,  2.3851308,   167.904715]) );
+		this.addDielectric( new Sellmeier2Dielectric("Glass (N-LAK33A)", "", [0.0, 1.44116999, 0.00680933877, 0.571749501, 0.0222291824, 1.16605226,  80.9379555]) );
+		this.addDielectric( new SellmeierDielectric("Glass (N-FK51A)", "",   [0.0, 0.97124781, 0.00472301995, 0.216901417, 0.0153575612, 0.90465166,  168.68133]) );
+		this.addDielectric( new Sellmeier2Dielectric("Glass (SF4)", "",      [0.0, 1.61957826, 0.0125502104,  0.339493189, 0.0544559822, 1.02566931,  117.652222]) );
+		this.addDielectric( new Sellmeier2Dielectric("Glass (SF67)", "",     [0.0, 1.97464225, 0.0145772324,  0.467095921, 0.0669790359, 2.43154209,  157.444895]) );
+		this.addDielectric( new Sellmeier2Dielectric("Water", "",            [0.0,        5.67252e-1, 5.08555046e-3, 1.736581e-1, 1.8149386e-2, 2.12153e-2, 2.61726e-2, 1.1384932e-1, 1.073888e1]) );
+		this.addDielectric( new Sellmeier2Dielectric("Ethanol", "",          [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
+		this.addDielectric( new Sellmeier2Dielectric("Polycarbonate", "",    [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
+		this.addDielectric( new CauchyDielectric("Glycerol", "",             [1.45797, 0.00598, -2, -0.00036, -4]) );
+		this.addDielectric( new CauchyDielectric("Liquid Crystal (E7)", "",  [1.4990,  0.0072,  -2,  0.0003,  -4]) );
+		this.addDielectric( new SellmeierDielectric("Diamond", "",           [0.0,        0.3306,     0.175,         4.3356,      0.1060]) );
+		this.addDielectric( new SellmeierDielectric("Quartz", "",            [0.0, 0.6961663, 0.0684043, 0.4079426, 0.1162414, 0.8974794, 9.896161]) );
+		this.addDielectric( new SellmeierDielectric("Fused Silica", "",      [0.0,        0.6961663,  0.0684043,     0.4079426,  0.1162414, 0.8974794, 9.896161]) );
+		this.addDielectric( new SellmeierDielectric("Sapphire", "",          [0.0,        1.5039759,  0.0740288,     0.55069141, 0.1216529, 6.5927379, 20.072248]) );
+		this.addDielectric( new SellmeierDielectric("Sodium Chloride", "",   [0.00055,    0.19800,    0.050,         0.48398,     0.100,        0.38696,   0.128]) );
+		this.addDielectric( new PolyanskiyDielectric("Proustite", "",        [7.483, 0.474, 0.0, 0.09, 1.0]) );
+		this.addDielectric( new PolyanskiyDielectric("Rutile (Titanium Dioxide)", "", [5.913, 0.2441, 0.0, 0.0803, 1.0]) );
+		this.addDielectric( new PolyanskiyDielectric("Silver Chloride", "", [4.00804, 0.079086, 0.0, 0.04584, 1.0]) );
 
 		// Gases
 		/*
@@ -135,10 +137,8 @@ var Snelly = function()
 		*/
 
 		// @todo: Metals. Need a much better approximation than 'LinearMetal' for plausible metals 
-		/*
-		this.addMaterial( new LinearMetal("Aluminium", "",  0.46555, 4.7121, 1.6620, 8.0439) );
-		this.addMaterial( new LinearMetal("Gold", "",       1.5275, 1.8394, 0.16918, 3.8816) );
-		*/
+		this.addMetal( new LinearMetal("Aluminium", "",  0.46555, 4.7121, 1.6620, 8.0439) );
+		this.addMetal( new LinearMetal("Gold", "",       1.5275, 1.8394, 0.16918, 3.8816) );
 	}
 
 	// Instantiate light tracer
@@ -152,10 +152,11 @@ var Snelly = function()
 
 	// Load the initial scene and material
 	this.gui = null;
-	this.loadScene("Gem stone");
 
-	this.loadDielectricMaterial("Glass (LASF35)");
-	this.loadMetalMaterial("Copper");
+	this.loadDielectric("Glass (LASF35)");
+	this.loadMetal("Gold");
+
+	this.loadScene("Gem stone");
 
 	// Create dat gui
 	this.gui = new GUI();
@@ -296,37 +297,47 @@ Snelly.prototype.getLoadedScene = function()
 //
 // Material management
 //
-Snelly.prototype.addMaterial = function(materialObj)
+Snelly.prototype.addDielectric = function(materialObj)
 {
-	this.materials[materialObj.getName()] = materialObj;
+	this.dielectrics[materialObj.getName()] = materialObj;
 }
 
-Snelly.prototype.getMaterials = function()
+Snelly.prototype.getDielectrics = function()
 {
-	return this.materials;
+	return this.dielectrics;
+}
+
+Snelly.prototype.addMetal = function(materialObj)
+{
+	this.metals[materialObj.getName()] = materialObj;
+}
+
+Snelly.prototype.getMetals = function()
+{
+	return this.metals;
 }
 
 
-Snelly.prototype.loadDielectricMaterial = function(dielectricMaterialName)
+Snelly.prototype.loadDielectric = function(dielectricName)
 {
-	this.dielectricMaterialObj = this.materials[dielectricMaterialName];
+	this.dielectricObj = this.dielectrics[dielectricName];
 	this.reset();
 }
 
-Snelly.prototype.loadMetalMaterial = function(metalMaterialName)
+Snelly.prototype.loadMetal = function(metalName)
 {
-	this.metalMaterialObj = this.materials[metalMaterialName];
+	this.metalObj = this.metals[metalName];
 	this.reset();
 }
 
-Snelly.prototype.getLoadedDielectricMaterial = function()
+Snelly.prototype.getLoadedDielectric = function()
 {
-	return this.dielectricMaterialObj;
+	return this.dielectricObj;
 }
 
-Snelly.prototype.getLoadedMetalMaterial = function()
+Snelly.prototype.getLoadedMetal = function()
 {
-	return this.metalMaterialObj;
+	return this.metalObj;
 }
 
 

@@ -173,11 +173,14 @@ SurfaceRenderer.prototype.compileShaders = function()
 	var sdfCode = sceneObj.sdf();
 
 	// @todo: insert material GLSL code
-	var dielectricMaterialObj = snelly.getLoadedDielectricMaterial();
-	var      metalMaterialObj = snelly.getLoadedMetalMaterial();
+	var dielectricObj = snelly.getLoadedDielectric();
+	if (dielectricObj == null) return;
 
-	iorCodeDiele    = dielectricMaterialObj.ior();
-	iorCodeMetal    = metalMaterialObj.ior();
+	var metalObj = snelly.getLoadedMetal();
+	if (metalObj == null) return;
+
+	iorCodeDiele    = dielectricObj.ior();
+	iorCodeMetal    = metalObj.ior();
 
 	// Copy the current scene and material routines into the source code
 	// of the trace fragment shader
@@ -325,7 +328,13 @@ SurfaceRenderer.prototype.render = function()
 	if (!this.enable) return;
 
 	var sceneObj = snelly.getLoadedScene();
-	if (sceneObj == null) return;
+	if (sceneObj==null) return;
+
+	var metalObj = snelly.getLoadedMetal();
+	if (metalObj==null) return;
+
+	var dielectricObj = snelly.getLoadedDielectric();
+	if (dielectricObj==null) return;
 
 	////////////////////////////////////////////////
 	/// Pathtracing
@@ -359,9 +368,9 @@ SurfaceRenderer.prototype.render = function()
 	this.pathtraceProgram.uniformF("SceneScale", sceneObj.getScale()); 
 
 	// Read wavelength -> RGB table
-	this.wavelengthToRgb.bind(1);
-	this.emissionIcdf.bind(2);
+	this.wavelengthToRgb.bind(2);
 	this.pathtraceProgram.uniformTexture("WavelengthToRgb", this.wavelengthToRgb);
+	this.emissionIcdf.bind(3);
 	this.pathtraceProgram.uniformTexture("ICDF", this.emissionIcdf);
 	
 	// Emitter data
@@ -376,7 +385,7 @@ SurfaceRenderer.prototype.render = function()
 	this.pathtraceProgram.uniformF("EmitterSpread", emissionSpread);
 
 	this.fbo.bind();
-	this.fbo.drawBuffers(3);
+	this.fbo.drawBuffers(2);
 
 	var current = this.currentState;
 	var next    = 1 - current;
@@ -391,6 +400,8 @@ SurfaceRenderer.prototype.render = function()
 
 	// Upload current scene SDF shader parameters
 	sceneObj.syncShader(this.pathtraceProgram); 
+	dielectricObj.syncShader(this.pathtraceProgram); // upload current dielectric IOR parameters
+	metalObj.syncShader(this.pathtraceProgram);      // upload current metal IOR parameters
 
 	// Trace one path per pixel
 	this.quadVbo.bind();
