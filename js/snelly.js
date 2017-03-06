@@ -146,21 +146,37 @@ var Snelly = function()
 
 	// Instantiate distance field surface renderer
 	this.surfaceRenderer = new SurfaceRenderer();
-	
+
 	// Do initial resize:
 	this.resize();
+	
+	// Instantiate spectra
+	{
+		// Spectrum initialization
+		this.spectra = {}
+		this.SPECTRUM_SAMPLES = 256;
+		this.spectrumObj = null;
+		this.LAMBDA_MIN = 360.0;
+	    this.LAMBDA_MAX = 750.0;
+		var wToRgb = wavelengthToRgbTable();
+		this.wavelengthToRgb = new GLU.Texture(wToRgb.length/4, 1, 4, true,  true, true, wToRgb);
+		this.emissionIcdf    = new GLU.Texture(4*this.SPECTRUM_SAMPLES, 1, 1, true, true, true, null);
+
+		this.addSpectrum( new FlatSpectrum("flat", "Flat spectrum", 400.0, 700.0) );
+		this.addSpectrum( new BlackbodySpectrum("blackbody", "Blackbody spectrum", 6000.0) );
+		this.addSpectrum( new MonochromaticSpectrum("monochromatic", "Monochromatic spectrum", 650.0) ); 
+
+		this.loadSpectrum("blackbody");
+	}
 
 	// Load the initial scene and material
 	this.gui = null;
-
 	this.loadDielectric("Glass (LASF35)");
 	this.loadMetal("Gold");
-
 	this.loadScene("Gem stone");
 
 	// Create dat gui
 	this.gui = new GUI();
-
 
 	// Setup keypress and mouse events
 	window.addEventListener('keydown', function(event) 
@@ -292,6 +308,37 @@ Snelly.prototype.getLoadedScene = function()
 {
 	return this.sceneObj;
 }
+
+
+//
+// Spectrum management
+//
+
+// emission spectrum management
+Snelly.prototype.addSpectrum = function(spectrumObj)
+{
+	this.spectra[spectrumObj.getName()] = spectrumObj;
+}
+
+Snelly.prototype.getSpectra = function()
+{
+	return this.spectra;
+}
+
+Snelly.prototype.loadSpectrum = function(spectrumName)
+{
+	this.spectrumObj = this.spectra[spectrumName];
+	var inverseCDF = this.spectrumObj.inverseCDF(this.LAMBDA_MIN, this.LAMBDA_MAX, this.SPECTRUM_SAMPLES);
+	this.emissionIcdf.bind(0);
+    this.emissionIcdf.copy(inverseCDF);
+    this.reset();
+}
+
+Snelly.prototype.getLoadedSpectrum = function()
+{
+	return this.spectrumObj;
+}
+
 
 
 //

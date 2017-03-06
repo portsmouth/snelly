@@ -80,26 +80,10 @@ var SurfaceRenderer = function()
 	this.enable = true;
 	//this.depthTest = false;
 	this.showBounds = false;
-	this.surfaceAlpha = 1.0;
-	this.renderMode = 'blinn';
-	this.specPower = 20.0;
-	this.kd1 = [140.0/255.0, 140.0/255.0, 1.0];
-	this.kd2 = [72.0/255.0, 1.0, 126.0/255.0];
+	this.exposure = 50.0;
+	this.maxBounces = 4;
 
-    // Spectrum initialization
-	this.spectra = {}
-	this.SPECTRUM_SAMPLES = 256;
-	this.spectrumObj = null;
-	this.LAMBDA_MIN = 360.0;
-    this.LAMBDA_MAX = 750.0;
-	var wToRgb = wavelengthToRgbTable();
-	this.wavelengthToRgb = new GLU.Texture(wToRgb.length/4, 1, 4, true,  true, true, wToRgb);
-	this.emissionIcdf    = new GLU.Texture(4*this.SPECTRUM_SAMPLES, 1, 1, true, true, true, null);
-	this.addSpectrum( new FlatSpectrum("flat", "Flat spectrum", 400.0, 700.0) );
-	this.addSpectrum( new BlackbodySpectrum("blackbody", "Blackbody spectrum", 6000.0) );
-	this.addSpectrum( new MonochromaticSpectrum("monochromatic", "Monochromatic spectrum", 650.0) ); 
 	this.fbo == null;
-	this.loadSpectrum("flat");
 
 	// Load shaders
 	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper", "pick"]);
@@ -138,33 +122,6 @@ SurfaceRenderer.prototype.reset = function()
 }
 
 
-// emission spectrum management
-SurfaceRenderer.prototype.addSpectrum = function(spectrumObj)
-{
-	this.spectra[spectrumObj.getName()] = spectrumObj;
-}
-
-SurfaceRenderer.prototype.getSpectra = function()
-{
-	return this.spectra;
-}
-
-SurfaceRenderer.prototype.loadSpectrum = function(spectrumName)
-{
-	this.spectrumObj = this.spectra[spectrumName];
-	var inverseCDF = this.spectrumObj.inverseCDF(this.LAMBDA_MIN, this.LAMBDA_MAX, this.SPECTRUM_SAMPLES);
-	this.emissionIcdf.bind(0);
-    this.emissionIcdf.copy(inverseCDF);
-    if (this.fbo != null)
-		this.reset();
-}
-
-SurfaceRenderer.prototype.getLoadedSpectrum = function()
-{
-	return this.spectrumObj;
-}
-
-
 SurfaceRenderer.prototype.compileShaders = function()
 {
 	// Inject code for the current scene SDF:
@@ -188,6 +145,7 @@ SurfaceRenderer.prototype.compileShaders = function()
 	replacements.SDF_FUNC        = sdfCode;
 	replacements.IOR_FUNC        = iorCodeDiele + '\n' + iorCodeMetal;
 	replacements.MAX_MARCH_STEPS = this.maxMarchSteps;
+	replacements.MAX_BOUNCES     = this.maxBounces;
 
 	/*
 	switch (this.renderMode)
@@ -336,6 +294,9 @@ SurfaceRenderer.prototype.render = function()
 	var dielectricObj = snelly.getLoadedDielectric();
 	if (dielectricObj==null) return;
 
+	if (snelly.getSpectra()==null) return;
+
+
 	////////////////////////////////////////////////
 	/// Pathtracing
 	////////////////////////////////////////////////
@@ -368,10 +329,10 @@ SurfaceRenderer.prototype.render = function()
 	this.pathtraceProgram.uniformF("SceneScale", sceneObj.getScale()); 
 
 	// Read wavelength -> RGB table
-	this.wavelengthToRgb.bind(2);
-	this.pathtraceProgram.uniformTexture("WavelengthToRgb", this.wavelengthToRgb);
-	this.emissionIcdf.bind(3);
-	this.pathtraceProgram.uniformTexture("ICDF", this.emissionIcdf);
+	snelly.wavelengthToRgb.bind(2);
+	this.pathtraceProgram.uniformTexture("WavelengthToRgb", snelly.wavelengthToRgb);
+	snelly.emissionIcdf.bind(3);
+	this.pathtraceProgram.uniformTexture("ICDF", snelly.emissionIcdf);
 	
 	// Emitter data
 	var laser = snelly.laser;
@@ -379,10 +340,20 @@ SurfaceRenderer.prototype.render = function()
 	emitterDir = laser.getDirection();
 	emitterRadius = laser.getEmissionRadius();
 	emissionSpread = laser.getEmissionSpreadAngle();
+	emitterPower = laser.getEmissionPower();
 	this.pathtraceProgram.uniform3F("EmitterPos", emitterPos.x, emitterPos.y, emitterPos.z);
 	this.pathtraceProgram.uniform3F("EmitterDir", emitterDir.x, emitterDir.y, emitterDir.z);
 	this.pathtraceProgram.uniformF("EmitterRadius", emitterRadius);
 	this.pathtraceProgram.uniformF("EmitterSpread", emissionSpread);
+	this.pathtraceProgram.uniformF("EmitterPower", emitterPower);
+
+	// Pathtracing options
+	this.pathtraceProgram.uniformI("MaxBounces", this.maxBounces);
+
+	skyPower = laser.getSkyPower();
+	skyTemp = snelly.getSpectra()["blackbody"].temperature;
+	this.pathtraceProgram.uniformF("SkyPower", skyPower);
+	this.pathtraceProgram.uniformF("SkyTemp", skyTemp);
 
 	this.fbo.bind();
 	this.fbo.drawBuffers(2);
@@ -423,9 +394,9 @@ SurfaceRenderer.prototype.render = function()
 
 	this.tonemapProgram.uniformTexture("Radiance", radianceTexCurrent);
 	//this.tonemapProgram.uniformTexture("DepthSurface", depthTexCurrent);
-	this.tonemapProgram.uniformF("exposure", 1.0);
+	this.tonemapProgram.uniformF("exposure", this.exposure);
 	this.tonemapProgram.uniformF("invGamma", 1.0);
-	this.tonemapProgram.uniformF("alpha", this.surfaceAlpha);
+	this.tonemapProgram.uniformF("alpha", 1.0);
 
 	// Tonemap the 'current' radiance buffer to produce this frame's pixels
 	// Get depth texture of light rays, to allow surface to 

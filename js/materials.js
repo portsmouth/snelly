@@ -382,7 +382,7 @@ CauchyDielectric.prototype.ior = function()
 	var uniforms = '';
 	for (var n=1; n<=this.coeffs.length; ++n)
 	{
-		uniforms += `uniform float _C${n};\n`
+		uniforms += `uniform float _C${n};\n`;
 	}
 	var code = `${uniforms}    
 	float IOR_DIELE(float wavelength_nm) 

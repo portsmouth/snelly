@@ -77,23 +77,6 @@ var LightTracer = function()
 	// Create a quad VBO for rendering textures
 	this.quadVbo = this.createQuadVbo();
 
-	// Spectrum initialization
-	this.spectra = {}
-	this.SPECTRUM_SAMPLES = 256;
-	this.spectrumObj = null;
-	this.LAMBDA_MIN = 360.0;
-    this.LAMBDA_MAX = 750.0;
-	var wToRgb = wavelengthToRgbTable();
-	this.wavelengthToRgb = new GLU.Texture(wToRgb.length/4, 1, 4, true,  true, true, wToRgb);
-	this.emissionIcdf    = new GLU.Texture(4*this.SPECTRUM_SAMPLES, 1, 1, true, true, true, null);
-
-	this.addSpectrum( new FlatSpectrum("flat", "Flat spectrum", 400.0, 700.0) );
-	this.addSpectrum( new BlackbodySpectrum("blackbody", "Blackbody spectrum", 6000.0) );
-	this.addSpectrum( new MonochromaticSpectrum("monochromatic", "Monochromatic spectrum", 650.0) ); 
-
-	this.fbo == null;
-	this.loadSpectrum("flat");
-
 	// Initialize raytracing shaders
 	this.shaderSources = GLU.resolveShaderSource(["init", "trace", "line", "linedepth", "comp", "pass"]);
 
@@ -226,32 +209,6 @@ LightTracer.prototype.getStats = function()
 	return stats;
 }
 
-// emission spectrum management
-LightTracer.prototype.addSpectrum = function(spectrumObj)
-{
-	this.spectra[spectrumObj.getName()] = spectrumObj;
-}
-
-LightTracer.prototype.getSpectra = function()
-{
-	return this.spectra;
-}
-
-LightTracer.prototype.loadSpectrum = function(spectrumName)
-{
-	this.spectrumObj = this.spectra[spectrumName];
-	var inverseCDF = this.spectrumObj.inverseCDF(this.LAMBDA_MIN, this.LAMBDA_MAX, this.SPECTRUM_SAMPLES);
-	this.emissionIcdf.bind(0);
-    this.emissionIcdf.copy(inverseCDF);
-    if (this.fbo != null)
-		this.reset();
-}
-
-LightTracer.prototype.getLoadedSpectrum = function()
-{
-	return this.spectrumObj;
-}
-
 
 LightTracer.prototype.composite = function()
 {
@@ -326,10 +283,10 @@ LightTracer.prototype.render = function()
 		this.initProgram.uniformTexture("RngData", this.rayStates[current].rngTex);
 
 		// Read wavelength -> RGB table 
-		this.wavelengthToRgb.bind(1);
-		this.initProgram.uniformTexture("WavelengthToRgb", this.wavelengthToRgb);
-		this.emissionIcdf.bind(2);
-		this.initProgram.uniformTexture("ICDF", this.emissionIcdf);
+		snelly.wavelengthToRgb.bind(1);
+		this.initProgram.uniformTexture("WavelengthToRgb", snelly.wavelengthToRgb);
+		snelly.emissionIcdf.bind(2);
+		this.initProgram.uniformTexture("ICDF", snelly.emissionIcdf);
 		
 		// Emitter data
 		var laser = snelly.laser;

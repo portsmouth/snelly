@@ -22,6 +22,10 @@ uniform vec3 EmitterPos;
 uniform vec3 EmitterDir;
 uniform float EmitterRadius;
 uniform float EmitterSpread; // in degrees
+uniform float EmitterPower;
+
+uniform float SkyPower;
+uniform float SkyTemp;
 
 uniform float roughnessDiele;
 uniform float roughnessMetal;
@@ -45,37 +49,82 @@ IOR_FUNC
 // SDF raymarcher
 ///////////////////////////////////////////////////////////////////////////////////
 
-bool trace(in vec3 start, vec3 dir, inout vec3 hit, inout int material)
+#define HIT_TOLERANCE 1.0e-4
+
+// find first hit over specified segment
+bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
+				   inout vec3 hit, inout int material)
 {
-	float minMarchDist = 1.0e-5*SceneScale;
-	float maxMarchDist = 1.0e5*SceneScale;
-	float t = 0.0;
-	float hDIELE = SceneScale;
-	float hMETAL = SceneScale;
-	float hDIFFU = SceneScale;
-    for( int i=0; i<MAX_MARCH_STEPS; i++ )
+	float minMarchDist = HIT_TOLERANCE*SceneScale;
+
+	float sdf_diele = abs(SDF_DIELE(start));
+	float sdf_metal = abs(SDF_METAL(start));
+	float sdf_diffu = abs(SDF_DIFFU(start));
+	float sdf = min(sdf_diele, min(sdf_metal, sdf_diffu));
+	float InitialSign = sign(sdf);
+
+	float t = 0.0;	
+	int iters=0;
+    for (int n=0; n<MAX_MARCH_STEPS; n++)
     {
-		if (hDIELE<minMarchDist) { material = MAT_DIELE; break; }
-		if (hMETAL<minMarchDist) { material = MAT_METAL; break; }
-		if (hDIFFU<minMarchDist) { material = MAT_DIFFU; break; }
-		if (t>maxMarchDist) break;
+    	// With this formula, the ray advances whether sdf is initially negative or positive --
+    	// but on crossing the zero isosurface, sdf flips allowing bracketing of the root. 
+    	t += InitialSign * sdf;
+    	if (t>=maxDist) break;
+		vec3 pW = start + t*dir;	
 
-		vec3 pW = start + t*dir;
-
-		hDIELE = SDF_DIELE(pW);
-		hMETAL = SDF_METAL(pW);
-		hDIFFU = SDF_DIFFU(pW);
-        t += min(hDIELE, min(hMETAL, hDIFFU));
+		sdf_diele = abs(SDF_DIELE(pW)); if (sdf_diele<minMarchDist) { material = MAT_DIELE; break; }
+		sdf_metal = abs(SDF_METAL(pW)); if (sdf_metal<minMarchDist) { material = MAT_METAL; break; }
+		sdf_diffu = abs(SDF_DIFFU(pW)); if (sdf_diffu<minMarchDist) { material = MAT_DIFFU; break; }
+		sdf = min(sdf_diele, min(sdf_metal, sdf_diffu));
+		iters++;
     }
-	if (t>maxMarchDist) return false;
+	if (t>=maxDist || iters>=MAX_MARCH_STEPS) return false;
 	hit = start + t*dir;
 	return true;
 }
 
+// find first hit along infinite ray
+bool traceRay(in vec3 start, in vec3 dir, 
+	          inout vec3 hit, inout int material)
+{
+	float maxMarchDist = 1.0e2*SceneScale;
+	return traceDistance(start, dir, maxMarchDist, hit, material);
+}
+
+
+// (whether not occluded along finite length segment)
+bool Visible(in vec3 start, in vec3 end)
+{
+	float eps = 20.0*HIT_TOLERANCE*SceneScale;
+	vec3 dir = normalize(end - start);
+	float maxDist = length(end - start);
+	vec3 delta = eps * dir;
+	vec3 hit;
+	int material;
+	bool occluded = traceDistance(start+delta, dir, maxDist, hit, material);
+	return !occluded;
+}
+
+// (whether occluded along infinite ray)
+bool Occluded(in vec3 start, in vec3 dir)
+{
+	float eps = 20.0*HIT_TOLERANCE*SceneScale;
+	vec3 delta = eps * dir;
+	vec3 p;
+	int material;
+	vec3 hit;
+	bool occluded = traceRay(start+delta, dir, hit, material);
+	return occluded;
+}
+
+
+#define NORMAL_TOLERANCE 5.0e-4
+
 vec3 normal(in vec3 pW, int material)
 {
 	// Compute normal as gradient of SDF
-	float normalEpsilon = 2.0e-5*SceneScale;
+	float normalEpsilon = NORMAL_TOLERANCE*SceneScale;
 	vec3 e = vec3(normalEpsilon, 0.0, 0.0);
 	vec3 xyyp = pW+e.xyy; vec3 xyyn = pW-e.xyy;
 	vec3 yxyp = pW+e.yxy; vec3 yxyn = pW-e.yxy;
@@ -86,21 +135,6 @@ vec3 normal(in vec3 pW, int material)
 	else                          { N = vec3(SDF_DIFFU(xyyp)-SDF_DIFFU(xyyn), SDF_DIFFU(yxyp)-SDF_DIFFU(yxyn), SDF_DIFFU(yyxp) - SDF_DIFFU(yyxn)); }
 	return normalize(N);
 }
-
-bool Visible(in vec3 start, in vec3 end)
-{
-	float eps = 2.0e-5*SceneScale;
-	vec3 dir = normalize(end - start);
-	vec3 delta = eps * dir;
-	start += delta;
-	end   -= delta;
-	vec3 p;
-	int material;
-	bool hit = trace(start, end, p, material);
-	return !hit;
-}
-
-
 
 /////////////////////////////////////////////////////////////////////////
 // Basis transforms
@@ -158,7 +192,7 @@ vec3 localToWorld(in vec3 vLocal, in Basis basis)
 // Sampling formulae
 /////////////////////////////////////////////////////////////////////////
 
-vec3 sampleHemisphere(inout vec4 rnd)
+vec3 sampleHemisphere(inout vec4 rnd, inout float pdf)
 {
 	// Do cosine-weighted sampling of hemisphere
 	float r = sqrt(rand(rnd));
@@ -166,6 +200,7 @@ vec3 sampleHemisphere(inout vec4 rnd)
 	float x = r * cos(theta);
 	float y = r * sin(theta);
 	float z = sqrt(1.0 - x*x - y*y);
+	pdf = abs(z) / M_PI;
 	return vec3(x, y, z);
 }
 
@@ -302,13 +337,15 @@ float evaluateDielectric( in vec3 woL, in vec3 wiL, in float roughness, in float
 	// Compute the reflection half-vector
 	vec3 h;
 	float eta; // IOR ratio, et/ei
+
 	if (reflected)
 	{
+		// Compute reflection half-vector
 		h = normalize(wiL + woL);
 	}
 	else
 	{
-		// Compute reflection half-vector
+		// Compute refraction half-vector
 		bool entering = cosTheta(wiL) > 0.0;
 		eta = entering ? ior : 1.0/ior;
 		h = normalize(wiL + eta*woL);
@@ -347,6 +384,7 @@ float pdfDielectric( in vec3 woL, in vec3 wiL, in float roughness, in float wave
 	vec3 h;
 	float dwh_dwo;
 	float pdf;
+
 	if (reflected)
 	{
 		h = normalize(wiL + woL);
@@ -413,14 +451,14 @@ float sampleDielectric( in vec3 woL, in float roughness, in float wavelength_nm,
 		vec3 ni; // normal pointing into incident halfspace
 		if (entering)
 		{
-			// Entering, incident halfspace is outside microfacet
-			eta = ior;
+			// Entering, incident halfspace is outside dielectric
+			eta = ior; // = et/ei
 			ni = m;
 		}
 		else
 		{
-			// Exiting, incident halfspace is inside microfacet
-			eta = 1.0/ior;
+			// Exiting, incident halfspace is inside dielectric
+			eta = 1.0/ior; // = et/ei
 			ni = -m;
 		}
 
@@ -497,53 +535,51 @@ float sampleMetal( in vec3 woL, in float roughness, in float wavelength_nm,
 
 // ****************************        Diffuse        ****************************
 
-float evaluateDiffuse(in vec3 woL, in vec3 wiL)
+// @todo: albedo wavelength dependence?
+
+float evaluateDiffuse(in vec3 woL, in vec3 wiL, in vec3 channelResponse)
 {
-	float reflectance = 0.5; // @todo: this will be in UI (like choice of dielectric & metal)
-	return reflectance / M_PI;
+	vec3 albedo = vec3(1.0, 0.8, 0.7); // @todo: UI color wheel
+	return dot(albedo, channelResponse) / M_PI;
 }
 
 float pdfDiffuse(in vec3 woL, in vec3 wiL)
 {
-	return abs(wiL.z)/M_PI;
+	return abs(wiL.z) / M_PI;
 }
 
-float sampleDiffuse(in vec3 woL, inout vec3 wiL, 
-				   inout float pdfOut, inout vec4 rnd)
+float sampleDiffuse(in vec3 woL, in vec3 channelResponse,
+					inout vec3 wiL, inout float pdfOut, inout vec4 rnd)
 {
 	// Do cosine-weighted sampling of hemisphere
-	wiL = sampleHemisphere(rnd);
-	pdfOut = abs(wiL.z)/M_PI;
-	float diffuseAlbedo = 0.5; // @todo: make this a wavelength-dependent color parameter
-	return diffuseAlbedo / M_PI;
+	wiL = sampleHemisphere(rnd, pdfOut);
+	vec3 albedo = vec3(1.0, 0.8, 0.7); // @todo: UI color wheel
+	return dot(albedo, channelResponse) / M_PI;
 }
 
 // ****************************        BSDF common interface        ****************************
 
-float evaluateBsdf( in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm, 
-	 			   inout vec4 rnd )
+float evaluateBsdf( in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm, in vec3 channelResponse,
+	                inout vec4 rnd )
 {
-	return evaluateDielectric(woL, wiL, roughnessDiele, wavelength_nm);
-	//if      (material==MAT_DIELE) { return evaluateDielectric(woL, wiL, roughnessDiele, wavelength_nm); }
-	//else if (material==MAT_METAL) { return      evaluateMetal(woL, wiL, roughnessMetal, wavelength_nm); }
-	//else                          { return    evaluateDiffuse(woL, wiL);                                }
+	if      (material==MAT_DIELE) { return evaluateDielectric(woL, wiL, roughnessDiele, wavelength_nm); }
+	else if (material==MAT_METAL) { return      evaluateMetal(woL, wiL, roughnessMetal, wavelength_nm); }
+	else                          { return    evaluateDiffuse(woL, wiL, channelResponse);               }
 }
 
-float sampleBsdf( in vec3 woL, in int material, in float wavelength_nm,
-				 inout vec3 wiL, inout float pdfOut, inout vec4 rnd ) 
+float sampleBsdf( in vec3 woL, in int material, in float wavelength_nm, in vec3 channelResponse,
+				  inout vec3 wiL, inout float pdfOut, inout vec4 rnd ) 
 {
-	return sampleDielectric(woL, roughnessDiele, wavelength_nm, wiL, pdfOut, rnd);
-	//if      (material==MAT_DIELE) { return sampleDielectric(woL, roughnessDiele, wavelength_nm, wiL, pdfOut, rnd); }
-	//else if (material==MAT_METAL) { return      sampleMetal(woL, roughnessMetal, wavelength_nm, wiL, pdfOut, rnd); }
-	//else                          { return    sampleDiffuse(woL,                                wiL, pdfOut, rnd); }
+	if      (material==MAT_DIELE) { return sampleDielectric(woL, roughnessDiele, wavelength_nm, wiL, pdfOut, rnd); }
+	else if (material==MAT_METAL) { return      sampleMetal(woL, roughnessMetal, wavelength_nm, wiL, pdfOut, rnd); }
+	else                          { return    sampleDiffuse(woL, channelResponse,               wiL, pdfOut, rnd); }
 }
 
 float pdfBsdf( in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm )
 {
-	return pdfDielectric(woL, wiL, roughnessDiele, wavelength_nm);
-	//if      (material==MAT_DIELE) { return pdfDielectric(woL, wiL, roughnessDiele, wavelength_nm); }
-	//else if (material==MAT_METAL) { return      pdfMetal(woL, wiL, roughnessMetal, wavelength_nm); }
-	//else                          { return    pdfDiffuse(woL, wiL);                                }
+	if      (material==MAT_DIELE) { return pdfDielectric(woL, wiL, roughnessDiele, wavelength_nm); }
+	else if (material==MAT_METAL) { return      pdfMetal(woL, wiL, roughnessMetal, wavelength_nm); }
+	else                          { return    pdfDiffuse(woL, wiL);                                }
 }
 
 
@@ -552,18 +588,29 @@ float pdfBsdf( in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm
 ////////////////////////////////////////////////////////////////////////////////
 
 
+float spectrum_flat(float wavelength_nm)
+{
+	return 1.0;
+}
+
+float spectrum_blackbody(float wavelength_nm)
+{
+	float boltzmann_factor = 1.43877737467e7 / (wavelength_nm*SkyTemp);
+    float l = wavelength_nm/360.0; // wavelength relative to 360nm
+    return 1.0 / (l*l*l*l*l*(exp(boltzmann_factor) - 1.0));
+}
+
 float environmentRadiance(in vec3 dir, float wavelength_nm)
 {
-	// For now, env-map is just a 'sky' which is a uniform blackbody with a specified temperature.
-	const float sky_temp = 6500.0; // @todo: should be a param
-	float boltzmann_factor = 1.43877737467e7 / (wavelength_nm*sky_temp);
-    float l = wavelength_nm/360.0; // wavelength relative to 360nm
-    return 1000.0 / (l*l*l*l*l*(exp(boltzmann_factor) - 1.0)) * cos(16.0*M_PI*dir.y) * 0.5*(1.0 + dir.x*dir.z);
+	// @todo: this should match the emission spectrum of the laser, as
+	//        we use that emission spectrum for importance sampling the wavelength.
+	return SkyPower * spectrum_blackbody(wavelength_nm);
 }
 
 
 bool emitterSample( in vec3 pW, in vec3 nW, 
-			    	inout vec3 onLight, inout float lightPdf, inout vec4 rnd )
+			    	inout vec3 onLight, inout vec3 wiW, 
+			    	inout float emittedRadiance, inout float lightPdf, inout vec4 rnd )
 {	
 	// project vertex onto emission plane
 	float dPerp = dot(pW - EmitterPos, EmitterDir);
@@ -571,41 +618,43 @@ bool emitterSample( in vec3 pW, in vec3 nW,
 	float dProj = length(pProj - EmitterPos);
 
 	// thus radius of 'valid' disk containing possible source vertex on emission plane
-	float spreadAngle = 0.5*abs(EmitterSpread)*M_PI/180.0;
+	float spreadAngle = max(0.5*abs(EmitterSpread)*M_PI/180.0, 5.0e-4);
 	float rProjected = dPerp * tan(spreadAngle);
 	if (dProj > rProjected + EmitterRadius) return false; // no direct light can reach the vertex
 
 	// Choose a candidate point on the valid disk
-	float rSample   = rProjected*sqrt(rand(rnd));
+	float rSample = rProjected*sqrt(rand(rnd));
 	float phiSample = 2.0*M_PI*rand(rnd);
-	vec3 X = vec3(1.0, 0.0, 0.0);
-	vec3 Z = vec3(0.0, 0.0, 1.0);
+	vec3 Z = vec3(0.0, 0.0, 1.0);  // @todo: send the emitter basis vectors to shader
 	vec3 u = cross(Z, EmitterDir);
-	if ( length(u) < 1.0e-3 )
-	{
+	if (length(u) < 1.0e-3)
+	{	
+		vec3 X = vec3(1.0, 0.0, 0.0);
 		u = cross(X, EmitterDir);
 	}
 	u = normalize(u);
-	vec3 v = cross(EmitterDir, u); // @todo, pass these u,v vectors to shader
+	vec3 v = cross(EmitterDir, u);
 	vec3 samplePos = rSample*(u*cos(phiSample) + v*sin(phiSample)); 
-	if ( dot(samplePos, samplePos) > EmitterRadius*EmitterRadius )
+	onLight = pProj + samplePos;
+	vec3 relPos = onLight - EmitterPos;
+	if ( dot(relPos, relPos) > EmitterRadius*EmitterRadius )
 	{
 		// sample actually outside the emission disk
 		return false;
 	}
 
-	onLight = EmitterPos + samplePos;
-
 	// Compute solid-angle measure PDF of this sample (including samples which fell outside the disk)
 	float diskArea = M_PI*rProjected*rProjected;
 	vec3 toLight = onLight - pW;
-	vec3 wiW = normalize(toLight);
+	wiW = normalize(toLight);
 
 	// No contribution if sampled light point is in opposite hemisphere to surface vertex:
 	if (dot(wiW, nW) < 0.0) return false;
 
+	// Scale radiance to keep total light power independent of spread angle
 	float eps = 1.0e-6;
- 	float jacobian = dot(toLight, toLight) / (abs(dot(EmitterDir, wiW)) + eps);
+	emittedRadiance = EmitterPower / (2.0*M_PI*max(1.0-cos(spreadAngle), eps));
+ 	float jacobian = dot(toLight, toLight) / max(abs(dot(EmitterDir, wiW)), eps);
 	lightPdf = jacobian / diskArea;
 	return true;	
 }
@@ -617,55 +666,53 @@ float powerHeuristic(const float a, const float b)
 }
 
 
-float directLighting(in vec3 pW, Basis basis, in vec3 woW, in float emitterBrightness, 
-	          		 in int material, float wavelength_nm, inout vec4 rnd)
+float directLighting(in vec3 pW, Basis basis, in vec3 woW, in int material, 
+	                 float wavelength_nm, in vec3 channelResponse, inout vec4 rnd)
 {
 	// choose whether to sample emitter or env map, (@todo: for now, just 50/50)
-	float emissionProb = 0.0;
+	float emissionProb = 0.0; // @todo: should scale with relative sky and emitter powers
+	float environmentProb = 1.0 - emissionProb;
 
 	float lightPdf;
 	float Li;
-	vec3 wiW;
+	vec3 wiW; // direction of sampled direct light (*towards* the light)
 	{
 		// Env-map sampling
-		//if ( rand(rnd) > emissionProb )
+		if ( rand(rnd) <= environmentProb )
 		{
-			vec3 wiL = sampleHemisphere(rnd);
-			lightPdf = (1.0 - emissionProb) * abs(wiL.z) / M_PI;
+			float hemispherePdf;
+			vec3 wiL = sampleHemisphere(rnd, hemispherePdf);
+			lightPdf = environmentProb * hemispherePdf;
 			wiW = localToWorld(wiL, basis);
 
-			vec3 end = pW + wiW*SceneScale;
-			bool visible = Visible(pW, end);
-			if (!visible) Li = 0.0;
-			else Li = environmentRadiance(wiW, wavelength_nm);
+			bool occluded = Occluded(pW, wiW); 
+			if (occluded) return 0.0;
+			else 
+				Li = environmentRadiance(wiW, wavelength_nm);
 		}
-		return Li;
-
+		
 		// emitter sampling
-		/*
 		else
 		{
 			// sample a point on the emission disk
 			vec3 onLight;
-			if ( !emitterSample(pW, basis.nW, onLight, lightPdf, rnd) ) Li = 0.0;
+			float emittedRadiance;
+			if ( !emitterSample(pW, basis.nW, onLight, wiW, emittedRadiance, lightPdf, rnd) ) return 0.0;
 			else
 			{
-				// direction of direct light (*towards* the light)
-				wiW = normalize(onLight - pW);
-
 				// If light pointing away from vertex, or occluded, no direct light contribution.
-				if (dot(wiW, basis.nW) < 0.0 || !Visible(pW, onLight)) Li = 0.0;
+				bool visible = Visible(pW, onLight);
+				if (!visible) return 0.0;
 				else
 				{
 					lightPdf *= emissionProb;
-					Li = emitterBrightness;
+					Li = emittedRadiance;
 				}
 			}
 		}
-		*/
 	}
-	
-	// Apply MIS weight with the BSDF pdf for the sampled direction#
+
+	// Apply MIS weight with the BSDF pdf for the sampled direction
 	vec3 woL = worldToLocal(woW, basis);
 	vec3 wiL = worldToLocal(wiW, basis);
 
@@ -673,7 +720,7 @@ float directLighting(in vec3 pW, Basis basis, in vec3 woW, in float emitterBrigh
 	const float PDF_EPSILON = 1.0e-5;
 	if ( bsdfPdf<PDF_EPSILON ) return 0.0;
 
-	float f = evaluateBsdf(woL, wiL, material, wavelength_nm, rnd);
+	float f = evaluateBsdf(woL, wiL, material, wavelength_nm, channelResponse, rnd);
 	float misWeight = powerHeuristic(lightPdf, bsdfPdf);
 	return f * Li * abs(dot(wiW, basis.nW)) * misWeight / max(PDF_EPSILON, lightPdf);
 }
@@ -690,15 +737,16 @@ void main()
     float w = texture2D(ICDF, vec2(rand(rnd), 0.5)).r;
     float wavelength_nm = 360.0 + (750.0 - 360.0)*w;
 
-    // @todo: we really need the physical 3-channel sensor sensitivies at the given wavelength
-  	vec3 channelResponse = texture2D(WavelengthToRgb, vec2(w, 0.5)).rgb;
+    // @todo: don't we need to divide by the PDF of the wavelength, as we're effectively doing
+    //        a Monte-Carlo integral over wavelength here?
 
-  	// Need something which gives the relative intensity of the emitter and the sky
-  	float emitterBrightness = 1.0;
+    // @todo: we really need the physical 3-channel sensor sensitivities at the given wavelength
+    //        (which saturate at 1.0, i.e. given by cone response curve / max. response)
+  	vec3 channelResponse = 0.1 * texture2D(WavelengthToRgb, vec2(w, 0.5)).rgb;
 
 	// Jitter over pixel
 	vec2 pixel = gl_FragCoord.xy;
-	pixel += -0.5 + 0.5*vec2(rand(rnd), rand(rnd));
+	pixel += -0.5 + vec2(rand(rnd), rand(rnd));
 
 	// Compute world ray direction for this fragment
 	vec2 ndc = -1.0 + 2.0*(pixel/resolution.xy);
@@ -711,7 +759,7 @@ void main()
 	vec3 pW;
 	vec3 woW = -primaryDir;
 	int material;
-	bool hit = trace(camPos, primaryDir, pW, material);
+	bool hit = traceRay(camPos, primaryDir, pW, material);
 	float zHit;
 
 	float L;
@@ -724,49 +772,48 @@ void main()
 		throughput = 1.0;
 	}
 	else
-	{
-		const int maxBounces = 4; // debug
-		
+	{		
 		L = 0.0;
 		throughput = 1.0;
 		zHit = dot(pW - camPos, camDir);
 
-		for (int bounce=0; bounce<maxBounces; ++bounce)
+		for (int bounce=0; bounce<MAX_BOUNCES; ++bounce)
 		{
 			// Compute normal at current surface vertex
 			vec3 nW = normal(pW, material);
 			Basis basis = makeBasis(nW);
 
 			// Add direct lighting term
-			//L += throughput * directLighting(pW, basis, woW, emitterBrightness, material, wavelength_nm, rnd);
+			L += throughput * directLighting(pW, basis, woW, material, wavelength_nm, channelResponse, rnd);
 
 			// Sample BSDF for the next bounce direction
 			vec3 woL = worldToLocal(woW, basis);
 			vec3 wiL;
 			float bsdfPdf;
-			float f = sampleBsdf(woL, material, wavelength_nm, wiL, bsdfPdf, rnd);
+			float f = sampleBsdf(woL, material, wavelength_nm, channelResponse, wiL, bsdfPdf, rnd);
 			vec3 wiW = localToWorld(wiL, basis);
 
 			// Update path throughput
 			throughput *= f * abs(dot(wiW, nW)) / max(PDF_EPSILON, bsdfPdf);
 
 			// Trace bounce ray
-			float eps = 5.0e-5*SceneScale;
-			pW += nW * dot(wiW, nW) * eps; // perturb vertex in direction of scattered ray
+			float displacement = 20.0*HIT_TOLERANCE*SceneScale;
+			pW += nW * sign(dot(wiW, nW)) * displacement; // perturb vertex into half-space of scattered ray
 			vec3 pW_next;
-			bool hit = trace(pW, wiW, pW_next, material);
+			int material_next;
+			bool hit = traceRay(pW, wiW, pW_next, material_next);
 			
 			// Exit now if ray missed
 			if (!hit)
 			{
-				float lightPdf = 1.0; //0.5;
+				float lightPdf = 0.5; // @todo: should vary in sync with direct lighting emissionProb
 				float misWeight = powerHeuristic(bsdfPdf, lightPdf);
 				float Li = environmentRadiance(wiW, wavelength_nm);
 				L += throughput * Li * misWeight;
 				break;
 			}
 
-			// @todo: add BSDF-sampled emission term!
+			// @todo: add BSDF-sampled emitter term!
 			{
 				// check if ray segment (pW, pW_next) intersects the emitter disk.
 				// if it does, add contribution (depending on spread) and terminate path.
@@ -776,6 +823,7 @@ void main()
 			vec3 rayDir = normalize(pW_next - pW);
 			woW = -rayDir;
 			pW = pW_next;
+			material = material_next;
 		}
 	}
 

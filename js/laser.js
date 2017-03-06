@@ -219,6 +219,9 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 
 	this.targetSet = false;
 	this.setEmissionRadius(0.0);
+	this.setEmissionSpreadAngle(10.0);
+	this.setEmissionPower(1.0);
+	this.setSkyPower(1000.0);
 
 	this.eulerAngles = new THREE.Euler();
 
@@ -381,6 +384,16 @@ LaserPointer.prototype.getEmissionSpreadAngle = function()
 	return this.emissionSpread;
 }
 
+LaserPointer.prototype.getEmissionPower = function()
+{
+	return this.emissionPower;
+}
+
+LaserPointer.prototype.getSkyPower = function()
+{
+	return this.skyPower;
+}
+
 /// Interactions:
 
 LaserPointer.prototype.toggleVisibility = function(visible)
@@ -453,6 +466,17 @@ LaserPointer.prototype.setEmissionSpreadAngle = function(spreadAngleDegrees)
 {
 	this.emissionSpread = spreadAngleDegrees;
 }
+
+LaserPointer.prototype.setEmissionPower = function(emissionPower)
+{
+	this.emissionPower = emissionPower;
+}
+
+LaserPointer.prototype.setSkyPower = function(skyPower)
+{
+	this.skyPower = skyPower;
+}
+
 
 LaserPointer.prototype.onMouseMove = function(event)
 {

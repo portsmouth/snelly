@@ -92,8 +92,7 @@ MonochromaticSpectrum.prototype.initGui = function(parentFolder)
 	this.wavelengthItem = parentFolder.add(this, 'wavelength', 360.0, 750.0);
 	this.wavelengthItem.onChange( function(value) 
 	{ 
-		snelly.getLightTracer().loadSpectrum(ME.getName());
-		snelly.getSurfaceRenderer().loadSpectrum(ME.getName()); 
+		snelly.loadSpectrum(ME.getName()); 
 	} );
 }
 
@@ -134,7 +133,7 @@ FlatSpectrum.prototype.initGui = function(parentFolder)
 	{ 
 		if (ME['Minimum wavelength'] > ME['Maximum wavelength']-dw) 
 			ME['Minimum wavelength'] = ME['Maximum wavelength']-dw;
-		snelly.getLightTracer().loadSpectrum(ME.getName());
+		snelly.loadSpectrum(ME.getName());
 	});
 
 	this.maxItem = parentFolder.add(this, 'Maximum wavelength', 360.0, 750.0, 0.1);
@@ -142,8 +141,7 @@ FlatSpectrum.prototype.initGui = function(parentFolder)
 	{ 
 		if (ME['Maximum wavelength'] < ME['Minimum wavelength']+dw) 
 			ME['Maximum wavelength'] = ME['Minimum wavelength']+dw;
-		snelly.getLightTracer().loadSpectrum(ME.getName());
-		snelly.getSurfaceRenderer().loadSpectrum(ME.getName()); 
+		snelly.loadSpectrum(ME.getName()); 
 	});
 }
 
@@ -180,8 +178,7 @@ BlackbodySpectrum.prototype.initGui = function(parentFolder)
 	this.temperatureItem = parentFolder.add(this, 'temperature', 300.0, 15000.0);
 	this.temperatureItem.onChange( function(value) 
 	{ 
-		snelly.getLightTracer().loadSpectrum(ME.getName()); 
-		snelly.getSurfaceRenderer().loadSpectrum(ME.getName()); 
+		snelly.loadSpectrum(ME.getName()); 
 	} );
 }
 

@@ -86,13 +86,14 @@ GUI.prototype.createSurfaceRendererSettings = function()
 	this.surfaceRendererFolder.add(surfaceRenderer, 'enable');
 	//this.surfaceRendererFolder.add(surfaceRenderer, 'depthTest');
 	this.surfaceRendererFolder.add(surfaceRenderer, 'showBounds');
-	this.surfaceRendererFolder.add(surfaceRenderer, 'renderMode', renderModes).onChange( function(renderMode) { surfaceRenderer.reset(); });
-	this.surfaceRendererFolder.add(surfaceRenderer, 'surfaceAlpha', 0.0, 1.0);
+	//this.surfaceRendererFolder.add(surfaceRenderer, 'renderMode', renderModes).onChange( function(renderMode) { surfaceRenderer.reset(); });
+	this.surfaceRendererFolder.add(surfaceRenderer, 'exposure', 0.0, 50.0);
+	this.surfaceRendererFolder.add(surfaceRenderer, 'maxBounces', 1, 10).onChange( function(value) { surfaceRenderer.maxBounces = Math.floor(value); surfaceRenderer.reset(); } );
 	this.surfaceRendererFolder.add(surfaceRenderer, 'maxMarchSteps', 1, 1024).onChange( function(value) { surfaceRenderer.maxMarchSteps = Math.floor(value); surfaceRenderer.reset(); } );
 
-	this.surfaceRendererSettings.diffuseCol1 = [surfaceRenderer.kd1[0]*255.0, surfaceRenderer.kd1[1]*255.0, surfaceRenderer.kd1[2]*255.0];
-	this.surfaceRendererSettings.diffuseCol2 = [surfaceRenderer.kd2[0]*255.0, surfaceRenderer.kd2[1]*255.0, surfaceRenderer.kd2[2]*255.0];
-
+	//this.surfaceRendererSettings.diffuseCol1 = [surfaceRenderer.kd1[0]*255.0, surfaceRenderer.kd1[1]*255.0, surfaceRenderer.kd1[2]*255.0];
+	//this.surfaceRendererSettings.diffuseCol2 = [surfaceRenderer.kd2[0]*255.0, surfaceRenderer.kd2[1]*255.0, surfaceRenderer.kd2[2]*255.0];
+	/*
 	this.surfaceRendererFolder.addColor(this.surfaceRendererSettings, 'diffuseCol1').onChange( function(value) 
 	{
 		if (typeof value==='string' || value instanceof String)
@@ -130,6 +131,7 @@ GUI.prototype.createSurfaceRendererSettings = function()
 	});
 
 	this.surfaceRendererFolder.add(surfaceRenderer, 'specPower', 1.0, 100.0).onChange( function(renderMode) { surfaceRenderer.reset(); });
+	*/
 
 	this.gui.remember(this.surfaceRendererSettings);
 	this.surfaceRendererFolder.open();
@@ -143,7 +145,7 @@ GUI.prototype.createEmissionSettings = function()
 	var surfaceRenderer = snelly.getSurfaceRenderer();
 	var laser = snelly.getLaser();
 	this.emissionSettings = {};
-	this.emissionSettings.showLaserPointer = true;
+	this.emissionSettings.showLaserPointer = false;
 	this.emissionSettings.spectrum = 'monochromatic';
 	this.emissionSettings.emissionRadius = 0.01;
 
@@ -156,29 +158,47 @@ GUI.prototype.createEmissionSettings = function()
 		lightTracer.reset(); 
 		surfaceRenderer.reset();
 	} );
-	this.emissionFolder.add(laser, 'emissionSpread', 0.0, 90.0).onChange( function(value) { laser.setEmissionSpreadAngle(value); lightTracer.reset(); } );
+	this.emissionFolder.add(laser, 'emissionSpread', 0.0, 90.0).onChange( function(value) 
+	{ 
+		laser.setEmissionSpreadAngle(value);
+		lightTracer.reset(); 
+		surfaceRenderer.reset();
+	} );
+	this.emissionFolder.add(laser, 'emissionPower', 0.0, 10.0).onChange( function(value) 
+	{ 
+		laser.setEmissionPower(value);
+		lightTracer.reset(); 
+		surfaceRenderer.reset();
+	} );
+
+	this.emissionFolder.add(laser, 'skyPower', 0.0, 1000.0).onChange( function(value) 
+	{ 
+		laser.setSkyPower(value);
+		lightTracer.reset(); 
+		surfaceRenderer.reset();
+	} );
+
 	this.gui.remember(laser);
 
 	// Spectrum selection
 	var GUI = this;
-	var spectrumObj = lightTracer.getLoadedSpectrum();
+	var spectrumObj = snelly.getLoadedSpectrum();
 	var spectrumName = spectrumObj.getName();
-	var spectra = lightTracer.getSpectra();
+	var spectra = snelly.getSpectra();
 	var spectrumNames = Object.keys(spectra);
 
 	this.emissionSettings["spectrum selection"] = spectrumName;
 	this.emissionFolder.add(this.emissionSettings, 'spectrum selection', spectrumNames).onChange( function(spectrumName) {
 
 						// remove gui for current spectrum
-						var spectrumObj = lightTracer.getLoadedSpectrum();
+						var spectrumObj = snelly.getLoadedSpectrum();
 						spectrumObj.eraseGui(GUI.emissionFolder);
 
-						// load new scene
-				 		lightTracer.loadSpectrum(spectrumName);
-				 		surfaceRenderer.loadSpectrum(spectrumName);
-
-				 		// init gui for new scene
-				 		spectrumObj = lightTracer.getLoadedSpectrum();
+						// load new spectrum
+				 		snelly.loadSpectrum(spectrumName);
+	
+				 		// init gui for new spectrum
+				 		spectrumObj = snelly.getLoadedSpectrum();
 				 		spectrumObj.initGui(GUI.emissionFolder);
 				 		
 				 	} );
