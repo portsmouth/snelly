@@ -29,12 +29,6 @@ MengerScene.prototype.sdf = function()
 					return vec2(cos(a)*v.x + sin(a)*v.y, -sin(a)*v.x + cos(a)*v.y); 
 				}
 
-				float sdBox(vec3 X, vec3 bounds)                     
-				{                                     
-					vec3 d = abs(X) - bounds;
-					return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-				} 
-
 				float sdCross( in vec3 p )
 				{
 					float inf = 1.0e6;
@@ -67,7 +61,7 @@ MengerScene.prototype.sdf = function()
 				}
 
 				float SDF_METAL(vec3 X) { return HUGE_VAL; }
-				float SDF_DIFFU(vec3 X) { return HUGE_VAL; }
+				float SDF_DIFFU(vec3 X) { return sdBox(X, vec3(-100.0, -2.5, -100.0), vec3(100.0, -2.0, 100.0)); }
 	`;
 
 	var sdfCode;

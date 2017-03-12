@@ -30,17 +30,6 @@ SphereCrystalScene.prototype.sdf = function()
 				uniform float _depth; 
 				uniform float _offset;          
 
-				float sdBox(vec3 X, vec3 bounds)                     
-				{                                     
-					vec3 d = abs(X) - bounds;
-					return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-				} 
-
-				float sdSphere(vec3 X, float r)                     
-				{                                     
-					return length(X) - r;       
-				}   
-
 				float sphereLattice(vec3 X, float c)
 				{
 					vec3 r = 0.5*vec3(c,c,c);
@@ -55,7 +44,7 @@ SphereCrystalScene.prototype.sdf = function()
 				}      
 				
 				float SDF_METAL(vec3 X) { return HUGE_VAL; }
-				float SDF_DIFFU(vec3 X) { return HUGE_VAL; }                                  
+				float SDF_DIFFU(vec3 X) { return sdBox(X, vec3(-100.0, -10.0, -100.0), vec3(100.0, -9.0, 100.0)); }                                  
 	`;
 }
 

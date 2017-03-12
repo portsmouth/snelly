@@ -80,7 +80,7 @@ var SurfaceRenderer = function()
 	this.enable = true;
 	//this.depthTest = false;
 	this.showBounds = false;
-	this.exposure = 50.0;
+	this.exposure = 10.0;
 	this.maxBounces = 4;
 
 	this.fbo == null;

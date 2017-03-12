@@ -145,7 +145,7 @@ GUI.prototype.createEmissionSettings = function()
 	var surfaceRenderer = snelly.getSurfaceRenderer();
 	var laser = snelly.getLaser();
 	this.emissionSettings = {};
-	this.emissionSettings.showLaserPointer = false;
+	this.emissionSettings.showLaserPointer = true;
 	this.emissionSettings.spectrum = 'monochromatic';
 	this.emissionSettings.emissionRadius = 0.01;
 
@@ -171,7 +171,7 @@ GUI.prototype.createEmissionSettings = function()
 		surfaceRenderer.reset();
 	} );
 
-	this.emissionFolder.add(laser, 'skyPower', 0.0, 1000.0).onChange( function(value) 
+	this.emissionFolder.add(laser, 'skyPower', 0.0, 1.0).onChange( function(value) 
 	{ 
 		laser.setSkyPower(value);
 		lightTracer.reset(); 

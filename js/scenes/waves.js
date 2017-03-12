@@ -39,14 +39,6 @@ WavesScene.prototype.sdf = function()
 			uniform float _width;
 			uniform float _depth;
 
-			float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-			{                            
-				vec3 center = 0.5*(bmin + bmax);
-				vec3 halfExtents = 0.5*(bmax - bmin);         
-				vec3 d = abs(X-center) - halfExtents;
-				return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-			} 
-
 			float ocean(vec3 p) 
 			{
 				float wx1 = 2.0*M_PI*_waveFreq1*cos(_angle1);
@@ -69,7 +61,7 @@ WavesScene.prototype.sdf = function()
 			}    
 				
 			float SDF_METAL(vec3 X) { return HUGE_VAL; }
-			float SDF_DIFFU(vec3 X) { return HUGE_VAL; }                                 
+			float SDF_DIFFU(vec3 X) { return sdBox(X, vec3(-100.0, -2.5, -100.0), vec3(100.0, -2.0, 100.0)); }                                
 	`;
 }
 

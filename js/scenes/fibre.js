@@ -23,11 +23,11 @@ FibreScene.prototype.sdf = function()
 				uniform float _length; 
 				uniform float _twist;                           
 
-				float sdCylinder(vec3 X)                      
+				float fibre(vec3 X)                      
 				{                                  
-					vec2 h = vec2(_fibreRadius, _length);                         
-					vec2 d = abs(vec2(length(X.xy), X.z)) - h;         
-					return min(max(d.x,d.y),0.0) + length(max(d,0.0)); 
+				    vec2 h = vec2(_fibreRadius, _length);                         
+				    vec2 d = abs(vec2(length(X.xy), X.z)) - h;         
+				    return min(max(d.x,d.y),0.0) + length(max(d,0.0)); 
 				}       
 
 				float opCoil( vec3 p )
@@ -35,7 +35,7 @@ FibreScene.prototype.sdf = function()
 				    float c = cos(_twist*p.z/_length);
 				    float s = sin(_twist*p.z/_length);
 				    vec3 q = p + 4.0*_coilRadius*vec3(c, s, 0.0);
-				    return sdCylinder(q);
+				    return fibre(q);
 				}
 
 				float SDF_DIELE(vec3 X)                     
@@ -44,7 +44,7 @@ FibreScene.prototype.sdf = function()
 				}             
 
 				float SDF_METAL(vec3 X) { return HUGE_VAL; }
-				float SDF_DIFFU(vec3 X) { return HUGE_VAL; }                                
+				float SDF_DIFFU(vec3 X) { return sdBox(X, vec3(-100.0, -2.5, -100.0), vec3(100.0, -2.0, 100.0)); }                             
 	`;
 }
 

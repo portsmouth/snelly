@@ -221,7 +221,7 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 	this.setEmissionRadius(0.0);
 	this.setEmissionSpreadAngle(10.0);
 	this.setEmissionPower(1.0);
-	this.setSkyPower(1000.0);
+	this.setSkyPower(1.0);
 
 	this.eulerAngles = new THREE.Euler();
 

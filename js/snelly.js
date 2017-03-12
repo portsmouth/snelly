@@ -154,9 +154,9 @@ var Snelly = function()
 	{
 		// Spectrum initialization
 		this.spectra = {}
-		this.SPECTRUM_SAMPLES = 256;
+		this.SPECTRUM_SAMPLES = 1024;
 		this.spectrumObj = null;
-		this.LAMBDA_MIN = 360.0;
+		this.LAMBDA_MIN = 390.0;
 	    this.LAMBDA_MAX = 750.0;
 		var wToRgb = wavelengthToRgbTable();
 		this.wavelengthToRgb = new GLU.Texture(wToRgb.length/4, 1, 4, true,  true, true, wToRgb);

@@ -57,7 +57,7 @@ GemScene.prototype.sdf = function()
 				}     
 				
 				float SDF_METAL(vec3 X) { return HUGE_VAL; }
-				float SDF_DIFFU(vec3 X) { return HUGE_VAL; }
+				float SDF_DIFFU(vec3 X) { return sdBox(X, vec3(-100.0, -2.5, -100.0), vec3(100.0, -2.0, 100.0)); }
                          
 	`;
 }
@@ -105,9 +105,9 @@ GemScene.prototype.init = function(controls, camera, laser)
 // set up gui and callbacks for this scene
 GemScene.prototype.initGui = function(parentFolder)
 {
-	this.widthItem = parentFolder.add(this._settings, 'scaleWidth', 1.0, 20.0);
-	this.heightItem = parentFolder.add(this._settings, 'scaleHeight', 1.0, 4.0);
-	this.angularItem = parentFolder.add(this._settings, 'angularFacets', 1, 20, 1);
+	this.widthItem = parentFolder.add(this._settings, 'scaleWidth', 1.0, 2.0);
+	this.heightItem = parentFolder.add(this._settings, 'scaleHeight', 1.0, 2.0);
+	this.angularItem = parentFolder.add(this._settings, 'angularFacets', 1, 100, 1);
 
 	this.widthItem.onChange( function(value) { snelly.reset(); } );
 	this.heightItem.onChange( function(value) { snelly.reset(); } );

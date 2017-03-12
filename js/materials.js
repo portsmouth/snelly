@@ -34,7 +34,7 @@ Material.prototype.getRoughness = function()
 function Metal(name, desc)
 {
 	Material.call(this, name, desc);
-	this.roughness = 0.01;
+	this.roughness = 0.001;
 }
 
 Metal.prototype = Object.create(Material.prototype);
@@ -132,7 +132,7 @@ LinearMetal.prototype.eraseGui = function(parentFolder) { Metal.prototype.eraseG
 function Dielectric(name, desc)
 {
 	Material.call(this, name, desc);
-	this.roughness = 0.01;
+	this.roughness = 0.001;
 }
 
 Dielectric.prototype = Object.create(Material.prototype);

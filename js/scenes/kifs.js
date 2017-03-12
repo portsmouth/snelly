@@ -66,7 +66,7 @@ KIFSScene.prototype.sdf = function()
 				}            
 
 				float SDF_METAL(vec3 X) { return HUGE_VAL; }
-				float SDF_DIFFU(vec3 X) { return HUGE_VAL; }
+				float SDF_DIFFU(vec3 X) { return sdBox(X, vec3(-100.0, -10.0, -100.0), vec3(100.0, -9.0, 100.0)); }
 	`;
 }
 

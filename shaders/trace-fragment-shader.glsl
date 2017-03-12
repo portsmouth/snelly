@@ -309,7 +309,7 @@ void main()
 	vec4 rnd       = texture2D(RngData, vTexCoord);
 	vec4 rgbw      = texture2D(RgbData, vTexCoord);
 
-	float wavelength = 360.0 + (750.0 - 360.0)*rgbw.w;
+	float wavelength = 390.0 + (750.0 - 390.0)*rgbw.w;
 	raytrace(rnd, X, D, rgbw.rgb, wavelength);
 
 	float sgn = sign( SDF_DIELE(X) );

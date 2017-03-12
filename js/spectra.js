@@ -89,7 +89,7 @@ MonochromaticSpectrum.prototype.inverseCDF = function(minwavelength, maxwaveleng
 MonochromaticSpectrum.prototype.initGui = function(parentFolder)
 {
 	ME = this;
-	this.wavelengthItem = parentFolder.add(this, 'wavelength', 360.0, 750.0);
+	this.wavelengthItem = parentFolder.add(this, 'wavelength', 390.0, 750.0);
 	this.wavelengthItem.onChange( function(value) 
 	{ 
 		snelly.loadSpectrum(ME.getName()); 
@@ -127,8 +127,8 @@ FlatSpectrum.prototype.spectrum = function(wavelength)
 FlatSpectrum.prototype.initGui = function(parentFolder)
 {
 	ME = this;
-	var dw = (750.0-360.0)/256.0;
-	this.minItem = parentFolder.add(this, 'Minimum wavelength', 360.0, 750.0, 0.1);
+	var dw = (750.0-390.0)/1024.0;
+	this.minItem = parentFolder.add(this, 'Minimum wavelength', 390.0, 750.0, 0.1);
 	this.minItem.onChange( function(value) 
 	{ 
 		if (ME['Minimum wavelength'] > ME['Maximum wavelength']-dw) 
@@ -136,7 +136,7 @@ FlatSpectrum.prototype.initGui = function(parentFolder)
 		snelly.loadSpectrum(ME.getName());
 	});
 
-	this.maxItem = parentFolder.add(this, 'Maximum wavelength', 360.0, 750.0, 0.1);
+	this.maxItem = parentFolder.add(this, 'Maximum wavelength', 390.0, 750.0, 0.1);
 	this.maxItem.onChange( function(value) 
 	{ 
 		if (ME['Maximum wavelength'] < ME['Minimum wavelength']+dw) 

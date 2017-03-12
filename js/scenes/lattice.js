@@ -102,12 +102,6 @@ LatticeScene.prototype.sdf = function()
 					return sd${this._settings.shape}(q, _size, _bulge/5.0);
 				}
 
-				float sdBox(vec3 X, vec3 bounds)                     
-				{                                     
-					vec3 d = abs(X) - bounds;
-					return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-				} 
-
 				float SDF_DIELE(vec3 X)                     
 				{
 					return opI( sdBox(X, vec3(_width, _height, _depth)), 
@@ -115,7 +109,7 @@ LatticeScene.prototype.sdf = function()
 				}     
 
 				float SDF_METAL(vec3 X) { return HUGE_VAL; }
-				float SDF_DIFFU(vec3 X) { return HUGE_VAL; }
+				float SDF_DIFFU(vec3 X) { return sdBox(X, vec3(-100.0, -2.5, -100.0), vec3(100.0, -2.0, 100.0)); }
 			`;
 }
 
