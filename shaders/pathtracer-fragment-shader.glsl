@@ -52,7 +52,6 @@ IOR_FUNC
 ///////////////////////////////////////////////////////////////////////////////////
 
 
-
 // find first hit over specified segment
 bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
                    inout vec3 hit, inout int material)
@@ -81,8 +80,8 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
         sdf = min(sdf_diele, min(sdf_metal, sdf_diffu));
         iters++;
     }
-    if (t>=maxDist || iters>=MAX_MARCH_STEPS) return false;
     hit = start + t*dir;
+    if (t>=maxDist || iters>=MAX_MARCH_STEPS) return false;
     return true;
 }
 
@@ -660,7 +659,6 @@ bool emitterHit(in vec3 startW, in vec3 endW,
 {
     vec3 wiW = normalize(endW - startW);
     float ewi = dot(EmitterDir, wiW);
-    //shit
     float spreadAngle = max(0.5*abs(EmitterSpread)*M_PI/180.0, 5.0e-4);         // @todo: calc on CPU
     float cosSpreadAngle = cos(spreadAngle);                                    // @todo: calc on CPU
     if (ewi > -cosSpreadAngle) return false;                                  
@@ -816,7 +814,7 @@ void main()
             int material_next;
             bool hit = traceRay(pW, wiW, pW_next, material_next);
             
-            // Add contribution from emitter if bounce ray hits it
+            // Add contribution from emitter if bounce ray hits it (before next surface vertex)
             float emitterRadiance;
             float emitterPdf;
             if ( emitterHit(pW, pW_next, emitterRadiance, emitterPdf) )
@@ -831,7 +829,10 @@ void main()
             // Exit now if ray missed
             if (!hit)
             {
-                float lightPdf = 0.5; // @todo: should vary in sync with direct lighting emissionProb
+                float emissionProb = EmitterPower/(EmitterPower + SkyPower);
+                float hemispherePdf = abs(dot(wiW, nW));
+                float environmentProb = 1.0 - emissionProb;
+                float lightPdf = environmentProb * hemispherePdf;
                 float misWeight = powerHeuristic(bsdfPdf, lightPdf);
                 float Li = environmentRadiance(wiW);
                 L += throughput * Li * misWeight;
@@ -845,7 +846,6 @@ void main()
             material = material_next;
         }
     }
-
 
     // Convert wavelenght to RGB (sRGB color space)
     vec3 RGB = texture2D(WavelengthToRgb, vec2(w, 0.5)).rgb;
@@ -863,10 +863,6 @@ void main()
     gl_FragData[1] = rnd;
     gl_FragData[2] = pack_depth(clipDepth);
 }
-
-
-
-
 
 
 
