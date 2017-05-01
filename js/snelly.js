@@ -15,13 +15,6 @@ var Snelly = function()
 	window.addEventListener( 'resize', this, false );
 
 	this.container = document.getElementById('container');
-	{
-		this.stats = new Stats();
-		this.stats.domElement.style.position = 'absolute';
-		this.stats.domElement.style.left  = '0px'
-		this.stats.domElement.style.bottom    = '0px'
-		this.container.appendChild( this.stats.domElement );
-	}
 
 	// Text canvas
 	var text_canvas = document.getElementById("text-canvas");
@@ -41,8 +34,9 @@ var Snelly = function()
 
 	this.glRenderer = new THREE.WebGLRenderer( { canvas: ui_canvas,
 											     alpha: true,
-											     antialias: true } );
-	this.glRenderer.setClearColor( 0x000000, 0 ); // the default
+											     antialias: true,
+											     autoClear: true } );
+	this.glRenderer.setClearColor( 0x00ff00, 0 ); // the default
 	this.glRenderer.setSize(this.width, this.height);
 	this.glScene = new THREE.Scene();
 	this.glScene.add(this.camera);
@@ -55,7 +49,6 @@ var Snelly = function()
 
 	var light = new THREE.AmbientLight( 0x808080 ); // soft white light
 	this.glScene.add( light );
-
 
 	// Create user control system for camera
 	this.controls = new THREE.OrbitControls(this.camera, this.glRenderer.domElement);
@@ -123,19 +116,6 @@ var Snelly = function()
 		this.addDielectric( new PolyanskiyDielectric("Rutile (Titanium Dioxide)", "", [5.913, 0.2441, 0.0, 0.0803, 1.0]) );
 		this.addDielectric( new PolyanskiyDielectric("Silver Chloride", "", [4.00804, 0.079086, 0.0, 0.04584, 1.0]) );
 
-		// Gases
-		/*
-		this.addMaterial( new Gas("Air", "", [0.0, 0.05792105, 238.0185, 0.00167917, 57.362]) );
-		this.addMaterial( new Gas("Helium gas", "", [0.0, 0.01470091, 423.98]) );
-		this.addMaterial( new Gas("Nitrogen gas", "", [6.497378e-5, 3.0738649e-2, 144.0]) );
-		this.addMaterial( new Gas("Oxygen gas", "", [1.181494e-4, 9.708931e-3, 75.4]) );
-		this.addMaterial( new Gas("Ammonia gas", "", [0.0, 0.032953, 90.392]) );
-		this.addMaterial( new Gas("Argon gas", "", [0.0, 2.50141e-3, 91.012, 5.00283e-4, 87.892, 5.22343e-2, 214.02]) );
-		this.addMaterial( new Gas("Neon gas", "", [0.0, 0.00128145, 184.661, 0.0220486, 376.840]) );
-		this.addMaterial( new Gas("Krypton gas", "", [0.0, 0.00253637, 65.4742, 0.00273649, 73.698, 0.0620802, 181.08]) );
-		this.addMaterial( new Gas("Xenon gas", "", [0.0, 0.00322869, 46.301, 0.00355393, 50.578, 0.0606764, 112.74]) );
-		*/
-
 		// @todo: Metals. Need a much better approximation than 'LinearMetal' for plausible metals 
 		this.addMetal( new LinearMetal("Aluminium", "",  0.46555, 4.7121, 1.6620, 8.0439) );
 		this.addMetal( new LinearMetal("Gold", "",       1.5275, 1.8394, 0.16918, 3.8816) );
@@ -144,8 +124,8 @@ var Snelly = function()
 	// Instantiate light tracer
 	this.lightTracer = new LightTracer();
 
-	// Instantiate distance field surface renderer
-	this.surfaceRenderer = new SurfaceRenderer();
+	// Instantiate distance field pathtracer
+	this.pathtracer = new Pathtracer();
 
 	// Do initial resize:
 	this.resize();
@@ -173,7 +153,7 @@ var Snelly = function()
 	this.gui = null;
 	this.loadDielectric("Glass (LASF35)");
 	this.loadMetal("Gold");
-	this.loadScene("Gem stone");
+	this.loadScene("Menger sponge");
 
 	// Create dat gui
 	this.gui = new GUI();
@@ -203,8 +183,8 @@ var Snelly = function()
 
 			case 72: // H key: hide dat gui
 				snelly.getGUI().visible = !(snelly.getGUI().visible);
-				if  (snelly.getGUI().visible) { snelly.stats.domElement.style.visibility = "visible"; }
-				else                          { snelly.stats.domElement.style.visibility = "hidden"; }
+				//if  (snelly.getGUI().visible) { snelly.stats.domElement.style.visibility = "visible"; }
+				//else                          { snelly.stats.domElement.style.visibility = "hidden"; }
 				break;
 
 			case 67: // C key: dev tool to dump cam and laser details, for setting scene defaults
@@ -248,9 +228,9 @@ Snelly.prototype.getLightTracer = function()
 	return this.lightTracer;
 }
 
-Snelly.prototype.getSurfaceRenderer = function()
+Snelly.prototype.getPathtracer = function()
 {
-	return this.surfaceRenderer;
+	return this.pathtracer;
 }
 
 Snelly.prototype.getGUI= function()
@@ -389,10 +369,10 @@ Snelly.prototype.getLoadedMetal = function()
 
 
 // Renderer reset on camera update
-Snelly.prototype.reset = function()
+Snelly.prototype.reset = function(no_recompile = false)
 {	
-	this.surfaceRenderer.reset();
-	this.lightTracer.reset();
+	this.pathtracer.reset(no_recompile);
+	//this.lightTracer.reset();
 
 	if (!this.initialized) return;
 
@@ -408,10 +388,11 @@ Snelly.prototype.render = function()
 	if (this.sceneObj == null) return;
 
 	var gl = GLU.gl;
-	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-	gl.enable(gl.DEPTH_TEST);
-
+	
 	gl.viewport(0, 0, this.width, this.height);
+	gl.clearColor(0.0, 0.0, 0.0, 1.0);
+	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+	gl.disable(gl.DEPTH_TEST);
 
 	// Render laser pointer
 	this.laser.render();
@@ -420,7 +401,7 @@ Snelly.prototype.render = function()
 	this.lightTracer.render();
 
 	// Render distance field surface
-	this.surfaceRenderer.render();
+	this.pathtracer.render();
 
 	// Update HUD text canvas	
 	this.textCtx.textAlign = "left";   	// This determines the alignment of text, e.g. left, center, right
@@ -432,26 +413,18 @@ Snelly.prototype.render = function()
 
 	if (snelly.getGUI().visible)
 	{
-	  	var lsStats = this.lightTracer.getStats();
-
-	  	if (this.onSnellyLink)
-	  	{
-	  		this.textCtx.fillStyle = "#ff5500";
-	  	}
-	  	else
-	  	{
-	  		this.textCtx.fillStyle = "#ffff00";
-	  	}
-	  	
+	  	if (this.onSnellyLink) this.textCtx.fillStyle = "#ff5500";
+	  	else                   this.textCtx.fillStyle = "#ffff00";
 	  	this.textCtx.fillText('Snelly renderer', 14, 20);
-
 	  	this.textCtx.fillStyle = "#aaaaff";
+
+	  	var lsStats = this.lightTracer.getStats();
 	  	this.textCtx.fillText('ray count:    ' + (lsStats.rayCount/1.0e6).toPrecision(3) + 'M', 14, 35);
 	  	this.textCtx.fillText('waves traced: ' + lsStats.wavesTraced,    14, 50);
 	}
 
 	// Update stats
-	this.stats.update();
+	//this.stats.update();
 }
 
 
@@ -475,13 +448,14 @@ Snelly.prototype.resize = function()
 	text_canvas.width  = width;
 	text_canvas.height = height
 
+	this.glRenderer.setSize(width, height);
+
 	this.camera.aspect = width / height;
 	this.camera.updateProjectionMatrix();
 
-	this.lightTracer.resize(width, height);
-	this.surfaceRenderer.resize(width, height);
-	this.glRenderer.setSize(width, height);
 	this.laser.resize(width, height);
+	this.pathtracer.resize(width, height);
+	this.lightTracer.resize(width, height);
 
 	if (this.initialized)
 		this.render();
@@ -527,9 +501,10 @@ Snelly.prototype.onDocumentMouseMove = function(event)
 		this.onSnellyLink = false;
 	}
 
+	console.log('mouse move');
 	this.controls.update();
 	event.preventDefault();
-	if (this.laser.onMouseMove(event)) this.reset();
+	if (this.laser.onMouseMove(event)) this.reset(true);
 }
 
 Snelly.prototype.onDocumentMouseDown = function(event)
@@ -555,7 +530,7 @@ Snelly.prototype.onDocumentRightClick = function(event)
 	var xPick =   (( event.clientX - this.glRenderer.domElement.offsetLeft ) / this.glRenderer.domElement.width)*2 - 1;
 	var yPick = - (( event.clientY - this.glRenderer.domElement.offsetTop ) / this.glRenderer.domElement.height)*2 + 1;
 
-	var pickedPoint = this.surfaceRenderer.pick(xPick, yPick);
+	var pickedPoint = this.pathtracer.pick(xPick, yPick);
 	if (pickedPoint == null)
 	{
 		this.laser.unsetTarget();
@@ -563,12 +538,15 @@ Snelly.prototype.onDocumentRightClick = function(event)
 	} 
 
 	this.laser.setTarget(pickedPoint);	
-	this.reset();
+
+	var no_recompile = true;
+	this.reset(no_recompile);
 }
 
 function camChanged()
 {
-	snelly.reset();
+	var no_recompile = true;
+	snelly.reset(no_recompile);
 	snelly.render();
 }
 

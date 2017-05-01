@@ -277,6 +277,295 @@ void main(void)
 }
 `,
 
+'filter-fragment-shader': `
+#extension GL_EXT_draw_buffers : require
+//#extension GL_EXT_frag_depth : require
+precision highp float;
+
+#define M_PI 3.1415926535897932384626433832795
+
+#define HUGE_VAL 1.0e12
+
+/// GLSL floating point pseudorandom number generator, from
+/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
+/// http://arxiv.org/pdf/1505.06022.pdf
+float rand(inout vec4 rnd) 
+{
+    const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
+    const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
+    const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
+    const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
+    vec4 beta = floor(rnd/q);
+    vec4 p = a*(rnd - beta*q) - beta*r;
+    beta = (1.0 - sign(p))*0.5*m;
+    rnd = p + beta;
+    return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
+}
+
+/// Distance field utilities
+
+// Union
+float opU( float d1, float d2 ) { return min(d1,d2); }
+
+// Subtraction
+float opS(float A, float B) { return max(-B, A); }
+
+// Intersection
+float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+
+float saturate(float x) { return max(0.0, min(1.0, x)); }
+
+// clip space depth calculation, given eye space depth
+float computeClipDepth(float ze, float zNear, float zFar)
+{
+	float zn = (zFar + zNear - 2.0*zFar*zNear/ze) / (zFar - zNear); // compute NDC depth
+	float zb = zn*0.5 + 0.5;                                        // convert to clip depth
+	return saturate(zb); // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+///
+/// A neat trick to return a float value from a webGL fragment shader
+///
+float shift_right (float v, float amt) { 
+    v = floor(v) + 0.5; 
+    return floor(v / exp2(amt)); 
+}
+float shift_left (float v, float amt) { 
+    return floor(v * exp2(amt) + 0.5); 
+}
+float mask_last (float v, float bits) { 
+    return mod(v, shift_left(1.0, bits)); 
+}
+float extract_bits (float num, float from, float to) { 
+    from = floor(from + 0.5); to = floor(to + 0.5); 
+    return mask_last(shift_right(num, from), to - from); 
+}
+vec4 encode_float (float val) { 
+    if (val == 0.0) return vec4(0, 0, 0, 0); 
+    float sign = val > 0.0 ? 0.0 : 1.0; 
+    val = abs(val); 
+    float exponent = floor(log2(val)); 
+    float biased_exponent = exponent + 127.0; 
+    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
+    float t = biased_exponent / 2.0; 
+    float last_bit_of_biased_exponent = fract(t) * 2.0; 
+    float remaining_bits_of_biased_exponent = floor(t); 
+    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
+    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
+    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
+    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
+    return vec4(byte4, byte3, byte2, byte1); 
+}
+
+
+vec4 pack_depth(const in float depth)
+{
+    return vec4(depth, 0.0, 0.0, 1.0);
+}
+
+float unpack_depth(const in vec4 rgba_depth)
+{
+    return rgba_depth.r;
+}
+
+uniform sampler2D Radiance;      
+uniform vec2 resolution;
+
+#define RADIANCE_TOLERANCE 1.0e-6
+
+
+float filter(float r2)
+{
+    return max(0.0, 1.0-r2*r2);
+}
+
+void main()
+{
+    vec2 pixel = gl_FragCoord.xy;
+
+    // Average current radiance over sample set within filter radius
+    float maxx = resolution.x-1.0;
+    float maxy = resolution.y-1.0;
+    vec2 invRes = 1.0/resolution.xy;
+    float invWidth = 0.5/float(DOWN_RES);
+
+    vec3 mean = vec3(0.0);
+    float norm = 0.0;
+    for (int i=-2*DOWN_RES; i<=2*DOWN_RES; ++i)
+    {
+        float _i = max(min(maxx, pixel.x+float(i)), 0.0);
+        float u = _i*invRes.x;
+        float dx = float(i)*invWidth;
+        float dx2 = dx*dx;
+
+        for (int j=-2*DOWN_RES; j<2*DOWN_RES; ++j)
+        {
+            float _j = max(min(maxy, pixel.y+float(j)), 0.0);
+            float v = _j*invRes.y;
+            float dy = float(j)*invWidth;
+            
+            float r2 = dx2 + dy*dy;
+            float f = filter(r2);
+            if (f>1.0e-3)
+            {
+                vec4 L = texture2D(Radiance, vec2(u,v));  
+                float weight = f * L.w;
+                mean += weight * L.xyz;
+                norm += weight;
+            }
+        }
+    }
+
+    mean /= max(norm, RADIANCE_TOLERANCE);
+    gl_FragData[0] = vec4(mean, 1.0);
+}
+`,
+
+'filter-vertex-shader': `
+#extension GL_EXT_draw_buffers : require
+//#extension GL_EXT_frag_depth : require
+precision highp float;
+
+#define M_PI 3.1415926535897932384626433832795
+
+#define HUGE_VAL 1.0e12
+
+/// GLSL floating point pseudorandom number generator, from
+/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
+/// http://arxiv.org/pdf/1505.06022.pdf
+float rand(inout vec4 rnd) 
+{
+    const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
+    const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
+    const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
+    const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
+    vec4 beta = floor(rnd/q);
+    vec4 p = a*(rnd - beta*q) - beta*r;
+    beta = (1.0 - sign(p))*0.5*m;
+    rnd = p + beta;
+    return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
+}
+
+/// Distance field utilities
+
+// Union
+float opU( float d1, float d2 ) { return min(d1,d2); }
+
+// Subtraction
+float opS(float A, float B) { return max(-B, A); }
+
+// Intersection
+float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+
+float saturate(float x) { return max(0.0, min(1.0, x)); }
+
+// clip space depth calculation, given eye space depth
+float computeClipDepth(float ze, float zNear, float zFar)
+{
+	float zn = (zFar + zNear - 2.0*zFar*zNear/ze) / (zFar - zNear); // compute NDC depth
+	float zb = zn*0.5 + 0.5;                                        // convert to clip depth
+	return saturate(zb); // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+///
+/// A neat trick to return a float value from a webGL fragment shader
+///
+float shift_right (float v, float amt) { 
+    v = floor(v) + 0.5; 
+    return floor(v / exp2(amt)); 
+}
+float shift_left (float v, float amt) { 
+    return floor(v * exp2(amt) + 0.5); 
+}
+float mask_last (float v, float bits) { 
+    return mod(v, shift_left(1.0, bits)); 
+}
+float extract_bits (float num, float from, float to) { 
+    from = floor(from + 0.5); to = floor(to + 0.5); 
+    return mask_last(shift_right(num, from), to - from); 
+}
+vec4 encode_float (float val) { 
+    if (val == 0.0) return vec4(0, 0, 0, 0); 
+    float sign = val > 0.0 ? 0.0 : 1.0; 
+    val = abs(val); 
+    float exponent = floor(log2(val)); 
+    float biased_exponent = exponent + 127.0; 
+    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
+    float t = biased_exponent / 2.0; 
+    float last_bit_of_biased_exponent = fract(t) * 2.0; 
+    float remaining_bits_of_biased_exponent = floor(t); 
+    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
+    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
+    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
+    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
+    return vec4(byte4, byte3, byte2, byte1); 
+}
+
+
+vec4 pack_depth(const in float depth)
+{
+    return vec4(depth, 0.0, 0.0, 1.0);
+}
+
+float unpack_depth(const in vec4 rgba_depth)
+{
+    return rgba_depth.r;
+}
+
+attribute vec3 Position;
+attribute vec2 TexCoord;
+
+varying vec2 vTexCoord;
+
+void main() 
+{
+	gl_Position = vec4(Position, 1.0);
+	vTexCoord = TexCoord;
+}
+`,
+
 'init-fragment-shader': `
 #extension GL_EXT_draw_buffers : require
 //#extension GL_EXT_frag_depth : require
@@ -1465,10 +1754,12 @@ uniform sampler2D Radiance;         // 0
 uniform sampler2D RngData;          // 1
 uniform sampler2D WavelengthToRgb;  // 2
 uniform sampler2D ICDF;             // 3
+uniform sampler2D RadianceBlocks;   // 4
 
 varying vec2 vTexCoord;
 
 uniform vec2 resolution;
+uniform int downRes;
 uniform vec3 camPos;
 uniform vec3 camDir;
 uniform vec3 camX;
@@ -1514,7 +1805,6 @@ IOR_FUNC
 ///////////////////////////////////////////////////////////////////////////////////
 
 
-
 // find first hit over specified segment
 bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
                    inout vec3 hit, inout int material)
@@ -1543,8 +1833,8 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
         sdf = min(sdf_diele, min(sdf_metal, sdf_diffu));
         iters++;
     }
-    if (t>=maxDist || iters>=MAX_MARCH_STEPS) return false;
     hit = start + t*dir;
+    if (t>=maxDist || iters>=MAX_MARCH_STEPS) return false;
     return true;
 }
 
@@ -1581,8 +1871,6 @@ bool Occluded(in vec3 start, in vec3 dir)
     bool occluded = traceRay(start+delta, dir, hit, material);
     return occluded;
 }
-
-
 
 vec3 normal(in vec3 pW, int material)
 {
@@ -1684,9 +1972,9 @@ float microfacetEval(in vec3 m, in float roughness)
     float tanTheta2 = tanTheta2(m);
     float cosTheta2 = cosTheta2(m);
     float roughnessSqr = roughness*roughness;
-    float epsilon = 1.0e-7;
+    float epsilon = 1.0e-9;
     float exponent = tanTheta2 / max(roughnessSqr, epsilon);
-    float D = exp(-exponent) / (M_PI * roughnessSqr * cosTheta2*cosTheta2);
+    float D = exp(-exponent) / (M_PI * max(roughnessSqr, epsilon) * cosTheta2*cosTheta2);
     return D;
 }
 
@@ -1696,7 +1984,7 @@ vec3 microfacetSample(inout vec4 rnd, in float roughness)
     float phiM = (2.0 * M_PI) * rand(rnd);
     float cosPhiM = cos(phiM);
     float sinPhiM = sin(phiM);
-    float epsilon = 1.0e-6;
+    float epsilon = 1.0e-9;
     float tanThetaMSqr = -roughness*roughness * log(max(epsilon, rand(rnd)));
     float cosThetaM = 1.0 / sqrt(1.0 + tanThetaMSqr);
     float sinThetaM = sqrt(max(0.0, 1.0 - cosThetaM*cosThetaM));
@@ -1715,7 +2003,8 @@ float smithG1(in vec3 vLocal, in vec3 mLocal, float roughness)
     float tanThetaAbs = abs(tanTheta(vLocal));
     if (tanThetaAbs < 1.0e-6) return 1.0; // perpendicular incidence -- no shadowing/masking
     if (dot(vLocal, mLocal) * vLocal.z <= 0.0) return 0.0; // Back side is not visible from the front side, and the reverse.
-    float a = 1.0 / (roughness * tanThetaAbs); // Rational approximation to the shadowing/masking function (Walter et al)  (<0.35% rel. error)
+    float epsilon = 1.0e-6;
+    float a = 1.0 / (max(roughness, epsilon) * tanThetaAbs); // Rational approximation to the shadowing/masking function (Walter et al)  (<0.35% rel. error)
     if (a >= 1.6) return 1.0;
     float aSqr = a*a;
     return (3.535*a + 2.181*aSqr) / (1.0 + 2.276*a + 2.577*aSqr);
@@ -1896,15 +2185,12 @@ float sampleDielectric( in vec3 woL, in float roughness, in float wavelength_nm,
     {
         // Compute specularly reflected ray direction
         wiL = -woL + 2.0*dot(woL, m)*m; // Compute incident direction by reflecting woL about m
-
-        // Microfacet distribution
-        vec3 wh = m; // microfacet normal m = reflection half-vector
-        float D = microfacetEval(wh, roughness);
+        float D = microfacetEval(m, roughness);
         float G = smithG2(woL, wiL, m, roughness); // Shadow-masking function
         float f = R * D * G / (4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)) + DENOM_TOLERANCE);
-
-        // Return total BRDF and corresponding pdf
-        pdfOut = microPDF * reflectProb;
+        float dwh_dwo; // Jacobian of the half-direction mapping
+        dwh_dwo = 1.0 / max(abs(4.0*dot(woL, m)), DENOM_TOLERANCE);
+        pdfOut = microPDF * reflectProb * dwh_dwo; // Return total BRDF and corresponding pdf
         return f;
     }
 
@@ -1933,10 +2219,7 @@ float sampleDielectric( in vec3 woL, in float roughness, in float wavelength_nm,
         }
 
         // Compute incident direction corresponding to known transmitted direction
-        if ( !refraction(ni, eta, woL, wiL) )
-        {
-            return 0.0; // total internal reflection occurred
-        }
+        if ( !refraction(ni, eta, woL, wiL) ) return 0.0; // total internal reflection occurred
         wiL = -wiL; // As refract() computes the incident beam direction, and wiL is defined to be opposite to that.
     
         // Compute Fresnel transmittance
@@ -1948,7 +2231,6 @@ float sampleDielectric( in vec3 woL, in float roughness, in float wavelength_nm,
         vec3 wh = m; // refraction half-vector = m
         float D = microfacetEval(wh, roughness);
         float G = smithG2(woL, wiL, wh, roughness); // Shadow-masking function
-
         float dwh_dwo; // Jacobian of the half-direction mapping
         float im = dot(wiL, m);
         {
@@ -1984,14 +2266,23 @@ float evaluateMetal( in vec3 woL, in vec3 wiL, in float roughness, in float wave
 {
     float ior = IOR_METAL(wavelength_nm);
     float k = K_METAL(wavelength_nm);
-    return 0.0;
+    float R = fresnelMetalReflectance(woL.z, ior, k);
+    vec3 h = normalize(wiL + woL); // Compute the reflection half-vector
+    float D = microfacetEval(h, roughness);
+    float G = smithG2(woL, wiL, h, roughness);
+    float f = R * D * G / max(4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
+    return f;
 }
 
 float pdfMetal( in vec3 woL, in vec3 wiL, in float roughness, in float wavelength_nm )
 {
-    float ior = IOR_METAL(wavelength_nm);
+    float ior = IOR_DIELE(wavelength_nm);
     float k = K_METAL(wavelength_nm);
-    return 0.0;
+    float R = fresnelMetalReflectance(woL.z, ior, k);
+    vec3 h = normalize(wiL + woL); // reflection half-vector
+    float dwh_dwo = 1.0 / max(abs(4.0*dot(woL, h)), DENOM_TOLERANCE); // Jacobian of the half-direction mapping
+    float pdf = microfacetPDF(h, roughness) * dwh_dwo;
+    return pdf;
 }
 
 float sampleMetal( in vec3 woL, in float roughness, in float wavelength_nm,
@@ -1999,7 +2290,17 @@ float sampleMetal( in vec3 woL, in float roughness, in float wavelength_nm,
 {
     float ior = IOR_METAL(wavelength_nm);
     float k = K_METAL(wavelength_nm);
-    return 0.0;
+    float R = fresnelMetalReflectance(woL.z, ior, k);
+    vec3 m = microfacetSample(rnd, roughness); // Sample microfacet normal m
+    wiL = -woL + 2.0*dot(woL, m)*m; // Compute wiL by reflecting woL about m
+    float D = microfacetEval(m, roughness);
+    float G = smithG2(woL, wiL, m, roughness); // Shadow-masking function
+    float f = R * D * G / (4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)) + DENOM_TOLERANCE);
+    float dwh_dwo; // Jacobian of the half-direction mapping
+    dwh_dwo = 1.0 / max(abs(4.0*dot(woL, m)), DENOM_TOLERANCE);
+    // Return total BRDF and corresponding pdf
+    pdfOut = microfacetPDF(m, roughness) * dwh_dwo;
+    return f;
 }
 
 
@@ -2122,7 +2423,6 @@ bool emitterHit(in vec3 startW, in vec3 endW,
 {
     vec3 wiW = normalize(endW - startW);
     float ewi = dot(EmitterDir, wiW);
-    //shit
     float spreadAngle = max(0.5*abs(EmitterSpread)*M_PI/180.0, 5.0e-4);         // @todo: calc on CPU
     float cosSpreadAngle = cos(spreadAngle);                                    // @todo: calc on CPU
     if (ewi > -cosSpreadAngle) return false;                                  
@@ -2208,9 +2508,8 @@ float directLighting(in vec3 pW, Basis basis, in vec3 woW, in int material,
 // Pathtracing logic
 ////////////////////////////////////////////////////////////////////////////////
 
-void main()
+void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
 {
-    vec4 rnd  = texture2D(RngData, vTexCoord);
     const float PDF_EPSILON = 1.0e-5;
 
     // Sample photon wavelength via the inverse CDF of the emission spectrum
@@ -2220,7 +2519,6 @@ void main()
     float wavelength_nm = 390.0 + (750.0 - 390.0)*w;
 
     // Jitter over pixel
-    vec2 pixel = gl_FragCoord.xy;
     pixel += -0.5 + vec2(rand(rnd), rand(rnd));
 
     // Compute world ray direction for this fragment
@@ -2259,6 +2557,7 @@ void main()
             Basis basis = makeBasis(nW);
 
             // Add direct lighting term
+            // @todo: if the vertex here is interior to a dielectric, direct lighting can be ignored
             L += throughput * directLighting(pW, basis, woW, material, wavelength_nm, rnd);
 
             // Sample BSDF for the next bounce direction
@@ -2278,7 +2577,7 @@ void main()
             int material_next;
             bool hit = traceRay(pW, wiW, pW_next, material_next);
             
-            // Add contribution from emitter if bounce ray hits it
+            // Add contribution from emitter if bounce ray hits it (before next surface vertex)
             float emitterRadiance;
             float emitterPdf;
             if ( emitterHit(pW, pW_next, emitterRadiance, emitterPdf) )
@@ -2293,7 +2592,10 @@ void main()
             // Exit now if ray missed
             if (!hit)
             {
-                float lightPdf = 0.5; // @todo: should vary in sync with direct lighting emissionProb
+                float emissionProb = EmitterPower/(EmitterPower + SkyPower);
+                float hemispherePdf = abs(dot(wiW, nW));
+                float environmentProb = 1.0 - emissionProb;
+                float lightPdf = environmentProb * hemispherePdf;
                 float misWeight = powerHeuristic(bsdfPdf, lightPdf);
                 float Li = environmentRadiance(wiW);
                 L += throughput * Li * misWeight;
@@ -2308,12 +2610,10 @@ void main()
         }
     }
 
-
     // Convert wavelenght to RGB (sRGB color space)
     vec3 RGB = texture2D(WavelengthToRgb, vec2(w, 0.5)).rgb;
     vec3 color = RGB * L;
-
-    float clipDepth = computeClipDepth(zHit, camNear, camFar);
+    //float clipDepth = computeClipDepth(zHit, camNear, camFar);
 
     // Write updated radiance and sample count
     vec4 oldL = texture2D(Radiance, vTexCoord);
@@ -2323,7 +2623,55 @@ void main()
 
     gl_FragData[0] = vec4(newL, newN);
     gl_FragData[1] = rnd;
-    gl_FragData[2] = pack_depth(clipDepth);
+    //gl_FragData[2] = pack_depth(clipDepth);
+}
+
+void RENDER_ALL()
+{
+    vec4 rnd = texture2D(RngData, vTexCoord);
+    pathtrace(gl_FragCoord.xy, rnd);
+
+    /*
+    float renderProb = 0.5;
+    if (rand(rnd) < renderProb)
+    {
+        pathtrace(gl_FragCoord.xy, rnd);
+    }
+    else
+    {        
+        gl_FragData[0] = texture2D(Radiance, vTexCoord);
+        gl_FragData[1] = rnd;
+    }
+    */
+}
+
+void RENDER_BLOCKS()
+{
+    vec2 pixel = gl_FragCoord.xy - vec2(0.5, 0.5); // shift to get integer coords 
+    float xrem = mod(float(pixel.x), float(downRes));
+    float yrem = mod(float(pixel.y), float(downRes));
+    float maxx = resolution.x-1.0;
+    float maxy = resolution.y-1.0;
+
+    vec4 rnd = texture2D(RngData, vTexCoord);
+  //  float renderProb = 0.01;///(float(downRes)*float(downRes));
+
+    // Sample only 1 pixel per block (the lower left one)
+    float MOD_TOL = 1.0e-3;
+    if (xrem<MOD_TOL && yrem<MOD_TOL)// && rand(rnd)<renderProb)
+    {
+        // jitter pixel in block..
+        pixel += float(downRes) * vec2(rand(rnd), rand(rnd));
+        pixel.x = min(pixel.x, maxx);
+        pixel.y = min(pixel.y, maxy);
+        pathtrace(pixel, rnd);
+    }
+    else
+    {
+        gl_FragData[0] = texture2D(Radiance, vTexCoord);
+        gl_FragData[1] = rnd;
+        //gl_FragData[2] = pack_depth(clipDepth);
+    }
 }
 `,
 

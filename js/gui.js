@@ -13,7 +13,7 @@ var GUI = function()
 	this.createMaterialSettings();
 	this.createEmissionSettings();
 	this.createLightTracerSettings();
-	this.createSurfaceRendererSettings();
+	this.createPathtracerSettings();
 }
 
 function updateDisplay(gui) {
@@ -75,66 +75,24 @@ function hexToRgb(hex) {
 }
 
 
-GUI.prototype.createSurfaceRendererSettings = function()
+GUI.prototype.createPathtracerSettings = function()
 {
-	this.surfaceRendererFolder = this.gui.addFolder('Surface Renderer');
-	this.surfaceRendererSettings = {};
-	var surfaceRenderer = snelly.getSurfaceRenderer();
+	this.pathtracerFolder = this.gui.addFolder('Pathtracer');
+	this.pathtracerSettings = {};
+	var pathtracer = snelly.getPathtracer();
 
 	var renderModes = ['normals', 'blinn'];
 	
-	this.surfaceRendererFolder.add(surfaceRenderer, 'enable');
-	//this.surfaceRendererFolder.add(surfaceRenderer, 'depthTest');
-	this.surfaceRendererFolder.add(surfaceRenderer, 'showBounds');
-	//this.surfaceRendererFolder.add(surfaceRenderer, 'renderMode', renderModes).onChange( function(renderMode) { surfaceRenderer.reset(); });
-	this.surfaceRendererFolder.add(surfaceRenderer, 'exposure', 0.0, 50.0);
-	this.surfaceRendererFolder.add(surfaceRenderer, 'maxBounces', 1, 10).onChange( function(value) { surfaceRenderer.maxBounces = Math.floor(value); surfaceRenderer.reset(); } );
-	this.surfaceRendererFolder.add(surfaceRenderer, 'maxMarchSteps', 1, 1024).onChange( function(value) { surfaceRenderer.maxMarchSteps = Math.floor(value); surfaceRenderer.reset(); } );
+	this.pathtracerFolder.add(pathtracer, 'enable');
+	//this.pathtracerFolder.add(pathtracer, 'depthTest');
+	this.pathtracerFolder.add(pathtracer, 'showBounds');
+	//this.pathtracerFolder.add(pathtracer, 'renderMode', renderModes).onChange( function(renderMode) { pathtracer.reset(); });
+	this.pathtracerFolder.add(pathtracer, 'exposure', 0.0, 50.0);
+	this.pathtracerFolder.add(pathtracer, 'maxBounces', 1, 10).onChange( function(value) { pathtracer.maxBounces = Math.floor(value); pathtracer.reset(); } );
+	this.pathtracerFolder.add(pathtracer, 'maxMarchSteps', 1, 1024).onChange( function(value) { pathtracer.maxMarchSteps = Math.floor(value); pathtracer.reset(); } );
 
-	//this.surfaceRendererSettings.diffuseCol1 = [surfaceRenderer.kd1[0]*255.0, surfaceRenderer.kd1[1]*255.0, surfaceRenderer.kd1[2]*255.0];
-	//this.surfaceRendererSettings.diffuseCol2 = [surfaceRenderer.kd2[0]*255.0, surfaceRenderer.kd2[1]*255.0, surfaceRenderer.kd2[2]*255.0];
-	/*
-	this.surfaceRendererFolder.addColor(this.surfaceRendererSettings, 'diffuseCol1').onChange( function(value) 
-	{
-		if (typeof value==='string' || value instanceof String)
-		{
-			var color = hexToRgb(value);
-			surfaceRenderer.kd1[0] = color.r / 255.0;
-			surfaceRenderer.kd1[1] = color.g / 255.0;
-			surfaceRenderer.kd1[2] = color.b / 255.0;
-		}
-		else
-		{
-			surfaceRenderer.kd1[0] = value[0] / 255.0;
-			surfaceRenderer.kd1[1] = value[1] / 255.0;
-			surfaceRenderer.kd1[2] = value[2] / 255.0;
-		}
-		surfaceRenderer.reset(); 
-	});
-
-	this.surfaceRendererFolder.addColor(this.surfaceRendererSettings, 'diffuseCol2').onChange( function(value) 
-	{ 
-		if (typeof value==='string' || value instanceof String)
-		{
-			var color = hexToRgb(value);
-			surfaceRenderer.kd2[0] = color.r / 255.0;
-			surfaceRenderer.kd2[1] = color.g / 255.0;
-			surfaceRenderer.kd2[2] = color.b / 255.0;
-		}
-		else
-		{
-			surfaceRenderer.kd2[0] = value[0] / 255.0;
-			surfaceRenderer.kd2[1] = value[1] / 255.0;
-			surfaceRenderer.kd2[2] = value[2] / 255.0;
-		}
-		surfaceRenderer.reset(); 
-	});
-
-	this.surfaceRendererFolder.add(surfaceRenderer, 'specPower', 1.0, 100.0).onChange( function(renderMode) { surfaceRenderer.reset(); });
-	*/
-
-	this.gui.remember(this.surfaceRendererSettings);
-	this.surfaceRendererFolder.open();
+	this.gui.remember(this.pathtracerSettings);
+	this.pathtracerFolder.open();
 }
 
 
@@ -142,10 +100,10 @@ GUI.prototype.createEmissionSettings = function()
 {
 	this.emissionFolder = this.gui.addFolder('Emission');
 	var lightTracer = snelly.getLightTracer();
-	var surfaceRenderer = snelly.getSurfaceRenderer();
+	var pathtracer = snelly.getPathtracer();
 	var laser = snelly.getLaser();
 	this.emissionSettings = {};
-	this.emissionSettings.showLaserPointer = true;
+	this.emissionSettings.showLaserPointer = false;
 	this.emissionSettings.spectrum = 'monochromatic';
 	this.emissionSettings.emissionRadius = 0.01;
 
@@ -156,26 +114,26 @@ GUI.prototype.createEmissionSettings = function()
 	{ 
 		laser.setEmissionRadius(value);      
 		lightTracer.reset(); 
-		surfaceRenderer.reset();
+		pathtracer.reset();
 	} );
 	this.emissionFolder.add(laser, 'emissionSpread', 0.0, 90.0).onChange( function(value) 
 	{ 
 		laser.setEmissionSpreadAngle(value);
 		lightTracer.reset(); 
-		surfaceRenderer.reset();
+		pathtracer.reset();
 	} );
 	this.emissionFolder.add(laser, 'emissionPower', 0.0, 10.0).onChange( function(value) 
 	{ 
 		laser.setEmissionPower(value);
 		lightTracer.reset(); 
-		surfaceRenderer.reset();
+		pathtracer.reset();
 	} );
 
 	this.emissionFolder.add(laser, 'skyPower', 0.0, 1.0).onChange( function(value) 
 	{ 
 		laser.setSkyPower(value);
 		lightTracer.reset(); 
-		surfaceRenderer.reset();
+		pathtracer.reset();
 	} );
 
 	this.gui.remember(laser);

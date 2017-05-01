@@ -142,6 +142,7 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 						new THREE.MeshBasicMaterial( { visible: false } ) );
 	backPlaneObj.position.x = 0.0;
 	backPlaneObj.position.y = 0.0;
+	backPlaneObj.visible = true;
 
 	this.X = new THREE.Vector3(1, 0, 0);
 	this.Y = new THREE.Vector3(0, 1, 0);
@@ -225,6 +226,9 @@ var LaserPointer = function(glRenderer, glScene, glCamera, controls)
 
 	this.eulerAngles = new THREE.Euler();
 
+	// Is laser pointer initially visible?
+	group.visible = true;
+
 	this.resize(window.innerWidth, window.innerHeight);
 }
 
@@ -284,11 +288,11 @@ LaserPointer.prototype.render = function()
 	// (so on zooming in, body doesn't 'swallow' the manips).
 	var C = Math.max(C, 0.05*this.getEmissionRadius());
 
-	intersectionHandleGroup = this.objects["intersectionHandleGroup"];
+	var intersectionHandleGroup = this.objects["intersectionHandleGroup"];
 	intersectionHandleGroup.scale.set(C, C, C);
 	intersectionHandleGroup.updateMatrix();
 
-	translater = this.objects['translater'];
+	var translater = this.objects['translater'];
 	translater.scale.set(C, C, C);
 	translater.updateMatrix();
 
@@ -308,10 +312,15 @@ LaserPointer.prototype.render = function()
 	var sceneObj = snelly.getLoadedScene();
 	var bbox = this.objects['bbox'];
 	bbox.update(sceneObj.getBox());
-	var surfaceRenderer = snelly.getSurfaceRenderer();
-	bbox.visible = surfaceRenderer.enabled() && surfaceRenderer.showBounds;
+	var pathtracer = snelly.getPathtracer();
+	bbox.visible = pathtracer.enabled() && pathtracer.showBounds;
 
-	this.glRenderer.render(this.glScene, this.glCamera);
+	//var group = this.objects["group"];
+	//if (this.isVisible())
+	{
+		//this.glRenderer.clear();
+		this.glRenderer.render(this.glScene, this.glCamera);
+	}		
 }
 
 /// Queries:
@@ -514,6 +523,7 @@ LaserPointer.prototype.onMouseMove = function(event)
 			// Translation on dragging 'rods'
 			if (this.SELECTED == obj['xHandleIntersection'])
 			{
+				console.log("X");
 				var moveX = shiftDist / (shift.dot(this.getX()) + epsilonLength);
 				var xTranslation = new THREE.Vector3();
 				xTranslation.copy(this.getX()).multiplyScalar(moveX);
@@ -644,6 +654,7 @@ LaserPointer.prototype.onMouseMove = function(event)
 		}
 		this.emitterObj.material.emissive.set( 0x000000 );
 
+		var translater = this.objects['translater'];
 		translater.material.emissive.set( 0x000000 );
 
 		var intersections = this.raycaster.intersectObjects(this.intersectionHandleObjects);
@@ -686,12 +697,12 @@ LaserPointer.prototype.onMouseDown = function(event)
 
 	obj = this.objects;
 	var intersections = this.raycaster.intersectObjects(this.intersectionHandleObjects);
-
 	if ( intersections.length > 0 )
 	{
 		this.controls.enabled = false;
 		this.SELECTED           = intersections[0].object;
 		this.SELECTION_HITPOINT = intersections[0].point;
+
 		var backplaneIntersection = this.raycaster.intersectObject(obj['backPlane']);
 		if ( backplaneIntersection.length > 0 ) 
 		{

@@ -85,13 +85,13 @@ TwistedTubeScene.prototype.getBox = function()
 // set up gui and callbacks for this scene
 TwistedTubeScene.prototype.initGui = function(parentFolder)
 {
-	this.aItem = parentFolder.add(this._settings.bounds, 'x', 0.01, 10.0);
+	this.aItem = parentFolder.add(this._settings.bounds, 'x', 0.01, 50.0);
 	this.aItem.onChange( function(value) { snelly.reset(); } );
 
-	this.bItem = parentFolder.add(this._settings.bounds, 'y', 0.01, 10.0);
+	this.bItem = parentFolder.add(this._settings.bounds, 'y', 0.01, 50.0);
 	this.bItem.onChange( function(value) { snelly.reset(); } );
 
-	this.cItem = parentFolder.add(this._settings.bounds, 'z', 0.01, 10.0);
+	this.cItem = parentFolder.add(this._settings.bounds, 'z', 0.01, 50.0);
 	this.cItem.onChange( function(value) { snelly.reset(); } );
 
 	this.twistItem = parentFolder.add(this._settings, 'twist', 0.0, 1.0);

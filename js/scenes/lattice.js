@@ -102,13 +102,13 @@ LatticeScene.prototype.sdf = function()
 					return sd${this._settings.shape}(q, _size, _bulge/5.0);
 				}
 
-				float SDF_DIELE(vec3 X)                     
+				float SDF_METAL(vec3 X)                     
 				{
 					return opI( sdBox(X, vec3(_width, _height, _depth)), 
 								lattice(X, _spacing) );
 				}     
 
-				float SDF_METAL(vec3 X) { return HUGE_VAL; }
+				float SDF_DIELE(vec3 X) { return HUGE_VAL; }
 				float SDF_DIFFU(vec3 X) { return sdBox(X, vec3(-100.0, -2.5, -100.0), vec3(100.0, -2.0, 100.0)); }
 			`;
 }

@@ -3,10 +3,12 @@ uniform sampler2D Radiance;         // 0
 uniform sampler2D RngData;          // 1
 uniform sampler2D WavelengthToRgb;  // 2
 uniform sampler2D ICDF;             // 3
+uniform sampler2D RadianceBlocks;   // 4
 
 varying vec2 vTexCoord;
 
 uniform vec2 resolution;
+uniform int downRes;
 uniform vec3 camPos;
 uniform vec3 camDir;
 uniform vec3 camX;
@@ -119,8 +121,6 @@ bool Occluded(in vec3 start, in vec3 dir)
     return occluded;
 }
 
-
-
 vec3 normal(in vec3 pW, int material)
 {
     // Compute normal as gradient of SDF
@@ -221,9 +221,9 @@ float microfacetEval(in vec3 m, in float roughness)
     float tanTheta2 = tanTheta2(m);
     float cosTheta2 = cosTheta2(m);
     float roughnessSqr = roughness*roughness;
-    float epsilon = 1.0e-7;
+    float epsilon = 1.0e-9;
     float exponent = tanTheta2 / max(roughnessSqr, epsilon);
-    float D = exp(-exponent) / (M_PI * roughnessSqr * cosTheta2*cosTheta2);
+    float D = exp(-exponent) / (M_PI * max(roughnessSqr, epsilon) * cosTheta2*cosTheta2);
     return D;
 }
 
@@ -233,7 +233,7 @@ vec3 microfacetSample(inout vec4 rnd, in float roughness)
     float phiM = (2.0 * M_PI) * rand(rnd);
     float cosPhiM = cos(phiM);
     float sinPhiM = sin(phiM);
-    float epsilon = 1.0e-6;
+    float epsilon = 1.0e-9;
     float tanThetaMSqr = -roughness*roughness * log(max(epsilon, rand(rnd)));
     float cosThetaM = 1.0 / sqrt(1.0 + tanThetaMSqr);
     float sinThetaM = sqrt(max(0.0, 1.0 - cosThetaM*cosThetaM));
@@ -252,7 +252,8 @@ float smithG1(in vec3 vLocal, in vec3 mLocal, float roughness)
     float tanThetaAbs = abs(tanTheta(vLocal));
     if (tanThetaAbs < 1.0e-6) return 1.0; // perpendicular incidence -- no shadowing/masking
     if (dot(vLocal, mLocal) * vLocal.z <= 0.0) return 0.0; // Back side is not visible from the front side, and the reverse.
-    float a = 1.0 / (roughness * tanThetaAbs); // Rational approximation to the shadowing/masking function (Walter et al)  (<0.35% rel. error)
+    float epsilon = 1.0e-6;
+    float a = 1.0 / (max(roughness, epsilon) * tanThetaAbs); // Rational approximation to the shadowing/masking function (Walter et al)  (<0.35% rel. error)
     if (a >= 1.6) return 1.0;
     float aSqr = a*a;
     return (3.535*a + 2.181*aSqr) / (1.0 + 2.276*a + 2.577*aSqr);
@@ -433,15 +434,12 @@ float sampleDielectric( in vec3 woL, in float roughness, in float wavelength_nm,
     {
         // Compute specularly reflected ray direction
         wiL = -woL + 2.0*dot(woL, m)*m; // Compute incident direction by reflecting woL about m
-
-        // Microfacet distribution
-        vec3 wh = m; // microfacet normal m = reflection half-vector
-        float D = microfacetEval(wh, roughness);
+        float D = microfacetEval(m, roughness);
         float G = smithG2(woL, wiL, m, roughness); // Shadow-masking function
         float f = R * D * G / (4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)) + DENOM_TOLERANCE);
-
-        // Return total BRDF and corresponding pdf
-        pdfOut = microPDF * reflectProb;
+        float dwh_dwo; // Jacobian of the half-direction mapping
+        dwh_dwo = 1.0 / max(abs(4.0*dot(woL, m)), DENOM_TOLERANCE);
+        pdfOut = microPDF * reflectProb * dwh_dwo; // Return total BRDF and corresponding pdf
         return f;
     }
 
@@ -470,10 +468,7 @@ float sampleDielectric( in vec3 woL, in float roughness, in float wavelength_nm,
         }
 
         // Compute incident direction corresponding to known transmitted direction
-        if ( !refraction(ni, eta, woL, wiL) )
-        {
-            return 0.0; // total internal reflection occurred
-        }
+        if ( !refraction(ni, eta, woL, wiL) ) return 0.0; // total internal reflection occurred
         wiL = -wiL; // As refract() computes the incident beam direction, and wiL is defined to be opposite to that.
     
         // Compute Fresnel transmittance
@@ -485,7 +480,6 @@ float sampleDielectric( in vec3 woL, in float roughness, in float wavelength_nm,
         vec3 wh = m; // refraction half-vector = m
         float D = microfacetEval(wh, roughness);
         float G = smithG2(woL, wiL, wh, roughness); // Shadow-masking function
-
         float dwh_dwo; // Jacobian of the half-direction mapping
         float im = dot(wiL, m);
         {
@@ -521,14 +515,23 @@ float evaluateMetal( in vec3 woL, in vec3 wiL, in float roughness, in float wave
 {
     float ior = IOR_METAL(wavelength_nm);
     float k = K_METAL(wavelength_nm);
-    return 0.0;
+    float R = fresnelMetalReflectance(woL.z, ior, k);
+    vec3 h = normalize(wiL + woL); // Compute the reflection half-vector
+    float D = microfacetEval(h, roughness);
+    float G = smithG2(woL, wiL, h, roughness);
+    float f = R * D * G / max(4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
+    return f;
 }
 
 float pdfMetal( in vec3 woL, in vec3 wiL, in float roughness, in float wavelength_nm )
 {
-    float ior = IOR_METAL(wavelength_nm);
+    float ior = IOR_DIELE(wavelength_nm);
     float k = K_METAL(wavelength_nm);
-    return 0.0;
+    float R = fresnelMetalReflectance(woL.z, ior, k);
+    vec3 h = normalize(wiL + woL); // reflection half-vector
+    float dwh_dwo = 1.0 / max(abs(4.0*dot(woL, h)), DENOM_TOLERANCE); // Jacobian of the half-direction mapping
+    float pdf = microfacetPDF(h, roughness) * dwh_dwo;
+    return pdf;
 }
 
 float sampleMetal( in vec3 woL, in float roughness, in float wavelength_nm,
@@ -536,7 +539,17 @@ float sampleMetal( in vec3 woL, in float roughness, in float wavelength_nm,
 {
     float ior = IOR_METAL(wavelength_nm);
     float k = K_METAL(wavelength_nm);
-    return 0.0;
+    float R = fresnelMetalReflectance(woL.z, ior, k);
+    vec3 m = microfacetSample(rnd, roughness); // Sample microfacet normal m
+    wiL = -woL + 2.0*dot(woL, m)*m; // Compute wiL by reflecting woL about m
+    float D = microfacetEval(m, roughness);
+    float G = smithG2(woL, wiL, m, roughness); // Shadow-masking function
+    float f = R * D * G / (4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)) + DENOM_TOLERANCE);
+    float dwh_dwo; // Jacobian of the half-direction mapping
+    dwh_dwo = 1.0 / max(abs(4.0*dot(woL, m)), DENOM_TOLERANCE);
+    // Return total BRDF and corresponding pdf
+    pdfOut = microfacetPDF(m, roughness) * dwh_dwo;
+    return f;
 }
 
 
@@ -744,9 +757,8 @@ float directLighting(in vec3 pW, Basis basis, in vec3 woW, in int material,
 // Pathtracing logic
 ////////////////////////////////////////////////////////////////////////////////
 
-void main()
+void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
 {
-    vec4 rnd  = texture2D(RngData, vTexCoord);
     const float PDF_EPSILON = 1.0e-5;
 
     // Sample photon wavelength via the inverse CDF of the emission spectrum
@@ -756,7 +768,6 @@ void main()
     float wavelength_nm = 390.0 + (750.0 - 390.0)*w;
 
     // Jitter over pixel
-    vec2 pixel = gl_FragCoord.xy;
     pixel += -0.5 + vec2(rand(rnd), rand(rnd));
 
     // Compute world ray direction for this fragment
@@ -795,6 +806,7 @@ void main()
             Basis basis = makeBasis(nW);
 
             // Add direct lighting term
+            // @todo: if the vertex here is interior to a dielectric, direct lighting can be ignored
             L += throughput * directLighting(pW, basis, woW, material, wavelength_nm, rnd);
 
             // Sample BSDF for the next bounce direction
@@ -850,8 +862,7 @@ void main()
     // Convert wavelenght to RGB (sRGB color space)
     vec3 RGB = texture2D(WavelengthToRgb, vec2(w, 0.5)).rgb;
     vec3 color = RGB * L;
-
-    float clipDepth = computeClipDepth(zHit, camNear, camFar);
+    //float clipDepth = computeClipDepth(zHit, camNear, camFar);
 
     // Write updated radiance and sample count
     vec4 oldL = texture2D(Radiance, vTexCoord);
@@ -861,8 +872,63 @@ void main()
 
     gl_FragData[0] = vec4(newL, newN);
     gl_FragData[1] = rnd;
-    gl_FragData[2] = pack_depth(clipDepth);
+    //gl_FragData[2] = pack_depth(clipDepth);
 }
+
+void RENDER_ALL()
+{
+    vec4 rnd = texture2D(RngData, vTexCoord);
+    pathtrace(gl_FragCoord.xy, rnd);
+
+    /*
+    float renderProb = 0.5;
+    if (rand(rnd) < renderProb)
+    {
+        pathtrace(gl_FragCoord.xy, rnd);
+    }
+    else
+    {        
+        gl_FragData[0] = texture2D(Radiance, vTexCoord);
+        gl_FragData[1] = rnd;
+    }
+    */
+}
+
+void RENDER_BLOCKS()
+{
+    vec2 pixel = gl_FragCoord.xy - vec2(0.5, 0.5); // shift to get integer coords 
+    float xrem = mod(float(pixel.x), float(downRes));
+    float yrem = mod(float(pixel.y), float(downRes));
+    float maxx = resolution.x-1.0;
+    float maxy = resolution.y-1.0;
+
+    vec4 rnd = texture2D(RngData, vTexCoord);
+  //  float renderProb = 0.01;///(float(downRes)*float(downRes));
+
+    // Sample only 1 pixel per block (the lower left one)
+    float MOD_TOL = 1.0e-3;
+    if (xrem<MOD_TOL && yrem<MOD_TOL)// && rand(rnd)<renderProb)
+    {
+        // jitter pixel in block..
+        pixel += float(downRes) * vec2(rand(rnd), rand(rnd));
+        pixel.x = min(pixel.x, maxx);
+        pixel.y = min(pixel.y, maxy);
+        pathtrace(pixel, rnd);
+    }
+    else
+    {
+        gl_FragData[0] = texture2D(Radiance, vTexCoord);
+        gl_FragData[1] = rnd;
+        //gl_FragData[2] = pack_depth(clipDepth);
+    }
+}
+
+
+
+
+
+
+
 
 
 

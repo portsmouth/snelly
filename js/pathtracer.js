@@ -1,6 +1,6 @@
 
 
-var SurfaceRendererState = function(width, height)
+var PathtracerState = function(width, height)
 {
 	var radianceData = new Float32Array(width*height*4); // Path radiance, and sample count 
 	var rngData      = new Float32Array(width*height*4); // Random number seed
@@ -17,7 +17,7 @@ var SurfaceRendererState = function(width, height)
 	//this.depthTex    = new GLU.Texture(width, height, 4, true, false, true, depthData);
 }
 
-SurfaceRendererState.prototype.bind = function(shader)
+PathtracerState.prototype.bind = function(shader)
 {
 	this.radianceTex.bind(0);
 	this.rngTex.bind(1);
@@ -27,7 +27,7 @@ SurfaceRendererState.prototype.bind = function(shader)
 	//shader.uniformTexture("Depth", this.depthTex);
 }
 
-SurfaceRendererState.prototype.attach = function(fbo)
+PathtracerState.prototype.attach = function(fbo)
 {
 	var gl = GLU.gl;
 	fbo.attachTexture(this.radianceTex, 0);
@@ -39,7 +39,7 @@ SurfaceRendererState.prototype.attach = function(fbo)
 	}
 }
 
-SurfaceRendererState.prototype.detach = function(fbo)
+PathtracerState.prototype.detach = function(fbo)
 {
 	var gl = GLU.gl;
 	fbo.detachTexture(0);
@@ -47,7 +47,7 @@ SurfaceRendererState.prototype.detach = function(fbo)
 	//fbo.detachTexture(2);
 }
 
-SurfaceRendererState.prototype.clear = function(fbo)
+PathtracerState.prototype.clear = function(fbo)
 {
 	// clear radiance buffer
 	var gl = GLU.gl;
@@ -60,7 +60,7 @@ SurfaceRendererState.prototype.clear = function(fbo)
 }
 
 
-var SurfaceRenderer = function()
+var Pathtracer = function()
 {
 	this.gl = GLU.gl;
 	var gl = GLU.gl;
@@ -73,20 +73,20 @@ var SurfaceRenderer = function()
 
 	// Initialize pathtracing textures:
 	this.currentState = 0;
-	this.pathStates = [new SurfaceRendererState(this.width, this.height), 
-					   new SurfaceRendererState(this.width, this.height)];
+	this.pathStates = [new PathtracerState(this.width, this.height), 
+					   new PathtracerState(this.width, this.height)];
 
-	this.maxMarchSteps = 256;
+	this.maxBounces = 1;
+	this.maxMarchSteps = 32;
 	this.enable = true;
 	//this.depthTest = false;
 	this.showBounds = false;
 	this.exposure = 10.0;
-	this.maxBounces = 4;
-
 	this.fbo == null;
 
 	// Load shaders
-	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper", "pick"]);
+	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper", "pick", "filter"]);
+	this.filterPrograms = null;
 	this.compileShaders();
 
 	gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -94,12 +94,15 @@ var SurfaceRenderer = function()
 
 	this.quadVbo = this.createQuadVbo();
 	this.fbo = new GLU.RenderTarget();
+
+	this.max_downres = 4;
+	this.numSamples = 0;
 	
 	// Trigger initial buffer generation
 	this.resize(this.width, this.height);
 }
 
-SurfaceRenderer.prototype.createQuadVbo = function()
+Pathtracer.prototype.createQuadVbo = function()
 {
 	var vbo = new GLU.VertexBuffer();
 	vbo.addAttribute("Position", 3, this.gl.FLOAT, false);
@@ -114,15 +117,19 @@ SurfaceRenderer.prototype.createQuadVbo = function()
 	return vbo;
 }
 
-SurfaceRenderer.prototype.reset = function()
+Pathtracer.prototype.reset = function(no_recompile = false)
 {
-	this.compileShaders();
+	this.downres = this.max_downres;
+	this.numSamples = 0;
+
+	if (!no_recompile) this.compileShaders();
 	this.currentState = 0;
 	this.pathStates[this.currentState].clear(this.fbo);
+	this.pathStates[this.currentState+1].clear(this.fbo);
 }
 
 
-SurfaceRenderer.prototype.compileShaders = function()
+Pathtracer.prototype.compileShaders = function()
 {
 	// Inject code for the current scene SDF:
 	var sceneObj = snelly.getLoadedScene();
@@ -147,54 +154,36 @@ SurfaceRenderer.prototype.compileShaders = function()
 	replacements.MAX_MARCH_STEPS = this.maxMarchSteps;
 	replacements.MAX_BOUNCES     = this.maxBounces;
 
-	/*
-	switch (this.renderMode)
-	{
-		case "normals": replacements.LIGHTING_FUNC = `
-				vec3 LIGHTING( in vec3 V, in vec3 N )
-				{
-					return 0.5*(1.0+N);
-				}
-				`; break;
-
-		case "blinn": replacements.LIGHTING_FUNC = `
-				vec3 LIGHTING( in vec3 V, in vec3 N )
-				{
-					vec3 Lights[4];
-					const float oosot = 1.0/sqrt(3.0);
-					Lights[0] = vec3( 1.0,  1.0,  1.0)*oosot;
-					Lights[1] = vec3(-1.0,  1.0, -1.0)*oosot;
-					Lights[2] = vec3(-1.0,  -1.0, -1.0)*oosot;
-					Lights[3] = vec3(-1.0,  -1.0, -1.0)*oosot;
-					vec3 kd[2];
-					kd[0] = vec3(${this.kd1[0]}, ${this.kd1[1]}, ${this.kd1[2]});
-					kd[1] = vec3(${this.kd2[0]}, ${this.kd2[1]}, ${this.kd2[2]});
-					vec3 ks = vec3(1.0, 1.0, 1.0);
-					vec3 ka = vec3(0.005, 0.005, 0.005);
-					vec3 C = vec3(0.0, 0.0, 0.0);
-					for (int l=0; l<4; ++l)
-					{
-						vec3 L = Lights[l];
-						vec3 H = normalize(L+V);
-						float NdotH = dot(N, H);
-						float NdotL = dot(N, L);
-						C += kd[l]*saturate(NdotL) + ks*pow(saturate(NdotH), float(${this.specPower}));
-					}
-					return C + ka;
-				}
-				`; break;									 
-	}
-	*/
-
 	// shaderSources is a dict from name (e.g. "trace")
 	// to a dict {v:vertexShaderSource, f:fragmentShaderSource}
-	this.pathtraceProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
+
+	// Compile pathtracer with different entry point according to mode
+	replacements.RENDER_ALL = 'main';
+	replacements.RENDER_BLOCKS = 'RENDER_BLOCKS';
+	this.pathtraceAllProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
+
+	replacements.RENDER_BLOCKS = 'main';
+	replacements.RENDER_ALL = 'RENDER_ALL';
+	this.pathtraceBlocksProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
+
+	// Compile filter programs for all required kernel widths (once only):
+	if (this.filterPrograms == null)
+	{
+		this.filterPrograms = {};
+		for (var d=this.max_downres; d>=1; d--) 
+		{
+			replacements.DOWN_RES = d;
+			this.filterPrograms[d] = new GLU.Shader('filter', this.shaderSources, replacements);
+		}
+	}
+
+	// Adjunct programs
 	this.pickProgram      = new GLU.Shader('pick',       this.shaderSources, replacements);
 	this.tonemapProgram   = new GLU.Shader('tonemapper', this.shaderSources, null);
 }
 
 
-SurfaceRenderer.prototype.pick = function(xPick, yPick)
+Pathtracer.prototype.pick = function(xPick, yPick)
 {
 	var sceneObj = snelly.getLoadedScene();
 	if (sceneObj == null) return null;
@@ -271,17 +260,17 @@ SurfaceRenderer.prototype.pick = function(xPick, yPick)
 	return hitPoint;
 }
 
-SurfaceRenderer.prototype.enabled = function()
+Pathtracer.prototype.enabled = function()
 {
 	return this.enable;
 }
 
-SurfaceRenderer.prototype.depthTestEnabled = function()
+Pathtracer.prototype.depthTestEnabled = function()
 {
 	return this.depthTest;
 }
 
-SurfaceRenderer.prototype.render = function()
+Pathtracer.prototype.render = function()
 {
 	if (!this.enable) return;
 
@@ -300,11 +289,26 @@ SurfaceRenderer.prototype.render = function()
 	////////////////////////////////////////////////
 	/// Pathtracing
 	////////////////////////////////////////////////
+
 	var gl = this.gl;
 	gl.disable(gl.DEPTH_TEST);
 	gl.viewport(0, 0, this.width, this.height);
 
-	this.pathtraceProgram.bind();
+	// Choose pathtracing mode according to total sample count:
+	var DOWN_RES = Math.floor(Math.sqrt(this.width * this.height / Math.max(this.numSamples, 1)));
+	DOWN_RES = Math.max(1, Math.min(this.max_downres, DOWN_RES));
+	var PATHTRACER_PROGRAM = null;
+	if (DOWN_RES <= 1.0) 
+	{
+		// Pathtrace all pixels
+		PATHTRACER_PROGRAM = this.pathtraceAllProgram;
+	}
+	else
+	{
+		// Pathtrace a subset, until > 1 spp has accumulated
+		PATHTRACER_PROGRAM = this.pathtraceBlocksProgram;
+	}
+	PATHTRACER_PROGRAM.bind();
 
 	// sync camera info to shader	 
 	var camera = snelly.getCamera();
@@ -316,23 +320,23 @@ SurfaceRenderer.prototype.render = function()
 	var camX = new THREE.Vector3();
 	camX.crossVectors(camUp, camDir);
 
-	this.pathtraceProgram.uniform3Fv("camPos", [camPos.x, camPos.y, camPos.z]);
-	this.pathtraceProgram.uniform3Fv("camDir", [camDir.x, camDir.y, camDir.z]);
-	this.pathtraceProgram.uniform3Fv("camX", [camX.x, camX.y, camX.z]);
-	this.pathtraceProgram.uniform3Fv("camY", [camUp.x, camUp.y, camUp.z]);
-	this.pathtraceProgram.uniformF("camNear", camera.near);
-	this.pathtraceProgram.uniformF("camFar", camera.far);
-	this.pathtraceProgram.uniformF("camFovy", camera.fov);
-	this.pathtraceProgram.uniformF("camZoom", camera.zoom);
-	this.pathtraceProgram.uniformF("camAspect", camera.aspect);
-	this.pathtraceProgram.uniform2Fv("resolution", [this.width, this.height]);
-	this.pathtraceProgram.uniformF("SceneScale", sceneObj.getScale()); 
+	PATHTRACER_PROGRAM.uniform3Fv("camPos", [camPos.x, camPos.y, camPos.z]);
+	PATHTRACER_PROGRAM.uniform3Fv("camDir", [camDir.x, camDir.y, camDir.z]);
+	PATHTRACER_PROGRAM.uniform3Fv("camX", [camX.x, camX.y, camX.z]);
+	PATHTRACER_PROGRAM.uniform3Fv("camY", [camUp.x, camUp.y, camUp.z]);
+	PATHTRACER_PROGRAM.uniformF("camNear", camera.near);
+	PATHTRACER_PROGRAM.uniformF("camFar", camera.far);
+	PATHTRACER_PROGRAM.uniformF("camFovy", camera.fov);
+	PATHTRACER_PROGRAM.uniformF("camZoom", camera.zoom);
+	PATHTRACER_PROGRAM.uniformF("camAspect", camera.aspect);
+	PATHTRACER_PROGRAM.uniform2Fv("resolution", [this.width, this.height]);
+	PATHTRACER_PROGRAM.uniformF("SceneScale", sceneObj.getScale()); 
 
 	// Read wavelength -> RGB table
 	snelly.wavelengthToRgb.bind(2);
-	this.pathtraceProgram.uniformTexture("WavelengthToRgb", snelly.wavelengthToRgb);
+	PATHTRACER_PROGRAM.uniformTexture("WavelengthToRgb", snelly.wavelengthToRgb);
 	snelly.emissionIcdf.bind(3);
-	this.pathtraceProgram.uniformTexture("ICDF", snelly.emissionIcdf);
+	PATHTRACER_PROGRAM.uniformTexture("ICDF", snelly.emissionIcdf);
 	
 	// Emitter data
 	var laser = snelly.laser;
@@ -341,19 +345,20 @@ SurfaceRenderer.prototype.render = function()
 	emitterRadius = laser.getEmissionRadius();
 	emissionSpread = laser.getEmissionSpreadAngle();
 	emitterPower = laser.getEmissionPower();
-	this.pathtraceProgram.uniform3F("EmitterPos", emitterPos.x, emitterPos.y, emitterPos.z);
-	this.pathtraceProgram.uniform3F("EmitterDir", emitterDir.x, emitterDir.y, emitterDir.z);
-	this.pathtraceProgram.uniformF("EmitterRadius", emitterRadius);
-	this.pathtraceProgram.uniformF("EmitterSpread", emissionSpread);
-	this.pathtraceProgram.uniformF("EmitterPower", emitterPower);
+	PATHTRACER_PROGRAM.uniform3F("EmitterPos", emitterPos.x, emitterPos.y, emitterPos.z);
+	PATHTRACER_PROGRAM.uniform3F("EmitterDir", emitterDir.x, emitterDir.y, emitterDir.z);
+	PATHTRACER_PROGRAM.uniformF("EmitterRadius", emitterRadius);
+	PATHTRACER_PROGRAM.uniformF("EmitterSpread", emissionSpread);
+	PATHTRACER_PROGRAM.uniformF("EmitterPower", emitterPower);
 
 	// Pathtracing options
-	this.pathtraceProgram.uniformI("MaxBounces", this.maxBounces);
+	PATHTRACER_PROGRAM.uniformI("MaxBounces", this.maxBounces);
+	PATHTRACER_PROGRAM.uniformI("downRes", DOWN_RES);
 
 	skyPower = laser.getSkyPower();
 	skyTemp = snelly.getSpectra()["blackbody"].temperature;
-	this.pathtraceProgram.uniformF("SkyPower", skyPower);
-	this.pathtraceProgram.uniformF("SkyTemp", skyTemp);
+	PATHTRACER_PROGRAM.uniformF("SkyPower", skyPower);
+	PATHTRACER_PROGRAM.uniformF("SkyTemp", skyTemp);
 
 	this.fbo.bind();
 	this.fbo.drawBuffers(2);
@@ -364,21 +369,45 @@ SurfaceRenderer.prototype.render = function()
 	gl.disable(gl.BLEND);
 
 	// Read data from the 'current' state
-	this.pathStates[current].bind(this.pathtraceProgram);
+	this.pathStates[current].bind(PATHTRACER_PROGRAM);
 
 	// Write data into the 'next' state
 	this.pathStates[next].attach(this.fbo);
 
 	// Upload current scene SDF shader parameters
-	sceneObj.syncShader(this.pathtraceProgram); 
-	dielectricObj.syncShader(this.pathtraceProgram); // upload current dielectric IOR parameters
-	metalObj.syncShader(this.pathtraceProgram);      // upload current metal IOR parameters
+	sceneObj.syncShader(PATHTRACER_PROGRAM); 
+	dielectricObj.syncShader(PATHTRACER_PROGRAM); // upload current dielectric IOR parameters
+	metalObj.syncShader(PATHTRACER_PROGRAM);      // upload current metal IOR parameters
 
 	// Trace one path per pixel
 	this.quadVbo.bind();
-	this.quadVbo.draw(this.pathtraceProgram, gl.TRIANGLE_FAN);
-	
+	this.quadVbo.draw(PATHTRACER_PROGRAM, gl.TRIANGLE_FAN);
 	this.fbo.unbind();
+
+
+	////////////////////////////////////////////////
+	/// Filtering / progressive rendering
+	////////////////////////////////////////////////
+
+	if (DOWN_RES > 1) 
+	{
+		this.fbo.bind();
+		this.fbo.drawBuffers(1);
+
+		// Generate filtered image from sparse radiance samples
+		this.filterPrograms[DOWN_RES].bind();
+		this.pathStates[next].radianceTex.bind(0);    // read radiance
+		this.filterPrograms[DOWN_RES].uniformTexture("Radiance", this.pathStates[next].radianceTex);
+
+		this.fbo.attachTexture(this.filteredTex, 0);  // write filter-averaged mean
+		this.filterPrograms[DOWN_RES].uniform2Fv("resolution", [this.width, this.height]);
+		//this.filterPrograms[DOWN_RES].uniformI("downRes", DOWN_RES);
+
+		this.quadVbo.bind();
+		this.quadVbo.draw(this.filterPrograms[DOWN_RES], gl.TRIANGLE_FAN);
+
+		this.fbo.unbind();
+	}
 
 	////////////////////////////////////////////////
 	/// Tonemapping / compositing
@@ -386,8 +415,18 @@ SurfaceRenderer.prototype.render = function()
 
 	this.tonemapProgram.bind();
 
-	var radianceTexCurrent = this.pathStates[next].radianceTex;
-	//var depthTexCurrent = this.pathStates[next].depthTex;
+	var radianceTexCurrent;
+	if (DOWN_RES <= 1) 
+	{
+		// Use full resolution radiance buffer
+		radianceTexCurrent = this.pathStates[next].radianceTex;
+		//var depthTexCurrent = this.pathStates[next].depthTex;
+	}
+	else
+	{
+		// Use filtered radiance buffer until sufficient sample count reached
+		radianceTexCurrent = this.filteredTex;
+	}
 
 	radianceTexCurrent.bind(0);	
 	//depthTexCurrent.bind(1);
@@ -398,45 +437,42 @@ SurfaceRenderer.prototype.render = function()
 	this.tonemapProgram.uniformF("invGamma", 1.0);
 	this.tonemapProgram.uniformF("alpha", 1.0);
 
-	// Tonemap the 'current' radiance buffer to produce this frame's pixels
-	// Get depth texture of light rays, to allow surface to 
-	// occlude rays and vice versa
-	/*
-	var lightDepthTex = snelly.getLightTracer().getDepthTexture();
-	if (lightDepthTex != null && this.depthTest)
-	{
-		lightDepthTex.bind(2);
-		this.tonemapProgram.uniformTexture("DepthLight", lightDepthTex);
-		this.tonemapProgram.uniformI("enableDepthTest", 1);
-	}
-	else
-	{
-		this.tonemapProgram.uniformI("enableDepthTest", 0);
-	}
-	*/
-
 	gl.enable(gl.BLEND);
+	//gl.disable(gl.BLEND);
 	gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 	gl.blendEquation(gl.FUNC_ADD);
-
 	this.quadVbo.bind();
 	this.quadVbo.draw(this.tonemapProgram, gl.TRIANGLE_FAN);
 
-	gl.disable(gl.BLEND);
+	//gl.disable(gl.BLEND);
 
 	// Ping-pong ..
 	this.currentState = next;
+
+	// Update sample count
+	this.numSamples += this.width * this.height / (DOWN_RES * DOWN_RES);
+
+	this.fbo.unbind();
 }
 
 
-SurfaceRenderer.prototype.resize = function(width, height)
+Pathtracer.prototype.resize = function(width, height)
 {
 	this.width = width;
 	this.height = height;
 
-	this.pathStates = [new SurfaceRendererState(this.width, this.height), 
-					   new SurfaceRendererState(this.width, this.height)];
+	this.fbo.unbind();
 
+	this.pathStates = [new PathtracerState(this.width, this.height), 
+					   new PathtracerState(this.width, this.height)];
+
+    // texture for progressive mode
+	var filteredData = new Float32Array(width*height*4); 
+	this.filteredTex = new GLU.Texture(width, height, 4, true, false, true, filteredData);
+
+	this.quadVbo = this.createQuadVbo();
+	this.fbo = new GLU.RenderTarget();
+	
 	this.reset();
 }
 
