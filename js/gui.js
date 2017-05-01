@@ -12,7 +12,6 @@ var GUI = function()
 	this.createSceneSettings();
 	this.createMaterialSettings();
 	this.createEmissionSettings();
-	this.createLightTracerSettings();
 	this.createPathtracerSettings();
 }
 
@@ -36,34 +35,6 @@ GUI.prototype.sync = function()
 
 	updateDisplay(this.gui);
 }
-
-GUI.prototype.createLightTracerSettings = function()
-{
-	this.lightTracerFolder = this.gui.addFolder('Light Tracer');
-	this.lightTracerSettings = {};
-	var lightTracer = snelly.getLightTracer();
-
-	this.lightTracerSettings.enable = lightTracer.enabled;
-	this.lightTracerSettings.exposure = 0.0;
-	this.lightTracerSettings.gamma = 2.2;
-	this.lightTracerSettings.maxPathLength = lightTracer.maxPathLength;
-	this.lightTracerSettings.maxMarchSteps = lightTracer.maxMarchSteps;
-	this.lightTracerSettings.rayBufferSize = lightTracer.raySize;
-	
-	this.lightTracerFolder.add(this.lightTracerSettings, 'enable').onChange( function(value) { lightTracer.enabled = value;  } );
-	this.lightTracerFolder.add(lightTracer, 'showExternal');
-	this.lightTracerFolder.add(lightTracer, 'showInternal');
-	this.lightTracerFolder.add(this.lightTracerSettings, 'exposure', -10.0, 10.0, 0.01);
-	this.lightTracerFolder.add(this.lightTracerSettings, 'gamma', 0.0, 4.0, 0.01);
-	this.lightTracerFolder.add(this.lightTracerSettings, 'maxPathLength', 4, 1024).onChange( function(value) { lightTracer.maxPathLength = Math.floor(value); lightTracer.reset(); } );
-	this.lightTracerFolder.add(this.lightTracerSettings, 'maxMarchSteps', 32, 1024).onChange( function(value) { lightTracer.maxMarchSteps = Math.floor(value); lightTracer.reset(); } );
-	this.lightTracerFolder.add(this.lightTracerSettings, 'rayBufferSize', 64, 1024).onChange( function(value) { lightTracer.raySize = Math.floor(value); 
-																											    lightTracer.initStates(); 
-																												lightTracer.reset(); } );
-	this.gui.remember(this.lightTracerSettings);
-	this.lightTracerFolder.close();
-}
-
 
 function hexToRgb(hex) {
     var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -99,44 +70,15 @@ GUI.prototype.createPathtracerSettings = function()
 GUI.prototype.createEmissionSettings = function()
 {
 	this.emissionFolder = this.gui.addFolder('Emission');
-	var lightTracer = snelly.getLightTracer();
 	var pathtracer = snelly.getPathtracer();
-	var laser = snelly.getLaser();
 	this.emissionSettings = {};
-	this.emissionSettings.showLaserPointer = false;
 	this.emissionSettings.spectrum = 'monochromatic';
-	this.emissionSettings.emissionRadius = 0.01;
-
-	this.emissionFolder.add(this.emissionSettings, 'showLaserPointer').onChange( function(value) { laser.toggleVisibility(value); } );
 	
-	this.emissionRadiusControl = this.emissionFolder.add(this.emissionSettings, 'emissionRadius', 0.0, 3.0);
-	this.emissionRadiusControl.onChange( function(value) 
-	{ 
-		laser.setEmissionRadius(value);      
-		lightTracer.reset(); 
-		pathtracer.reset();
-	} );
-	this.emissionFolder.add(laser, 'emissionSpread', 0.0, 90.0).onChange( function(value) 
-	{ 
-		laser.setEmissionSpreadAngle(value);
-		lightTracer.reset(); 
-		pathtracer.reset();
-	} );
-	this.emissionFolder.add(laser, 'emissionPower', 0.0, 10.0).onChange( function(value) 
-	{ 
-		laser.setEmissionPower(value);
-		lightTracer.reset(); 
-		pathtracer.reset();
-	} );
-
-	this.emissionFolder.add(laser, 'skyPower', 0.0, 1.0).onChange( function(value) 
+	this.emissionFolder.add(pathtracer, 'skyPower', 0.0, 1.0).onChange( function(value) 
 	{ 
 		laser.setSkyPower(value);
-		lightTracer.reset(); 
 		pathtracer.reset();
 	} );
-
-	this.gui.remember(laser);
 
 	// Spectrum selection
 	var GUI = this;
@@ -163,46 +105,6 @@ GUI.prototype.createEmissionSettings = function()
 
 	spectrumObj.initGui(this.emissionFolder);
 
-	// Laser transform sliders
-	this.emissionTranslationFolder = this.emissionFolder.addFolder('Translation');
-	var xT = this.emissionTranslationFolder.add(laser.group.position, 'x');
-	var yT = this.emissionTranslationFolder.add(laser.group.position, 'y');
-	var zT = this.emissionTranslationFolder.add(laser.group.position, 'z');
-	xT.onChange( function(value)  { snelly.reset(); } );
-	yT.onChange( function(value)  { snelly.reset(); } );
-	zT.onChange( function(value)  { snelly.reset(); } );
-
-	this.emissionSettings.eulerAngles = new THREE.Vector3();
-	this.emissionSettings.eulerAngles.x = laser.eulerAngles.x * 180.0/Math.PI;
-	this.emissionSettings.eulerAngles.y = laser.eulerAngles.y * 180.0/Math.PI;
-	this.emissionSettings.eulerAngles.z = laser.eulerAngles.z * 180.0/Math.PI;
-
-	this.emissionRotationFolder = this.emissionFolder.addFolder('Rotation');
-	var xR = this.emissionRotationFolder.add(this.emissionSettings.eulerAngles, 'x', -180.0, 180.0);
-	xR.onChange( function(value) 
-	{ 
-		var euler = laser.getEuler();
-		euler.x = value * Math.PI/180.0;
-		laser.setEuler(euler);
-		snelly.reset();
-	} );
-	var yR = this.emissionRotationFolder.add(this.emissionSettings.eulerAngles, 'y', -180.0, 180.0);
-	yR.onChange( function(value) 
-	{ 
-		var euler = laser.getEuler();
-		euler.y = value * Math.PI/180.0;
-		laser.setEuler(euler);
-		snelly.reset();
-	} );
-	var zR = this.emissionRotationFolder.add(this.emissionSettings.eulerAngles, 'z', -180.0, 180.0);
-	zR.onChange( function(value) 
-	{ 
-		var euler = laser.getEuler();
-		euler.z = value * Math.PI/180.0;
-		laser.setEuler(euler);
-		snelly.reset();
-	} );
-
 	this.gui.remember(this.emissionSettings);
 	this.emissionFolder.open();
 	return this.emissionFolder;
@@ -212,33 +114,12 @@ GUI.prototype.createEmissionSettings = function()
 GUI.prototype.createSceneSettings = function()
 {
 	this.sceneFolder = this.gui.addFolder('Scene');
-	var sceneObj = snelly.getLoadedScene();
+
+	var sceneObj = snelly.getScene();
 	var sceneName = sceneObj.getName();
-	scenes = snelly.getScenes();
-	var sceneNames = Object.keys(scenes);
-
-	// Scene selection menu
-	this.sceneSettings = {};
-	this.sceneSettings["scene selection"] = sceneName;
-	var GUI = this;
-
-	this.sceneFolder.add(this.sceneSettings, 'scene selection', sceneNames).onChange( function(sceneName) {
-
-						// remove gui for current scene
-						var sceneObj = snelly.getLoadedScene();
-						sceneObj.eraseGui(GUI.sceneFolder);
-
-						// load new scene
-				 		snelly.loadScene(sceneName);
-
-				 		// init gui for new scene
-				 		sceneObj = snelly.getLoadedScene();
-				 		sceneObj.initGui(GUI.sceneFolder);
-				 		
-				 	} );
 
 	sceneObj.initGui(this.sceneFolder);
-	this.sceneFolder.close();
+	this.sceneFolder.open();
 
 	this.gui.remember(this.sceneSettings);
 	return this.sceneFolder;

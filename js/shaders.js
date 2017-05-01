@@ -25,36 +25,6 @@ float rand(inout vec4 rnd)
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
 
-/// Distance field utilities
-
-// Union
-float opU( float d1, float d2 ) { return min(d1,d2); }
-
-// Subtraction
-float opS(float A, float B) { return max(-B, A); }
-
-// Intersection
-float opI( float d1, float d2 ) { return max(d1,d2); }
-
-float sdSphere(vec3 X, float r)
-{
-    return length(X) - r;       
-}    
-
-float sdBox(vec3 X, vec3 bounds)                     
-{                                     
-    vec3 d = abs(X) - bounds;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
-float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-{                            
-    vec3 center = 0.5*(bmin + bmax);
-    vec3 halfExtents = 0.5*(bmax - bmin);         
-    vec3 d = abs(X-center) - halfExtents;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
 
@@ -178,36 +148,6 @@ float rand(inout vec4 rnd)
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
 
-/// Distance field utilities
-
-// Union
-float opU( float d1, float d2 ) { return min(d1,d2); }
-
-// Subtraction
-float opS(float A, float B) { return max(-B, A); }
-
-// Intersection
-float opI( float d1, float d2 ) { return max(d1,d2); }
-
-float sdSphere(vec3 X, float r)
-{
-    return length(X) - r;       
-}    
-
-float sdBox(vec3 X, vec3 bounds)                     
-{                                     
-    vec3 d = abs(X) - bounds;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
-float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-{                            
-    vec3 center = 0.5*(bmin + bmax);
-    vec3 halfExtents = 0.5*(bmax - bmin);         
-    vec3 d = abs(X-center) - halfExtents;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
 
@@ -302,36 +242,6 @@ float rand(inout vec4 rnd)
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
 
-/// Distance field utilities
-
-// Union
-float opU( float d1, float d2 ) { return min(d1,d2); }
-
-// Subtraction
-float opS(float A, float B) { return max(-B, A); }
-
-// Intersection
-float opI( float d1, float d2 ) { return max(d1,d2); }
-
-float sdSphere(vec3 X, float r)
-{
-    return length(X) - r;       
-}    
-
-float sdBox(vec3 X, vec3 bounds)                     
-{                                     
-    vec3 d = abs(X) - bounds;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
-float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-{                            
-    vec3 center = 0.5*(bmin + bmax);
-    vec3 halfExtents = 0.5*(bmax - bmin);         
-    vec3 d = abs(X-center) - halfExtents;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
 
@@ -397,7 +307,7 @@ uniform vec2 resolution;
 
 float filter(float r2)
 {
-    return max(0.0, 1.0-r2*r2);
+    return max(0.0, 1.0-r2);
 }
 
 void main()
@@ -466,36 +376,6 @@ float rand(inout vec4 rnd)
     rnd = p + beta;
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
-
-/// Distance field utilities
-
-// Union
-float opU( float d1, float d2 ) { return min(d1,d2); }
-
-// Subtraction
-float opS(float A, float B) { return max(-B, A); }
-
-// Intersection
-float opI( float d1, float d2 ) { return max(d1,d2); }
-
-float sdSphere(vec3 X, float r)
-{
-    return length(X) - r;       
-}    
-
-float sdBox(vec3 X, vec3 bounds)                     
-{                                     
-    vec3 d = abs(X) - bounds;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
-float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-{                            
-    vec3 center = 0.5*(bmin + bmax);
-    vec3 halfExtents = 0.5*(bmax - bmin);         
-    vec3 d = abs(X-center) - halfExtents;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -590,36 +470,6 @@ float rand(inout vec4 rnd)
     rnd = p + beta;
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
-
-/// Distance field utilities
-
-// Union
-float opU( float d1, float d2 ) { return min(d1,d2); }
-
-// Subtraction
-float opS(float A, float B) { return max(-B, A); }
-
-// Intersection
-float opI( float d1, float d2 ) { return max(d1,d2); }
-
-float sdSphere(vec3 X, float r)
-{
-    return length(X) - r;       
-}    
-
-float sdBox(vec3 X, vec3 bounds)                     
-{                                     
-    vec3 d = abs(X) - bounds;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
-float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-{                            
-    vec3 center = 0.5*(bmin + bmax);
-    vec3 halfExtents = 0.5*(bmax - bmin);         
-    vec3 d = abs(X-center) - halfExtents;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -751,36 +601,6 @@ float rand(inout vec4 rnd)
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
 
-/// Distance field utilities
-
-// Union
-float opU( float d1, float d2 ) { return min(d1,d2); }
-
-// Subtraction
-float opS(float A, float B) { return max(-B, A); }
-
-// Intersection
-float opI( float d1, float d2 ) { return max(d1,d2); }
-
-float sdSphere(vec3 X, float r)
-{
-    return length(X) - r;       
-}    
-
-float sdBox(vec3 X, vec3 bounds)                     
-{                                     
-    vec3 d = abs(X) - bounds;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
-float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-{                            
-    vec3 center = 0.5*(bmin + bmax);
-    vec3 halfExtents = 0.5*(bmax - bmin);         
-    vec3 d = abs(X-center) - halfExtents;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
 
@@ -875,36 +695,6 @@ float rand(inout vec4 rnd)
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
 
-/// Distance field utilities
-
-// Union
-float opU( float d1, float d2 ) { return min(d1,d2); }
-
-// Subtraction
-float opS(float A, float B) { return max(-B, A); }
-
-// Intersection
-float opI( float d1, float d2 ) { return max(d1,d2); }
-
-float sdSphere(vec3 X, float r)
-{
-    return length(X) - r;       
-}    
-
-float sdBox(vec3 X, vec3 bounds)                     
-{                                     
-    vec3 d = abs(X) - bounds;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
-float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-{                            
-    vec3 center = 0.5*(bmin + bmax);
-    vec3 halfExtents = 0.5*(bmax - bmin);         
-    vec3 d = abs(X-center) - halfExtents;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
 
@@ -994,36 +784,6 @@ float rand(inout vec4 rnd)
     rnd = p + beta;
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
-
-/// Distance field utilities
-
-// Union
-float opU( float d1, float d2 ) { return min(d1,d2); }
-
-// Subtraction
-float opS(float A, float B) { return max(-B, A); }
-
-// Intersection
-float opI( float d1, float d2 ) { return max(d1,d2); }
-
-float sdSphere(vec3 X, float r)
-{
-    return length(X) - r;       
-}    
-
-float sdBox(vec3 X, vec3 bounds)                     
-{                                     
-    vec3 d = abs(X) - bounds;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
-float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-{                            
-    vec3 center = 0.5*(bmin + bmax);
-    vec3 halfExtents = 0.5*(bmax - bmin);         
-    vec3 d = abs(X-center) - halfExtents;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -1139,36 +899,6 @@ float rand(inout vec4 rnd)
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
 
-/// Distance field utilities
-
-// Union
-float opU( float d1, float d2 ) { return min(d1,d2); }
-
-// Subtraction
-float opS(float A, float B) { return max(-B, A); }
-
-// Intersection
-float opI( float d1, float d2 ) { return max(d1,d2); }
-
-float sdSphere(vec3 X, float r)
-{
-    return length(X) - r;       
-}    
-
-float sdBox(vec3 X, vec3 bounds)                     
-{                                     
-    vec3 d = abs(X) - bounds;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
-float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-{                            
-    vec3 center = 0.5*(bmin + bmax);
-    vec3 halfExtents = 0.5*(bmax - bmin);         
-    vec3 d = abs(X-center) - halfExtents;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
 
@@ -1278,36 +1008,6 @@ float rand(inout vec4 rnd)
     rnd = p + beta;
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
-
-/// Distance field utilities
-
-// Union
-float opU( float d1, float d2 ) { return min(d1,d2); }
-
-// Subtraction
-float opS(float A, float B) { return max(-B, A); }
-
-// Intersection
-float opI( float d1, float d2 ) { return max(d1,d2); }
-
-float sdSphere(vec3 X, float r)
-{
-    return length(X) - r;       
-}    
-
-float sdBox(vec3 X, vec3 bounds)                     
-{                                     
-    vec3 d = abs(X) - bounds;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
-float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-{                            
-    vec3 center = 0.5*(bmin + bmax);
-    vec3 halfExtents = 0.5*(bmax - bmin);         
-    vec3 d = abs(X-center) - halfExtents;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -1419,36 +1119,6 @@ float rand(inout vec4 rnd)
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
 
-/// Distance field utilities
-
-// Union
-float opU( float d1, float d2 ) { return min(d1,d2); }
-
-// Subtraction
-float opS(float A, float B) { return max(-B, A); }
-
-// Intersection
-float opI( float d1, float d2 ) { return max(d1,d2); }
-
-float sdSphere(vec3 X, float r)
-{
-    return length(X) - r;       
-}    
-
-float sdBox(vec3 X, vec3 bounds)                     
-{                                     
-    vec3 d = abs(X) - bounds;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
-float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-{                            
-    vec3 center = 0.5*(bmin + bmax);
-    vec3 halfExtents = 0.5*(bmax - bmin);         
-    vec3 d = abs(X-center) - halfExtents;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
 
@@ -1539,36 +1209,6 @@ float rand(inout vec4 rnd)
     rnd = p + beta;
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
-
-/// Distance field utilities
-
-// Union
-float opU( float d1, float d2 ) { return min(d1,d2); }
-
-// Subtraction
-float opS(float A, float B) { return max(-B, A); }
-
-// Intersection
-float opI( float d1, float d2 ) { return max(d1,d2); }
-
-float sdSphere(vec3 X, float r)
-{
-    return length(X) - r;       
-}    
-
-float sdBox(vec3 X, vec3 bounds)                     
-{                                     
-    vec3 d = abs(X) - bounds;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
-float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-{                            
-    vec3 center = 0.5*(bmin + bmax);
-    vec3 halfExtents = 0.5*(bmax - bmin);         
-    vec3 d = abs(X-center) - halfExtents;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -1663,36 +1303,6 @@ float rand(inout vec4 rnd)
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
 
-/// Distance field utilities
-
-// Union
-float opU( float d1, float d2 ) { return min(d1,d2); }
-
-// Subtraction
-float opS(float A, float B) { return max(-B, A); }
-
-// Intersection
-float opI( float d1, float d2 ) { return max(d1,d2); }
-
-float sdSphere(vec3 X, float r)
-{
-    return length(X) - r;       
-}    
-
-float sdBox(vec3 X, vec3 bounds)                     
-{                                     
-    vec3 d = abs(X) - bounds;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
-float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-{                            
-    vec3 center = 0.5*(bmin + bmax);
-    vec3 halfExtents = 0.5*(bmax - bmin);         
-    vec3 d = abs(X-center) - halfExtents;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
 
@@ -1755,7 +1365,6 @@ uniform sampler2D RngData;          // 1
 uniform sampler2D WavelengthToRgb;  // 2
 uniform sampler2D ICDF;             // 3
 uniform sampler2D RadianceBlocks;   // 4
-
 varying vec2 vTexCoord;
 
 uniform vec2 resolution;
@@ -1770,12 +1379,6 @@ uniform float camFovy; // degrees
 uniform float camZoom;
 uniform float camAspect;
 uniform float SceneScale;
-
-uniform vec3 EmitterPos;
-uniform vec3 EmitterDir;
-uniform float EmitterRadius;
-uniform float EmitterSpread; // in degrees
-uniform float EmitterPower;
 
 uniform float SkyPower;
 uniform float SkyTemp;
@@ -2366,128 +1969,22 @@ float environmentRadiance(in vec3 dir)
 }
 
 
-bool emitterSample( in vec3 pW, in vec3 nW, 
-                    inout vec3 onLight, inout vec3 wiW, 
-                    inout float emittedRadiance, inout float lightPdf, inout vec4 rnd )
-{   
-    // project vertex onto emission plane
-    float dPerp = dot(pW - EmitterPos, EmitterDir);
-    vec3 pProj = pW - dPerp*EmitterDir;
-    float dProj = length(pProj - EmitterPos);
-
-    // thus radius of 'valid' disk containing possible source vertex on emission plane
-    float spreadAngle = max(0.5*abs(EmitterSpread)*M_PI/180.0, 5.0e-4); // @todo: calc on CPU
-    float rProjected = dPerp * tan(spreadAngle); // @todo: calc tan(spreadAngle) on CPU
-    if (dProj > rProjected + EmitterRadius) return false; // no direct light can reach the vertex
-
-    // Choose a candidate point on the valid disk
-    float rSample = rProjected*sqrt(rand(rnd));
-    float phiSample = 2.0*M_PI*rand(rnd);
-    vec3 Z = vec3(0.0, 0.0, 1.0);  // @todo: send the emitter basis vectors to shader
-    vec3 u = cross(Z, EmitterDir);
-    if (length(u) < 1.0e-3)
-    {   
-        vec3 X = vec3(1.0, 0.0, 0.0);
-        u = cross(X, EmitterDir);
-    }
-    u = normalize(u);
-    vec3 v = cross(EmitterDir, u);
-    vec3 samplePos = rSample*(u*cos(phiSample) + v*sin(phiSample)); 
-    onLight = pProj + samplePos;
-    vec3 relPos = onLight - EmitterPos;
-    if ( dot(relPos, relPos) > EmitterRadius*EmitterRadius )
-    {
-        // sample actually outside the emission disk
-        return false;
-    }
-
-    // Compute solid-angle measure PDF of this sample (including samples which fell outside the disk)
-    float diskArea = M_PI*rProjected*rProjected;
-    vec3 toLight = onLight - pW;
-    wiW = normalize(toLight);
-
-    // No contribution if sampled light point is in opposite hemisphere to surface vertex:
-    if (dot(wiW, nW) < 0.0) return false;
-
-    // Scale radiance to keep total light power independent of spread angle
-    float eps = 1.0e-6;
-    emittedRadiance = EmitterPower / (2.0*M_PI*max(1.0-cos(spreadAngle), eps)); // @todo: calc on CPU
-    float jacobian = dot(toLight, toLight) / max(abs(dot(EmitterDir, wiW)), eps);
-    lightPdf = jacobian / diskArea;
-    return true;    
-}
-
-
-bool emitterHit(in vec3 startW, in vec3 endW,
-                inout float emittedRadiance, inout float lightPdf)
-{
-    vec3 wiW = normalize(endW - startW);
-    float ewi = dot(EmitterDir, wiW);
-    float spreadAngle = max(0.5*abs(EmitterSpread)*M_PI/180.0, 5.0e-4);         // @todo: calc on CPU
-    float cosSpreadAngle = cos(spreadAngle);                                    // @todo: calc on CPU
-    if (ewi > -cosSpreadAngle) return false;                                  
-
-    float dPerp = dot(startW - EmitterPos, EmitterDir);
-    vec3 onLight = startW - (dPerp/ewi)*wiW;
-    vec3 relPos = onLight - EmitterPos;
-    if ( dot(relPos, relPos) > EmitterRadius*EmitterRadius ) return false;
-
-      // Scale radiance to keep total light power independent of spread angle
-    float rProjected = dPerp * tan(spreadAngle); // @todo: calc tan(spreadAngle) on CPU
-    float diskArea = M_PI*rProjected*rProjected;
-    vec3 toLight = onLight - startW;
-    float eps = 1.0e-6;
-    emittedRadiance = EmitterPower / (2.0*M_PI*max(1.0-cosSpreadAngle, eps)); // @todo: calc on CPU
-    float jacobian = dot(toLight, toLight) / max(abs(dot(EmitterDir, wiW)), eps);
-    lightPdf = jacobian / diskArea;
-    return true;    
-}
-
-
 float directLighting(in vec3 pW, Basis basis, in vec3 woW, in int material, 
                      float wavelength_nm, inout vec4 rnd)
 {
-    // Choose whether to sample emitter or sky:
-    float emissionProb = EmitterPower/(EmitterPower + SkyPower);
-    float environmentProb = 1.0 - emissionProb;
-
     float lightPdf;
     float Li;
     vec3 wiW; // direction of sampled direct light (*towards* the light)
     {
         // Env-map sampling
-        if ( rand(rnd) <= environmentProb )
-        {
-            float hemispherePdf;
-            vec3 wiL = sampleHemisphere(rnd, hemispherePdf);
-            lightPdf = environmentProb * hemispherePdf;
-            wiW = localToWorld(wiL, basis);
-
-            bool occluded = Occluded(pW, wiW); 
-            if (occluded) return 0.0;
-            else 
-                Li = environmentRadiance(wiW);
-        }
-        
-        // emitter sampling
-        else
-        {
-            // sample a point on the emission disk
-            vec3 onLight;
-            float emittedRadiance;
-            if ( !emitterSample(pW, basis.nW, onLight, wiW, emittedRadiance, lightPdf, rnd) ) return 0.0;
-            else
-            {
-                // If light pointing away from vertex, or occluded, no direct light contribution.
-                bool visible = Visible(pW, onLight);
-                if (!visible) return 0.0;
-                else
-                {
-                    lightPdf *= emissionProb;
-                    Li = emittedRadiance;
-                }
-            }
-        }
+        float hemispherePdf;
+        vec3 wiL = sampleHemisphere(rnd, hemispherePdf);
+        lightPdf = hemispherePdf;
+        wiW = localToWorld(wiL, basis);
+        bool occluded = Occluded(pW, wiW); 
+        if (occluded) return 0.0;
+        else 
+            Li = environmentRadiance(wiW);
     }
 
     // Apply MIS weight with the BSDF pdf for the sampled direction
@@ -2534,7 +2031,6 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     int material;
     bool hit = traceRay(camPos, primaryDir, pW, material);
     float zHit;
-
     float L;
     float throughput; 
 
@@ -2576,26 +2072,12 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
             vec3 pW_next;
             int material_next;
             bool hit = traceRay(pW, wiW, pW_next, material_next);
-            
-            // Add contribution from emitter if bounce ray hits it (before next surface vertex)
-            float emitterRadiance;
-            float emitterPdf;
-            if ( emitterHit(pW, pW_next, emitterRadiance, emitterPdf) )
-            {
-                // check if ray segment (pW, pW_next) intersects the emitter disk.
-                // if it does, add contribution (depending on spread) and terminate path.
-                float misWeight = powerHeuristic(bsdfPdf, emitterPdf);
-                L += throughput * emitterRadiance * misWeight;
-                break;
-            }
-            
+                        
             // Exit now if ray missed
             if (!hit)
             {
-                float emissionProb = EmitterPower/(EmitterPower + SkyPower);
                 float hemispherePdf = abs(dot(wiW, nW));
-                float environmentProb = 1.0 - emissionProb;
-                float lightPdf = environmentProb * hemispherePdf;
+                float lightPdf = hemispherePdf;
                 float misWeight = powerHeuristic(bsdfPdf, lightPdf);
                 float Li = environmentRadiance(wiW);
                 L += throughput * Li * misWeight;
@@ -2610,7 +2092,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         }
     }
 
-    // Convert wavelenght to RGB (sRGB color space)
+    // Convert wavelength to RGB (sRGB color space)
     vec3 RGB = texture2D(WavelengthToRgb, vec2(w, 0.5)).rgb;
     vec3 color = RGB * L;
     //float clipDepth = computeClipDepth(zHit, camNear, camFar);
@@ -2630,19 +2112,6 @@ void RENDER_ALL()
 {
     vec4 rnd = texture2D(RngData, vTexCoord);
     pathtrace(gl_FragCoord.xy, rnd);
-
-    /*
-    float renderProb = 0.5;
-    if (rand(rnd) < renderProb)
-    {
-        pathtrace(gl_FragCoord.xy, rnd);
-    }
-    else
-    {        
-        gl_FragData[0] = texture2D(Radiance, vTexCoord);
-        gl_FragData[1] = rnd;
-    }
-    */
 }
 
 void RENDER_BLOCKS()
@@ -2652,13 +2121,11 @@ void RENDER_BLOCKS()
     float yrem = mod(float(pixel.y), float(downRes));
     float maxx = resolution.x-1.0;
     float maxy = resolution.y-1.0;
-
     vec4 rnd = texture2D(RngData, vTexCoord);
-  //  float renderProb = 0.01;///(float(downRes)*float(downRes));
 
     // Sample only 1 pixel per block (the lower left one)
     float MOD_TOL = 1.0e-3;
-    if (xrem<MOD_TOL && yrem<MOD_TOL)// && rand(rnd)<renderProb)
+    if (xrem<MOD_TOL && yrem<MOD_TOL)
     {
         // jitter pixel in block..
         pixel += float(downRes) * vec2(rand(rnd), rand(rnd));
@@ -2699,36 +2166,6 @@ float rand(inout vec4 rnd)
     rnd = p + beta;
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
-
-/// Distance field utilities
-
-// Union
-float opU( float d1, float d2 ) { return min(d1,d2); }
-
-// Subtraction
-float opS(float A, float B) { return max(-B, A); }
-
-// Intersection
-float opI( float d1, float d2 ) { return max(d1,d2); }
-
-float sdSphere(vec3 X, float r)
-{
-    return length(X) - r;       
-}    
-
-float sdBox(vec3 X, vec3 bounds)                     
-{                                     
-    vec3 d = abs(X) - bounds;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
-float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-{                            
-    vec3 center = 0.5*(bmin + bmax);
-    vec3 halfExtents = 0.5*(bmax - bmin);         
-    vec3 d = abs(X-center) - halfExtents;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -2823,36 +2260,6 @@ float rand(inout vec4 rnd)
     rnd = p + beta;
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
-
-/// Distance field utilities
-
-// Union
-float opU( float d1, float d2 ) { return min(d1,d2); }
-
-// Subtraction
-float opS(float A, float B) { return max(-B, A); }
-
-// Intersection
-float opI( float d1, float d2 ) { return max(d1,d2); }
-
-float sdSphere(vec3 X, float r)
-{
-    return length(X) - r;       
-}    
-
-float sdBox(vec3 X, vec3 bounds)                     
-{                                     
-    vec3 d = abs(X) - bounds;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
-float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-{                            
-    vec3 center = 0.5*(bmin + bmax);
-    vec3 halfExtents = 0.5*(bmax - bmin);         
-    vec3 d = abs(X-center) - halfExtents;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -3012,36 +2419,6 @@ float rand(inout vec4 rnd)
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
 
-/// Distance field utilities
-
-// Union
-float opU( float d1, float d2 ) { return min(d1,d2); }
-
-// Subtraction
-float opS(float A, float B) { return max(-B, A); }
-
-// Intersection
-float opI( float d1, float d2 ) { return max(d1,d2); }
-
-float sdSphere(vec3 X, float r)
-{
-    return length(X) - r;       
-}    
-
-float sdBox(vec3 X, vec3 bounds)                     
-{                                     
-    vec3 d = abs(X) - bounds;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
-float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-{                            
-    vec3 center = 0.5*(bmin + bmax);
-    vec3 halfExtents = 0.5*(bmax - bmin);         
-    vec3 d = abs(X-center) - halfExtents;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
 
@@ -3135,36 +2512,6 @@ float rand(inout vec4 rnd)
     rnd = p + beta;
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
-
-/// Distance field utilities
-
-// Union
-float opU( float d1, float d2 ) { return min(d1,d2); }
-
-// Subtraction
-float opS(float A, float B) { return max(-B, A); }
-
-// Intersection
-float opI( float d1, float d2 ) { return max(d1,d2); }
-
-float sdSphere(vec3 X, float r)
-{
-    return length(X) - r;       
-}    
-
-float sdBox(vec3 X, vec3 bounds)                     
-{                                     
-    vec3 d = abs(X) - bounds;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
-float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-{                            
-    vec3 center = 0.5*(bmin + bmax);
-    vec3 halfExtents = 0.5*(bmax - bmin);         
-    vec3 d = abs(X-center) - halfExtents;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -3286,36 +2633,6 @@ float rand(inout vec4 rnd)
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
 
-/// Distance field utilities
-
-// Union
-float opU( float d1, float d2 ) { return min(d1,d2); }
-
-// Subtraction
-float opS(float A, float B) { return max(-B, A); }
-
-// Intersection
-float opI( float d1, float d2 ) { return max(d1,d2); }
-
-float sdSphere(vec3 X, float r)
-{
-    return length(X) - r;       
-}    
-
-float sdBox(vec3 X, vec3 bounds)                     
-{                                     
-    vec3 d = abs(X) - bounds;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
-float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-{                            
-    vec3 center = 0.5*(bmin + bmax);
-    vec3 halfExtents = 0.5*(bmax - bmin);         
-    vec3 d = abs(X-center) - halfExtents;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
 
@@ -3408,36 +2725,6 @@ float rand(inout vec4 rnd)
     rnd = p + beta;
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
-
-/// Distance field utilities
-
-// Union
-float opU( float d1, float d2 ) { return min(d1,d2); }
-
-// Subtraction
-float opS(float A, float B) { return max(-B, A); }
-
-// Intersection
-float opI( float d1, float d2 ) { return max(d1,d2); }
-
-float sdSphere(vec3 X, float r)
-{
-    return length(X) - r;       
-}    
-
-float sdBox(vec3 X, vec3 bounds)                     
-{                                     
-    vec3 d = abs(X) - bounds;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
-float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-{                            
-    vec3 center = 0.5*(bmin + bmax);
-    vec3 halfExtents = 0.5*(bmax - bmin);         
-    vec3 d = abs(X-center) - halfExtents;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -3842,36 +3129,6 @@ float rand(inout vec4 rnd)
     rnd = p + beta;
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
-
-/// Distance field utilities
-
-// Union
-float opU( float d1, float d2 ) { return min(d1,d2); }
-
-// Subtraction
-float opS(float A, float B) { return max(-B, A); }
-
-// Intersection
-float opI( float d1, float d2 ) { return max(d1,d2); }
-
-float sdSphere(vec3 X, float r)
-{
-    return length(X) - r;       
-}    
-
-float sdBox(vec3 X, vec3 bounds)                     
-{                                     
-    vec3 d = abs(X) - bounds;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
-
-float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-{                            
-    vec3 center = 0.5*(bmin + bmax);
-    vec3 halfExtents = 0.5*(bmax - bmin);         
-    vec3 d = abs(X-center) - halfExtents;
-    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }

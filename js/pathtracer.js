@@ -59,7 +59,6 @@ PathtracerState.prototype.clear = function(fbo)
 	fbo.unbind();
 }
 
-
 var Pathtracer = function()
 {
 	this.gl = GLU.gl;
@@ -83,6 +82,9 @@ var Pathtracer = function()
 	this.showBounds = false;
 	this.exposure = 10.0;
 	this.fbo == null;
+	this.max_downres = 4;
+	this.numSamples = 0;
+	this.skyPower = 1.0;
 
 	// Load shaders
 	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper", "pick", "filter"]);
@@ -94,9 +96,6 @@ var Pathtracer = function()
 
 	this.quadVbo = this.createQuadVbo();
 	this.fbo = new GLU.RenderTarget();
-
-	this.max_downres = 4;
-	this.numSamples = 0;
 	
 	// Trigger initial buffer generation
 	this.resize(this.width, this.height);
@@ -132,7 +131,7 @@ Pathtracer.prototype.reset = function(no_recompile = false)
 Pathtracer.prototype.compileShaders = function()
 {
 	// Inject code for the current scene SDF:
-	var sceneObj = snelly.getLoadedScene();
+	var sceneObj = snelly.getScene();
 	if (sceneObj == null) return;
 	var sdfCode = sceneObj.sdf();
 
@@ -185,7 +184,7 @@ Pathtracer.prototype.compileShaders = function()
 
 Pathtracer.prototype.pick = function(xPick, yPick)
 {
-	var sceneObj = snelly.getLoadedScene();
+	var sceneObj = snelly.getScene();
 	if (sceneObj == null) return null;
 	var gl = this.gl;
 	gl.viewport(0, 0, 1, 1);
@@ -274,25 +273,18 @@ Pathtracer.prototype.render = function()
 {
 	if (!this.enable) return;
 
-	var sceneObj = snelly.getLoadedScene();
-	if (sceneObj==null) return;
-
-	var metalObj = snelly.getLoadedMetal();
-	if (metalObj==null) return;
-
-	var dielectricObj = snelly.getLoadedDielectric();
-	if (dielectricObj==null) return;
-
+	var sceneObj      = snelly.getScene();            if (sceneObj==null) return;
+	var metalObj      = snelly.getLoadedMetal();      if (metalObj==null) return;
+	var dielectricObj = snelly.getLoadedDielectric(); if (dielectricObj==null) return;
 	if (snelly.getSpectra()==null) return;
-
-
-	////////////////////////////////////////////////
-	/// Pathtracing
-	////////////////////////////////////////////////
 
 	var gl = this.gl;
 	gl.disable(gl.DEPTH_TEST);
 	gl.viewport(0, 0, this.width, this.height);
+
+	////////////////////////////////////////////////
+	/// Pathtracing
+	////////////////////////////////////////////////
 
 	// Choose pathtracing mode according to total sample count:
 	var DOWN_RES = Math.floor(Math.sqrt(this.width * this.height / Math.max(this.numSamples, 1)));
@@ -316,10 +308,8 @@ Pathtracer.prototype.render = function()
 	var camDir = camera.getWorldDirection();
 	var camUp = camera.up.clone();
 	camUp.transformDirection( camera.matrixWorld );
-
 	var camX = new THREE.Vector3();
 	camX.crossVectors(camUp, camDir);
-
 	PATHTRACER_PROGRAM.uniform3Fv("camPos", [camPos.x, camPos.y, camPos.z]);
 	PATHTRACER_PROGRAM.uniform3Fv("camDir", [camDir.x, camDir.y, camDir.z]);
 	PATHTRACER_PROGRAM.uniform3Fv("camX", [camX.x, camX.y, camX.z]);
@@ -338,41 +328,19 @@ Pathtracer.prototype.render = function()
 	snelly.emissionIcdf.bind(3);
 	PATHTRACER_PROGRAM.uniformTexture("ICDF", snelly.emissionIcdf);
 	
-	// Emitter data
-	var laser = snelly.laser;
-	emitterPos = laser.getPoint();
-	emitterDir = laser.getDirection();
-	emitterRadius = laser.getEmissionRadius();
-	emissionSpread = laser.getEmissionSpreadAngle();
-	emitterPower = laser.getEmissionPower();
-	PATHTRACER_PROGRAM.uniform3F("EmitterPos", emitterPos.x, emitterPos.y, emitterPos.z);
-	PATHTRACER_PROGRAM.uniform3F("EmitterDir", emitterDir.x, emitterDir.y, emitterDir.z);
-	PATHTRACER_PROGRAM.uniformF("EmitterRadius", emitterRadius);
-	PATHTRACER_PROGRAM.uniformF("EmitterSpread", emissionSpread);
-	PATHTRACER_PROGRAM.uniformF("EmitterPower", emitterPower);
-
 	// Pathtracing options
 	PATHTRACER_PROGRAM.uniformI("MaxBounces", this.maxBounces);
 	PATHTRACER_PROGRAM.uniformI("downRes", DOWN_RES);
-
-	skyPower = laser.getSkyPower();
 	skyTemp = snelly.getSpectra()["blackbody"].temperature;
-	PATHTRACER_PROGRAM.uniformF("SkyPower", skyPower);
+	PATHTRACER_PROGRAM.uniformF("SkyPower", this.skyPower);
 	PATHTRACER_PROGRAM.uniformF("SkyTemp", skyTemp);
 
 	this.fbo.bind();
 	this.fbo.drawBuffers(2);
-
 	var current = this.currentState;
 	var next    = 1 - current;
-
-	gl.disable(gl.BLEND);
-
-	// Read data from the 'current' state
-	this.pathStates[current].bind(PATHTRACER_PROGRAM);
-
-	// Write data into the 'next' state
-	this.pathStates[next].attach(this.fbo);
+	this.pathStates[current].bind(PATHTRACER_PROGRAM); // Read data from the 'current' state
+	this.pathStates[next].attach(this.fbo);            // Write data into the 'next' state
 
 	// Upload current scene SDF shader parameters
 	sceneObj.syncShader(PATHTRACER_PROGRAM); 
@@ -380,10 +348,10 @@ Pathtracer.prototype.render = function()
 	metalObj.syncShader(PATHTRACER_PROGRAM);      // upload current metal IOR parameters
 
 	// Trace one path per pixel
+	gl.disable(gl.BLEND);
 	this.quadVbo.bind();
 	this.quadVbo.draw(PATHTRACER_PROGRAM, gl.TRIANGLE_FAN);
 	this.fbo.unbind();
-
 
 	////////////////////////////////////////////////
 	/// Filtering / progressive rendering
@@ -393,19 +361,14 @@ Pathtracer.prototype.render = function()
 	{
 		this.fbo.bind();
 		this.fbo.drawBuffers(1);
-
 		// Generate filtered image from sparse radiance samples
 		this.filterPrograms[DOWN_RES].bind();
 		this.pathStates[next].radianceTex.bind(0);    // read radiance
 		this.filterPrograms[DOWN_RES].uniformTexture("Radiance", this.pathStates[next].radianceTex);
-
 		this.fbo.attachTexture(this.filteredTex, 0);  // write filter-averaged mean
 		this.filterPrograms[DOWN_RES].uniform2Fv("resolution", [this.width, this.height]);
-		//this.filterPrograms[DOWN_RES].uniformI("downRes", DOWN_RES);
-
 		this.quadVbo.bind();
 		this.quadVbo.draw(this.filterPrograms[DOWN_RES], gl.TRIANGLE_FAN);
-
 		this.fbo.unbind();
 	}
 
@@ -414,7 +377,6 @@ Pathtracer.prototype.render = function()
 	////////////////////////////////////////////////
 
 	this.tonemapProgram.bind();
-
 	var radianceTexCurrent;
 	if (DOWN_RES <= 1) 
 	{
@@ -430,7 +392,6 @@ Pathtracer.prototype.render = function()
 
 	radianceTexCurrent.bind(0);	
 	//depthTexCurrent.bind(1);
-
 	this.tonemapProgram.uniformTexture("Radiance", radianceTexCurrent);
 	//this.tonemapProgram.uniformTexture("DepthSurface", depthTexCurrent);
 	this.tonemapProgram.uniformF("exposure", this.exposure);
@@ -438,13 +399,10 @@ Pathtracer.prototype.render = function()
 	this.tonemapProgram.uniformF("alpha", 1.0);
 
 	gl.enable(gl.BLEND);
-	//gl.disable(gl.BLEND);
 	gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 	gl.blendEquation(gl.FUNC_ADD);
 	this.quadVbo.bind();
 	this.quadVbo.draw(this.tonemapProgram, gl.TRIANGLE_FAN);
-
-	//gl.disable(gl.BLEND);
 
 	// Ping-pong ..
 	this.currentState = next;
@@ -462,7 +420,6 @@ Pathtracer.prototype.resize = function(width, height)
 	this.height = height;
 
 	this.fbo.unbind();
-
 	this.pathStates = [new PathtracerState(this.width, this.height), 
 					   new PathtracerState(this.width, this.height)];
 
@@ -472,7 +429,6 @@ Pathtracer.prototype.resize = function(width, height)
 
 	this.quadVbo = this.createQuadVbo();
 	this.fbo = new GLU.RenderTarget();
-	
 	this.reset();
 }
 

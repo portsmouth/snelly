@@ -3,7 +3,7 @@
 <body onload="onLoad();">
 
  <head>
-<link rel="stylesheet" type="text/css" href="style.css">
+<link rel="stylesheet" type="text/css" href="snelly.css">
 </head>
 
 <div id="container">
@@ -12,51 +12,165 @@
     <div id="textContainer"><canvas id="text-canvas"></canvas></div>  
 </div>
 
+<?/* ----------- @todo: minify into a single monolithic JS file ------------*/?>
+<?/* -----------    - this is the snelly "lib", which is bundled with each scene ------------*/?>
+<?/* -----------    - can compile and version this lib                           ------------*/?>
+
 <script type="text/javascript" src="js/thirdparty/jquery-1.11.3.min.js"></script>
 <script type="text/javascript" src="js/thirdparty/three/three.min.js"></script>
 <script type="text/javascript" src="js/thirdparty/three/libs/stats.min.js"></script>
 <script type="text/javascript" src="js/thirdparty/three/libs/dat.gui.min.js"></script>
 <script type="text/javascript" src="js/thirdparty/three/controls/OrbitControls.js"></script>
 
-<script type="text/javascript" src="js/shaders.js"></script>
 <script type="text/javascript" src="js/gl.js"></script>
-<script type="text/javascript" src="js/laser.js"></script>
 <script type="text/javascript" src="js/gui.js"></script>
-
+<script type="text/javascript" src="js/shaders.js"></script>
 <script type="text/javascript" src="js/wavelengthToRgb.js"></script>
 <script type="text/javascript" src="js/materials.js"></script>
 <script type="text/javascript" src="js/spectra.js"></script>
-<script type="text/javascript" src="js/scenes/scenes.js"></script>
-
+<script type="text/javascript" src="js/scene.js"></script>
 <script type="text/javascript" src="js/pathtracer.js"></script>
-<script type="text/javascript" src="js/lightTracer.js"></script>
 <script type="text/javascript" src="js/snelly.js"></script>
 
-<?/* ----------------------------*/?>
-<?/*    scene definition files   */?>
-<?/* ----------------------------*/?>
 
-<script type="text/javascript" src="js/scenes/twistedTube.js"></script>
-<script type="text/javascript" src="js/scenes/fibre.js"></script>
-<script type="text/javascript" src="js/scenes/pool.js"></script>
-<script type="text/javascript" src="js/scenes/menger.js"></script>
-<script type="text/javascript" src="js/scenes/superellipsoid.js"></script>
-<script type="text/javascript" src="js/scenes/stack.js"></script>
-<script type="text/javascript" src="js/scenes/gem.js"></script>
-<script type="text/javascript" src="js/scenes/convergingLens.js"></script>
-<script type="text/javascript" src="js/scenes/divergingLens.js"></script>
-<script type="text/javascript" src="js/scenes/wineGlass.js"></script>
-<script type="text/javascript" src="js/scenes/tumbler.js"></script>
-<script type="text/javascript" src="js/scenes/knot.js"></script>
-<script type="text/javascript" src="js/scenes/sphereCrystal.js"></script>
-<script type="text/javascript" src="js/scenes/metaShapes.js"></script>
-<script type="text/javascript" src="js/scenes/kifs.js"></script>
-<script type="text/javascript" src="js/scenes/waves.js"></script>
-<script type="text/javascript" src="js/scenes/prism.js"></script>
-<script type="text/javascript" src="js/scenes/lattice.js"></script>
+<?/* -----------------------*/?>
+<?/*    scene definition    */?>
+<?/* -----------------------*/?>
+
+<script type="text/javascript">
+
+	function MyScene(name, desc) 
+	{
+		Scene.call(this, name, desc);
+
+		// defaults
+		this._settings.iterations = 4;
+		this._settings.tileScale = 1.0;
+		this._settings.rotate = 0.0;
+		this._settings.scale = 1.0;
+	}
+
+  // NB, every function is mandatory and must be defined.
+
+  MyScene.prototype = Object.create(Scene.prototype);
+
+
+  // This defines a solid body, whose interior
+  // defined by the points with SDF<0.0, with a constant refractive index.
+  MyScene.prototype.sdf = function()
+  {
+    return `
+			uniform float _rotate;
+			uniform float _scale;
+			#define TWOPI 6.28318530718
+
+			float sdBox(vec3 X, vec3 bounds)                     
+			{                                     
+				vec3 d = abs(X) - bounds;
+				return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+			} 
+
+			float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+			{                            
+				vec3 center = 0.5*(bmin + bmax);
+				vec3 halfExtents = 0.5*(bmax - bmin);         
+				vec3 d = abs(X-center) - halfExtents;
+				return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+			} 
+
+			vec2 rotate(vec2 v, float a) 
+			{
+			 	return vec2(cos(a)*v.x + sin(a)*v.y, -sin(a)*v.x + cos(a)*v.y); 
+			}
+
+			float sdCross( in vec3 p )
+			{
+				float inf = 1.0e6;
+				float da = sdBox(p.xyz, vec3(inf,1.0,1.0));
+				float db = sdBox(p.yzx, vec3(1.0,inf,1.0));
+				float dc = sdBox(p.zxy, vec3(1.0,1.0,inf));
+				return min(da,min(db,dc));
+			}
+
+			float menger(vec3 X) 
+			{
+				float sd = sdBox(X, vec3(1.0));
+				float scale = _scale;
+				const int iter = ${Math.floor(this._settings.iterations)};
+				for (int i=0; i<iter; i++) 
+				{
+					X.xy = rotate(X.xy, 2.0*sin(TWOPI*_rotate));
+					vec3 a = mod(X*scale, 2.0)-1.0;
+					scale *= 3.0;
+					vec3 r = abs(1.0 - 3.0*abs(a));
+					float da = max(r.x,r.y);
+					float db = max(r.y,r.z);
+					float dc = max(r.z,r.x);
+					float c = (min(da,min(db,dc))-1.0)/scale;
+					sd = max(sd, c);
+				}
+				return sd;
+			}	
+
+			float SDF_METAL(vec3 X)
+			{
+				return menger(X);
+			}
+
+			float SDF_DIELE(vec3 X) { return HUGE_VAL; }
+			float SDF_DIFFU(vec3 X) { return sdBox(X, vec3(-100.0, -2.5, -100.0), vec3(100.0, -2.0, 100.0)); }
+	`;
+  }
+
+
+  // Called whenever this scene UI was switched to, or changed while active,
+  // and syncs the params of the trace shader to the current UI settings
+  MyScene.prototype.syncShader = function(traceProgram)
+  {
+		// (The shader parameter names here must be consistent with the GLSL sdf code defined above)
+		traceProgram.uniformF("_rotate", this._settings.rotate);
+		traceProgram.uniformF("_scale", this._settings.scale);
+  }
+
+  // Gives the raytracer some indication of (rough) scene size, so it
+  // can set tolerances appropriately.
+  MyScene.prototype.getScale = function()
+  {
+		return 1.0;
+  }
+
+  // Initial cam position default for this scene
+  MyScene.prototype.init = function(controls, camera, laser)
+  {
+		controls.target.set(2.01584, -0.603169, -0.808580);
+		camera.position.set(-4.81888, 2.39746, 3.47067);
+  }
+
+  // set up gui and callbacks for this scene
+  MyScene.prototype.initGui = function(parentFolder)
+  {
+		this.iterItem = parentFolder.add(this._settings, 'iterations', 1, 8, 1);
+		this.rotateItem = parentFolder.add(this._settings, 'rotate', 0.0, 1.0);
+		this.scaleItem = parentFolder.add(this._settings, 'scale', 0.0, 10.0);
+		
+		// @todo: make this automatic
+		this.iterItem.onChange( function(value) { snelly.reset(); } );
+		this.rotateItem.onChange( function(value) { snelly.reset(); } );
+		this.scaleItem.onChange( function(value) { snelly.reset(); } );
+  }
+
+  MyScene.prototype.eraseGui = function(parentFolder)
+  {
+		parentFolder.remove(this.iterItem);
+		parentFolder.remove(this.rotateItem);
+		parentFolder.remove(this.scaleItem);
+  }
+
+
+</script>
+
 
 <?/* ----------------------------*/?>
-
 
 <script type="text/javascript">
 
@@ -76,7 +190,7 @@ window.requestAnimFrame = (function(){
 function onLoad()
 {
 	// Instantiate Snelly
-	snelly = new Snelly();
+	snelly = new Snelly(new MyScene("MyScene", ""));
 	
 	// Begin rendering
 	animateLoop();
@@ -87,8 +201,6 @@ function animateLoop()
 	snelly.render();
 	window.requestAnimFrame(animateLoop);
 }
-
-
 
 </script>
 </body>

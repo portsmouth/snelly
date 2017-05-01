@@ -3,6 +3,10 @@ import csv
 from decimal import Decimal
 import numpy
 
+#############################################################################
+# Script to generate wavelengthToRgb.js, assuming sRGB color space.
+#############################################################################
+
 # 2-deg XYZ tristimulus CMFs transformed from the CIE (2006) 2-deg LMS cone fundamentals
 # (from http://www.cvrl.org/cmfs.htm)
 csvfile = open("lin2012xyz2e_fine_7sf.csv", 'rb')
@@ -56,3 +60,4 @@ function wavelengthToRgbTable() {
         ]);
 }
 ''' % (N, N, data)
+

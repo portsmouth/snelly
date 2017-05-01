@@ -1,7 +1,6 @@
 
 
-
-var Snelly = function()
+var Snelly = function(sceneObj)
 {
 	this.initialized = false; 
 	snelly = this;
@@ -11,9 +10,7 @@ var Snelly = function()
 	render_canvas.height = window.innerHeight;
 	this.width = render_canvas.width;
 	this.height = render_canvas.height;
-
 	window.addEventListener( 'resize', this, false );
-
 	this.container = document.getElementById('container');
 
 	// Text canvas
@@ -25,13 +22,11 @@ var Snelly = function()
 	var ui_canvas = document.getElementById('ui-canvas');
 	ui_canvas.style.top = 0;
 	ui_canvas.style.position = 'fixed' 
-
 	var VIEW_ANGLE = 45;
 	var ASPECT = this.width / this.height ;
 	var NEAR = 0.05;
 	var FAR = 1000;
 	this.camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
-
 	this.glRenderer = new THREE.WebGLRenderer( { canvas: ui_canvas,
 											     alpha: true,
 											     antialias: true,
@@ -40,50 +35,14 @@ var Snelly = function()
 	this.glRenderer.setSize(this.width, this.height);
 	this.glScene = new THREE.Scene();
 	this.glScene.add(this.camera);
-
-	var pointLight = new THREE.PointLight(0xa0a0a0);
-	pointLight.position.x = 10;
-	pointLight.position.y = 50;
-	pointLight.position.z = 130;
-	this.glScene.add(pointLight);
-
-	var light = new THREE.AmbientLight( 0x808080 ); // soft white light
-	this.glScene.add( light );
-
-	// Create user control system for camera
 	this.controls = new THREE.OrbitControls(this.camera, this.glRenderer.domElement);
 	this.controls.zoomSpeed = 2.0;
 	this.controls.addEventListener( 'change', camChanged );
 
-	// Setup laser pointer
-	this.laser = new LaserPointer(this.glRenderer, this.glScene, this.camera, this.controls);
-	this.laser.setPosition(new THREE.Vector3(-5.0, 0.0, 0.0));
-	this.laser.setDirection(new THREE.Vector3(1.0, 0.0, 0.0));
+	this.gui = null;
 
-	// Instantiate scenes
-	this.scenes = {}
-	this.sceneObj = null;
-	{
-		this.addScene(new GemScene("Gem stone", ""));
-		this.addScene(new ConvergingLensScene("Converging lens", ""));
-		this.addScene(new DivergingLensScene("Diverging lens", ""));
-		this.addScene(new LatticeScene("Lattice", ""));
-		this.addScene(new SuperEllipsoidScene("Super-ellipsoid", ""));
-		this.addScene(new FibreScene("Coiled fibre", ""));
-		this.addScene(new TwistedTubeScene("Twisted tube", ""));
-		this.addScene(new StackScene("Slab stack", ""));
-		this.addScene(new TumblerScene("Tumbler", ""));
-		this.addScene(new WineGlassScene("Wine glass", ""));
-		this.addScene(new PoolScene("Pool", ""));
-		this.addScene(new MengerScene("Menger sponge", ""));
-		this.addScene(new KnotScene("Knot", ""));
-		this.addScene(new MetaShapesScene("Metashapes", ""));
-		this.addScene(new KIFSScene("KIFS fractal", ""));
-		this.addScene(new WavesScene("Waves", ""));
-		this.addScene(new PrismScene("Prism", ""));
-		
-		// ...
-	}
+	// Load scene
+	this.loadScene(sceneObj);
 
 	// Instantiate materials
 	this.dielectrics = {}
@@ -121,8 +80,9 @@ var Snelly = function()
 		this.addMetal( new LinearMetal("Gold", "",       1.5275, 1.8394, 0.16918, 3.8816) );
 	}
 
-	// Instantiate light tracer
-	this.lightTracer = new LightTracer();
+	// Load the initial material
+	this.loadDielectric("Glass (LASF35)");
+	this.loadMetal("Gold");
 
 	// Instantiate distance field pathtracer
 	this.pathtracer = new Pathtracer();
@@ -149,12 +109,6 @@ var Snelly = function()
 		this.loadSpectrum("blackbody");
 	}
 
-	// Load the initial scene and material
-	this.gui = null;
-	this.loadDielectric("Glass (LASF35)");
-	this.loadMetal("Gold");
-	this.loadScene("Menger sponge");
-
 	// Create dat gui
 	this.gui = new GUI();
 
@@ -171,10 +125,7 @@ var Snelly = function()
 				else console.assert(false);
 				break;
 
-			case 70: // F key: focus on emitter
-				snelly.controls.object.zoom = snelly.controls.zoom0;
-				snelly.controls.target.copy(snelly.laser.getPoint());
-				snelly.controls.update();
+			case 70: // F key: reset cam  (@todo)
 				break;
 
 			case 82: // R key: reset scene 
@@ -188,25 +139,8 @@ var Snelly = function()
 				break;
 
 			case 67: // C key: dev tool to dump cam and laser details, for setting scene defaults
-				var lp = snelly.laser.getPosition();
-				var ld = snelly.laser.getDirection();
-				var er = snelly.laser.getEmissionRadius();
-				var ex = snelly.laser.getEmissionSpreadAngle();
 				var t = snelly.controls.target;
 				var c = snelly.camera.position;
-
-				console.log(`laser.setPosition(new THREE.Vector3(${lp.x.toPrecision(6)}, ${lp.y.toPrecision(6)}, ${lp.z.toPrecision(6)}));`);
-				if (snelly.laser.targetSet)
-				{
-					var tg = snelly.laser.target;
-					console.log(`laser.setTarget(new THREE.Vector3(${tg.x.toPrecision(6)}, ${tg.y.toPrecision(6)}, ${tg.z.toPrecision(6)}));`);
-				}
-				else
-				{
-					console.log(`laser.setDirection(new THREE.Vector3(${ld.x.toPrecision(6)}, ${ld.y.toPrecision(6)}, ${ld.z.toPrecision(6)}));`);
-				}
-				console.log(`laser.setEmissionRadius(${er.toPrecision(6)});`);
-				console.log(`laser.setEmissionSpreadAngle(${ex.toPrecision(6)});`);
 				console.log(`controls.target.set(${t.x.toPrecision(6)}, ${t.y.toPrecision(6)}, ${t.z.toPrecision(6)});`);
 				console.log(`camera.position.set(${c.x.toPrecision(6)}, ${c.y.toPrecision(6)}, ${c.z.toPrecision(6)});`);
 				break;
@@ -223,24 +157,14 @@ var Snelly = function()
 	this.initialized = true; 
 }
 
-Snelly.prototype.getLightTracer = function()
-{
-	return this.lightTracer;
-}
-
 Snelly.prototype.getPathtracer = function()
 {
 	return this.pathtracer;
 }
 
-Snelly.prototype.getGUI= function()
+Snelly.prototype.getGUI = function()
 {
 	return this.gui;
-}
-
-Snelly.prototype.getLaser = function()
-{
-	return this.laser;
 }
 
 Snelly.prototype.getCamera = function()
@@ -252,23 +176,16 @@ Snelly.prototype.getCamera = function()
 //
 // Scene management
 //
-Snelly.prototype.addScene = function(sceneObj)
+
+Snelly.prototype.getScene = function()
 {
-	this.scenes[sceneObj.getName()] = sceneObj;
+	return this.sceneObj;
 }
 
-Snelly.prototype.getScenes = function()
+Snelly.prototype.loadScene = function(sceneObj)
 {
-	return this.scenes;
-}
-
-Snelly.prototype.loadScene = function(sceneName)
-{
-	this.laser.unsetTarget();
-
-	this.sceneObj = this.scenes[sceneName];
+	this.sceneObj = sceneObj;
 	this.sceneObj.init(this.controls, this.camera, this.laser);
-	this.laser.buildEmitterGeo();
 
 	var gui = this.getGUI();
 	if (gui)
@@ -279,14 +196,8 @@ Snelly.prototype.loadScene = function(sceneName)
 	// Camera frustum update
 	this.camera.near = Math.max(1.0e-4, 1.0e-2*this.sceneObj.getScale());
 	this.camera.far  = Math.max(1.0e4,   1.0e4*this.sceneObj.getScale());
-
 	this.controls.update();	
 	this.reset();
-}
-
-Snelly.prototype.getLoadedScene = function()
-{
-	return this.sceneObj;
 }
 
 
@@ -318,8 +229,6 @@ Snelly.prototype.getLoadedSpectrum = function()
 {
 	return this.spectrumObj;
 }
-
-
 
 //
 // Material management
@@ -371,10 +280,9 @@ Snelly.prototype.getLoadedMetal = function()
 // Renderer reset on camera update
 Snelly.prototype.reset = function(no_recompile = false)
 {	
-	this.pathtracer.reset(no_recompile);
-	//this.lightTracer.reset();
-
 	if (!this.initialized) return;
+
+	this.pathtracer.reset(no_recompile);
 
 	this.gui.sync();
 
@@ -386,48 +294,35 @@ Snelly.prototype.render = function()
 {
 	if (!this.initialized) return;
 	if (this.sceneObj == null) return;
-
 	var gl = GLU.gl;
-	
 	gl.viewport(0, 0, this.width, this.height);
 	gl.clearColor(0.0, 0.0, 0.0, 1.0);
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 	gl.disable(gl.DEPTH_TEST);
 
-	// Render laser pointer
-	this.laser.render();
-
-	// Render light beams
-	this.lightTracer.render();
-
-	// Render distance field surface
+	// Render distance field surface via pathtracing
 	this.pathtracer.render();
 
 	// Update HUD text canvas	
 	this.textCtx.textAlign = "left";   	// This determines the alignment of text, e.g. left, center, right
 	this.textCtx.textBaseline = "middle";	// This determines the baseline of the text, e.g. top, middle, bottom
 	this.textCtx.font = '12px monospace';	// This determines the size of the text and the font family used
-	
 	this.textCtx.clearRect(0, 0, this.textCtx.canvas.width, this.textCtx.canvas.height);
 	this.textCtx.globalAlpha = 0.95;
-
 	if (snelly.getGUI().visible)
 	{
 	  	if (this.onSnellyLink) this.textCtx.fillStyle = "#ff5500";
 	  	else                   this.textCtx.fillStyle = "#ffff00";
 	  	this.textCtx.fillText('Snelly renderer', 14, 20);
 	  	this.textCtx.fillStyle = "#aaaaff";
-
-	  	var lsStats = this.lightTracer.getStats();
-	  	this.textCtx.fillText('ray count:    ' + (lsStats.rayCount/1.0e6).toPrecision(3) + 'M', 14, 35);
-	  	this.textCtx.fillText('waves traced: ' + lsStats.wavesTraced,    14, 50);
+	  	//var lsStats = this.lightTracer.getStats();
+	  	//this.textCtx.fillText('ray count:    ' + (lsStats.rayCount/1.0e6).toPrecision(3) + 'M', 14, 35);
+	  	//this.textCtx.fillText('waves traced: ' + lsStats.wavesTraced,    14, 50);
 	}
 
 	// Update stats
 	//this.stats.update();
 }
-
-
 
 Snelly.prototype.resize = function()
 {
@@ -449,13 +344,10 @@ Snelly.prototype.resize = function()
 	text_canvas.height = height
 
 	this.glRenderer.setSize(width, height);
-
 	this.camera.aspect = width / height;
 	this.camera.updateProjectionMatrix();
 
-	this.laser.resize(width, height);
 	this.pathtracer.resize(width, height);
-	this.lightTracer.resize(width, height);
 
 	if (this.initialized)
 		this.render();
@@ -504,21 +396,18 @@ Snelly.prototype.onDocumentMouseMove = function(event)
 	console.log('mouse move');
 	this.controls.update();
 	event.preventDefault();
-	if (this.laser.onMouseMove(event)) this.reset(true);
 }
 
 Snelly.prototype.onDocumentMouseDown = function(event)
 {
 	this.controls.update();
 	event.preventDefault();
-	this.laser.onMouseDown(event);
 }
 
 Snelly.prototype.onDocumentMouseUp = function(event)
 {
 	this.controls.update();
 	event.preventDefault();
-	this.laser.onMouseUp(event);
 }
 
 Snelly.prototype.onDocumentRightClick = function(event)
@@ -536,8 +425,6 @@ Snelly.prototype.onDocumentRightClick = function(event)
 		this.laser.unsetTarget();
 		return;
 	} 
-
-	this.laser.setTarget(pickedPoint);	
 
 	var no_recompile = true;
 	this.reset(no_recompile);

@@ -143,7 +143,7 @@ LightTracer.prototype.reset = function()
 
 LightTracer.prototype.compileShaders = function()
 {
-	var sceneObj = snelly.getLoadedScene();
+	var sceneObj = snelly.getScene();
 	var dielectricObj = snelly.getLoadedDielectric();
 	if (sceneObj==null || dielectricObj==null) return;
 	
