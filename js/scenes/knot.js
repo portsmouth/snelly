@@ -24,7 +24,7 @@ KnotScene.prototype.sdf = function()
 				uniform float _r;             
 				#define TWOPI 6.28318530718
 
-				float SDF(vec3 p)                    
+				float SDF_DIELE(vec3 p)                    
 				{                        
 				    float r = length(p.xy);
 				    float oa, a = atan(p.y, p.x); oa = _k*a;
@@ -33,7 +33,10 @@ KnotScene.prototype.sdf = function()
 				    p.xz = cos(oa)*p.xz + sin(oa)*vec2(-p.z, p.x);
 				    p.x = abs(p.x) - 1.35; 
 				    return length(p) - _r;
-				}                                     
+				}
+				       
+				float SDF_METAL(vec3 X) { return HUGE_VAL; }
+				float SDF_DIFFU(vec3 X) { return sdBox(X, vec3(-100.0, -2.5, -100.0), vec3(100.0, -2.0, 100.0)); }
 	`;
 }
 

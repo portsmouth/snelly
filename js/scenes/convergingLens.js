@@ -24,19 +24,17 @@ ConvergingLensScene.prototype.sdf = function()
 				uniform float _radiusB;  
 				uniform float _thickness;    
 
- 				float sdSphere(vec3 X, float r)
-				{
-					return length(X) - r;       
-				}    
-
-				float SDF(vec3 X)
+				float SDF_DIELE(vec3 X)
 				{ 
 					float t = min(_thickness, _radiusA + _radiusB);
 					float l = _radiusA + _radiusB - t;
-					float sA = sdSphere(X + vec3( _radiusA - 0.5*t, 0.0, 0.0), _radiusA);
-					float sB = sdSphere(X + vec3(-_radiusB + 0.5*t, 0.0, 0.0), _radiusB);
+					float sA = sdSphere(X + vec3(0.0,  _radiusA - 0.5*t, 0.0), _radiusA);
+					float sB = sdSphere(X + vec3(0.0, -_radiusB + 0.5*t, 0.0), _radiusB);
 					return opI(sA, sB);
 				}
+				
+				float SDF_METAL(vec3 X) { return HUGE_VAL; }
+				float SDF_DIFFU(vec3 X) { return sdBox(X, vec3(-100.0, -10.0, -100.0), vec3(100.0, -9.0, 100.0)); }
 	`;
 }
 
@@ -62,8 +60,8 @@ ConvergingLensScene.prototype.getScale = function()
 // Initial cam position default for this scene
 ConvergingLensScene.prototype.init = function(controls, camera, laser)
 {
-	laser.setPosition(new THREE.Vector3(-13.3410, 0.0, 0.0));
-	laser.setDirection(new THREE.Vector3(1.00000, 3.33067e-16, 0.00000));
+	laser.setPosition(new THREE.Vector3(0.0, 13.3410, 0.0));
+	laser.setDirection(new THREE.Vector3(0.0, -1.0, 0.00000));
 	laser.setEmissionRadius(3.00000);
 	laser.setEmissionSpreadAngle(1.01480);
 	controls.target.set(6.23887, -1.60404, 1.39647);

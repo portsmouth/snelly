@@ -46,7 +46,7 @@ MetaShapesScene.prototype.sdf = function()
 					return 0.5 - (exp(-k*d1)+exp(-k*d2)+exp(-k*d3))/k;
 				}
 
-				float SDF(vec3 pos)                    
+				float SDF_DIELE(vec3 pos)                    
 				{                        
       				float t = _time;
     
@@ -55,7 +55,10 @@ MetaShapesScene.prototype.sdf = function()
 				    float s = box(2.0*(pos + 3.0 * vec3(cos(t*1.1),cos(t*1.3),cos(t*1.7))))/2.0;
 
 				    return blob3(p, b, s);
-				}                                     
+				} 
+				
+				float SDF_METAL(vec3 X) { return HUGE_VAL; }
+				float SDF_DIFFU(vec3 X) { return sdBox(X, vec3(-100.0, -2.5, -100.0), vec3(100.0, -2.0, 100.0)); }
 	`;
 }
 

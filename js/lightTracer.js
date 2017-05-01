@@ -69,30 +69,13 @@ var LightTracer = function()
 	this.activeBlock = this.raySize;
 	this.maxMarchSteps = 512;
 	this.maxPathLength = 100;
-	this.enabled = true;
+	this.enabled = false;
 	this.showExternal = true;
 	this.showInternal = true;
 	this.initStates();
 
 	// Create a quad VBO for rendering textures
 	this.quadVbo = this.createQuadVbo();
-
-	// Spectrum initialization
-	this.spectra = {}
-	this.SPECTRUM_SAMPLES = 256;
-	this.spectrumObj = null;
-	this.LAMBDA_MIN = 360.0;
-    this.LAMBDA_MAX = 750.0;
-	var wToRgb = wavelengthToRgbTable();
-	this.wavelengthToRgb = new GLU.Texture(wToRgb.length/4, 1, 4, true,  true, true, wToRgb);
-	this.emissionIcdf    = new GLU.Texture(4*this.SPECTRUM_SAMPLES, 1, 1, true, true, true, null);
-
-	this.addSpectrum( new FlatSpectrum("flat", "Flat spectrum", 400.0, 700.0) );
-	this.addSpectrum( new BlackbodySpectrum("blackbody", "Blackbody spectrum", 6000.0) );
-	this.addSpectrum( new MonochromaticSpectrum("monochromatic", "Monochromatic spectrum", 650.0) ); 
-
-	this.fbo == null;
-	this.loadSpectrum("flat");
 
 	// Initialize raytracing shaders
 	this.shaderSources = GLU.resolveShaderSource(["init", "trace", "line", "linedepth", "comp", "pass"]);
@@ -161,13 +144,13 @@ LightTracer.prototype.reset = function()
 LightTracer.prototype.compileShaders = function()
 {
 	var sceneObj = snelly.getLoadedScene();
-	var materialObj = snelly.getLoadedMaterial();
-	if (sceneObj==null || materialObj==null) return;
+	var dielectricObj = snelly.getLoadedDielectric();
+	if (sceneObj==null || dielectricObj==null) return;
 	
 	// Inject code for the current scene and material:
 	sdfCode    = sceneObj.sdf();
-	iorCode    = materialObj.ior();
-	sampleCode = materialObj.sample();
+	iorCode    = dielectricObj.ior();
+	sampleCode = dielectricObj.sample();
 
 	// Copy the current scene and material routines into the source code
 	// of the trace fragment shader
@@ -226,32 +209,6 @@ LightTracer.prototype.getStats = function()
 	return stats;
 }
 
-// emission spectrum management
-LightTracer.prototype.addSpectrum = function(spectrumObj)
-{
-	this.spectra[spectrumObj.getName()] = spectrumObj;
-}
-
-LightTracer.prototype.getSpectra = function()
-{
-	return this.spectra;
-}
-
-LightTracer.prototype.loadSpectrum = function(spectrumName)
-{
-	this.spectrumObj = this.spectra[spectrumName];
-	var inverseCDF = this.spectrumObj.inverseCDF(this.LAMBDA_MIN, this.LAMBDA_MAX, this.SPECTRUM_SAMPLES);
-	this.emissionIcdf.bind(0);
-    this.emissionIcdf.copy(inverseCDF);
-    if (this.fbo != null)
-		this.reset();
-}
-
-LightTracer.prototype.getLoadedSpectrum = function()
-{
-	return this.spectrumObj;
-}
-
 
 LightTracer.prototype.composite = function()
 {
@@ -297,8 +254,11 @@ LightTracer.prototype.render = function()
 	var sceneObj = snelly.getLoadedScene();
 	if (sceneObj==null) return;
 
-	var materialObj = snelly.getLoadedMaterial();
-	if (materialObj==null) return;
+	var metalObj = snelly.getLoadedMetal();
+	if (metalObj==null) return;
+
+	var dielectricObj = snelly.getLoadedDielectric();
+	if (dielectricObj==null) return;
 
 	var current = this.currentState;
 	var next    = 1 - current;
@@ -323,10 +283,10 @@ LightTracer.prototype.render = function()
 		this.initProgram.uniformTexture("RngData", this.rayStates[current].rngTex);
 
 		// Read wavelength -> RGB table 
-		this.wavelengthToRgb.bind(1);
-		this.emissionIcdf.bind(2);
-		this.initProgram.uniformTexture("WavelengthToRgb", this.wavelengthToRgb);
-		this.initProgram.uniformTexture("ICDF", this.emissionIcdf);
+		snelly.wavelengthToRgb.bind(1);
+		this.initProgram.uniformTexture("WavelengthToRgb", snelly.wavelengthToRgb);
+		snelly.emissionIcdf.bind(2);
+		this.initProgram.uniformTexture("ICDF", snelly.emissionIcdf);
 		
 		// Emitter data
 		var laser = snelly.laser;
@@ -357,7 +317,8 @@ LightTracer.prototype.render = function()
 		this.rayStates[current].bind(this.traceProgram);       // Use the current state as the initial conditions
 		this.traceProgram.uniformF("SceneScale", sceneObj.getScale()); 
 		sceneObj.syncShader(this.traceProgram);                // upload current scene SDF shader parameters
-		materialObj.syncShader(this.traceProgram);             // upload current material IOR parameters
+		dielectricObj.syncShader(this.traceProgram);           // upload current dielectric IOR parameters
+		metalObj.syncShader(this.traceProgram);                // upload current metal IOR parameters
 		this.quadVbo.draw(this.traceProgram, gl.TRIANGLE_FAN); // Generate the next ray state
 		this.rayStates[next].detach(this.fbo);
 	}

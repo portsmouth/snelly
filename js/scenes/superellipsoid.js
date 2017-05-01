@@ -34,10 +34,13 @@ SuperEllipsoidScene.prototype.sdf = function()
 					return pow(xp + yp + zp, 1.0/p)  - 1.0;       
 				}      
 
-				float SDF(vec3 X)                     
+				float SDF_DIELE(vec3 X)                     
 				{                       
 					return sdSuperEllipsoid(X, _a, _b, _c, _p);       
-				}                                     
+				} 
+				
+				float SDF_METAL(vec3 X) { return HUGE_VAL; }
+				float SDF_DIFFU(vec3 X) { return HUGE_VAL; } //sdBox(X, vec3(-100.0, -10.0, -100.0), vec3(100.0, -1.0, 100.0)); }                                    
 	`;
 }
 

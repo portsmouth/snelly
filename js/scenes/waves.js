@@ -26,7 +26,6 @@ WavesScene.prototype = Object.create(Scene.prototype);
 WavesScene.prototype.sdf = function()
 {
 	return `
-			// Borrowed from https://www.shadertoy.com/view/Ms2SD1 by TDM
 			uniform float _waveFreq1;
 			uniform float _waveFreq2;
 			uniform float _waveHeight1;
@@ -39,14 +38,6 @@ WavesScene.prototype.sdf = function()
 			uniform float _length;
 			uniform float _width;
 			uniform float _depth;
-
-			float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-			{                            
-				vec3 center = 0.5*(bmin + bmax);
-				vec3 halfExtents = 0.5*(bmax - bmin);         
-				vec3 d = abs(X-center) - halfExtents;
-				return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-			} 
 
 			float ocean(vec3 p) 
 			{
@@ -61,13 +52,16 @@ WavesScene.prototype.sdf = function()
 			    return p.y - (h1 + h2);
 			}
 
-			float SDF(vec3 X)                     
+			float SDF_DIELE(vec3 X)                     
 			{                 
 				vec3 bmax = vec3(_length,  4.0*(_waveHeight1 + _waveHeight2), _width);
 				vec3 bmin = vec3(-_length,     -_depth, -_width);	
 				float bounds = sdBox(X, bmin, bmax);
 				return opI(bounds, ocean(X));
-			}                                  
+			}    
+				
+			float SDF_METAL(vec3 X) { return HUGE_VAL; }
+			float SDF_DIFFU(vec3 X) { return sdBox(X, vec3(-100.0, -2.5, -100.0), vec3(100.0, -2.0, 100.0)); }                                
 	`;
 }
 

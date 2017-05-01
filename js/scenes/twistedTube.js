@@ -21,12 +21,6 @@ TwistedTubeScene.prototype.sdf = function()
 				uniform vec3 _bounds;   
 				uniform float _twist;    
 
-				float sdBox(vec3 X, vec3 bounds)                     
-				{                                     
-					vec3 d = abs(X) - bounds;
-					return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-				} 
-
 				float opTwist( vec3 p )
 				{
 				    float c = cos(_twist*p.y/_bounds.y);
@@ -36,10 +30,13 @@ TwistedTubeScene.prototype.sdf = function()
 				    return sdBox(q, _bounds);
 				}
 
-				float SDF(vec3 X)                     
+				float SDF_DIELE(vec3 X)                     
 				{                           
 					return opTwist(X);
-				}                                     
+				}      
+
+				float SDF_METAL(vec3 X) { return HUGE_VAL; }
+				float SDF_DIFFU(vec3 X) { return sdBox(X, vec3(-100.0, -2.5, -100.0), vec3(100.0, -2.0, 100.0)); }                                 
 	`;
 }
 
@@ -88,13 +85,13 @@ TwistedTubeScene.prototype.getBox = function()
 // set up gui and callbacks for this scene
 TwistedTubeScene.prototype.initGui = function(parentFolder)
 {
-	this.aItem = parentFolder.add(this._settings.bounds, 'x', 0.01, 10.0);
+	this.aItem = parentFolder.add(this._settings.bounds, 'x', 0.01, 50.0);
 	this.aItem.onChange( function(value) { snelly.reset(); } );
 
-	this.bItem = parentFolder.add(this._settings.bounds, 'y', 0.01, 10.0);
+	this.bItem = parentFolder.add(this._settings.bounds, 'y', 0.01, 50.0);
 	this.bItem.onChange( function(value) { snelly.reset(); } );
 
-	this.cItem = parentFolder.add(this._settings.bounds, 'z', 0.01, 10.0);
+	this.cItem = parentFolder.add(this._settings.bounds, 'z', 0.01, 50.0);
 	this.cItem.onChange( function(value) { snelly.reset(); } );
 
 	this.twistItem = parentFolder.add(this._settings, 'twist', 0.0, 1.0);

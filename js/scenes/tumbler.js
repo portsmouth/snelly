@@ -19,7 +19,7 @@ TumblerScene.prototype.sdf = function()
 			// Borrowed from https://www.shadertoy.com/view/4s2GDV by mu6k
 			uniform float _height;
 			
-			float SDF(vec3 p)
+			float SDF_DIELE(vec3 p)
 			{
 				p.y /= _height;
 				float a = (length(p.xz)-1.0-p.y*.15)*.85;
@@ -34,7 +34,10 @@ TumblerScene.prototype.sdf = function()
 				p2.xz = vec2(cos(angle),sin(angle))*mag;
 				a = max(a,(-length(p2+vec3(-7.0,0.0,0.0))+6.05)*.85);
 				return a;
-			}                                  
+			}               
+
+			float SDF_METAL(vec3 X) { return HUGE_VAL; }
+			float SDF_DIFFU(vec3 X) { return sdBox(X, vec3(-100.0, -2.5, -100.0), vec3(100.0, -2.0, 100.0)); }                
 	`;
 }
 

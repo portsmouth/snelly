@@ -36,13 +36,13 @@ KIFSScene.prototype.sdf = function()
 				{
 					float c = cos(radians(angle));
 					float s = sin(radians(angle));
-					return mat3(c + (1.0 - c) * v.x * v.x, (1.0 - c) * v.x * v.y - s * v.z, (1.0 - c) * v.x * v.z + s * v.y,
-						(1.0 - c) * v.x * v.y + s * v.z, c + (1.0 - c) * v.y * v.y, (1.0 - c) * v.y * v.z - s * v.x,
-						(1.0 - c) * v.x * v.z - s * v.y, (1.0 - c) * v.y * v.z + s * v.x, c + (1.0 - c) * v.z * v.z
+					return mat3(c + (1.0 - c)*v.x*v.x,             (1.0 - c)*v.x*v.y - s*v.z,     (1.0 - c)*v.x*v.z + s*v.y,
+						            (1.0 - c)*v.y*v.x + s*v.z, c + (1.0 - c)*v.y*v.y,             (1.0 - c)*v.y*v.z - s*v.x,
+						            (1.0 - c)*v.z*v.x - s*v.y,     (1.0 - c)*v.z*v.y + s*v.x, c + (1.0 - c)*v.z*v.z
 						);
 				}
 
-				float SDF(vec3 p) 
+				float SDF_DIELE(vec3 p) 
 				{
 					p=p.zxy;
 					float a=1.5+sin(_time*.3578)*.5;
@@ -63,7 +63,10 @@ KIFSScene.prototype.sdf = function()
 						l=length(p);
 					}
 					return l*pow(Scale, -float(iter))-.1;
-				}              
+				}            
+
+				float SDF_METAL(vec3 X) { return HUGE_VAL; }
+				float SDF_DIFFU(vec3 X) { return sdBox(X, vec3(-100.0, -10.0, -100.0), vec3(100.0, -9.0, 100.0)); }
 	`;
 }
 

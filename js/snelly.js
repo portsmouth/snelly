@@ -15,13 +15,6 @@ var Snelly = function()
 	window.addEventListener( 'resize', this, false );
 
 	this.container = document.getElementById('container');
-	{
-		this.stats = new Stats();
-		this.stats.domElement.style.position = 'absolute';
-		this.stats.domElement.style.left  = '0px'
-		this.stats.domElement.style.bottom    = '0px'
-		this.container.appendChild( this.stats.domElement );
-	}
 
 	// Text canvas
 	var text_canvas = document.getElementById("text-canvas");
@@ -41,8 +34,9 @@ var Snelly = function()
 
 	this.glRenderer = new THREE.WebGLRenderer( { canvas: ui_canvas,
 											     alpha: true,
-											     antialias: true } );
-	this.glRenderer.setClearColor( 0x000000, 0 ); // the default
+											     antialias: true,
+											     autoClear: true } );
+	this.glRenderer.setClearColor( 0x00ff00, 0 ); // the default
 	this.glRenderer.setSize(this.width, this.height);
 	this.glScene = new THREE.Scene();
 	this.glScene.add(this.camera);
@@ -55,7 +49,6 @@ var Snelly = function()
 
 	var light = new THREE.AmbientLight( 0x808080 ); // soft white light
 	this.glScene.add( light );
-
 
 	// Create user control system for camera
 	this.controls = new THREE.OrbitControls(this.camera, this.glRenderer.domElement);
@@ -93,71 +86,77 @@ var Snelly = function()
 	}
 
 	// Instantiate materials
-	this.materials = {}
-	this.materialObj = null;
+	this.dielectrics = {}
+	this.metals = {}
+	this.dielectricObj = null;
+	this.metalObj = null;
 	{
 		// Dielectrics
-		this.addMaterial( new ConstantDielectric("Constant IOR dielectric", "", 1.5) ); 
-		this.addMaterial( new SellmeierDielectric("Glass (BK7)", "",       [0.0, 1.03961212, 0.00600069867, 0.231792344, 0.0200179144, 1.01046945,  103.560653]) );
-		this.addMaterial( new Sellmeier2Dielectric("Glass (K7)", "",       [0.0, 1.1273555,  0.00720341707, 0.124412303, 0.0269835916, 0.827100531, 100.384588]) );
-		this.addMaterial( new Sellmeier2Dielectric("Glass (F5)", "",       [0.0, 1.3104463,  0.00958633048, 0.19603426,  0.0457627627, 0.96612977,  115.011883]) );
-		this.addMaterial( new Sellmeier2Dielectric("Glass (LAFN7)", "",    [0.0, 1.66842615, 0.0103159999,  0.298512803, 0.0469216348, 1.0774376,   82.5078509]) );
-		this.addMaterial( new Sellmeier2Dielectric("Glass (LASF35)", "",   [0.0, 2.45505861, 0.0135670404,  0.453006077, 0.054580302,  2.3851308,   167.904715]) );
-		this.addMaterial( new Sellmeier2Dielectric("Glass (N-LAK33A)", "", [0.0, 1.44116999, 0.00680933877, 0.571749501, 0.0222291824, 1.16605226,  80.9379555]) );
-		this.addMaterial( new SellmeierDielectric("Glass (N-FK51A)", "",   [0.0, 0.97124781, 0.00472301995, 0.216901417, 0.0153575612, 0.90465166,  168.68133]) );
-		this.addMaterial( new Sellmeier2Dielectric("Glass (SF4)", "",      [0.0, 1.61957826, 0.0125502104,  0.339493189, 0.0544559822, 1.02566931,  117.652222]) );
-		this.addMaterial( new Sellmeier2Dielectric("Glass (SF67)", "",     [0.0, 1.97464225, 0.0145772324,  0.467095921, 0.0669790359, 2.43154209,  157.444895]) );
-		this.addMaterial( new Sellmeier2Dielectric("Water", "",            [0.0,        5.67252e-1, 5.08555046e-3, 1.736581e-1, 1.8149386e-2, 2.12153e-2, 2.61726e-2, 1.1384932e-1, 1.073888e1]) );
-		this.addMaterial( new Sellmeier2Dielectric("Ethanol", "",          [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
-		this.addMaterial( new Sellmeier2Dielectric("Polycarbonate", "",    [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
-		this.addMaterial( new CauchyDielectric("Glycerol", "",             [1.45797, 0.00598, -2, -0.00036, -4]) );
-		this.addMaterial( new CauchyDielectric("Liquid Crystal (E7)", "",  [1.4990,  0.0072,  -2,  0.0003,  -4]) );
-		this.addMaterial( new SellmeierDielectric("Diamond", "",           [0.0,        0.3306,     0.175,         4.3356,      0.1060]) );
-		this.addMaterial( new SellmeierDielectric("Quartz", "",            [0.0, 0.6961663, 0.0684043, 0.4079426, 0.1162414, 0.8974794, 9.896161]) );
-		this.addMaterial( new SellmeierDielectric("Fused Silica", "",      [0.0,        0.6961663,  0.0684043,     0.4079426,  0.1162414, 0.8974794, 9.896161]) );
-		this.addMaterial( new SellmeierDielectric("Sapphire", "",          [0.0,        1.5039759,  0.0740288,     0.55069141, 0.1216529, 6.5927379, 20.072248]) );
-		this.addMaterial( new SellmeierDielectric("Sodium Chloride", "",   [0.00055,    0.19800,    0.050,         0.48398,     0.100,        0.38696,   0.128]) );
-		this.addMaterial( new PolyanskiyDielectric("Proustite", "",        [7.483, 0.474, 0.0, 0.09, 1.0]) );
-		this.addMaterial( new PolyanskiyDielectric("Rutile (Titanium Dioxide)", "", [5.913, 0.2441, 0.0, 0.0803, 1.0]) );
-		this.addMaterial( new PolyanskiyDielectric("Silver Chloride", "", [4.00804, 0.079086, 0.0, 0.04584, 1.0]) );
-
-		// Gases
-		/*
-		this.addMaterial( new Gas("Air", "", [0.0, 0.05792105, 238.0185, 0.00167917, 57.362]) );
-		this.addMaterial( new Gas("Helium gas", "", [0.0, 0.01470091, 423.98]) );
-		this.addMaterial( new Gas("Nitrogen gas", "", [6.497378e-5, 3.0738649e-2, 144.0]) );
-		this.addMaterial( new Gas("Oxygen gas", "", [1.181494e-4, 9.708931e-3, 75.4]) );
-		this.addMaterial( new Gas("Ammonia gas", "", [0.0, 0.032953, 90.392]) );
-		this.addMaterial( new Gas("Argon gas", "", [0.0, 2.50141e-3, 91.012, 5.00283e-4, 87.892, 5.22343e-2, 214.02]) );
-		this.addMaterial( new Gas("Neon gas", "", [0.0, 0.00128145, 184.661, 0.0220486, 376.840]) );
-		this.addMaterial( new Gas("Krypton gas", "", [0.0, 0.00253637, 65.4742, 0.00273649, 73.698, 0.0620802, 181.08]) );
-		this.addMaterial( new Gas("Xenon gas", "", [0.0, 0.00322869, 46.301, 0.00355393, 50.578, 0.0606764, 112.74]) );
-		*/
+		this.addDielectric( new ConstantDielectric("Constant IOR dielectric", "", 1.5) ); 
+		this.addDielectric( new SellmeierDielectric("Glass (BK7)", "",       [0.0, 1.03961212, 0.00600069867, 0.231792344, 0.0200179144, 1.01046945,  103.560653]) );
+		this.addDielectric( new Sellmeier2Dielectric("Glass (K7)", "",       [0.0, 1.1273555,  0.00720341707, 0.124412303, 0.0269835916, 0.827100531, 100.384588]) );
+		this.addDielectric( new Sellmeier2Dielectric("Glass (F5)", "",       [0.0, 1.3104463,  0.00958633048, 0.19603426,  0.0457627627, 0.96612977,  115.011883]) );
+		this.addDielectric( new Sellmeier2Dielectric("Glass (LAFN7)", "",    [0.0, 1.66842615, 0.0103159999,  0.298512803, 0.0469216348, 1.0774376,   82.5078509]) );
+		this.addDielectric( new Sellmeier2Dielectric("Glass (LASF35)", "",   [0.0, 2.45505861, 0.0135670404,  0.453006077, 0.054580302,  2.3851308,   167.904715]) );
+		this.addDielectric( new Sellmeier2Dielectric("Glass (N-LAK33A)", "", [0.0, 1.44116999, 0.00680933877, 0.571749501, 0.0222291824, 1.16605226,  80.9379555]) );
+		this.addDielectric( new SellmeierDielectric("Glass (N-FK51A)", "",   [0.0, 0.97124781, 0.00472301995, 0.216901417, 0.0153575612, 0.90465166,  168.68133]) );
+		this.addDielectric( new Sellmeier2Dielectric("Glass (SF4)", "",      [0.0, 1.61957826, 0.0125502104,  0.339493189, 0.0544559822, 1.02566931,  117.652222]) );
+		this.addDielectric( new Sellmeier2Dielectric("Glass (SF67)", "",     [0.0, 1.97464225, 0.0145772324,  0.467095921, 0.0669790359, 2.43154209,  157.444895]) );
+		this.addDielectric( new Sellmeier2Dielectric("Water", "",            [0.0,        5.67252e-1, 5.08555046e-3, 1.736581e-1, 1.8149386e-2, 2.12153e-2, 2.61726e-2, 1.1384932e-1, 1.073888e1]) );
+		this.addDielectric( new Sellmeier2Dielectric("Ethanol", "",          [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
+		this.addDielectric( new Sellmeier2Dielectric("Polycarbonate", "",    [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
+		this.addDielectric( new CauchyDielectric("Glycerol", "",             [1.45797, 0.00598, -2, -0.00036, -4]) );
+		this.addDielectric( new CauchyDielectric("Liquid Crystal (E7)", "",  [1.4990,  0.0072,  -2,  0.0003,  -4]) );
+		this.addDielectric( new SellmeierDielectric("Diamond", "",           [0.0,        0.3306,     0.175,         4.3356,      0.1060]) );
+		this.addDielectric( new SellmeierDielectric("Quartz", "",            [0.0, 0.6961663, 0.0684043, 0.4079426, 0.1162414, 0.8974794, 9.896161]) );
+		this.addDielectric( new SellmeierDielectric("Fused Silica", "",      [0.0,        0.6961663,  0.0684043,     0.4079426,  0.1162414, 0.8974794, 9.896161]) );
+		this.addDielectric( new SellmeierDielectric("Sapphire", "",          [0.0,        1.5039759,  0.0740288,     0.55069141, 0.1216529, 6.5927379, 20.072248]) );
+		this.addDielectric( new SellmeierDielectric("Sodium Chloride", "",   [0.00055,    0.19800,    0.050,         0.48398,     0.100,        0.38696,   0.128]) );
+		this.addDielectric( new PolyanskiyDielectric("Proustite", "",        [7.483, 0.474, 0.0, 0.09, 1.0]) );
+		this.addDielectric( new PolyanskiyDielectric("Rutile (Titanium Dioxide)", "", [5.913, 0.2441, 0.0, 0.0803, 1.0]) );
+		this.addDielectric( new PolyanskiyDielectric("Silver Chloride", "", [4.00804, 0.079086, 0.0, 0.04584, 1.0]) );
 
 		// @todo: Metals. Need a much better approximation than 'LinearMetal' for plausible metals 
-		/*
-		this.addMaterial( new LinearMetal("Aluminium", "",  0.46555, 4.7121, 1.6620, 8.0439) );
-		this.addMaterial( new LinearMetal("Gold", "",       1.5275, 1.8394, 0.16918, 3.8816) );
-		*/
+		this.addMetal( new LinearMetal("Aluminium", "",  0.46555, 4.7121, 1.6620, 8.0439) );
+		this.addMetal( new LinearMetal("Gold", "",       1.5275, 1.8394, 0.16918, 3.8816) );
 	}
 
 	// Instantiate light tracer
 	this.lightTracer = new LightTracer();
 
-	// Instantiate distance field surface renderer
-	this.surfaceRenderer = new SurfaceRenderer();
-	
+	// Instantiate distance field pathtracer
+	this.pathtracer = new Pathtracer();
+
 	// Do initial resize:
 	this.resize();
+	
+	// Instantiate spectra
+	{
+		// Spectrum initialization
+		this.spectra = {}
+		this.SPECTRUM_SAMPLES = 1024;
+		this.spectrumObj = null;
+		this.LAMBDA_MIN = 390.0;
+	    this.LAMBDA_MAX = 750.0;
+		var wToRgb = wavelengthToRgbTable();
+		this.wavelengthToRgb = new GLU.Texture(wToRgb.length/4, 1, 4, true,  true, true, wToRgb);
+		this.emissionIcdf    = new GLU.Texture(4*this.SPECTRUM_SAMPLES, 1, 1, true, true, true, null);
+
+		this.addSpectrum( new FlatSpectrum("flat", "Flat spectrum", 400.0, 700.0) );
+		this.addSpectrum( new BlackbodySpectrum("blackbody", "Blackbody spectrum", 6000.0) );
+		this.addSpectrum( new MonochromaticSpectrum("monochromatic", "Monochromatic spectrum", 650.0) ); 
+
+		this.loadSpectrum("blackbody");
+	}
 
 	// Load the initial scene and material
 	this.gui = null;
-	this.loadScene("Lattice");
-	this.loadMaterial("Glass (LASF35)");
+	this.loadDielectric("Glass (LASF35)");
+	this.loadMetal("Gold");
+	this.loadScene("Menger sponge");
 
 	// Create dat gui
 	this.gui = new GUI();
-
 
 	// Setup keypress and mouse events
 	window.addEventListener('keydown', function(event) 
@@ -184,8 +183,8 @@ var Snelly = function()
 
 			case 72: // H key: hide dat gui
 				snelly.getGUI().visible = !(snelly.getGUI().visible);
-				if  (snelly.getGUI().visible) { snelly.stats.domElement.style.visibility = "visible"; }
-				else                          { snelly.stats.domElement.style.visibility = "hidden"; }
+				//if  (snelly.getGUI().visible) { snelly.stats.domElement.style.visibility = "visible"; }
+				//else                          { snelly.stats.domElement.style.visibility = "hidden"; }
 				break;
 
 			case 67: // C key: dev tool to dump cam and laser details, for setting scene defaults
@@ -229,9 +228,9 @@ Snelly.prototype.getLightTracer = function()
 	return this.lightTracer;
 }
 
-Snelly.prototype.getSurfaceRenderer = function()
+Snelly.prototype.getPathtracer = function()
 {
-	return this.surfaceRenderer;
+	return this.pathtracer;
 }
 
 Snelly.prototype.getGUI= function()
@@ -292,35 +291,88 @@ Snelly.prototype.getLoadedScene = function()
 
 
 //
+// Spectrum management
+//
+
+// emission spectrum management
+Snelly.prototype.addSpectrum = function(spectrumObj)
+{
+	this.spectra[spectrumObj.getName()] = spectrumObj;
+}
+
+Snelly.prototype.getSpectra = function()
+{
+	return this.spectra;
+}
+
+Snelly.prototype.loadSpectrum = function(spectrumName)
+{
+	this.spectrumObj = this.spectra[spectrumName];
+	var inverseCDF = this.spectrumObj.inverseCDF(this.LAMBDA_MIN, this.LAMBDA_MAX, this.SPECTRUM_SAMPLES);
+	this.emissionIcdf.bind(0);
+    this.emissionIcdf.copy(inverseCDF);
+    this.reset();
+}
+
+Snelly.prototype.getLoadedSpectrum = function()
+{
+	return this.spectrumObj;
+}
+
+
+
+//
 // Material management
 //
-Snelly.prototype.addMaterial = function(materialObj)
+Snelly.prototype.addDielectric = function(materialObj)
 {
-	this.materials[materialObj.getName()] = materialObj;
+	this.dielectrics[materialObj.getName()] = materialObj;
 }
 
-Snelly.prototype.getMaterials = function()
+Snelly.prototype.getDielectrics = function()
 {
-	return this.materials;
+	return this.dielectrics;
 }
 
-Snelly.prototype.loadMaterial = function(materialName)
+Snelly.prototype.addMetal = function(materialObj)
 {
-	this.materialObj = this.materials[materialName];
+	this.metals[materialObj.getName()] = materialObj;
+}
+
+Snelly.prototype.getMetals = function()
+{
+	return this.metals;
+}
+
+
+Snelly.prototype.loadDielectric = function(dielectricName)
+{
+	this.dielectricObj = this.dielectrics[dielectricName];
 	this.reset();
 }
 
-Snelly.prototype.getLoadedMaterial = function()
+Snelly.prototype.loadMetal = function(metalName)
 {
-	return this.materialObj;
+	this.metalObj = this.metals[metalName];
+	this.reset();
+}
+
+Snelly.prototype.getLoadedDielectric = function()
+{
+	return this.dielectricObj;
+}
+
+Snelly.prototype.getLoadedMetal = function()
+{
+	return this.metalObj;
 }
 
 
 // Renderer reset on camera update
-Snelly.prototype.reset = function()
+Snelly.prototype.reset = function(no_recompile = false)
 {	
-	this.surfaceRenderer.reset();
-	this.lightTracer.reset();
+	this.pathtracer.reset(no_recompile);
+	//this.lightTracer.reset();
 
 	if (!this.initialized) return;
 
@@ -336,10 +388,11 @@ Snelly.prototype.render = function()
 	if (this.sceneObj == null) return;
 
 	var gl = GLU.gl;
-	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-	gl.enable(gl.DEPTH_TEST);
-
+	
 	gl.viewport(0, 0, this.width, this.height);
+	gl.clearColor(0.0, 0.0, 0.0, 1.0);
+	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+	gl.disable(gl.DEPTH_TEST);
 
 	// Render laser pointer
 	this.laser.render();
@@ -348,7 +401,7 @@ Snelly.prototype.render = function()
 	this.lightTracer.render();
 
 	// Render distance field surface
-	this.surfaceRenderer.render();
+	this.pathtracer.render();
 
 	// Update HUD text canvas	
 	this.textCtx.textAlign = "left";   	// This determines the alignment of text, e.g. left, center, right
@@ -360,26 +413,18 @@ Snelly.prototype.render = function()
 
 	if (snelly.getGUI().visible)
 	{
-	  	var lsStats = this.lightTracer.getStats();
-
-	  	if (this.onSnellyLink)
-	  	{
-	  		this.textCtx.fillStyle = "#ff5500";
-	  	}
-	  	else
-	  	{
-	  		this.textCtx.fillStyle = "#ffff00";
-	  	}
-	  	
+	  	if (this.onSnellyLink) this.textCtx.fillStyle = "#ff5500";
+	  	else                   this.textCtx.fillStyle = "#ffff00";
 	  	this.textCtx.fillText('Snelly renderer', 14, 20);
-
 	  	this.textCtx.fillStyle = "#aaaaff";
+
+	  	var lsStats = this.lightTracer.getStats();
 	  	this.textCtx.fillText('ray count:    ' + (lsStats.rayCount/1.0e6).toPrecision(3) + 'M', 14, 35);
 	  	this.textCtx.fillText('waves traced: ' + lsStats.wavesTraced,    14, 50);
 	}
 
 	// Update stats
-	this.stats.update();
+	//this.stats.update();
 }
 
 
@@ -403,13 +448,14 @@ Snelly.prototype.resize = function()
 	text_canvas.width  = width;
 	text_canvas.height = height
 
+	this.glRenderer.setSize(width, height);
+
 	this.camera.aspect = width / height;
 	this.camera.updateProjectionMatrix();
 
-	this.lightTracer.resize(width, height);
-	this.surfaceRenderer.resize(width, height);
-	this.glRenderer.setSize(width, height);
 	this.laser.resize(width, height);
+	this.pathtracer.resize(width, height);
+	this.lightTracer.resize(width, height);
 
 	if (this.initialized)
 		this.render();
@@ -455,9 +501,10 @@ Snelly.prototype.onDocumentMouseMove = function(event)
 		this.onSnellyLink = false;
 	}
 
+	console.log('mouse move');
 	this.controls.update();
 	event.preventDefault();
-	if (this.laser.onMouseMove(event)) this.reset();
+	if (this.laser.onMouseMove(event)) this.reset(true);
 }
 
 Snelly.prototype.onDocumentMouseDown = function(event)
@@ -483,7 +530,7 @@ Snelly.prototype.onDocumentRightClick = function(event)
 	var xPick =   (( event.clientX - this.glRenderer.domElement.offsetLeft ) / this.glRenderer.domElement.width)*2 - 1;
 	var yPick = - (( event.clientY - this.glRenderer.domElement.offsetTop ) / this.glRenderer.domElement.height)*2 + 1;
 
-	var pickedPoint = this.surfaceRenderer.pick(xPick, yPick);
+	var pickedPoint = this.pathtracer.pick(xPick, yPick);
 	if (pickedPoint == null)
 	{
 		this.laser.unsetTarget();
@@ -491,12 +538,15 @@ Snelly.prototype.onDocumentRightClick = function(event)
 	} 
 
 	this.laser.setTarget(pickedPoint);	
-	this.reset();
+
+	var no_recompile = true;
+	this.reset(no_recompile);
 }
 
 function camChanged()
 {
-	snelly.reset();
+	var no_recompile = true;
+	snelly.reset(no_recompile);
 	snelly.render();
 }
 

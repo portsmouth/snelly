@@ -22,18 +22,7 @@ DivergingLensScene.prototype.sdf = function()
 			uniform float _radius;
 			uniform float _thickness;    
 			
-			float sdBox(vec3 X, vec3 bounds)                     
-			{                                     
-				vec3 d = abs(X) - bounds;
-				return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-			} 
-
-				float sdSphere(vec3 X, float r)                     
-			{                                     
-				return length(X) - r;       
-			}    
-
-			float SDF(vec3 X)                     
+			float SDF_DIELE(vec3 X)                     
 			{            
 				float r = max(_radius, 3.0*_thickness);
 				float y = 0.333*r;
@@ -42,7 +31,10 @@ DivergingLensScene.prototype.sdf = function()
 				float sA = sdSphere(X + vec3( r + 0.5*_thickness, 0.0, 0.0), r); 
 				float sB = sdSphere(X + vec3(-r - 0.5*_thickness, 0.0, 0.0), r);   
 				return opS(block, opU(sA, sB));                       
-			}                                     
+			}                                    
+
+			float SDF_METAL(vec3 X) { return HUGE_VAL; }
+			float SDF_DIFFU(vec3 X) { return sdBox(X, vec3(-100.0, -10.0, -100.0), vec3(100.0, -9.0, 100.0)); }
 	`;
 }
 

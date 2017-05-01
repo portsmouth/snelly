@@ -24,14 +24,8 @@ StackScene.prototype.sdf = function()
 				uniform float _extent;   
 				uniform float _thickness;
 				uniform float _separation;
-
-				float sdBox(vec3 X, vec3 bounds)                     
-				{                                     
-					vec3 d = abs(X) - bounds;
-					return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-				}              
-
-				float SDF(vec3 X)                     
+       
+				float SDF_DIELE(vec3 X)                     
 				{               
 					float inf = 1.0e9;
 					float sd = inf;
@@ -44,7 +38,10 @@ StackScene.prototype.sdf = function()
 			    		sd = min(sd, slab);
 			    	}	    
 					return sd;       
-				}                                     
+				}   
+
+				float SDF_METAL(vec3 X) { return HUGE_VAL; }
+				float SDF_DIFFU(vec3 X) { return sdBox(X, vec3(-100.0, -2.5, -100.0), vec3(100.0, -2.0, 100.0)); }                                 
 	`;
 }
 

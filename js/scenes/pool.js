@@ -29,14 +29,6 @@ PoolScene.prototype.sdf = function()
 			uniform float SEA_TIME;
 			uniform float SEA_BOUNDS;
 
-			float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-			{                            
-				vec3 center = 0.5*(bmin + bmax);
-				vec3 halfExtents = 0.5*(bmax - bmin);         
-				vec3 d = abs(X-center) - halfExtents;
-				return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-			} 
-
 			mat2 octave_m = mat2(1.6,1.2,-1.2,1.6);
 
 			float hash( vec2 p ) 
@@ -83,13 +75,16 @@ PoolScene.prototype.sdf = function()
 			    return p.y - h;
 			}
 
-			float SDF(vec3 X)                     
+			float SDF_DIELE(vec3 X)                     
 			{                 
 				vec3 bmax = vec3(SEA_BOUNDS,  4.0*SEA_HEIGHT, SEA_BOUNDS);
 				vec3 bmin = vec3(-SEA_BOUNDS,     -SEA_DEPTH, -SEA_BOUNDS);	
 				float bounds = sdBox(X, bmin, bmax);
 				return opI(bounds, ocean(X));
-			}                                  
+			}   
+
+			float SDF_METAL(vec3 X) { return HUGE_VAL; }
+			float SDF_DIFFU(vec3 X) { return sdBox(X, vec3(-100.0, -2.5, -100.0), vec3(100.0, -2.0, 100.0)); }                          
 	`;
 }
 

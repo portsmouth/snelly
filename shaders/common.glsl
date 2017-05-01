@@ -5,6 +5,8 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
+#define HUGE_VAL 1.0e12
+
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
@@ -31,6 +33,25 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }

@@ -23,7 +23,7 @@ SDF_FUNC
 
 //////////////////////////////////////////////////////////////
 
-
+/*
 bool hit(inout vec3 X, vec3 D)
 {
 	float minMarchDist = 1.0e-5*SceneScale;
@@ -40,9 +40,13 @@ bool hit(inout vec3 X, vec3 D)
 	if (t<maxMarchDist) return true;
 	return false;
 }
+*/
 
 void main()
 {
+	// @todo ...
+
+	/*
 	// Initialize world ray position
 	vec3 X = camPos;
 
@@ -63,7 +67,10 @@ void main()
 	{
 		dist = -1.0;
 	}
-	
+	*/
+
+
+	float dist = -1.0;
 	gl_FragColor = encode_float(dist);
 }
 

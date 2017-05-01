@@ -29,12 +29,6 @@ MengerScene.prototype.sdf = function()
 					return vec2(cos(a)*v.x + sin(a)*v.y, -sin(a)*v.x + cos(a)*v.y); 
 				}
 
-				float sdBox(vec3 X, vec3 bounds)                     
-				{                                     
-					vec3 d = abs(X) - bounds;
-					return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-				} 
-
 				float sdCross( in vec3 p )
 				{
 					float inf = 1.0e6;
@@ -64,14 +58,17 @@ MengerScene.prototype.sdf = function()
 						sd = max(sd, c);
 					}
 					return sd;
-				}                                  
+				}
+
+				float SDF_DIELE(vec3 X) { return HUGE_VAL; }
+				float SDF_DIFFU(vec3 X) { return sdBox(X, vec3(-100.0, -2.5, -100.0), vec3(100.0, -2.0, 100.0)); }
 	`;
 
 	var sdfCode;
 	if (!this._settings.tile)
 	{
 		sdfCode = code + `
-			float SDF(vec3 X)
+			float SDF_METAL(vec3 X)
 			{
 				return menger(X);
 			}
@@ -85,7 +82,7 @@ MengerScene.prototype.sdf = function()
 				vec3 q = mod(p,c)-0.5*c;
 				return menger(q);
 			}
-			float SDF(vec3 X)
+			float SDF_METAL(vec3 X)
 			{
 				float s = float(${this._settings.tileScale});
 				return opRep(X, vec3(s, s, s));

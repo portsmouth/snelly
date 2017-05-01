@@ -7,6 +7,8 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
+#define HUGE_VAL 1.0e12
+
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
@@ -33,6 +35,25 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -139,6 +160,8 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
+#define HUGE_VAL 1.0e12
+
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
@@ -165,6 +188,25 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -235,12 +277,14 @@ void main(void)
 }
 `,
 
-'init-fragment-shader': `
+'filter-fragment-shader': `
 #extension GL_EXT_draw_buffers : require
 //#extension GL_EXT_frag_depth : require
 precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
+
+#define HUGE_VAL 1.0e12
 
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
@@ -268,6 +312,314 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+
+float saturate(float x) { return max(0.0, min(1.0, x)); }
+
+// clip space depth calculation, given eye space depth
+float computeClipDepth(float ze, float zNear, float zFar)
+{
+	float zn = (zFar + zNear - 2.0*zFar*zNear/ze) / (zFar - zNear); // compute NDC depth
+	float zb = zn*0.5 + 0.5;                                        // convert to clip depth
+	return saturate(zb); // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+///
+/// A neat trick to return a float value from a webGL fragment shader
+///
+float shift_right (float v, float amt) { 
+    v = floor(v) + 0.5; 
+    return floor(v / exp2(amt)); 
+}
+float shift_left (float v, float amt) { 
+    return floor(v * exp2(amt) + 0.5); 
+}
+float mask_last (float v, float bits) { 
+    return mod(v, shift_left(1.0, bits)); 
+}
+float extract_bits (float num, float from, float to) { 
+    from = floor(from + 0.5); to = floor(to + 0.5); 
+    return mask_last(shift_right(num, from), to - from); 
+}
+vec4 encode_float (float val) { 
+    if (val == 0.0) return vec4(0, 0, 0, 0); 
+    float sign = val > 0.0 ? 0.0 : 1.0; 
+    val = abs(val); 
+    float exponent = floor(log2(val)); 
+    float biased_exponent = exponent + 127.0; 
+    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
+    float t = biased_exponent / 2.0; 
+    float last_bit_of_biased_exponent = fract(t) * 2.0; 
+    float remaining_bits_of_biased_exponent = floor(t); 
+    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
+    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
+    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
+    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
+    return vec4(byte4, byte3, byte2, byte1); 
+}
+
+
+vec4 pack_depth(const in float depth)
+{
+    return vec4(depth, 0.0, 0.0, 1.0);
+}
+
+float unpack_depth(const in vec4 rgba_depth)
+{
+    return rgba_depth.r;
+}
+
+uniform sampler2D Radiance;      
+uniform vec2 resolution;
+
+#define RADIANCE_TOLERANCE 1.0e-6
+
+
+float filter(float r2)
+{
+    return max(0.0, 1.0-r2*r2);
+}
+
+void main()
+{
+    vec2 pixel = gl_FragCoord.xy;
+
+    // Average current radiance over sample set within filter radius
+    float maxx = resolution.x-1.0;
+    float maxy = resolution.y-1.0;
+    vec2 invRes = 1.0/resolution.xy;
+    float invWidth = 0.5/float(DOWN_RES);
+
+    vec3 mean = vec3(0.0);
+    float norm = 0.0;
+    for (int i=-2*DOWN_RES; i<=2*DOWN_RES; ++i)
+    {
+        float _i = max(min(maxx, pixel.x+float(i)), 0.0);
+        float u = _i*invRes.x;
+        float dx = float(i)*invWidth;
+        float dx2 = dx*dx;
+
+        for (int j=-2*DOWN_RES; j<2*DOWN_RES; ++j)
+        {
+            float _j = max(min(maxy, pixel.y+float(j)), 0.0);
+            float v = _j*invRes.y;
+            float dy = float(j)*invWidth;
+            
+            float r2 = dx2 + dy*dy;
+            float f = filter(r2);
+            if (f>1.0e-3)
+            {
+                vec4 L = texture2D(Radiance, vec2(u,v));  
+                float weight = f * L.w;
+                mean += weight * L.xyz;
+                norm += weight;
+            }
+        }
+    }
+
+    mean /= max(norm, RADIANCE_TOLERANCE);
+    gl_FragData[0] = vec4(mean, 1.0);
+}
+`,
+
+'filter-vertex-shader': `
+#extension GL_EXT_draw_buffers : require
+//#extension GL_EXT_frag_depth : require
+precision highp float;
+
+#define M_PI 3.1415926535897932384626433832795
+
+#define HUGE_VAL 1.0e12
+
+/// GLSL floating point pseudorandom number generator, from
+/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
+/// http://arxiv.org/pdf/1505.06022.pdf
+float rand(inout vec4 rnd) 
+{
+    const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
+    const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
+    const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
+    const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
+    vec4 beta = floor(rnd/q);
+    vec4 p = a*(rnd - beta*q) - beta*r;
+    beta = (1.0 - sign(p))*0.5*m;
+    rnd = p + beta;
+    return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
+}
+
+/// Distance field utilities
+
+// Union
+float opU( float d1, float d2 ) { return min(d1,d2); }
+
+// Subtraction
+float opS(float A, float B) { return max(-B, A); }
+
+// Intersection
+float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+
+float saturate(float x) { return max(0.0, min(1.0, x)); }
+
+// clip space depth calculation, given eye space depth
+float computeClipDepth(float ze, float zNear, float zFar)
+{
+	float zn = (zFar + zNear - 2.0*zFar*zNear/ze) / (zFar - zNear); // compute NDC depth
+	float zb = zn*0.5 + 0.5;                                        // convert to clip depth
+	return saturate(zb); // in [0,1] range as z ranges over [zNear, zFar]
+}
+
+
+///
+/// A neat trick to return a float value from a webGL fragment shader
+///
+float shift_right (float v, float amt) { 
+    v = floor(v) + 0.5; 
+    return floor(v / exp2(amt)); 
+}
+float shift_left (float v, float amt) { 
+    return floor(v * exp2(amt) + 0.5); 
+}
+float mask_last (float v, float bits) { 
+    return mod(v, shift_left(1.0, bits)); 
+}
+float extract_bits (float num, float from, float to) { 
+    from = floor(from + 0.5); to = floor(to + 0.5); 
+    return mask_last(shift_right(num, from), to - from); 
+}
+vec4 encode_float (float val) { 
+    if (val == 0.0) return vec4(0, 0, 0, 0); 
+    float sign = val > 0.0 ? 0.0 : 1.0; 
+    val = abs(val); 
+    float exponent = floor(log2(val)); 
+    float biased_exponent = exponent + 127.0; 
+    float fraction = ((val / exp2(exponent)) - 1.0) * 8388608.0; 
+    float t = biased_exponent / 2.0; 
+    float last_bit_of_biased_exponent = fract(t) * 2.0; 
+    float remaining_bits_of_biased_exponent = floor(t); 
+    float byte4 = extract_bits(fraction, 0.0, 8.0) / 255.0; 
+    float byte3 = extract_bits(fraction, 8.0, 16.0) / 255.0; 
+    float byte2 = (last_bit_of_biased_exponent * 128.0 + extract_bits(fraction, 16.0, 23.0)) / 255.0; 
+    float byte1 = (sign * 128.0 + remaining_bits_of_biased_exponent) / 255.0; 
+    return vec4(byte4, byte3, byte2, byte1); 
+}
+
+
+vec4 pack_depth(const in float depth)
+{
+    return vec4(depth, 0.0, 0.0, 1.0);
+}
+
+float unpack_depth(const in vec4 rgba_depth)
+{
+    return rgba_depth.r;
+}
+
+attribute vec3 Position;
+attribute vec2 TexCoord;
+
+varying vec2 vTexCoord;
+
+void main() 
+{
+	gl_Position = vec4(Position, 1.0);
+	vTexCoord = TexCoord;
+}
+`,
+
+'init-fragment-shader': `
+#extension GL_EXT_draw_buffers : require
+//#extension GL_EXT_frag_depth : require
+precision highp float;
+
+#define M_PI 3.1415926535897932384626433832795
+
+#define HUGE_VAL 1.0e12
+
+/// GLSL floating point pseudorandom number generator, from
+/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
+/// http://arxiv.org/pdf/1505.06022.pdf
+float rand(inout vec4 rnd) 
+{
+    const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
+    const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
+    const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
+    const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
+    vec4 beta = floor(rnd/q);
+    vec4 p = a*(rnd - beta*q) - beta*r;
+    beta = (1.0 - sign(p))*0.5*m;
+    rnd = p + beta;
+    return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
+}
+
+/// Distance field utilities
+
+// Union
+float opU( float d1, float d2 ) { return min(d1,d2); }
+
+// Subtraction
+float opS(float A, float B) { return max(-B, A); }
+
+// Intersection
+float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -381,6 +733,8 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
+#define HUGE_VAL 1.0e12
+
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
@@ -407,6 +761,25 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -484,6 +857,8 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
+#define HUGE_VAL 1.0e12
+
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
@@ -510,6 +885,25 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -583,6 +977,8 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
+#define HUGE_VAL 1.0e12
+
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
@@ -609,6 +1005,25 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -706,6 +1121,8 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
+#define HUGE_VAL 1.0e12
+
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
@@ -732,6 +1149,25 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -825,6 +1261,8 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
+#define HUGE_VAL 1.0e12
+
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
@@ -851,6 +1289,25 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -944,6 +1401,8 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
+#define HUGE_VAL 1.0e12
+
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
@@ -970,6 +1429,25 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -1044,6 +1522,8 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
+#define HUGE_VAL 1.0e12
+
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
@@ -1070,6 +1550,25 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -1146,6 +1645,8 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
+#define HUGE_VAL 1.0e12
+
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
@@ -1172,6 +1673,25 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -1230,13 +1750,16 @@ float unpack_depth(const in vec4 rgba_depth)
     return rgba_depth.r;
 }
 
-uniform sampler2D Radiance;
-uniform sampler2D RngData;
-uniform sampler2D Depth;
+uniform sampler2D Radiance;         // 0
+uniform sampler2D RngData;          // 1
+uniform sampler2D WavelengthToRgb;  // 2
+uniform sampler2D ICDF;             // 3
+uniform sampler2D RadianceBlocks;   // 4
 
 varying vec2 vTexCoord;
 
 uniform vec2 resolution;
+uniform int downRes;
 uniform vec3 camPos;
 uniform vec3 camDir;
 uniform vec3 camX;
@@ -1248,6 +1771,25 @@ uniform float camZoom;
 uniform float camAspect;
 uniform float SceneScale;
 
+uniform vec3 EmitterPos;
+uniform vec3 EmitterDir;
+uniform float EmitterRadius;
+uniform float EmitterSpread; // in degrees
+uniform float EmitterPower;
+
+uniform float SkyPower;
+uniform float SkyTemp;
+
+uniform float roughnessDiele;
+uniform float roughnessMetal;
+
+#define DENOM_TOLERANCE 1.0e-7
+#define HIT_TOLERANCE 1.0e-4
+#define NORMAL_TOLERANCE 5.0e-4
+
+#define MAT_DIELE  0
+#define MAT_METAL  1
+#define MAT_DIFFU  2
 
 //////////////////////////////////////////////////////////////
 // Dynamically injected code
@@ -1255,83 +1797,881 @@ uniform float SceneScale;
 
 SDF_FUNC
 
-LIGHTING_FUNC
-
-//////////////////////////////////////////////////////////////
+IOR_FUNC
 
 
-bool hit(inout vec3 X, vec3 D, inout int numSteps)
+///////////////////////////////////////////////////////////////////////////////////
+// SDF raymarcher
+///////////////////////////////////////////////////////////////////////////////////
+
+
+// find first hit over specified segment
+bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
+                   inout vec3 hit, inout int material)
 {
-	float minMarchDist = 1.0e-5*SceneScale;
-	float maxMarchDist = 1.0e5*SceneScale;
-	float t = 0.0;
-	float h = 1.0;
-    for( int i=0; i<MAX_MARCH_STEPS; i++ )
+    float minMarchDist = HIT_TOLERANCE*SceneScale;
+
+    float sdf_diele = abs(SDF_DIELE(start));
+    float sdf_metal = abs(SDF_METAL(start));
+    float sdf_diffu = abs(SDF_DIFFU(start));
+    float sdf = min(sdf_diele, min(sdf_metal, sdf_diffu));
+    float InitialSign = sign(sdf);
+
+    float t = 0.0;  
+    int iters=0;
+    for (int n=0; n<MAX_MARCH_STEPS; n++)
     {
-		if (h<minMarchDist || t>maxMarchDist) break;
-		h = SDF(X + D*t);
-        t += h;
+        // With this formula, the ray advances whether sdf is initially negative or positive --
+        // but on crossing the zero isosurface, sdf flips allowing bracketing of the root. 
+        t += InitialSign * sdf;
+        if (t>=maxDist) break;
+        vec3 pW = start + t*dir;    
+
+        sdf_diele = abs(SDF_DIELE(pW)); if (sdf_diele<minMarchDist) { material = MAT_DIELE; break; }
+        sdf_metal = abs(SDF_METAL(pW)); if (sdf_metal<minMarchDist) { material = MAT_METAL; break; }
+        sdf_diffu = abs(SDF_DIFFU(pW)); if (sdf_diffu<minMarchDist) { material = MAT_DIFFU; break; }
+        sdf = min(sdf_diele, min(sdf_metal, sdf_diffu));
+        iters++;
     }
-    X += t*D;
-	if (t<maxMarchDist) return true;
-	return false;
+    hit = start + t*dir;
+    if (t>=maxDist || iters>=MAX_MARCH_STEPS) return false;
+    return true;
+}
+
+// find first hit along infinite ray
+bool traceRay(in vec3 start, in vec3 dir, 
+              inout vec3 hit, inout int material)
+{
+    float maxMarchDist = 2.0e2*SceneScale;
+    return traceDistance(start, dir, maxMarchDist, hit, material);
 }
 
 
-vec3 NORMAL( in vec3 X )
+// (whether not occluded along finite length segment)
+bool Visible(in vec3 start, in vec3 end)
 {
-	// Compute normal as gradient of SDF
-	float normalEpsilon = 2.0e-5*SceneScale;
-	vec3 eps = vec3(normalEpsilon, 0.0, 0.0);
-	vec3 nor = vec3(
-	    SDF(X+eps.xyy) - SDF(X-eps.xyy),
-	    SDF(X+eps.yxy) - SDF(X-eps.yxy),
-	    SDF(X+eps.yyx) - SDF(X-eps.yyx) );
-	return normalize(nor);
+    float eps = 20.0*HIT_TOLERANCE*SceneScale;
+    vec3 dir = normalize(end - start);
+    float maxDist = length(end - start);
+    vec3 delta = eps * dir;
+    vec3 hit;
+    int material;
+    bool occluded = traceDistance(start+delta, dir, maxDist, hit, material);
+    return !occluded;
+}
+
+// (whether occluded along infinite ray)
+bool Occluded(in vec3 start, in vec3 dir)
+{
+    float eps = 20.0*HIT_TOLERANCE*SceneScale;
+    vec3 delta = eps * dir;
+    vec3 p;
+    int material;
+    vec3 hit;
+    bool occluded = traceRay(start+delta, dir, hit, material);
+    return occluded;
+}
+
+vec3 normal(in vec3 pW, int material)
+{
+    // Compute normal as gradient of SDF
+    float normalEpsilon = NORMAL_TOLERANCE*SceneScale;
+    vec3 e = vec3(normalEpsilon, 0.0, 0.0);
+    vec3 xyyp = pW+e.xyy; vec3 xyyn = pW-e.xyy;
+    vec3 yxyp = pW+e.yxy; vec3 yxyn = pW-e.yxy;
+    vec3 yyxp = pW+e.yyx; vec3 yyxn = pW-e.yyx;
+    vec3 N;
+    if      (material==MAT_DIELE) { N = vec3(SDF_DIELE(xyyp)-SDF_DIELE(xyyn), SDF_DIELE(yxyp)-SDF_DIELE(yxyn), SDF_DIELE(yyxp) - SDF_DIELE(yyxn)); }
+    else if (material==MAT_METAL) { N = vec3(SDF_METAL(xyyp)-SDF_METAL(xyyn), SDF_METAL(yxyp)-SDF_METAL(yxyn), SDF_METAL(yyxp) - SDF_METAL(yyxn)); }
+    else                          { N = vec3(SDF_DIFFU(xyyp)-SDF_DIFFU(xyyn), SDF_DIFFU(yxyp)-SDF_DIFFU(yxyn), SDF_DIFFU(yyxp) - SDF_DIFFU(yyxn)); }
+    return normalize(N);
+}
+
+/////////////////////////////////////////////////////////////////////////
+// Basis transforms
+/////////////////////////////////////////////////////////////////////////
+
+float cosTheta2(in vec3 nLocal) { return nLocal.z*nLocal.z; }
+float cosTheta(in vec3 nLocal)  { return nLocal.z; }
+float sinTheta2(in vec3 nLocal) { return 1.0 - cosTheta2(nLocal); }
+float sinTheta(in vec3 nLocal)  { return sqrt(max(0.0, sinTheta2(nLocal))); }
+float tanTheta2(in vec3 nLocal) { float ct2 = cosTheta2(nLocal); return max(0.0, 1.0 - ct2) / max(ct2, 1.0e-7); }
+float tanTheta(in vec3 nLocal)  { return sqrt(max(0.0, tanTheta2(nLocal))); }
+
+struct Basis
+{
+    vec3 nW;
+    vec3 tW;
+    vec3 bW;
+};
+
+Basis makeBasis(in vec3 nW)
+{
+    Basis basis;
+    basis.nW = nW;
+    if (abs(nW.z) < abs(nW.x))
+    {
+        basis.tW.x =  nW.z;
+        basis.tW.y =  0.0;
+        basis.tW.z = -nW.x;
+    }
+    else
+    {
+        basis.tW.x =  0.0;
+        basis.tW.y = nW.z;
+        basis.tW.z = -nW.y;
+    }
+    basis.tW = normalize(basis.tW);
+    basis.bW = cross(nW, basis.tW);
+    return basis;
+}
+
+vec3 worldToLocal(in vec3 vWorld, in Basis basis)
+{
+    return vec3( dot(vWorld, basis.tW),
+                 dot(vWorld, basis.bW),
+                 dot(vWorld, basis.nW) );
+}
+
+vec3 localToWorld(in vec3 vLocal, in Basis basis)
+{
+    return basis.tW*vLocal.x + basis.bW*vLocal.y + basis.nW*vLocal.z;
 }
 
 
-void main()
+/////////////////////////////////////////////////////////////////////////
+// Sampling formulae
+/////////////////////////////////////////////////////////////////////////
+
+vec3 sampleHemisphere(inout vec4 rnd, inout float pdf)
 {
-	vec4 rnd = texture2D(RngData, vTexCoord);
+    // Do cosine-weighted sampling of hemisphere
+    float r = sqrt(rand(rnd));
+    float theta = 2.0 * M_PI * rand(rnd);
+    float x = r * cos(theta);
+    float y = r * sin(theta);
+    float z = sqrt(1.0 - x*x - y*y);
+    pdf = abs(z) / M_PI;
+    return vec3(x, y, z);
+}
 
-	// Initialize world ray position
-	vec3 X = camPos;
 
-	// Jitter over pixel
-	vec2 pixel = gl_FragCoord.xy;
-	pixel += -0.5 + 0.5*vec2(rand(rnd), rand(rnd));
+float powerHeuristic(const float a, const float b)
+{
+    float t = a*a;
+    return t / (t + b*b);
+}
 
-	// Compute world ray direction for this fragment
-	vec2 ndc = -1.0 + 2.0*(pixel/resolution.xy);
-	float fh = camNear*tan(0.5*radians(camFovy)) / camZoom; // frustum height
-	float fw = camAspect*fh;
-	vec3 s = -fw*ndc.x*camX + fh*ndc.y*camY;
-	vec3 D = normalize(camNear*camDir + s); // ray direction
+/////////////////////////////////////////////////////////////////////////
+// Beckmann Microfacet formulae
+/////////////////////////////////////////////////////////////////////////
 
-	// Raycast to first hit point
-	float zEye = camFar;
-	vec3 L = vec3(0.0, 0.0, 0.0);
-	int numSteps;	
-	if ( hit(X, D, numSteps) )
-	{
-		zEye = dot(X - camPos, camDir);
-		vec3 N = NORMAL(X);
-		vec3 V = normalize(camPos-X);
-		L = LIGHTING(V, N);
-	}
+// m = the microfacet normal (in the local space where z = the macrosurface normal)
+float microfacetEval(in vec3 m, in float roughness)
+{
+    float tanTheta2 = tanTheta2(m);
+    float cosTheta2 = cosTheta2(m);
+    float roughnessSqr = roughness*roughness;
+    float epsilon = 1.0e-9;
+    float exponent = tanTheta2 / max(roughnessSqr, epsilon);
+    float D = exp(-exponent) / (M_PI * max(roughnessSqr, epsilon) * cosTheta2*cosTheta2);
+    return D;
+}
 
-	float clipDepth = computeClipDepth(zEye, camNear, camFar);
+// m = the microfacet normal (in the local space where z = the macrosurface normal)
+vec3 microfacetSample(inout vec4 rnd, in float roughness)
+{
+    float phiM = (2.0 * M_PI) * rand(rnd);
+    float cosPhiM = cos(phiM);
+    float sinPhiM = sin(phiM);
+    float epsilon = 1.0e-9;
+    float tanThetaMSqr = -roughness*roughness * log(max(epsilon, rand(rnd)));
+    float cosThetaM = 1.0 / sqrt(1.0 + tanThetaMSqr);
+    float sinThetaM = sqrt(max(0.0, 1.0 - cosThetaM*cosThetaM));
+    return normalize(vec3(sinThetaM*cosPhiM, sinThetaM*sinPhiM, cosThetaM));
+}
 
-	// Write updated radiance and sample count
-	vec4 oldL = texture2D(Radiance, vTexCoord);
-	float oldN = oldL.w;
-	float newN = oldN + 1.0;
-	vec3 newL = (oldN*oldL.rgb + L) / newN;
+float microfacetPDF(in vec3 m, in float roughness)
+{
+    return microfacetEval(m, roughness) * cosTheta(m);
+}
 
-	gl_FragData[0] = vec4(newL, newN);
-	gl_FragData[1] = rnd;
-	gl_FragData[2] = pack_depth(clipDepth);
+// Shadow-masking function
+// Approximation from Walter et al (v = arbitrary direction, m = microfacet normal)
+float smithG1(in vec3 vLocal, in vec3 mLocal, float roughness)
+{
+    float tanThetaAbs = abs(tanTheta(vLocal));
+    if (tanThetaAbs < 1.0e-6) return 1.0; // perpendicular incidence -- no shadowing/masking
+    if (dot(vLocal, mLocal) * vLocal.z <= 0.0) return 0.0; // Back side is not visible from the front side, and the reverse.
+    float epsilon = 1.0e-6;
+    float a = 1.0 / (max(roughness, epsilon) * tanThetaAbs); // Rational approximation to the shadowing/masking function (Walter et al)  (<0.35% rel. error)
+    if (a >= 1.6) return 1.0;
+    float aSqr = a*a;
+    return (3.535*a + 2.181*aSqr) / (1.0 + 2.276*a + 2.577*aSqr);
+}
+
+float smithG2(in vec3 woL, in vec3 wiL, in vec3 mLocal, float roughness)
+{
+    return smithG1(woL, mLocal, roughness) * smithG1(wiL, mLocal, roughness);
+}
+
+
+/////////////////////////////////////////////////////////////////////////
+// BRDF functions
+/////////////////////////////////////////////////////////////////////////
+
+
+/// @todo:
+/// In general, have to deal with interfaces:
+///     - dielectric <-> metal        (vacuum is a special case of dielectric)
+///     - dielectric <-> diffuse      (vacuum is a special case of dielectric)
+///     - dielectric <-> dielectric
+
+/// Ray is either travelling in vacuum, or within the dielectric.
+
+
+// ****************************        Dielectric        ****************************
+
+/// Compute Fresnel reflectance at a dielectric interface (which has an "interior" and an "exterior").
+/// cosi is the cosine to the (interior-to-exterior) normal of the incident ray
+/// direction wi, (where we use the PBRT convention that the light
+/// travels in the opposite direction to wi, i.e. wi is the direction
+/// *from* which the light arrives at the surface point).
+/// The Boolean "entering" indicates whether the ray is entering or exiting the dielectric.
+float fresnelDielectricReflectance(in float cosi, in float iorInternal, in float iorExternal)
+{
+    bool entering = cosi > 0.0;
+    float ei, et;
+    if (entering)
+    {
+        ei = iorExternal; // Incident from external medium, if entering
+        et = iorInternal; // Transmitted to internal medium, if entering
+    }
+    else
+    {
+        ei = iorInternal; // Incident from internal medium, if exiting
+        et = iorExternal; // Transmitted to external medium, if exiting
+    }
+
+    // Compute sint from Snell's law:
+    float sint = ei/et * sqrt(max(0.0, 1.0 - cosi*cosi));
+
+    // Handle total internal reflection
+    if (sint >= 1.0) return 1.0;
+
+    float cost = sqrt(max(0.0, 1.0 - sint*sint));
+    float cosip = abs(cosi);
+    float rParallel      = (et*cosip - ei*cost) / (et*cosip + ei*cost);
+    float rPerpendicular = (ei*cosip - et*cost) / (ei*cosip + et*cost);
+    return 0.5 * (rParallel*rParallel + rPerpendicular*rPerpendicular);
+}
+
+// Given the direction (wt) of a beam transmitted through a plane dielectric interface
+// with the given normal (n) (with n pointing away from the transmitted half-space, i.e. wt.n<0),
+// and the ratio eta = et/ei of the incident IOR (ei) and transmitted IOR (et),
+// compute the direction of the incident beam (wi).
+// Returns false if no such beam exists, due to total internal reflection.
+bool refraction(in vec3 n, in float eta, in vec3 wt, inout vec3 wi)
+{
+    vec3 x = normalize(cross(cross(n, wt), n));
+    float sint = dot(wt, x);
+    float sini = eta * sint; // Snell's law
+    float sini2 = sini*sini;
+    if (sini2 >= 1.0) return false; // Total internal reflection
+    float cosi2 = (1.0 - sini*sini);
+    float cosi = max(0.0, sqrt(cosi2));
+    wi = -cosi*n + sini*x;
+    return true;
+}
+
+float evaluateDielectric( in vec3 woL, in vec3 wiL, in float roughness, in float wavelength_nm )
+{
+    float ior = IOR_DIELE(wavelength_nm);
+    bool reflected = cosTheta(wiL) * cosTheta(woL) > 0.0;
+
+    // We call this when vertex is *on* the dielectric surface, which implies
+    // in our case it is adjacent to vacuum. 
+    float R = fresnelDielectricReflectance(woL.z, ior, 1.0);
+
+    // Compute the reflection half-vector
+    vec3 h;
+    float eta; // IOR ratio, et/ei
+
+    if (reflected)
+    {
+        // Compute reflection half-vector
+        h = normalize(wiL + woL);
+    }
+    else
+    {
+        // Compute refraction half-vector
+        bool entering = cosTheta(wiL) > 0.0;
+        eta = entering ? ior : 1.0/ior;
+        h = normalize(wiL + eta*woL);
+    }
+    if (cosTheta(h)<0.0) h *= -1.0; // make sure half-vector points out
+
+    float D = microfacetEval(h, roughness);
+    float G = smithG2(woL, wiL, h, roughness);
+    float f;
+    if (reflected)
+    {
+        f = R * D * G / (4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)) + DENOM_TOLERANCE);
+    }
+    else
+    {
+        float im = dot(wiL, h);
+        float om = dot(woL, h);
+        float sqrtDenom = im + eta*om;
+        float dwh_dwo = eta*eta * abs(om) / (sqrtDenom*sqrtDenom);
+        f = (1.0 - R) * G * D * abs(im) * dwh_dwo / (abs(cosTheta(wiL))*abs(cosTheta(woL)) + DENOM_TOLERANCE);
+    }
+
+    return f;
+}
+
+float pdfDielectric( in vec3 woL, in vec3 wiL, in float roughness, in float wavelength_nm )
+{
+    float ior = IOR_DIELE(wavelength_nm);
+    bool reflected = cosTheta(wiL) * cosTheta(woL) > 0.0;
+
+    // We call this when vertex is *on* the dielectric surface, which implies
+    // in our case it is adjacent to vacuum. 
+    float R = fresnelDielectricReflectance(woL.z, ior, 1.0);
+
+    // Compute the reflection half-vector, and the Jacobian of the half-direction mapping
+    vec3 h;
+    float dwh_dwo;
+    float pdf;
+
+    if (reflected)
+    {
+        h = normalize(wiL + woL);
+        dwh_dwo = 1.0 / (4.0*dot(woL, h) + DENOM_TOLERANCE);
+        pdf = R;
+    }
+    else
+    {
+        // Compute reflection half-vector
+        bool entering = cosTheta(wiL) > 0.0;
+        float eta = entering ? ior : 1.0/ior;
+        vec3 h = normalize(wiL + eta*woL);
+        float im = dot(wiL, h);
+        float om = dot(woL, h);
+        float sqrtDenom = im + eta*om;
+        dwh_dwo = eta*eta * abs(om) / (sqrtDenom*sqrtDenom + DENOM_TOLERANCE);
+        pdf = 1.0 - R;
+    }
+    if (cosTheta(h)<0.0) h *= -1.0; // make sure half-vector points out
+
+    pdf *= microfacetPDF(h, roughness);
+    return abs(pdf * dwh_dwo);
+}
+
+float sampleDielectric( in vec3 woL, in float roughness, in float wavelength_nm,
+                        inout vec3 wiL, inout float pdfOut, inout vec4 rnd )
+{
+    float ior = IOR_DIELE(wavelength_nm);
+
+    // We call this when vertex is *on* the dielectric surface, which implies
+    // in our case it is adjacent to vacuum. 
+    float R = fresnelDielectricReflectance(woL.z, ior, 1.0);
+    vec3 m = microfacetSample(rnd, roughness); // Sample microfacet normal m
+    float microPDF = microfacetPDF(m, roughness);
+    float reflectProb = R;
+
+    // Choose whether to reflect or transmit randomly
+    if (rand(rnd) < reflectProb)
+    {
+        // Compute specularly reflected ray direction
+        wiL = -woL + 2.0*dot(woL, m)*m; // Compute incident direction by reflecting woL about m
+        float D = microfacetEval(m, roughness);
+        float G = smithG2(woL, wiL, m, roughness); // Shadow-masking function
+        float f = R * D * G / (4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)) + DENOM_TOLERANCE);
+        float dwh_dwo; // Jacobian of the half-direction mapping
+        dwh_dwo = 1.0 / max(abs(4.0*dot(woL, m)), DENOM_TOLERANCE);
+        pdfOut = microPDF * reflectProb * dwh_dwo; // Return total BRDF and corresponding pdf
+        return f;
+    }
+
+    // transmission
+    else
+    {
+        // Note, for transmission:
+        //  woL.m < 0 means the transmitted light is entering the dielectric *from* the (vacuum) exterior of the microfacet
+        //  woL.m > 0 means the transmitted light is exiting the dielectric *to* the (vacuum) exterior of the microfacet
+        bool entering = dot(woL, m) < 0.0;
+
+        // Compute transmitted (specularly refracted) ray direction
+        float eta;
+        vec3 ni; // normal pointing into incident halfspace
+        if (entering)
+        {
+            // Entering, incident halfspace is outside dielectric
+            eta = ior; // = et/ei
+            ni = m;
+        }
+        else
+        {
+            // Exiting, incident halfspace is inside dielectric
+            eta = 1.0/ior; // = et/ei
+            ni = -m;
+        }
+
+        // Compute incident direction corresponding to known transmitted direction
+        if ( !refraction(ni, eta, woL, wiL) ) return 0.0; // total internal reflection occurred
+        wiL = -wiL; // As refract() computes the incident beam direction, and wiL is defined to be opposite to that.
+    
+        // Compute Fresnel transmittance
+        float cosi = dot(wiL, m);
+        float R = fresnelDielectricReflectance(cosi, ior, 1.0);
+        float T = 1.0 - R;
+
+        // Evaluate microfacet distribution for the sampled half direction
+        vec3 wh = m; // refraction half-vector = m
+        float D = microfacetEval(wh, roughness);
+        float G = smithG2(woL, wiL, wh, roughness); // Shadow-masking function
+        float dwh_dwo; // Jacobian of the half-direction mapping
+        float im = dot(wiL, m);
+        {
+            float om = dot(woL, m);
+            float sqrtDenom = im + eta*om;
+            dwh_dwo = eta*eta * abs(om) / (sqrtDenom*sqrtDenom + DENOM_TOLERANCE);
+        }
+
+        float f = abs(im) * dwh_dwo * T * G * D / (abs(cosTheta(wiL))*abs(cosTheta(woL)) + DENOM_TOLERANCE);
+        pdfOut = (1.0-reflectProb) * microPDF * abs(dwh_dwo);
+        return f;
+    }
+}
+
+
+// ****************************        Metal        ****************************
+
+/// cosi is the cosine to the (outward) normal of the incident ray direction wi,
+/// ior is the index of refraction of the metal, and k its absorption coefficient
+float fresnelMetalReflectance(in float cosi, in float ior, in float k)
+{
+    float cosip = abs(cosi);
+    float cosi2 = cosip * cosip;
+    float tmp = (ior*ior + k*k) * cosi2;
+    float twoEtaCosi = 2.0*ior*cosip;
+    float Rparl2 = (tmp - twoEtaCosi + 1.0) / (tmp + twoEtaCosi + 1.0);
+    float tmp_f = ior*ior + k*k;
+    float Rperp2 = (tmp_f - twoEtaCosi + cosi2) / (tmp_f + twoEtaCosi + cosi2);
+    return 0.5*(Rparl2 + Rperp2);
+}
+
+float evaluateMetal( in vec3 woL, in vec3 wiL, in float roughness, in float wavelength_nm )
+{
+    float ior = IOR_METAL(wavelength_nm);
+    float k = K_METAL(wavelength_nm);
+    float R = fresnelMetalReflectance(woL.z, ior, k);
+    vec3 h = normalize(wiL + woL); // Compute the reflection half-vector
+    float D = microfacetEval(h, roughness);
+    float G = smithG2(woL, wiL, h, roughness);
+    float f = R * D * G / max(4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
+    return f;
+}
+
+float pdfMetal( in vec3 woL, in vec3 wiL, in float roughness, in float wavelength_nm )
+{
+    float ior = IOR_DIELE(wavelength_nm);
+    float k = K_METAL(wavelength_nm);
+    float R = fresnelMetalReflectance(woL.z, ior, k);
+    vec3 h = normalize(wiL + woL); // reflection half-vector
+    float dwh_dwo = 1.0 / max(abs(4.0*dot(woL, h)), DENOM_TOLERANCE); // Jacobian of the half-direction mapping
+    float pdf = microfacetPDF(h, roughness) * dwh_dwo;
+    return pdf;
+}
+
+float sampleMetal( in vec3 woL, in float roughness, in float wavelength_nm,
+                   inout vec3 wiL, inout float pdfOut, inout vec4 rnd )
+{
+    float ior = IOR_METAL(wavelength_nm);
+    float k = K_METAL(wavelength_nm);
+    float R = fresnelMetalReflectance(woL.z, ior, k);
+    vec3 m = microfacetSample(rnd, roughness); // Sample microfacet normal m
+    wiL = -woL + 2.0*dot(woL, m)*m; // Compute wiL by reflecting woL about m
+    float D = microfacetEval(m, roughness);
+    float G = smithG2(woL, wiL, m, roughness); // Shadow-masking function
+    float f = R * D * G / (4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)) + DENOM_TOLERANCE);
+    float dwh_dwo; // Jacobian of the half-direction mapping
+    dwh_dwo = 1.0 / max(abs(4.0*dot(woL, m)), DENOM_TOLERANCE);
+    // Return total BRDF and corresponding pdf
+    pdfOut = microfacetPDF(m, roughness) * dwh_dwo;
+    return f;
+}
+
+
+// ****************************        Diffuse        ****************************
+
+// @todo: albedo wavelength dependence?
+
+float evaluateDiffuse(in vec3 woL, in vec3 wiL)
+{
+    vec3 albedo = vec3(0.8, 0.8, 0.8); // @todo: UI color wheel
+    return 0.8 / M_PI;
+}
+
+float pdfDiffuse(in vec3 woL, in vec3 wiL)
+{
+    return abs(wiL.z) / M_PI;
+}
+
+float sampleDiffuse(in vec3 woL,
+                    inout vec3 wiL, inout float pdfOut, inout vec4 rnd)
+{
+    // Do cosine-weighted sampling of hemisphere
+    wiL = sampleHemisphere(rnd, pdfOut);
+    vec3 albedo = vec3(0.8, 0.8, 0.8); // @todo: UI color wheel
+    return 0.8 / M_PI;
+}
+
+// ****************************        BSDF common interface        ****************************
+
+float evaluateBsdf( in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm,
+                    inout vec4 rnd )
+{
+    if      (material==MAT_DIELE) { return evaluateDielectric(woL, wiL, roughnessDiele, wavelength_nm); }
+    else if (material==MAT_METAL) { return      evaluateMetal(woL, wiL, roughnessMetal, wavelength_nm); }
+    else                          { return    evaluateDiffuse(woL, wiL);                                }
+}
+
+float sampleBsdf( in vec3 woL, in int material, in float wavelength_nm,
+                  inout vec3 wiL, inout float pdfOut, inout vec4 rnd ) 
+{
+    if      (material==MAT_DIELE) { return sampleDielectric(woL, roughnessDiele, wavelength_nm, wiL, pdfOut, rnd); }
+    else if (material==MAT_METAL) { return      sampleMetal(woL, roughnessMetal, wavelength_nm, wiL, pdfOut, rnd); }
+    else                          { return    sampleDiffuse(woL,                                wiL, pdfOut, rnd); }
+}
+
+float pdfBsdf( in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm )
+{
+    if      (material==MAT_DIELE) { return pdfDielectric(woL, wiL, roughnessDiele, wavelength_nm); }
+    else if (material==MAT_METAL) { return      pdfMetal(woL, wiL, roughnessMetal, wavelength_nm); }
+    else                          { return    pdfDiffuse(woL, wiL);                                }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Light sampling
+////////////////////////////////////////////////////////////////////////////////
+
+
+float environmentRadiance(in vec3 dir)
+{
+    // NB, no need for emission spectrum here as that cancels out in the Monte-Carlo estimator
+    return SkyPower;
+}
+
+
+bool emitterSample( in vec3 pW, in vec3 nW, 
+                    inout vec3 onLight, inout vec3 wiW, 
+                    inout float emittedRadiance, inout float lightPdf, inout vec4 rnd )
+{   
+    // project vertex onto emission plane
+    float dPerp = dot(pW - EmitterPos, EmitterDir);
+    vec3 pProj = pW - dPerp*EmitterDir;
+    float dProj = length(pProj - EmitterPos);
+
+    // thus radius of 'valid' disk containing possible source vertex on emission plane
+    float spreadAngle = max(0.5*abs(EmitterSpread)*M_PI/180.0, 5.0e-4); // @todo: calc on CPU
+    float rProjected = dPerp * tan(spreadAngle); // @todo: calc tan(spreadAngle) on CPU
+    if (dProj > rProjected + EmitterRadius) return false; // no direct light can reach the vertex
+
+    // Choose a candidate point on the valid disk
+    float rSample = rProjected*sqrt(rand(rnd));
+    float phiSample = 2.0*M_PI*rand(rnd);
+    vec3 Z = vec3(0.0, 0.0, 1.0);  // @todo: send the emitter basis vectors to shader
+    vec3 u = cross(Z, EmitterDir);
+    if (length(u) < 1.0e-3)
+    {   
+        vec3 X = vec3(1.0, 0.0, 0.0);
+        u = cross(X, EmitterDir);
+    }
+    u = normalize(u);
+    vec3 v = cross(EmitterDir, u);
+    vec3 samplePos = rSample*(u*cos(phiSample) + v*sin(phiSample)); 
+    onLight = pProj + samplePos;
+    vec3 relPos = onLight - EmitterPos;
+    if ( dot(relPos, relPos) > EmitterRadius*EmitterRadius )
+    {
+        // sample actually outside the emission disk
+        return false;
+    }
+
+    // Compute solid-angle measure PDF of this sample (including samples which fell outside the disk)
+    float diskArea = M_PI*rProjected*rProjected;
+    vec3 toLight = onLight - pW;
+    wiW = normalize(toLight);
+
+    // No contribution if sampled light point is in opposite hemisphere to surface vertex:
+    if (dot(wiW, nW) < 0.0) return false;
+
+    // Scale radiance to keep total light power independent of spread angle
+    float eps = 1.0e-6;
+    emittedRadiance = EmitterPower / (2.0*M_PI*max(1.0-cos(spreadAngle), eps)); // @todo: calc on CPU
+    float jacobian = dot(toLight, toLight) / max(abs(dot(EmitterDir, wiW)), eps);
+    lightPdf = jacobian / diskArea;
+    return true;    
+}
+
+
+bool emitterHit(in vec3 startW, in vec3 endW,
+                inout float emittedRadiance, inout float lightPdf)
+{
+    vec3 wiW = normalize(endW - startW);
+    float ewi = dot(EmitterDir, wiW);
+    float spreadAngle = max(0.5*abs(EmitterSpread)*M_PI/180.0, 5.0e-4);         // @todo: calc on CPU
+    float cosSpreadAngle = cos(spreadAngle);                                    // @todo: calc on CPU
+    if (ewi > -cosSpreadAngle) return false;                                  
+
+    float dPerp = dot(startW - EmitterPos, EmitterDir);
+    vec3 onLight = startW - (dPerp/ewi)*wiW;
+    vec3 relPos = onLight - EmitterPos;
+    if ( dot(relPos, relPos) > EmitterRadius*EmitterRadius ) return false;
+
+      // Scale radiance to keep total light power independent of spread angle
+    float rProjected = dPerp * tan(spreadAngle); // @todo: calc tan(spreadAngle) on CPU
+    float diskArea = M_PI*rProjected*rProjected;
+    vec3 toLight = onLight - startW;
+    float eps = 1.0e-6;
+    emittedRadiance = EmitterPower / (2.0*M_PI*max(1.0-cosSpreadAngle, eps)); // @todo: calc on CPU
+    float jacobian = dot(toLight, toLight) / max(abs(dot(EmitterDir, wiW)), eps);
+    lightPdf = jacobian / diskArea;
+    return true;    
+}
+
+
+float directLighting(in vec3 pW, Basis basis, in vec3 woW, in int material, 
+                     float wavelength_nm, inout vec4 rnd)
+{
+    // Choose whether to sample emitter or sky:
+    float emissionProb = EmitterPower/(EmitterPower + SkyPower);
+    float environmentProb = 1.0 - emissionProb;
+
+    float lightPdf;
+    float Li;
+    vec3 wiW; // direction of sampled direct light (*towards* the light)
+    {
+        // Env-map sampling
+        if ( rand(rnd) <= environmentProb )
+        {
+            float hemispherePdf;
+            vec3 wiL = sampleHemisphere(rnd, hemispherePdf);
+            lightPdf = environmentProb * hemispherePdf;
+            wiW = localToWorld(wiL, basis);
+
+            bool occluded = Occluded(pW, wiW); 
+            if (occluded) return 0.0;
+            else 
+                Li = environmentRadiance(wiW);
+        }
+        
+        // emitter sampling
+        else
+        {
+            // sample a point on the emission disk
+            vec3 onLight;
+            float emittedRadiance;
+            if ( !emitterSample(pW, basis.nW, onLight, wiW, emittedRadiance, lightPdf, rnd) ) return 0.0;
+            else
+            {
+                // If light pointing away from vertex, or occluded, no direct light contribution.
+                bool visible = Visible(pW, onLight);
+                if (!visible) return 0.0;
+                else
+                {
+                    lightPdf *= emissionProb;
+                    Li = emittedRadiance;
+                }
+            }
+        }
+    }
+
+    // Apply MIS weight with the BSDF pdf for the sampled direction
+    vec3 woL = worldToLocal(woW, basis);
+    vec3 wiL = worldToLocal(wiW, basis);
+
+    float bsdfPdf = pdfBsdf(woL, wiL, material, wavelength_nm);
+    const float PDF_EPSILON = 1.0e-5;
+    if ( bsdfPdf<PDF_EPSILON ) return 0.0;
+
+    float f = evaluateBsdf(woL, wiL, material, wavelength_nm, rnd);
+    float misWeight = powerHeuristic(lightPdf, bsdfPdf);
+    return f * Li * abs(dot(wiW, basis.nW)) * misWeight / max(PDF_EPSILON, lightPdf);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Pathtracing logic
+////////////////////////////////////////////////////////////////////////////////
+
+void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
+{
+    const float PDF_EPSILON = 1.0e-5;
+
+    // Sample photon wavelength via the inverse CDF of the emission spectrum
+    // (here w is spectral offset, i.e. wavelength = 360.0 + (750.0 - 360.0)*w)
+    // (linear interpolation into the inverse CDF texture and RGB table should ensure smooth sampling over the range)
+    float w = texture2D(ICDF, vec2(rand(rnd), 0.5)).r;
+    float wavelength_nm = 390.0 + (750.0 - 390.0)*w;
+
+    // Jitter over pixel
+    pixel += -0.5 + vec2(rand(rnd), rand(rnd));
+
+    // Compute world ray direction for this fragment
+    vec2 ndc = -1.0 + 2.0*(pixel/resolution.xy);
+    float fh = camNear*tan(0.5*radians(camFovy)) / camZoom; // frustum height
+    float fw = camAspect*fh;
+    vec3 s = -fw*ndc.x*camX + fh*ndc.y*camY;
+    vec3 primaryDir = normalize(camNear*camDir + s); // ray direction
+
+    // Raycast to first hit point
+    vec3 pW;
+    vec3 woW = -primaryDir;
+    int material;
+    bool hit = traceRay(camPos, primaryDir, pW, material);
+    float zHit;
+
+    float L;
+    float throughput; 
+
+    if ( !hit )
+    {
+        zHit = camFar;
+        L = environmentRadiance(primaryDir);
+        throughput = 1.0;
+    }
+    else
+    {       
+        L = 0.0;
+        throughput = 1.0;
+        zHit = dot(pW - camPos, camDir);
+
+        for (int bounce=0; bounce<MAX_BOUNCES; ++bounce)
+        {
+            // Compute normal at current surface vertex
+            vec3 nW = normal(pW, material);
+            Basis basis = makeBasis(nW);
+
+            // Add direct lighting term
+            // @todo: if the vertex here is interior to a dielectric, direct lighting can be ignored
+            L += throughput * directLighting(pW, basis, woW, material, wavelength_nm, rnd);
+
+            // Sample BSDF for the next bounce direction
+            vec3 woL = worldToLocal(woW, basis);
+            vec3 wiL;
+            float bsdfPdf;
+            float f = sampleBsdf(woL, material, wavelength_nm, wiL, bsdfPdf, rnd);
+            vec3 wiW = localToWorld(wiL, basis);
+
+            // Update path throughput
+            throughput *= f * abs(dot(wiW, nW)) / max(PDF_EPSILON, bsdfPdf);
+
+            // Trace bounce ray
+            float displacement = 20.0*HIT_TOLERANCE*SceneScale;
+            pW += nW * sign(dot(wiW, nW)) * displacement; // perturb vertex into half-space of scattered ray
+            vec3 pW_next;
+            int material_next;
+            bool hit = traceRay(pW, wiW, pW_next, material_next);
+            
+            // Add contribution from emitter if bounce ray hits it (before next surface vertex)
+            float emitterRadiance;
+            float emitterPdf;
+            if ( emitterHit(pW, pW_next, emitterRadiance, emitterPdf) )
+            {
+                // check if ray segment (pW, pW_next) intersects the emitter disk.
+                // if it does, add contribution (depending on spread) and terminate path.
+                float misWeight = powerHeuristic(bsdfPdf, emitterPdf);
+                L += throughput * emitterRadiance * misWeight;
+                break;
+            }
+            
+            // Exit now if ray missed
+            if (!hit)
+            {
+                float emissionProb = EmitterPower/(EmitterPower + SkyPower);
+                float hemispherePdf = abs(dot(wiW, nW));
+                float environmentProb = 1.0 - emissionProb;
+                float lightPdf = environmentProb * hemispherePdf;
+                float misWeight = powerHeuristic(bsdfPdf, lightPdf);
+                float Li = environmentRadiance(wiW);
+                L += throughput * Li * misWeight;
+                break;
+            }
+
+            // Update vertex
+            vec3 rayDir = normalize(pW_next - pW);
+            woW = -rayDir;
+            pW = pW_next;
+            material = material_next;
+        }
+    }
+
+    // Convert wavelenght to RGB (sRGB color space)
+    vec3 RGB = texture2D(WavelengthToRgb, vec2(w, 0.5)).rgb;
+    vec3 color = RGB * L;
+    //float clipDepth = computeClipDepth(zHit, camNear, camFar);
+
+    // Write updated radiance and sample count
+    vec4 oldL = texture2D(Radiance, vTexCoord);
+    float oldN = oldL.w;
+    float newN = oldN + 1.0;
+    vec3 newL = (oldN*oldL.rgb + color) / newN;
+
+    gl_FragData[0] = vec4(newL, newN);
+    gl_FragData[1] = rnd;
+    //gl_FragData[2] = pack_depth(clipDepth);
+}
+
+void RENDER_ALL()
+{
+    vec4 rnd = texture2D(RngData, vTexCoord);
+    pathtrace(gl_FragCoord.xy, rnd);
+
+    /*
+    float renderProb = 0.5;
+    if (rand(rnd) < renderProb)
+    {
+        pathtrace(gl_FragCoord.xy, rnd);
+    }
+    else
+    {        
+        gl_FragData[0] = texture2D(Radiance, vTexCoord);
+        gl_FragData[1] = rnd;
+    }
+    */
+}
+
+void RENDER_BLOCKS()
+{
+    vec2 pixel = gl_FragCoord.xy - vec2(0.5, 0.5); // shift to get integer coords 
+    float xrem = mod(float(pixel.x), float(downRes));
+    float yrem = mod(float(pixel.y), float(downRes));
+    float maxx = resolution.x-1.0;
+    float maxy = resolution.y-1.0;
+
+    vec4 rnd = texture2D(RngData, vTexCoord);
+  //  float renderProb = 0.01;///(float(downRes)*float(downRes));
+
+    // Sample only 1 pixel per block (the lower left one)
+    float MOD_TOL = 1.0e-3;
+    if (xrem<MOD_TOL && yrem<MOD_TOL)// && rand(rnd)<renderProb)
+    {
+        // jitter pixel in block..
+        pixel += float(downRes) * vec2(rand(rnd), rand(rnd));
+        pixel.x = min(pixel.x, maxx);
+        pixel.y = min(pixel.y, maxy);
+        pathtrace(pixel, rnd);
+    }
+    else
+    {
+        gl_FragData[0] = texture2D(Radiance, vTexCoord);
+        gl_FragData[1] = rnd;
+        //gl_FragData[2] = pack_depth(clipDepth);
+    }
 }
 `,
 
@@ -1341,6 +2681,8 @@ void main()
 precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
+
+#define HUGE_VAL 1.0e12
 
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
@@ -1368,6 +2710,25 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -1445,6 +2806,8 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
+#define HUGE_VAL 1.0e12
+
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
@@ -1471,6 +2834,25 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -1553,7 +2935,7 @@ SDF_FUNC
 
 //////////////////////////////////////////////////////////////
 
-
+/*
 bool hit(inout vec3 X, vec3 D)
 {
 	float minMarchDist = 1.0e-5*SceneScale;
@@ -1570,9 +2952,13 @@ bool hit(inout vec3 X, vec3 D)
 	if (t<maxMarchDist) return true;
 	return false;
 }
+*/
 
 void main()
 {
+	// @todo ...
+
+	/*
 	// Initialize world ray position
 	vec3 X = camPos;
 
@@ -1593,7 +2979,10 @@ void main()
 	{
 		dist = -1.0;
 	}
-	
+	*/
+
+
+	float dist = -1.0;
 	gl_FragColor = encode_float(dist);
 }
 `,
@@ -1604,6 +2993,8 @@ void main()
 precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
+
+#define HUGE_VAL 1.0e12
 
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
@@ -1631,6 +3022,25 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -1708,6 +3118,8 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
+#define HUGE_VAL 1.0e12
+
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
@@ -1734,6 +3146,25 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -1837,6 +3268,8 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
+#define HUGE_VAL 1.0e12
+
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
@@ -1863,6 +3296,25 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -1939,6 +3391,8 @@ precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
 
+#define HUGE_VAL 1.0e12
+
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
@@ -1965,6 +3419,25 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }
@@ -2293,9 +3766,9 @@ vec3 NORMAL( in vec3 X )
 	float normalEpsilon = 2.0e-5*SceneScale;
 	vec3 eps = vec3(normalEpsilon, 0.0, 0.0);
 	vec3 nor = vec3(
-	    SDF(X+eps.xyy) - SDF(X-eps.xyy),
-	    SDF(X+eps.yxy) - SDF(X-eps.yxy),
-	    SDF(X+eps.yyx) - SDF(X-eps.yyx) );
+	    SDF_DIELE(X+eps.xyy) - SDF_DIELE(X-eps.xyy),
+	    SDF_DIELE(X+eps.yxy) - SDF_DIELE(X-eps.yxy),
+	    SDF_DIELE(X+eps.yyx) - SDF_DIELE(X-eps.yyx) );
 	return normalize(nor);
 }
 
@@ -2311,7 +3784,7 @@ void raytrace(inout vec4 rnd,
     for( int i=0; i<MAX_MARCH_STEPS; i++ )
     {
 		if (h<minMarchDist || t>maxMarchDist) break;
-		h = abs(SDF(X + D*t));
+		h = abs(SDF_DIELE(X + D*t));
 		t += h;
     }
     X += t*D;
@@ -2333,10 +3806,10 @@ void main()
 	vec4 rnd       = texture2D(RngData, vTexCoord);
 	vec4 rgbw      = texture2D(RgbData, vTexCoord);
 
-	float wavelength = 360.0 + (750.0 - 360.0)*rgbw.w;
+	float wavelength = 390.0 + (750.0 - 390.0)*rgbw.w;
 	raytrace(rnd, X, D, rgbw.rgb, wavelength);
 
-	float sgn = sign( SDF(X) );
+	float sgn = sign( SDF_DIELE(X) );
 
 	gl_FragData[0] = vec4(X, sgn);
 	gl_FragData[1] = vec4(D, 1.0);
@@ -2351,6 +3824,8 @@ void main()
 precision highp float;
 
 #define M_PI 3.1415926535897932384626433832795
+
+#define HUGE_VAL 1.0e12
 
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
@@ -2378,6 +3853,25 @@ float opS(float A, float B) { return max(-B, A); }
 
 // Intersection
 float opI( float d1, float d2 ) { return max(d1,d2); }
+
+float sdSphere(vec3 X, float r)
+{
+    return length(X) - r;       
+}    
+
+float sdBox(vec3 X, vec3 bounds)                     
+{                                     
+    vec3 d = abs(X) - bounds;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
+
+float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+{                            
+    vec3 center = 0.5*(bmin + bmax);
+    vec3 halfExtents = 0.5*(bmax - bmin);         
+    vec3 d = abs(X-center) - halfExtents;
+    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+} 
 
 
 float saturate(float x) { return max(0.0, min(1.0, x)); }

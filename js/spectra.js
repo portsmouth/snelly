@@ -89,8 +89,11 @@ MonochromaticSpectrum.prototype.inverseCDF = function(minwavelength, maxwaveleng
 MonochromaticSpectrum.prototype.initGui = function(parentFolder)
 {
 	ME = this;
-	this.wavelengthItem = parentFolder.add(this, 'wavelength', 360.0, 750.0);
-	this.wavelengthItem.onChange( function(value) { snelly.getLightTracer().loadSpectrum(ME.getName()); } );
+	this.wavelengthItem = parentFolder.add(this, 'wavelength', 390.0, 750.0);
+	this.wavelengthItem.onChange( function(value) 
+	{ 
+		snelly.loadSpectrum(ME.getName()); 
+	} );
 }
 
 MonochromaticSpectrum.prototype.eraseGui = function(parentFolder)
@@ -124,21 +127,21 @@ FlatSpectrum.prototype.spectrum = function(wavelength)
 FlatSpectrum.prototype.initGui = function(parentFolder)
 {
 	ME = this;
-	var dw = (750.0-360.0)/256.0;
-	this.minItem = parentFolder.add(this, 'Minimum wavelength', 360.0, 750.0, 0.1);
+	var dw = (750.0-390.0)/1024.0;
+	this.minItem = parentFolder.add(this, 'Minimum wavelength', 390.0, 750.0, 0.1);
 	this.minItem.onChange( function(value) 
 	{ 
 		if (ME['Minimum wavelength'] > ME['Maximum wavelength']-dw) 
 			ME['Minimum wavelength'] = ME['Maximum wavelength']-dw;
-		snelly.getLightTracer().loadSpectrum(ME.getName());
+		snelly.loadSpectrum(ME.getName());
 	});
 
-	this.maxItem = parentFolder.add(this, 'Maximum wavelength', 360.0, 750.0, 0.1);
+	this.maxItem = parentFolder.add(this, 'Maximum wavelength', 390.0, 750.0, 0.1);
 	this.maxItem.onChange( function(value) 
 	{ 
 		if (ME['Maximum wavelength'] < ME['Minimum wavelength']+dw) 
 			ME['Maximum wavelength'] = ME['Minimum wavelength']+dw;
-		snelly.getLightTracer().loadSpectrum(ME.getName());
+		snelly.loadSpectrum(ME.getName()); 
 	});
 }
 
@@ -173,7 +176,10 @@ BlackbodySpectrum.prototype.initGui = function(parentFolder)
 {
 	ME = this;
 	this.temperatureItem = parentFolder.add(this, 'temperature', 300.0, 15000.0);
-	this.temperatureItem.onChange( function(value) { snelly.getLightTracer().loadSpectrum(ME.getName()); } );
+	this.temperatureItem.onChange( function(value) 
+	{ 
+		snelly.loadSpectrum(ME.getName()); 
+	} );
 }
 
 BlackbodySpectrum.prototype.eraseGui = function(parentFolder)

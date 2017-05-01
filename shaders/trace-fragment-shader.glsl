@@ -269,9 +269,9 @@ vec3 NORMAL( in vec3 X )
 	float normalEpsilon = 2.0e-5*SceneScale;
 	vec3 eps = vec3(normalEpsilon, 0.0, 0.0);
 	vec3 nor = vec3(
-	    SDF(X+eps.xyy) - SDF(X-eps.xyy),
-	    SDF(X+eps.yxy) - SDF(X-eps.yxy),
-	    SDF(X+eps.yyx) - SDF(X-eps.yyx) );
+	    SDF_DIELE(X+eps.xyy) - SDF_DIELE(X-eps.xyy),
+	    SDF_DIELE(X+eps.yxy) - SDF_DIELE(X-eps.yxy),
+	    SDF_DIELE(X+eps.yyx) - SDF_DIELE(X-eps.yyx) );
 	return normalize(nor);
 }
 
@@ -287,7 +287,7 @@ void raytrace(inout vec4 rnd,
     for( int i=0; i<MAX_MARCH_STEPS; i++ )
     {
 		if (h<minMarchDist || t>maxMarchDist) break;
-		h = abs(SDF(X + D*t));
+		h = abs(SDF_DIELE(X + D*t));
 		t += h;
     }
     X += t*D;
@@ -309,10 +309,10 @@ void main()
 	vec4 rnd       = texture2D(RngData, vTexCoord);
 	vec4 rgbw      = texture2D(RgbData, vTexCoord);
 
-	float wavelength = 360.0 + (750.0 - 360.0)*rgbw.w;
+	float wavelength = 390.0 + (750.0 - 390.0)*rgbw.w;
 	raytrace(rnd, X, D, rgbw.rgb, wavelength);
 
-	float sgn = sign( SDF(X) );
+	float sgn = sign( SDF_DIELE(X) );
 
 	gl_FragData[0] = vec4(X, sgn);
 	gl_FragData[1] = vec4(D, 1.0);

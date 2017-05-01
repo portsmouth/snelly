@@ -24,9 +24,10 @@ GemScene.prototype.sdf = function()
 				uniform float _scaleWidth;                 
 				uniform float _scaleHeight;  
 
-				vec3 vRotateY (in vec3 p, in float angle) {
-					float c = cos (angle);
-					float s = sin (angle);
+				vec3 vRotateY (in vec3 p, in float angle) 
+				{
+					float c = cos(angle);
+					float s = sin(angle);
 					return vec3 (c * p.x - s * p.z, p.y, c * p.z + s * p.x);
 				}
 
@@ -36,8 +37,8 @@ GemScene.prototype.sdf = function()
 				vec3 normalBottomA = normalize (vec3 (0.0, -1.0, 1.0));
 				vec3 normalBottomB = normalize (vec3 (0.0, -1.0, 1.6));
 
-				float SDF(vec3 p)                    
-				{                        
+				float SDF_METAL(vec3 p)                    
+				{            
 				    p.xz /= _scaleWidth;
 				    p.y  /= _scaleHeight;
 					float topCut = p.y - 1.0;
@@ -52,8 +53,16 @@ GemScene.prototype.sdf = function()
 					q = vRotateY (p, angle);
 					float topB = dot (q, normalTopB) - 1.85;
 					float bottomB = dot (q, normalBottomB) - 1.9;
-					return max(topCut, max(topA, max(topB, max(topC, max (bottomA, bottomB)))));    
-				}                                     
+
+					//float box = sdBox(p, vec3(-100.0, -2.5, -100.0), vec3(100.0, -2.0, 100.0));
+					float gem  = max(topCut, max(topA, max(topB, max(topC, max (bottomA, bottomB)))));
+					return gem;
+					//return opU(box, gem);
+				}     
+				
+				float SDF_DIELE(vec3 X) { return HUGE_VAL; }
+				float SDF_DIFFU(vec3 X) { return HUGE_VAL; } //sdBox(X, vec3(-100.0, -2.5, -100.0), vec3(100.0, -2.0, 100.0)); }
+                         
 	`;
 }
 
@@ -101,8 +110,8 @@ GemScene.prototype.init = function(controls, camera, laser)
 GemScene.prototype.initGui = function(parentFolder)
 {
 	this.widthItem = parentFolder.add(this._settings, 'scaleWidth', 1.0, 2.0);
-	this.heightItem = parentFolder.add(this._settings, 'scaleHeight', 1.0, 4.0);
-	this.angularItem = parentFolder.add(this._settings, 'angularFacets', 1, 20, 1);
+	this.heightItem = parentFolder.add(this._settings, 'scaleHeight', 1.0, 2.0);
+	this.angularItem = parentFolder.add(this._settings, 'angularFacets', 1, 100, 1);
 
 	this.widthItem.onChange( function(value) { snelly.reset(); } );
 	this.heightItem.onChange( function(value) { snelly.reset(); } );
