@@ -58,7 +58,8 @@ Metal.prototype.syncShader = function(traceProgram)
 Metal.prototype.initGui  = function(parentFolder) 
 { 
 	this.roughnessItem = parentFolder.add(this, 'roughness', 0.0, 1.0);
-	this.roughnessItem.onChange( function(value) { snelly.reset(); } );
+	this.roughnessItem.onChange( function(value) { snelly.controls.enabled = false; snelly.reset(true); } );
+	this.roughnessItem.onFinishChange( function(value) { snelly.controls.enabled = true; } );
 }
 
 Metal.prototype.eraseGui = function(parentFolder) 
@@ -156,7 +157,8 @@ Dielectric.prototype.syncShader = function(traceProgram)
 Dielectric.prototype.initGui  = function(parentFolder) 
 { 
 	this.roughnessItem = parentFolder.add(this, 'roughness', 0.0, 1.0);
-	this.roughnessItem.onChange( function(value) { snelly.reset(); } );
+	this.roughnessItem.onChange( function(value) { snelly.controls.enabled = false; snelly.reset(true); } );
+	this.roughnessItem.onFinishChange( function(value) { snelly.controls.enabled = true; } );
 }
 
 Dielectric.prototype.eraseGui = function(parentFolder) 
@@ -197,7 +199,9 @@ ConstantDielectric.prototype.syncShader = function(traceProgram)
 ConstantDielectric.prototype.initGui = function(parentFolder)
 {
 	this.iorItem = parentFolder.add(this, 'iorVal', 0.0, 5.0);
-	this.iorItem.onChange( function(value) { snelly.reset(); } );
+	this.iorItem.onChange( function(value) { snelly.controls.enabled = false; snelly.reset(true); } );
+	this.iorItem.onFinishChange( function(value) { snelly.controls.enabled = true; } );
+
 	Material.prototype.initGui.call(this, parentFolder);
 }
 

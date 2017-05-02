@@ -20,8 +20,7 @@ uniform float camAspect;
 uniform float SceneScale;
 
 uniform float SkyPower;
-uniform float SkyTemp;
-
+uniform vec3 diffuseAlbedo;
 uniform float roughnessDiele;
 uniform float roughnessMetal;
 
@@ -52,10 +51,9 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
                    inout vec3 hit, inout int material)
 {
     float minMarchDist = HIT_TOLERANCE*SceneScale;
-
-    float sdf_diele = abs(SDF_DIELE(start));
+    float sdf_diele = abs(SDF_DIELECTRIC(start));
     float sdf_metal = abs(SDF_METAL(start));
-    float sdf_diffu = abs(SDF_DIFFU(start));
+    float sdf_diffu = abs(SDF_DIFFUSE(start));
     float sdf = min(sdf_diele, min(sdf_metal, sdf_diffu));
     float InitialSign = sign(sdf);
 
@@ -68,10 +66,9 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
         t += InitialSign * sdf;
         if (t>=maxDist) break;
         vec3 pW = start + t*dir;    
-
-        sdf_diele = abs(SDF_DIELE(pW)); if (sdf_diele<minMarchDist) { material = MAT_DIELE; break; }
-        sdf_metal = abs(SDF_METAL(pW)); if (sdf_metal<minMarchDist) { material = MAT_METAL; break; }
-        sdf_diffu = abs(SDF_DIFFU(pW)); if (sdf_diffu<minMarchDist) { material = MAT_DIFFU; break; }
+        sdf_diele = abs(SDF_DIELECTRIC(pW)); if (sdf_diele<minMarchDist) { material = MAT_DIELE; break; }
+        sdf_metal = abs(SDF_METAL(pW));      if (sdf_metal<minMarchDist) { material = MAT_METAL; break; }
+        sdf_diffu = abs(SDF_DIFFUSE(pW));    if (sdf_diffu<minMarchDist) { material = MAT_DIFFU; break; }
         sdf = min(sdf_diele, min(sdf_metal, sdf_diffu));
         iters++;
     }
@@ -123,9 +120,9 @@ vec3 normal(in vec3 pW, int material)
     vec3 yxyp = pW+e.yxy; vec3 yxyn = pW-e.yxy;
     vec3 yyxp = pW+e.yyx; vec3 yyxn = pW-e.yyx;
     vec3 N;
-    if      (material==MAT_DIELE) { N = vec3(SDF_DIELE(xyyp)-SDF_DIELE(xyyn), SDF_DIELE(yxyp)-SDF_DIELE(yxyn), SDF_DIELE(yyxp) - SDF_DIELE(yyxn)); }
-    else if (material==MAT_METAL) { N = vec3(SDF_METAL(xyyp)-SDF_METAL(xyyn), SDF_METAL(yxyp)-SDF_METAL(yxyn), SDF_METAL(yyxp) - SDF_METAL(yyxn)); }
-    else                          { N = vec3(SDF_DIFFU(xyyp)-SDF_DIFFU(xyyn), SDF_DIFFU(yxyp)-SDF_DIFFU(yxyn), SDF_DIFFU(yyxp) - SDF_DIFFU(yyxn)); }
+    if      (material==MAT_DIELE) { N = vec3(SDF_DIELECTRIC(xyyp)-SDF_DIELECTRIC(xyyn), SDF_DIELECTRIC(yxyp)-SDF_DIELECTRIC(yxyn), SDF_DIELECTRIC(yyxp) - SDF_DIELECTRIC(yyxn)); }
+    else if (material==MAT_METAL) { N = vec3(SDF_METAL(xyyp)     -SDF_METAL(xyyn),      SDF_METAL(yxyp)     -SDF_METAL(yxyn),      SDF_METAL(yyxp)      - SDF_METAL(yyxn)); }
+    else                          { N = vec3(SDF_DIFFUSE(xyyp)   -SDF_DIFFUSE(xyyn),    SDF_DIFFUSE(yxyp)   -SDF_DIFFUSE(yxyn),    SDF_DIFFUSE(yyxp)    - SDF_DIFFUSE(yyxn)); }
     return normalize(N);
 }
 
@@ -550,10 +547,10 @@ float sampleMetal( in vec3 woL, in float roughness, in float wavelength_nm,
 
 // @todo: albedo wavelength dependence?
 
-float evaluateDiffuse(in vec3 woL, in vec3 wiL)
+float evaluateDiffuse(in vec3 woL, in vec3 wiL, in vec3 RGB)
 {
-    vec3 albedo = vec3(0.8, 0.8, 0.8); // @todo: UI color wheel
-    return 0.8 / M_PI;
+    vec3 albedo = diffuseAlbedo;
+    return dot(albedo, RGB) / M_PI;
 }
 
 float pdfDiffuse(in vec3 woL, in vec3 wiL)
@@ -561,31 +558,31 @@ float pdfDiffuse(in vec3 woL, in vec3 wiL)
     return abs(wiL.z) / M_PI;
 }
 
-float sampleDiffuse(in vec3 woL,
+float sampleDiffuse(in vec3 woL, in vec3 RGB,
                     inout vec3 wiL, inout float pdfOut, inout vec4 rnd)
 {
     // Do cosine-weighted sampling of hemisphere
     wiL = sampleHemisphere(rnd, pdfOut);
-    vec3 albedo = vec3(0.8, 0.8, 0.8); // @todo: UI color wheel
-    return 0.8 / M_PI;
+    vec3 albedo = diffuseAlbedo;
+    return dot(albedo, RGB) / M_PI;
 }
 
 // ****************************        BSDF common interface        ****************************
 
-float evaluateBsdf( in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm,
+float evaluateBsdf( in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm, in vec3 RGB, 
                     inout vec4 rnd )
 {
     if      (material==MAT_DIELE) { return evaluateDielectric(woL, wiL, roughnessDiele, wavelength_nm); }
     else if (material==MAT_METAL) { return      evaluateMetal(woL, wiL, roughnessMetal, wavelength_nm); }
-    else                          { return    evaluateDiffuse(woL, wiL);                                }
+    else                          { return    evaluateDiffuse(woL, wiL, RGB);                                }
 }
 
-float sampleBsdf( in vec3 woL, in int material, in float wavelength_nm,
+float sampleBsdf( in vec3 woL, in int material, in float wavelength_nm, in vec3 RGB,
                   inout vec3 wiL, inout float pdfOut, inout vec4 rnd ) 
 {
     if      (material==MAT_DIELE) { return sampleDielectric(woL, roughnessDiele, wavelength_nm, wiL, pdfOut, rnd); }
     else if (material==MAT_METAL) { return      sampleMetal(woL, roughnessMetal, wavelength_nm, wiL, pdfOut, rnd); }
-    else                          { return    sampleDiffuse(woL,                                wiL, pdfOut, rnd); }
+    else                          { return    sampleDiffuse(woL,                 RGB,           wiL, pdfOut, rnd); }
 }
 
 float pdfBsdf( in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm )
@@ -609,7 +606,7 @@ float environmentRadiance(in vec3 dir)
 
 
 float directLighting(in vec3 pW, Basis basis, in vec3 woW, in int material, 
-                     float wavelength_nm, inout vec4 rnd)
+                     float wavelength_nm, in vec3 RGB, inout vec4 rnd)
 {
     float lightPdf;
     float Li;
@@ -634,7 +631,7 @@ float directLighting(in vec3 pW, Basis basis, in vec3 woW, in int material,
     const float PDF_EPSILON = 1.0e-5;
     if ( bsdfPdf<PDF_EPSILON ) return 0.0;
 
-    float f = evaluateBsdf(woL, wiL, material, wavelength_nm, rnd);
+    float f = evaluateBsdf(woL, wiL, material, wavelength_nm, RGB, rnd);
     float misWeight = powerHeuristic(lightPdf, bsdfPdf);
     return f * Li * abs(dot(wiW, basis.nW)) * misWeight / max(PDF_EPSILON, lightPdf);
 }
@@ -653,6 +650,9 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     // (linear interpolation into the inverse CDF texture and RGB table should ensure smooth sampling over the range)
     float w = texture2D(ICDF, vec2(rand(rnd), 0.5)).r;
     float wavelength_nm = 390.0 + (750.0 - 390.0)*w;
+
+    // Convert wavelength to RGB (sRGB color space)
+    vec3 RGB = texture2D(WavelengthToRgb, vec2(w, 0.5)).rgb;
 
     // Jitter over pixel
     pixel += -0.5 + vec2(rand(rnd), rand(rnd));
@@ -693,13 +693,13 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
 
             // Add direct lighting term
             // @todo: if the vertex here is interior to a dielectric, direct lighting can be ignored
-            L += throughput * directLighting(pW, basis, woW, material, wavelength_nm, rnd);
+            L += throughput * directLighting(pW, basis, woW, material, wavelength_nm, RGB, rnd);
 
             // Sample BSDF for the next bounce direction
             vec3 woL = worldToLocal(woW, basis);
             vec3 wiL;
             float bsdfPdf;
-            float f = sampleBsdf(woL, material, wavelength_nm, wiL, bsdfPdf, rnd);
+            float f = sampleBsdf(woL, material, wavelength_nm, RGB, wiL, bsdfPdf, rnd);
             vec3 wiW = localToWorld(wiL, basis);
 
             // Update path throughput
@@ -731,8 +731,6 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         }
     }
 
-    // Convert wavelength to RGB (sRGB color space)
-    vec3 RGB = texture2D(WavelengthToRgb, vec2(w, 0.5)).rgb;
     vec3 color = RGB * L;
     //float clipDepth = computeClipDepth(zHit, camNear, camFar);
 

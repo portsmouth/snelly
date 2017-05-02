@@ -20,16 +20,6 @@ body{
     z-index: 1;    /* position this canvas at bottom of the other one */
 }
 
-
-/* position this canvas on top of the web gl one */
-#threeContainer {
-    position: absolute;
-    margin: 0px;
-    padding: 0px;
-    overflow: hidden;
-    z-index: 2;      
-}
-
 /* this element will not catch any events */
 #textContainer {
     position: absolute;

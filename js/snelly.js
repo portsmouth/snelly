@@ -18,24 +18,13 @@ var Snelly = function(sceneObj)
 	this.textCtx = text_canvas.getContext("2d");
 	this.onSnellyLink = false;
 
-	// Setup THREE.js GL viewport renderer and camera
-	var ui_canvas = document.getElementById('ui-canvas');
-	ui_canvas.style.top = 0;
-	ui_canvas.style.position = 'fixed' 
+	// Setup THREE.js GL camera and orbit controls for it
 	var VIEW_ANGLE = 45;
 	var ASPECT = this.width / this.height ;
 	var NEAR = 0.05;
 	var FAR = 1000;
 	this.camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
-	this.glRenderer = new THREE.WebGLRenderer( { canvas: ui_canvas,
-											     alpha: true,
-											     antialias: true,
-											     autoClear: true } );
-	this.glRenderer.setClearColor( 0x00ff00, 0 ); // the default
-	this.glRenderer.setSize(this.width, this.height);
-	this.glScene = new THREE.Scene();
-	this.glScene.add(this.camera);
-	this.controls = new THREE.OrbitControls(this.camera, this.glRenderer.domElement);
+	this.controls = new THREE.OrbitControls(this.camera, this.container);
 	this.controls.zoomSpeed = 2.0;
 	this.controls.addEventListener( 'change', camChanged );
 
@@ -134,8 +123,6 @@ var Snelly = function(sceneObj)
 
 			case 72: // H key: hide dat gui
 				snelly.getGUI().visible = !(snelly.getGUI().visible);
-				//if  (snelly.getGUI().visible) { snelly.stats.domElement.style.visibility = "visible"; }
-				//else                          { snelly.stats.domElement.style.visibility = "hidden"; }
 				break;
 
 			case 67: // C key: dev tool to dump cam and laser details, for setting scene defaults
@@ -148,13 +135,26 @@ var Snelly = function(sceneObj)
 		}
 	}, false);
 
-	this.glRenderer.domElement.addEventListener( 'mousemove', this, false );
-	this.glRenderer.domElement.addEventListener( 'mousedown', this, false );
-	this.glRenderer.domElement.addEventListener( 'mouseup',   this, false );
-	this.glRenderer.domElement.addEventListener( 'contextmenu',   this, false );
-	this.glRenderer.domElement.addEventListener( 'click', this, false );
+	window.addEventListener( 'mousemove', this, false );
+	window.addEventListener( 'mousedown', this, false );
+	window.addEventListener( 'mouseup',   this, false );
+	window.addEventListener( 'contextmenu',   this, false );
+	window.addEventListener( 'click', this, false );
 
 	this.initialized = true; 
+}
+
+Snelly.prototype.handleEvent = function(event)
+{
+	switch (event.type)
+	{
+		case 'resize':      this.resize();  break;
+		case 'mousemove':   this.onDocumentMouseMove(event);  break;
+		case 'mousedown':   this.onDocumentMouseDown(event);  break;
+		case 'mouseup':     this.onDocumentMouseUp(event);    break;
+		case 'contextmenu': this.onDocumentRightClick(event); break;
+		case 'click':       this.onClick(event);  break;
+	}
 }
 
 Snelly.prototype.getPathtracer = function()
@@ -315,13 +315,9 @@ Snelly.prototype.render = function()
 	  	else                   this.textCtx.fillStyle = "#ffff00";
 	  	this.textCtx.fillText('Snelly renderer', 14, 20);
 	  	this.textCtx.fillStyle = "#aaaaff";
-	  	//var lsStats = this.lightTracer.getStats();
 	  	//this.textCtx.fillText('ray count:    ' + (lsStats.rayCount/1.0e6).toPrecision(3) + 'M', 14, 35);
 	  	//this.textCtx.fillText('waves traced: ' + lsStats.wavesTraced,    14, 50);
 	}
-
-	// Update stats
-	//this.stats.update();
 }
 
 Snelly.prototype.resize = function()
@@ -335,15 +331,10 @@ Snelly.prototype.resize = function()
 	render_canvas.width  = width;
 	render_canvas.height = height;
 
-	var ui_canvas = document.getElementById('ui-canvas');
-	ui_canvas.width  = width;
-	ui_canvas.height = height;
-
 	var text_canvas = document.getElementById("text-canvas");
 	text_canvas.width  = width;
 	text_canvas.height = height
 
-	this.glRenderer.setSize(width, height);
 	this.camera.aspect = width / height;
 	this.camera.updateProjectionMatrix();
 
@@ -353,19 +344,6 @@ Snelly.prototype.resize = function()
 		this.render();
 }
 
-
-Snelly.prototype.handleEvent = function(event)
-{
-	switch (event.type)
-	{
-		case 'resize':      this.resize();  break;
-		case 'mousemove':   this.onDocumentMouseMove(event);  break;
-		case 'mousedown':   this.onDocumentMouseDown(event);  break;
-		case 'mouseup':     this.onDocumentMouseUp(event);    break;
-		case 'contextmenu': this.onDocumentRightClick(event); break;
-		case 'click':       this.onClick(event);  break;
-	}
-}
 
 Snelly.prototype.onClick = function(event)
 {
@@ -380,8 +358,8 @@ Snelly.prototype.onDocumentMouseMove = function(event)
 {
 	// Check whether user is trying to click the Snelly home link
 	var textCtx = this.textCtx;
-	var x = event.layerX;
-    var y = event.layerY;
+	var x = event.pageX;
+    var y = event.pageY;
 	var linkWidth = this.textCtx.measureText('Snelly renderer').width;
 	if (x>14 && x<14+linkWidth &&
 		y>15 && y<25 )
@@ -401,13 +379,13 @@ Snelly.prototype.onDocumentMouseMove = function(event)
 Snelly.prototype.onDocumentMouseDown = function(event)
 {
 	this.controls.update();
-	event.preventDefault();
+	//event.preventDefault();
 }
 
 Snelly.prototype.onDocumentMouseUp = function(event)
 {
 	this.controls.update();
-	event.preventDefault();
+	//event.preventDefault();
 }
 
 Snelly.prototype.onDocumentRightClick = function(event)
@@ -416,13 +394,13 @@ Snelly.prototype.onDocumentRightClick = function(event)
 	event.preventDefault();
 	if (event.altKey) return; // don't pick if alt-right-clicking (panning)
 
-	var xPick =   (( event.clientX - this.glRenderer.domElement.offsetLeft ) / this.glRenderer.domElement.width)*2 - 1;
-	var yPick = - (( event.clientY - this.glRenderer.domElement.offsetTop ) / this.glRenderer.domElement.height)*2 + 1;
+	var xPick =   (( event.clientX - window.offsetLeft ) / window.width)*2 - 1;
+	var yPick = - (( event.clientY - window.offsetTop ) / window.height)*2 + 1;
 
 	var pickedPoint = this.pathtracer.pick(xPick, yPick);
 	if (pickedPoint == null)
 	{
-		this.laser.unsetTarget();
+		// unset?
 		return;
 	} 
 

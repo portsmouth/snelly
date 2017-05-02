@@ -8,7 +8,6 @@
 
 <div id="container">
     <div id="webglContainer"></div> <canvas id="render-canvas"></canvas>
-    <div id="threeContainer"></div> <canvas id="ui-canvas"></canvas>
     <div id="textContainer"><canvas id="text-canvas"></canvas></div>  
 </div>
 
@@ -28,38 +27,49 @@
 <script type="text/javascript" src="js/wavelengthToRgb.js"></script>
 <script type="text/javascript" src="js/materials.js"></script>
 <script type="text/javascript" src="js/spectra.js"></script>
-<script type="text/javascript" src="js/scene.js"></script>
 <script type="text/javascript" src="js/pathtracer.js"></script>
 <script type="text/javascript" src="js/snelly.js"></script>
 
 
-<?/* -----------------------*/?>
-<?/*    scene definition    */?>
-<?/* -----------------------*/?>
+<?/* ------------------------------------------------------------------*/?>
+<?/*                         scene definition                          */?>
+<?/* ------------------------------------------------------------------*/?>
 
 <script type="text/javascript">
 
-	function MyScene(name, desc) 
+	function Scene() 
 	{
-		Scene.call(this, name, desc);
+		// Optional name and description
+		this.name = "Menger sponge";
+		this.desc = "A basic fractal form";
 
-		// defaults
-		this._settings.iterations = 4;
-		this._settings.tileScale = 1.0;
-		this._settings.rotate = 0.0;
-		this._settings.scale = 1.0;
+		// initial scene parameters
+		this.parameters = {}
+		this.parameters.iterations = 4;
+		this.parameters.rotate = 0.0;
+		this.parameters.scale = 1.0;
 	}
 
-  // NB, every function is mandatory and must be defined.
+	// Optional name and description 
+	Scene.prototype.getName = function() { return "Menger sponge"; }
+	Scene.prototype.getDesc = function() { return "A basic fractal form"; }
 
-  MyScene.prototype = Object.create(Scene.prototype);
+	// This function must specify at least one of the three functions:
+	//      float SDF_METAL(vec3 X);
+	//      float SDF_DIELECTRIC(vec3 X);
+	//      float SDF_DIFFUSE(vec3 X);
+	// (If only one or two are present, the others will not be rendered)
+	Scene.prototype.sdf = function()
+	{
+		// Note that in this case, changing this.parameters.iterations requires a recompile,
+		// whereas changing the other parameters doesn't.
 
+		return `
 
-  // This defines a solid body, whose interior
-  // defined by the points with SDF<0.0, with a constant refractive index.
-  MyScene.prototype.sdf = function()
-  {
-    return `
+			/////////////////////////////////////////////////////////////////////////////////////
+			// Shader code
+			/////////////////////////////////////////////////////////////////////////////////////
+			
 			uniform float _rotate;
 			uniform float _scale;
 			#define TWOPI 6.28318530718
@@ -96,7 +106,7 @@
 			{
 				float sd = sdBox(X, vec3(1.0));
 				float scale = _scale;
-				const int iter = ${Math.floor(this._settings.iterations)};
+				const int iter = ${Math.floor(this.parameters.iterations)};
 				for (int i=0; i<iter; i++) 
 				{
 					X.xy = rotate(X.xy, 2.0*sin(TWOPI*_rotate));
@@ -117,60 +127,53 @@
 				return menger(X);
 			}
 
-			float SDF_DIELE(vec3 X) { return HUGE_VAL; }
-			float SDF_DIFFU(vec3 X) { return sdBox(X, vec3(-100.0, -2.5, -100.0), vec3(100.0, -2.0, 100.0)); }
-	`;
-  }
+			float SDF_DIFFUSE(vec3 X)
+			{
+				return sdBox(X, vec3(-100.0, -2.5, -100.0), vec3(100.0, -2.0, 100.0));
+			}
 
+			////////////////////////////////////////////////////////////////////// end of shader code
+		`;
+	}
 
+  
   // Called whenever this scene UI was switched to, or changed while active,
   // and syncs the params of the trace shader to the current UI settings
-  MyScene.prototype.syncShader = function(traceProgram)
+  Scene.prototype.syncShader = function(traceProgram)
   {
 		// (The shader parameter names here must be consistent with the GLSL sdf code defined above)
-		traceProgram.uniformF("_rotate", this._settings.rotate);
-		traceProgram.uniformF("_scale", this._settings.scale);
+		traceProgram.uniformF("_rotate", this.parameters.rotate);
+		traceProgram.uniformF("_scale", this.parameters.scale);
   }
 
   // Gives the raytracer some indication of (rough) scene size, so it
   // can set tolerances appropriately.
-  MyScene.prototype.getScale = function()
+  Scene.prototype.getScale = function()
   {
 		return 1.0;
   }
 
   // Initial cam position default for this scene
-  MyScene.prototype.init = function(controls, camera, laser)
+  Scene.prototype.init = function(controls, camera, laser)
   {
+  		// Use key 'C' to dump the code below for the current cam position to the console.
 		controls.target.set(2.01584, -0.603169, -0.808580);
 		camera.position.set(-4.81888, 2.39746, 3.47067);
   }
 
   // set up gui and callbacks for this scene
-  MyScene.prototype.initGui = function(parentFolder)
+  Scene.prototype.initGui = function(gui)            
   {
-		this.iterItem = parentFolder.add(this._settings, 'iterations', 1, 8, 1);
-		this.rotateItem = parentFolder.add(this._settings, 'rotate', 0.0, 1.0);
-		this.scaleItem = parentFolder.add(this._settings, 'scale', 0.0, 10.0);
-		
-		// @todo: make this automatic
-		this.iterItem.onChange( function(value) { snelly.reset(); } );
-		this.rotateItem.onChange( function(value) { snelly.reset(); } );
-		this.scaleItem.onChange( function(value) { snelly.reset(); } );
+  		// (iterations cannot be a shader uniform, so recompilation required on a change in that parameter)
+  		gui.addParameter(this.parameters, {name: 'iterations', min: 1, max: 8, step: 1, recompile: true}); 
+  		gui.addParameter(this.parameters, {name: 'rotate',     min: 0.0, max: 1.0}); 
+  		gui.addParameter(this.parameters, {name: 'scale',      min: 0.0, max: 10.0});
   }
-
-  MyScene.prototype.eraseGui = function(parentFolder)
-  {
-		parentFolder.remove(this.iterItem);
-		parentFolder.remove(this.rotateItem);
-		parentFolder.remove(this.scaleItem);
-  }
-
 
 </script>
 
 
-<?/* ----------------------------*/?>
+<?/* -----------------------------------------------------------------*/?>
 
 <script type="text/javascript">
 
@@ -190,7 +193,7 @@ window.requestAnimFrame = (function(){
 function onLoad()
 {
 	// Instantiate Snelly
-	snelly = new Snelly(new MyScene("MyScene", ""));
+	snelly = new Snelly(new Scene());
 	
 	// Begin rendering
 	animateLoop();

@@ -85,6 +85,7 @@ var Pathtracer = function()
 	this.max_downres = 4;
 	this.numSamples = 0;
 	this.skyPower = 1.0;
+	this.diffuseAlbedo = [1.0, 1.0, 1.0];
 
 	// Load shaders
 	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper", "pick", "filter"]);
@@ -135,13 +136,14 @@ Pathtracer.prototype.compileShaders = function()
 	if (sceneObj == null) return;
 	var sdfCode = sceneObj.sdf();
 
+	// Insert dummy functions if missing 
+	if (sdfCode.indexOf("SDF_METAL(")      == -1) { sdfCode += `\n float SDF_METAL(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
+	if (sdfCode.indexOf("SDF_DIELECTRIC(") == -1) { sdfCode += `\n float SDF_DIELECTRIC(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
+	if (sdfCode.indexOf("SDF_DIFFUSE(")    == -1) { sdfCode += `\n float SDF_DIFFUSE(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
+
 	// @todo: insert material GLSL code
-	var dielectricObj = snelly.getLoadedDielectric();
-	if (dielectricObj == null) return;
-
-	var metalObj = snelly.getLoadedMetal();
-	if (metalObj == null) return;
-
+	var dielectricObj = snelly.getLoadedDielectric(); if (dielectricObj == null) return;
+	var metalObj      = snelly.getLoadedMetal();      if (metalObj == null) return;
 	iorCodeDiele    = dielectricObj.ior();
 	iorCodeMetal    = metalObj.ior();
 
@@ -153,10 +155,9 @@ Pathtracer.prototype.compileShaders = function()
 	replacements.MAX_MARCH_STEPS = this.maxMarchSteps;
 	replacements.MAX_BOUNCES     = this.maxBounces;
 
-	// shaderSources is a dict from name (e.g. "trace")
+	// Compile pathtracer with different entry point according to mode.
+	// Here shaderSources is a dict from name (e.g. "trace")
 	// to a dict {v:vertexShaderSource, f:fragmentShaderSource}
-
-	// Compile pathtracer with different entry point according to mode
 	replacements.RENDER_ALL = 'main';
 	replacements.RENDER_BLOCKS = 'RENDER_BLOCKS';
 	this.pathtraceAllProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
@@ -331,9 +332,8 @@ Pathtracer.prototype.render = function()
 	// Pathtracing options
 	PATHTRACER_PROGRAM.uniformI("MaxBounces", this.maxBounces);
 	PATHTRACER_PROGRAM.uniformI("downRes", DOWN_RES);
-	skyTemp = snelly.getSpectra()["blackbody"].temperature;
 	PATHTRACER_PROGRAM.uniformF("SkyPower", this.skyPower);
-	PATHTRACER_PROGRAM.uniformF("SkyTemp", skyTemp);
+	PATHTRACER_PROGRAM.uniform3Fv("diffuseAlbedo", this.diffuseAlbedo);
 
 	this.fbo.bind();
 	this.fbo.drawBuffers(2);

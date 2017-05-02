@@ -6,7 +6,6 @@ var GUI = function()
 	this.gui = new dat.GUI();
 	this.gui.domElement.id = 'gui';
 	var gui = this.gui;
-
 	this.visible = true;
 	
 	this.createSceneSettings();
@@ -15,7 +14,8 @@ var GUI = function()
 	this.createPathtracerSettings();
 }
 
-function updateDisplay(gui) {
+function updateDisplay(gui) 
+{
     for (var i in gui.__controllers) {
         gui.__controllers[i].updateDisplay();
     }
@@ -26,17 +26,11 @@ function updateDisplay(gui) {
 
 GUI.prototype.sync = function()
 {
-	var laser = snelly.getLaser();
-	this.emissionSettings.eulerAngles.x = laser.eulerAngles.x * 180.0/Math.PI;
-	this.emissionSettings.eulerAngles.y = laser.eulerAngles.y * 180.0/Math.PI;
-	this.emissionSettings.eulerAngles.z = laser.eulerAngles.z * 180.0/Math.PI;
-	this.emissionSettings.emissionRadius = laser.getEmissionRadius();
-	this.emissionSettings.emissionSpread = laser.getEmissionSpreadAngle();
-
 	updateDisplay(this.gui);
 }
 
-function hexToRgb(hex) {
+function hexToRgb(hex) 
+{
     var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? {
         r: parseInt(result[1], 16),
@@ -45,19 +39,16 @@ function hexToRgb(hex) {
     } : null;
 }
 
-
 GUI.prototype.createPathtracerSettings = function()
 {
 	this.pathtracerFolder = this.gui.addFolder('Pathtracer');
 	this.pathtracerSettings = {};
 	var pathtracer = snelly.getPathtracer();
 
-	var renderModes = ['normals', 'blinn'];
-	
-	this.pathtracerFolder.add(pathtracer, 'enable');
-	//this.pathtracerFolder.add(pathtracer, 'depthTest');
-	this.pathtracerFolder.add(pathtracer, 'showBounds');
+	// @todo: add a basic AO and normals mode as well, useful for scene debugging.
+	//var renderModes = ['normals', 'blinn'];
 	//this.pathtracerFolder.add(pathtracer, 'renderMode', renderModes).onChange( function(renderMode) { pathtracer.reset(); });
+	
 	this.pathtracerFolder.add(pathtracer, 'exposure', 0.0, 50.0);
 	this.pathtracerFolder.add(pathtracer, 'maxBounces', 1, 10).onChange( function(value) { pathtracer.maxBounces = Math.floor(value); pathtracer.reset(); } );
 	this.pathtracerFolder.add(pathtracer, 'maxMarchSteps', 1, 1024).onChange( function(value) { pathtracer.maxMarchSteps = Math.floor(value); pathtracer.reset(); } );
@@ -66,7 +57,6 @@ GUI.prototype.createPathtracerSettings = function()
 	this.pathtracerFolder.open();
 }
 
-
 GUI.prototype.createEmissionSettings = function()
 {
 	this.emissionFolder = this.gui.addFolder('Emission');
@@ -74,11 +64,14 @@ GUI.prototype.createEmissionSettings = function()
 	this.emissionSettings = {};
 	this.emissionSettings.spectrum = 'monochromatic';
 	
-	this.emissionFolder.add(pathtracer, 'skyPower', 0.0, 1.0).onChange( function(value) 
+	var skyPowerItem = this.emissionFolder.add(pathtracer, 'skyPower', 0.0, 1.0);
+	skyPowerItem.onChange( function(value) 
 	{ 
-		laser.setSkyPower(value);
-		pathtracer.reset();
+		snelly.controls.enabled = false;
+		var no_recompile = true;
+		pathtracer.reset(no_recompile);
 	} );
+	skyPowerItem.onFinishChange( function(value) { snelly.controls.enabled = true; } );
 
 	// Spectrum selection
 	var GUI = this;
@@ -107,79 +100,112 @@ GUI.prototype.createEmissionSettings = function()
 
 	this.gui.remember(this.emissionSettings);
 	this.emissionFolder.open();
-	return this.emissionFolder;
 }
-
 
 GUI.prototype.createSceneSettings = function()
 {
 	this.sceneFolder = this.gui.addFolder('Scene');
-
 	var sceneObj = snelly.getScene();
-	var sceneName = sceneObj.getName();
-
-	sceneObj.initGui(this.sceneFolder);
+	sceneObj.initGui(this);
 	this.sceneFolder.open();
-
 	this.gui.remember(this.sceneSettings);
-	return this.sceneFolder;
 }
 
+GUI.prototype.addParameter = function(parameters, param)
+{
+	var name = param.name;
+	var min  = param.min;
+	var max  = param.max;
+	var step = param.step;
+	var recompile = param.recompile;
+	var no_recompile = true;
+	if (!(recompile==null || recompile==undefined)) no_recompile = !recompile;
+	var item;
+	if (step==null || step==undefined) { item = this.sceneFolder.add(parameters, name, min, max, step); }
+	else                               { item = this.sceneFolder.add(parameters, name, min, max);       }
+	item.onChange( function(value) { snelly.reset(no_recompile); snelly.controls.enabled = false; } );
+	item.onFinishChange( function(value) { snelly.controls.enabled = true; } );
+}
 
 GUI.prototype.createMaterialSettings = function()
 {
 	var GUI = this;
-	this.materialFolder = this.gui.addFolder('Material');
 
-	// Dielectric settings
-	this.dielectricFolder = this.materialFolder.addFolder('Dielectric');
-	var dielectricObj = snelly.getLoadedDielectric();
-	var dielectricName = dielectricObj.getName();
-	dielectrics = snelly.getDielectrics();
-	var dielectricNames = Object.keys(dielectrics);
-	this.dielMaterialSettings = {};
-	this.dielMaterialSettings["dielectric material"] = dielectricName;
-	this.dielectricFolder.add(this.dielMaterialSettings, 'dielectric material', dielectricNames).onChange( function(materialName) {
-					
-						// remove gui for current material
-						var materialObj = snelly.getLoadedDielectric();
-						materialObj.eraseGui(GUI.dielectricFolder);
-						
-						// load new material
-				 		snelly.loadDielectric(materialName);
-				 		
-				 		// init gui for new material
-				 		materialObj = snelly.getLoadedDielectric();
-				 		materialObj.initGui(GUI.dielectricFolder);
-				 	} );
-	dielectricObj.initGui(this.dielectricFolder);
+	var sceneObj = snelly.getScene();
+	var sdfCode = sceneObj.sdf();
 
 	// Metal settings
-	this.metalFolder = this.materialFolder.addFolder('Metal');
-	var metalObj = snelly.getLoadedMetal();
-	var metalName = metalObj.getName();
-	metals = snelly.getMetals();
-	var metalNames = Object.keys(metals);
-	this.metalMaterialSettings = {};
-	this.metalMaterialSettings["metal material"] = metalName;
-	this.metalFolder.add(this.metalMaterialSettings, 'metal material', metalNames).onChange( function(materialName) {
-						
-						// remove gui for current material
-						var materialObj = snelly.getLoadedMetal();
-						materialObj.eraseGui(GUI.metalFolder);
-						
-						// load new material
-				 		snelly.loadMetal(materialName);
-				 		
-				 		// init gui for new material
-				 		materialObj = snelly.getLoadedMetal();
-				 		materialObj.initGui(GUI.metalFolder);
-			 	} );
-	metalObj.initGui(this.metalFolder);
+	if (sdfCode.indexOf("SDF_METAL(") !== -1)
+	{
+		this.metalFolder = this.gui.addFolder('Metal material');
+		var metalObj = snelly.getLoadedMetal();
+		var metalName = metalObj.getName();
+		metals = snelly.getMetals();
+		var metalNames = Object.keys(metals);
+		this.metalMaterialSettings = {};
+		this.metalMaterialSettings["metal"] = metalName;
+		var metalItem = this.metalFolder.add(this.metalMaterialSettings, 'metal', metalNames);
+		metalItem.onChange( function(materialName) {
+							var materialObj = snelly.getLoadedMetal(); // remove gui for current material
+							materialObj.eraseGui(GUI.metalFolder);
+					 		snelly.loadMetal(materialName); // load new material
+					 		materialObj = snelly.getLoadedMetal(); // init gui for new material
+					 		materialObj.initGui(GUI.metalFolder);
+				 	} );
+		metalObj.initGui(this.metalFolder);
+		this.metalFolder.open();
+	}
+
+	// Dielectric settings
+	if (sdfCode.indexOf("SDF_DIELECTRIC(") !== -1)
+	{
+		this.dielectricFolder = this.gui.addFolder('Dielectric material');
+		var dielectricObj = snelly.getLoadedDielectric();
+		var dielectricName = dielectricObj.getName();
+		dielectrics = snelly.getDielectrics();
+		var dielectricNames = Object.keys(dielectrics);
+		this.dielMaterialSettings = {};
+		this.dielMaterialSettings["dielectric"] = dielectricName;
+		var dielItem = this.dielectricFolder.add(this.dielMaterialSettings, 'dielectric', dielectricNames);
+		dielItem.onChange( function(materialName) {
+							var materialObj = snelly.getLoadedDielectric(); // remove gui for current material
+							materialObj.eraseGui(GUI.dielectricFolder);
+					 		snelly.loadDielectric(materialName); // load new material
+					 		materialObj = snelly.getLoadedDielectric(); // init gui for new material
+					 		materialObj.initGui(GUI.dielectricFolder);
+					 	} );
+		dielectricObj.initGui(this.dielectricFolder);
+		this.dielectricFolder.open();
+	}
+
+	// Diffuse settings
+	if (sdfCode.indexOf("SDF_DIFFUSE(") !== -1)
+	{
+		this.diffuseFolder = this.gui.addFolder('Diffuse material');
+		var pathtracer = snelly.getPathtracer();
+		this.diffuseAlbedo = [pathtracer.diffuseAlbedo[0]*255.0, pathtracer.diffuseAlbedo[1]*255.0, pathtracer.diffuseAlbedo[2]*255.0];
+		var diffItem = this.diffuseFolder.addColor(this, 'diffuseAlbedo');
+		diffItem.onChange( function(albedo) {
+								if (typeof albedo==='string' || albedo instanceof String)
+								{
+									var color = hexToRgb(albedo);
+									pathtracer.diffuseAlbedo[0] = color.r / 255.0;
+									pathtracer.diffuseAlbedo[1] = color.g / 255.0;
+									pathtracer.diffuseAlbedo[2] = color.b / 255.0;
+								}
+								else
+								{
+									pathtracer.diffuseAlbedo[0] = albedo[0] / 255.0;
+									pathtracer.diffuseAlbedo[1] = albedo[1] / 255.0;
+									pathtracer.diffuseAlbedo[2] = albedo[2] / 255.0;
+								}
+								snelly.reset(true);
+							} );
+		this.diffuseFolder.open();
+	}
+
 	
-	this.materialFolder.open();
 	this.gui.remember(this.materialSettings);
-	return this.materialFolder;
 }
 
 
