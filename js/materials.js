@@ -134,6 +134,10 @@ function Dielectric(name, desc)
 {
 	Material.call(this, name, desc);
 	this.roughness = 0.001;
+	this.absorptionScale = 1.0;
+	this.absorptionColor  = [0.0, 0.0, 0.0];
+	this.absorptionColorF = [0.0, 0.0, 0.0];
+	this.absorption       = [0.0, 0.0, 0.0];
 }
 
 Dielectric.prototype = Object.create(Material.prototype);
@@ -141,17 +145,28 @@ Dielectric.prototype = Object.create(Material.prototype);
 Dielectric.prototype.sample = function()
 {
 	return `
-				float SAMPLE(inout vec3 X, inout vec3 D, vec3 N, float wavelength_nm, inout vec4 rnd)
-				{                                                          
-					return sampleDielectric(X, D, N, IOR_DIELE(wavelength_nm), rnd);       
-				}
+			float SAMPLE(inout vec3 X, inout vec3 D, vec3 N, float wavelength_nm, inout vec4 rnd)
+			{                                                          
+				return sampleDielectric(X, D, N, IOR_DIELE(wavelength_nm), rnd);       
+			}
 	`;
 }
-
 
 Dielectric.prototype.syncShader = function(traceProgram)
 {
 	traceProgram.uniformF("roughnessDiele", this.roughness);
+
+	var sceneScale = 1.0;
+	var sceneObj = snelly.getScene();
+	if (typeof sceneObj.getScale !== "undefined") 
+	{
+		// make absorption scale relative to scene scale, if one was defined
+		 sceneScale = sceneObj.getScale();
+	}
+	this.absorption[0] = sceneScale * this.absorptionScale * Math.max(0.0, 1.0 - this.absorptionColorF[0]);
+	this.absorption[1] = sceneScale * this.absorptionScale * Math.max(0.0, 1.0 - this.absorptionColorF[1]);
+	this.absorption[2] = sceneScale * this.absorptionScale * Math.max(0.0, 1.0 - this.absorptionColorF[2]);
+	traceProgram.uniform3Fv("absorptionDiele", this.absorption);
 }
 
 Dielectric.prototype.initGui  = function(parentFolder) 
@@ -159,11 +174,36 @@ Dielectric.prototype.initGui  = function(parentFolder)
 	this.roughnessItem = parentFolder.add(this, 'roughness', 0.0, 1.0);
 	this.roughnessItem.onChange( function(value) { snelly.controls.enabled = false; snelly.reset(true); } );
 	this.roughnessItem.onFinishChange( function(value) { snelly.controls.enabled = true; } );
+
+	this.absorptionColorItem = parentFolder.addColor(this, 'absorptionColor');
+	var ME = this;
+	this.absorptionColorItem.onChange( function(value) {
+							if (typeof value==='string' || value instanceof String)
+							{
+								var color = hexToRgb(value);
+								ME.absorptionColorF[0] = color.r / 255.0;
+								ME.absorptionColorF[1] = color.g / 255.0;
+								ME.absorptionColorF[2] = color.b / 255.0;
+							}
+							else
+							{
+								ME.absorptionColorF[0] = value[0] / 255.0;
+								ME.absorptionColorF[1] = value[1] / 255.0;
+								ME.absorptionColorF[2] = value[2] / 255.0;
+							}
+							snelly.reset(true);
+						} );
+
+	this.absorptionScaleItem = parentFolder.add(this, 'absorptionScale', 0.0, 10.0);
+	this.absorptionScaleItem.onChange( function(value) { snelly.controls.enabled = false; snelly.reset(true); } );
+	this.absorptionScaleItem.onFinishChange( function(value) { snelly.controls.enabled = true; } );
 }
 
 Dielectric.prototype.eraseGui = function(parentFolder) 
 { 
 	parentFolder.remove(this.roughnessItem);
+	parentFolder.remove(this.absorptionColorItem);
+	parentFolder.remove(this.absorptionScaleItem);
 }
 
 
@@ -202,7 +242,7 @@ ConstantDielectric.prototype.initGui = function(parentFolder)
 	this.iorItem.onChange( function(value) { snelly.controls.enabled = false; snelly.reset(true); } );
 	this.iorItem.onFinishChange( function(value) { snelly.controls.enabled = true; } );
 
-	Material.prototype.initGui.call(this, parentFolder);
+	Dielectric.prototype.initGui.call(this, parentFolder)
 }
 
 ConstantDielectric.prototype.eraseGui = function(parentFolder)

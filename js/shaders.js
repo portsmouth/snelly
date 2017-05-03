@@ -1358,11 +1358,13 @@ uniform float SkyPower;
 uniform vec3 diffuseAlbedo;
 uniform float roughnessDiele;
 uniform float roughnessMetal;
+uniform vec3 absorptionDiele;
 
 #define DENOM_TOLERANCE 1.0e-7
 #define HIT_TOLERANCE 1.0e-4
 #define NORMAL_TOLERANCE 5.0e-4
 
+#define MAT_VACUU  -1
 #define MAT_DIELE  0
 #define MAT_METAL  1
 #define MAT_DIFFU  2
@@ -1417,6 +1419,7 @@ bool traceRay(in vec3 start, in vec3 dir,
               inout vec3 hit, inout int material)
 {
     float maxMarchDist = 2.0e2*SceneScale;
+    material = MAT_VACUU;
     return traceDistance(start, dir, maxMarchDist, hit, material);
 }
 
@@ -1885,7 +1888,7 @@ float sampleMetal( in vec3 woL, in float roughness, in float wavelength_nm,
 float evaluateDiffuse(in vec3 woL, in vec3 wiL, in vec3 RGB)
 {
     vec3 albedo = diffuseAlbedo;
-    return dot(albedo, RGB) / M_PI;
+    return dot(albedo, max(RGB, 0.0)) / M_PI;
 }
 
 float pdfDiffuse(in vec3 woL, in vec3 wiL)
@@ -1899,7 +1902,7 @@ float sampleDiffuse(in vec3 woL, in vec3 RGB,
     // Do cosine-weighted sampling of hemisphere
     wiL = sampleHemisphere(rnd, pdfOut);
     vec3 albedo = diffuseAlbedo;
-    return dot(albedo, RGB) / M_PI;
+    return dot(albedo, max(RGB, 0.0)) / M_PI;
 }
 
 // ****************************        BSDF common interface        ****************************
@@ -2002,8 +2005,9 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     // Raycast to first hit point
     vec3 pW;
     vec3 woW = -primaryDir;
-    int material;
-    bool hit = traceRay(camPos, primaryDir, pW, material);
+    int rayMaterial = MAT_VACUU;
+    int hitMaterial;
+    bool hit = traceRay(camPos, primaryDir, pW, hitMaterial);
     float zHit;
     float L;
     float throughput; 
@@ -2023,18 +2027,18 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         for (int bounce=0; bounce<MAX_BOUNCES; ++bounce)
         {
             // Compute normal at current surface vertex
-            vec3 nW = normal(pW, material);
+            vec3 nW = normal(pW, hitMaterial);
             Basis basis = makeBasis(nW);
 
             // Add direct lighting term
             // @todo: if the vertex here is interior to a dielectric, direct lighting can be ignored
-            L += throughput * directLighting(pW, basis, woW, material, wavelength_nm, RGB, rnd);
+            L += throughput * directLighting(pW, basis, woW, hitMaterial, wavelength_nm, RGB, rnd);
 
             // Sample BSDF for the next bounce direction
             vec3 woL = worldToLocal(woW, basis);
             vec3 wiL;
             float bsdfPdf;
-            float f = sampleBsdf(woL, material, wavelength_nm, RGB, wiL, bsdfPdf, rnd);
+            float f = sampleBsdf(woL, hitMaterial, wavelength_nm, RGB, wiL, bsdfPdf, rnd);
             vec3 wiW = localToWorld(wiL, basis);
 
             // Update path throughput
@@ -2042,15 +2046,21 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
 
             // Trace bounce ray
             float displacement = 20.0*HIT_TOLERANCE*SceneScale;
-            pW += nW * sign(dot(wiW, nW)) * displacement; // perturb vertex into half-space of scattered ray
+            float wiWnW = dot(wiW, nW);
+            pW += nW * sign(wiWnW) * displacement; // perturb vertex into half-space of scattered ray
             vec3 pW_next;
-            int material_next;
-            bool hit = traceRay(pW, wiW, pW_next, material_next);
-                        
+            bool hit = traceRay(pW, wiW, pW_next, hitMaterial);
+
+            // material in which ray propagates changes (only) on transmission
+            if (wiWnW<0.0) 
+            {
+                rayMaterial = hitMaterial;
+            }
+
             // Exit now if ray missed
             if (!hit)
             {
-                float hemispherePdf = abs(dot(wiW, nW));
+                float hemispherePdf = abs(wiWnW);
                 float lightPdf = hemispherePdf;
                 float misWeight = powerHeuristic(bsdfPdf, lightPdf);
                 float Li = environmentRadiance(wiW);
@@ -2058,11 +2068,17 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
                 break;
             }
 
+            // If the bounce ray lies inside a dielectric, apply Beer's law for absorption       
+            if (rayMaterial==MAT_DIELE)
+            {
+                float absorptionLength = length(pW_next - pW);
+                throughput *= exp(-absorptionLength * dot(absorptionDiele, max(RGB, 0.0)));
+            }
+
             // Update vertex
             vec3 rayDir = normalize(pW_next - pW);
             woW = -rayDir;
             pW = pW_next;
-            material = material_next;
         }
     }
 

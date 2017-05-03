@@ -86,6 +86,7 @@ var Pathtracer = function()
 	this.numSamples = 0;
 	this.skyPower = 1.0;
 	this.diffuseAlbedo = [1.0, 1.0, 1.0];
+	this.absorptionDiele = [0.0, 0.0, 0.0];
 
 	// Load shaders
 	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper", "pick", "filter"]);

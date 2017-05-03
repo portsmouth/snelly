@@ -204,7 +204,6 @@ GUI.prototype.createMaterialSettings = function()
 		this.diffuseFolder.open();
 	}
 
-	
 	this.gui.remember(this.materialSettings);
 }
 
