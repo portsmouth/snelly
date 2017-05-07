@@ -100,6 +100,7 @@ var GLU = {};
 		{
 			// Something went wrong during compilation; get the error
 			var shaderTypeStr = (shaderType==gl.VERTEX_SHADER) ? 'vertex' : 'fragment';
+			console.log(shaderSource);
 			throw ("Could not compile " + shaderName + " " + shaderTypeStr + " shader: " + gl.getShaderInfoLog(shader));
 		}
 		return shader;
@@ -129,7 +130,6 @@ var GLU = {};
 				}
 			}
 		};
-
 		var vertexShader       = GLU.compileShaderSource(name, vertSource, gl.VERTEX_SHADER);
 		var fragmentShader     = GLU.compileShaderSource(name, fragSource, gl.FRAGMENT_SHADER);
 		this.program = GLU.createProgram(vertexShader, fragmentShader);
@@ -186,6 +186,13 @@ var GLU = {};
 		var id = this.uniformIndex(name);
 		if (id != -1)
 		    gl.uniform2f(id, f1, f2);
+	}
+
+	this.Shader.prototype.uniform1Fv = function(name, fvec) 
+	{
+		var id = this.uniformIndex(name);
+		if (id != -1)
+		    gl.uniform1fv(id, fvec);
 	}
 
 	this.Shader.prototype.uniform2Fv = function(name, fvec2) 

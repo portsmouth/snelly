@@ -1339,9 +1339,12 @@ uniform sampler2D RngData;          // 1
 uniform sampler2D WavelengthToRgb;  // 2
 uniform sampler2D ICDF;             // 3
 uniform sampler2D RadianceBlocks;   // 4
+uniform sampler2D iorTex;           // 5 (for metals)
+uniform sampler2D kTex;             // 6 (for metals)
 varying vec2 vTexCoord;
 
 uniform vec2 resolution;
+
 uniform int downRes;
 uniform vec3 camPos;
 uniform vec3 camDir;
@@ -1353,7 +1356,6 @@ uniform float camFovy; // degrees
 uniform float camZoom;
 uniform float camAspect;
 uniform float SceneScale;
-
 uniform float SkyPower;
 uniform vec3 diffuseAlbedo;
 uniform float roughnessDiele;
@@ -2568,7 +2570,7 @@ void main()
 	float r = L.x; 
 	float g = L.y; 
 	float b = L.z;
-	vec3 Lp = vec3(r/(1.0+r), g/(1.0+g), b/(1.0+b));
+	vec3 Lp = vec3(r, g, b); //r/(1.0+r), g/(1.0+g), b/(1.0+b));
 	vec3 S = pow(Lp, vec3(invGamma));
 	vec3 Sp = S * alpha;
 

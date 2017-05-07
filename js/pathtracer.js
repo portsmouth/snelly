@@ -396,7 +396,7 @@ Pathtracer.prototype.render = function()
 	this.tonemapProgram.uniformTexture("Radiance", radianceTexCurrent);
 	//this.tonemapProgram.uniformTexture("DepthSurface", depthTexCurrent);
 	this.tonemapProgram.uniformF("exposure", this.exposure);
-	this.tonemapProgram.uniformF("invGamma", 1.0);
+	this.tonemapProgram.uniformF("invGamma", 1.0/2.2);
 	this.tonemapProgram.uniformF("alpha", 1.0);
 
 	gl.enable(gl.BLEND);

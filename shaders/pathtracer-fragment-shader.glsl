@@ -4,9 +4,12 @@ uniform sampler2D RngData;          // 1
 uniform sampler2D WavelengthToRgb;  // 2
 uniform sampler2D ICDF;             // 3
 uniform sampler2D RadianceBlocks;   // 4
+uniform sampler2D iorTex;           // 5 (for metals)
+uniform sampler2D kTex;             // 6 (for metals)
 varying vec2 vTexCoord;
 
 uniform vec2 resolution;
+
 uniform int downRes;
 uniform vec3 camPos;
 uniform vec3 camDir;
@@ -18,7 +21,6 @@ uniform float camFovy; // degrees
 uniform float camZoom;
 uniform float camAspect;
 uniform float SceneScale;
-
 uniform float SkyPower;
 uniform vec3 diffuseAlbedo;
 uniform float roughnessDiele;
