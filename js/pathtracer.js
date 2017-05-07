@@ -78,20 +78,42 @@ var Pathtracer = function()
 	this.maxBounces = 1;
 	this.maxMarchSteps = 32;
 	this.enable = true;
-	//this.depthTest = false;
-	this.showBounds = false;
 	this.exposure = 10.0;
+	this.gamma = 2.2;
+	this.whitepoint = 2.0;
 	this.fbo == null;
 	this.max_downres = 4;
 	this.numSamples = 0;
 	this.skyPower = 1.0;
-	this.diffuseAlbedo = [1.0, 1.0, 1.0];
-	this.absorptionDiele = [0.0, 0.0, 0.0];
+	this.diffuseAlbedoRGB   = [1.0, 1.0, 1.0];
+	this.diffuseAlbedoXYZ   = rgbToXyz(this.diffuseAlbedoRGB);
+	this.absorptionDieleRGB = [0.0, 0.0, 0.0];
 
 	// Load shaders
 	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper", "pick", "filter"]);
 	this.filterPrograms = null;
 	this.compileShaders();
+
+	// load env map
+	this.loaded = true;
+	var sceneObj = snelly.getScene();
+	if (typeof sceneObj.envMap !== "undefined") 
+  	{
+  		var url = sceneObj.envMap();
+  		//pathtracer.envMap = null;
+  		if (url != "")
+  		{
+  			var pathtracer = this;
+  			this.loaded = false;
+  			(function() { GLU.loadImageAndCreateTextureInfo(url, 
+					function(imgInfo)
+					{
+						pathtracer.loaded = true;	
+						pathtracer.envMap = imgInfo;	
+					});
+  			})(pathtracer.loaded);
+  		}
+  	}
 
 	gl.clearColor(0.0, 0.0, 0.0, 1.0);
 	gl.blendFunc(gl.ONE, gl.ONE);
@@ -274,6 +296,7 @@ Pathtracer.prototype.depthTestEnabled = function()
 Pathtracer.prototype.render = function()
 {
 	if (!this.enable) return;
+	if (!this.loaded) return;
 
 	var sceneObj      = snelly.getScene();            if (sceneObj==null) return;
 	var metalObj      = snelly.getLoadedMetal();      if (metalObj==null) return;
@@ -324,9 +347,9 @@ Pathtracer.prototype.render = function()
 	PATHTRACER_PROGRAM.uniform2Fv("resolution", [this.width, this.height]);
 	PATHTRACER_PROGRAM.uniformF("SceneScale", sceneObj.getScale()); 
 
-	// Read wavelength -> RGB table
-	snelly.wavelengthToRgb.bind(2);
-	PATHTRACER_PROGRAM.uniformTexture("WavelengthToRgb", snelly.wavelengthToRgb);
+	// Read wavelength -> XYZ table
+	snelly.wavelengthToXYZ.bind(2);
+	PATHTRACER_PROGRAM.uniformTexture("WavelengthToXYZ", snelly.wavelengthToXYZ);
 	snelly.emissionIcdf.bind(3);
 	PATHTRACER_PROGRAM.uniformTexture("ICDF", snelly.emissionIcdf);
 	
@@ -334,7 +357,7 @@ Pathtracer.prototype.render = function()
 	PATHTRACER_PROGRAM.uniformI("MaxBounces", this.maxBounces);
 	PATHTRACER_PROGRAM.uniformI("downRes", DOWN_RES);
 	PATHTRACER_PROGRAM.uniformF("SkyPower", this.skyPower);
-	PATHTRACER_PROGRAM.uniform3Fv("diffuseAlbedo", this.diffuseAlbedo);
+	PATHTRACER_PROGRAM.uniform3Fv("diffuseAlbedoXYZ", this.diffuseAlbedoXYZ);
 
 	this.fbo.bind();
 	this.fbo.drawBuffers(2);
@@ -342,6 +365,14 @@ Pathtracer.prototype.render = function()
 	var next    = 1 - current;
 	this.pathStates[current].bind(PATHTRACER_PROGRAM); // Read data from the 'current' state
 	this.pathStates[next].attach(this.fbo);            // Write data into the 'next' state
+
+	if (this.envMap != null)
+	{
+		gl.activeTexture(gl.TEXTURE0 + 7);
+		gl.bindTexture(gl.TEXTURE_2D, this.envMap.tex);
+		var id = gl.getUniformLocation(PATHTRACER_PROGRAM.program, "envMap");
+		gl.uniform1i(id, 7);
+	}
 
 	// Upload current scene SDF shader parameters
 	sceneObj.syncShader(PATHTRACER_PROGRAM); 
@@ -396,8 +427,8 @@ Pathtracer.prototype.render = function()
 	this.tonemapProgram.uniformTexture("Radiance", radianceTexCurrent);
 	//this.tonemapProgram.uniformTexture("DepthSurface", depthTexCurrent);
 	this.tonemapProgram.uniformF("exposure", this.exposure);
-	this.tonemapProgram.uniformF("invGamma", 1.0/2.2);
-	this.tonemapProgram.uniformF("alpha", 1.0);
+	this.tonemapProgram.uniformF("invGamma", 1.0/this.gamma);
+	this.tonemapProgram.uniformF("whitepoint", this.whitepoint);
 
 	gl.enable(gl.BLEND);
 	gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);

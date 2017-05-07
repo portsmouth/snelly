@@ -50,8 +50,8 @@ var Snelly = function(sceneObj)
 		this.spectrumObj = null;
 		this.LAMBDA_MIN = 390.0;
 	    this.LAMBDA_MAX = 750.0;
-		var wToRgb = wavelengthToRgbTable();
-		this.wavelengthToRgb = new GLU.Texture(wToRgb.length/4, 1, 4, true,  true, true, wToRgb);
+		var wToXYZ = wavelengthToXYZTable();
+		this.wavelengthToXYZ = new GLU.Texture(wToXYZ.length/4, 1, 4, true,  true, true, wToXYZ);
 		this.emissionIcdf    = new GLU.Texture(4*this.SPECTRUM_SAMPLES, 1, 1, true, true, true, null);
 
 		this.addSpectrum( new FlatSpectrum("flat", "Flat spectrum", 400.0, 700.0) );

@@ -72,21 +72,29 @@ def download(metalname, url, Nresample, lmin, lmax):
 		
 		return code
 	
-
-print download("copper",     "https://refractiveindex.info/tmp/main/Cu/Johnson.txt", Nresample=64, lmin=390.0, lmax=750.0)
-print download("silver",     "https://refractiveindex.info/tmp/main/Ag/Johnson.txt", Nresample=64, lmin=390.0, lmax=750.0)
-print download("gold",       "https://refractiveindex.info/tmp/main/Au/Johnson.txt", Nresample=64, lmin=390.0, lmax=750.0)
-print download("aluminium",  "https://refractiveindex.info/tmp/main/Al/Rakic.txt",   Nresample=64, lmin=390.0, lmax=750.0)
+print download("aluminium",  "https://refractiveindex.info/tmp/main/Ag/Babar.txt",   Nresample=64, lmin=390.0, lmax=750.0)
+print download("brass",      "https://refractiveindex.info/tmp/other/alloys/Cu-Zn/Querry-Cu70Zn30.txt", Nresample=64, lmin=390.0, lmax=750.0)
+print download("calcium",   "https://refractiveindex.info/tmp/main/Ca/Rodriguez-de%20Marcos.txt", Nresample=64, lmin=390.0, lmax=750.0)
 print download("chromium",   "https://refractiveindex.info/tmp/main/Cr/Johnson.txt", Nresample=64, lmin=390.0, lmax=750.0)
+print download("cobalt",     "https://refractiveindex.info/tmp/main/Co/Werner.txt",   Nresample=64, lmin=390.0, lmax=750.0)
+print download("copper",     "https://refractiveindex.info/tmp/main/Cu/Babar.txt",   Nresample=64, lmin=390.0, lmax=750.0)
+print download("gold",       "https://refractiveindex.info/tmp/main/Au/Johnson.txt", Nresample=64, lmin=390.0, lmax=750.0)
+print download("iridium",       "https://refractiveindex.info/tmp/main/Ir/Windt.txt", Nresample=64, lmin=390.0, lmax=750.0)
 print download("iron",       "https://refractiveindex.info/tmp/main/Fe/Johnson.txt", Nresample=64, lmin=390.0, lmax=750.0)
+print download("lead",       "https://refractiveindex.info/tmp/main/Pb/Ordal.txt",   Nresample=64, lmin=390.0, lmax=750.0)
+print download("mercury",    "https://refractiveindex.info/tmp/main/Hg/Inagaki.txt", Nresample=64, lmin=390.0, lmax=750.0)
 print download("molybdenum", "https://refractiveindex.info/tmp/main/Mo/Ordal.txt",   Nresample=64, lmin=390.0, lmax=750.0)
 print download("nickel",     "https://refractiveindex.info/tmp/main/Ni/Ordal.txt",   Nresample=64, lmin=390.0, lmax=750.0)
-print download("lead",       "https://refractiveindex.info/tmp/main/Pb/Ordal.txt",   Nresample=64, lmin=390.0, lmax=750.0)
 print download("palladium",  "https://refractiveindex.info/tmp/main/Pd/Johnson.txt", Nresample=64, lmin=390.0, lmax=750.0)
 print download("platinum",   "https://refractiveindex.info/tmp/main/Pt/Werner.txt",  Nresample=64, lmin=390.0, lmax=750.0)
 print download("silicon",    "https://refractiveindex.info/tmp/main/Si/Aspnes.txt",  Nresample=64, lmin=390.0, lmax=750.0)
+print download("silver",     "https://refractiveindex.info/tmp/main/Ag/Johnson.txt", Nresample=64, lmin=390.0, lmax=750.0)
+print download("tantalum",   "https://refractiveindex.info/tmp/main/Ta/Werner.txt", Nresample=64, lmin=390.0, lmax=750.0)
 print download("titanium",   "https://refractiveindex.info/tmp/main/Ti/Johnson.txt", Nresample=64, lmin=390.0, lmax=750.0)
 print download("tungsten",   "https://refractiveindex.info/tmp/main/W/Ordal.txt",    Nresample=64, lmin=390.0, lmax=750.0)
+print download("vanadium",   "https://refractiveindex.info/tmp/main/V/Werner.txt",  Nresample=64, lmin=390.0, lmax=750.0)
 print download("zinc",       "https://refractiveindex.info/tmp/main/Zn/Werner.txt",  Nresample=64, lmin=390.0, lmax=750.0)
+print download("zirconium",  "https://refractiveindex.info/tmp/main/Zr/Querry.txt",  Nresample=64, lmin=390.0, lmax=750.0)
+
 
 

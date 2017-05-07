@@ -50,6 +50,8 @@ GUI.prototype.createPathtracerSettings = function()
 	//this.pathtracerFolder.add(pathtracer, 'renderMode', renderModes).onChange( function(renderMode) { pathtracer.reset(); });
 	
 	this.pathtracerFolder.add(pathtracer, 'exposure', 0.0, 50.0);
+	this.pathtracerFolder.add(pathtracer, 'gamma', 0.0, 3.0);
+	this.pathtracerFolder.add(pathtracer, 'whitepoint', 0.0, 2.0);
 	this.pathtracerFolder.add(pathtracer, 'maxBounces', 1, 10).onChange( function(value) { pathtracer.maxBounces = Math.floor(value); pathtracer.reset(); } );
 	this.pathtracerFolder.add(pathtracer, 'maxMarchSteps', 1, 1024).onChange( function(value) { pathtracer.maxMarchSteps = Math.floor(value); pathtracer.reset(); } );
 
@@ -183,22 +185,23 @@ GUI.prototype.createMaterialSettings = function()
 	{
 		this.diffuseFolder = this.gui.addFolder('Diffuse material');
 		var pathtracer = snelly.getPathtracer();
-		this.diffuseAlbedo = [pathtracer.diffuseAlbedo[0]*255.0, pathtracer.diffuseAlbedo[1]*255.0, pathtracer.diffuseAlbedo[2]*255.0];
+		this.diffuseAlbedo = [pathtracer.diffuseAlbedoRGB[0]*255.0, pathtracer.diffuseAlbedoRGB[1]*255.0, pathtracer.diffuseAlbedoRGB[2]*255.0];
 		var diffItem = this.diffuseFolder.addColor(this, 'diffuseAlbedo');
 		diffItem.onChange( function(albedo) {
 								if (typeof albedo==='string' || albedo instanceof String)
 								{
 									var color = hexToRgb(albedo);
-									pathtracer.diffuseAlbedo[0] = color.r / 255.0;
-									pathtracer.diffuseAlbedo[1] = color.g / 255.0;
-									pathtracer.diffuseAlbedo[2] = color.b / 255.0;
+									pathtracer.diffuseAlbedoRGB[0] = color.r / 255.0;
+									pathtracer.diffuseAlbedoRGB[1] = color.g / 255.0;
+									pathtracer.diffuseAlbedoRGB[2] = color.b / 255.0;
 								}
 								else
 								{
-									pathtracer.diffuseAlbedo[0] = albedo[0] / 255.0;
-									pathtracer.diffuseAlbedo[1] = albedo[1] / 255.0;
-									pathtracer.diffuseAlbedo[2] = albedo[2] / 255.0;
+									pathtracer.diffuseAlbedoRGB[0] = albedo[0] / 255.0;
+									pathtracer.diffuseAlbedoRGB[1] = albedo[1] / 255.0;
+									pathtracer.diffuseAlbedoRGB[2] = albedo[2] / 255.0;
 								}
+								pathtracer.diffuseAlbedoXYZ   = rgbToXyz(pathtracer.diffuseAlbedoRGB);
 								snelly.reset(true);
 							} );
 		this.diffuseFolder.open();

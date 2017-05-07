@@ -4,7 +4,7 @@ from decimal import Decimal
 import numpy
 
 #############################################################################
-# Script to generate wavelengthToRgb.js, assuming sRGB color space.
+# Script to generate wavelengthToXYZ.js
 #############################################################################
 
 # 2-deg XYZ tristimulus CMFs transformed from the CIE (2006) 2-deg LMS cone fundamentals
@@ -43,18 +43,14 @@ for n in range(0, N):
 	y = float(Y_resampled[n])
 	z = float(Z_resampled[n])
 
-	r =  3.2406*x - 1.5372*y - 0.4986*z
-	g = -0.9689*x + 1.8758*y + 0.0415*z
-	b =  0.0557*x - 0.2040*y + 1.0570*z
-
-	data += '%f, %f, %f, 0.0' % (r, g, b)
+	data += '%f, %f, %f, 0.0' % (x, y, z)
 	if n!=N-1: data += ', ' 
 	if (n+1)%4==0: data += '\n\t\t'
 
 print '''
-// A table of %d vec4 sRGB colors, corresponding to the %d wavelength samples
+// A table of %d vec4 tristimulus XYZ values, corresponding to the %d wavelength samples
 // between 390.0 and 750.0 nanometres
-function wavelengthToRgbTable() {
+function wavelengthToXYZTable() {
     return new Float32Array([
     		%s
         ]);
