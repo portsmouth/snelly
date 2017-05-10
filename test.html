@@ -1,0 +1,140 @@
+
+
+<body onload="onLoad();">
+
+<?/* ----------- @todo: embed CSS here, no external file ------------*/?>
+ <head>
+<link rel="stylesheet" type="text/css" href="snelly.css">
+</head>
+
+<div id="container">
+    <div id="webglContainer"></div> <canvas id="render-canvas"></canvas>
+    <div id="textContainer"><canvas id="text-canvas"></canvas></div>  
+</div>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                         scene definition                          */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript" src="js/snelly.js"></script>
+
+<script type="text/javascript">
+
+	function Scene() 
+	{
+		// Optional name and description
+		this.name = "Menger sponge";
+		this.desc = "A basic fractal form";
+
+		// initial scene parameters
+		this.parameters = {}
+		this.parameters.size = 4.0;
+	}
+
+	// Optional name and description 
+	Scene.prototype.getName = function() { return "Menger sponge"; }
+	Scene.prototype.getDesc = function() { return "A basic fractal form"; }
+
+	// This function must specify at least one of the three functions:
+	//      float SDF_METAL(vec3 X);
+	//      float SDF_DIELECTRIC(vec3 X);
+	//      float SDF_DIFFUSE(vec3 X);
+	// (If only one or two are present, the others will not be rendered)
+	Scene.prototype.sdf = function()
+	{
+		// Note that in this case, changing this.parameters.iterations requires a recompile,
+		// whereas changing the other parameters doesn't.
+
+		return `
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			// Shader code
+			/////////////////////////////////////////////////////////////////////////////////////
+
+			uniform float _size;   
+
+			float sdSphere(vec3 X, float radius)
+			{
+				return length(X) - radius;
+			}
+
+			float SDF_DIELECTRIC(vec3 X)                     
+			{
+				return sdSphere(X, _size);
+			}     
+
+			float SDF_METAL(vec3 X) { return 1.0e10; }
+		
+			////////////////////////////////////////////////////////////////////// end of shader code
+		`;
+	}
+
+  
+  // Called whenever this scene UI was switched to, or changed while active,
+  // and syncs the params of the trace shader to the current UI settings
+  Scene.prototype.syncShader = function(shader)
+  {
+		shader.uniformF("_size", this.parameters.size);
+  }
+
+  // Gives the raytracer some indication of (rough) scene size, so it
+  // can set tolerances appropriately.
+  Scene.prototype.getScale = function()
+  {
+		return 1.0;
+  }
+
+  // Initial cam position default for this scene
+  Scene.prototype.init = function(controls, camera) {}
+
+  // set up gui and callbacks for this scene
+  Scene.prototype.initGui = function(gui)            
+  {
+	  	gui.addParameter(this.parameters, {name: 'size', min: 0.0, max: 10.0});
+  }
+
+  // optionally supply an env-map texture URL (should be lat-long)
+  Scene.prototype.envMap = function()
+  {
+	  	return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg';
+  }
+
+</script>
+
+
+<?/* -----------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+
+// Snelly object
+var snelly;
+
+// shim layer with setTimeout fallback
+window.requestAnimFrame = (function(){
+  return  window.requestAnimationFrame       ||
+          window.webkitRequestAnimationFrame ||
+          window.mozRequestAnimationFrame    ||
+          function( callback ){
+            window.setTimeout(callback, 1000/60);
+          };
+})();
+
+function onLoad()
+{
+	// Instantiate Snelly
+	snelly = new Snelly(new Scene());
+	
+	// Begin rendering
+	animateLoop();
+}
+
+function animateLoop() 
+{
+	snelly.render();
+	window.requestAnimFrame(animateLoop);
+}
+
+</script>
+</body>
+
+
