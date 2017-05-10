@@ -1937,6 +1937,17 @@ float pdfBsdf( in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm
 // Light sampling
 ////////////////////////////////////////////////////////////////////////////////
 
+/*
+vec3 environmentRadiance3(in vec3 dir)
+{
+    float phi = atan(dir.x, dir.z) + M_PI; // [0, 2*pi]
+    float theta = acos(dir.y);             // [0, pi]
+    float u = phi/(2.0*M_PI);
+    float v = theta/M_PI;
+    vec3 rgb = SkyPower * texture2D(envMap, vec2(u,v)).rgb; 
+    return rgb;
+}
+*/
 
 float environmentRadiance(in vec3 dir, in vec3 XYZ)
 {
@@ -1944,11 +1955,20 @@ float environmentRadiance(in vec3 dir, in vec3 XYZ)
     float theta = acos(dir.y);             // [0, pi]
     float u = phi/(2.0*M_PI);
     float v = theta/M_PI;
-    vec3 L = texture2D(envMap, vec2(u,v)).rgb;  
-    return dot(L, XYZ);
+    vec3 rgb = SkyPower * texture2D(envMap, vec2(u,v)).rgb; 
 
-    // NB, no need for emission spectrum here as that cancels out in the Monte-Carlo estimator
-    //return SkyPower;
+    // Here assuming texture is sRGB
+    float X = 0.4124564*rgb.r + 0.3575761*rgb.g + 0.1804375*rgb.b;
+    float Y = 0.2126729*rgb.r + 0.7151522*rgb.g + 0.0721750*rgb.b;
+    float Z = 0.0193339*rgb.r + 0.1191920*rgb.g + 0.9503041*rgb.b;
+
+    // convert to radiance via expansion in color matching functions
+    vec3 c;
+    c.x =  0.03382146*X - 0.02585410*Y - 0.00406490*Z;
+    c.y = -0.02585410*X + 0.03209432*Y + 0.00227671*Z;
+    c.z = -0.00406490*X + 0.00227671*Y + 0.00703345*Z;
+
+    return dot(c, XYZ);
 }
 
 
@@ -2060,12 +2080,6 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
             vec3 pW_next;
             bool hit = traceRay(pW, wiW, pW_next, hitMaterial);
 
-            // material in which ray propagates changes (only) on transmission
-            if (wiWnW<0.0) 
-            {
-                rayMaterial = hitMaterial;
-            }
-
             // Exit now if ray missed
             if (!hit)
             {
@@ -2075,6 +2089,14 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
                 float Li = environmentRadiance(wiW, XYZ);
                 L += throughput * Li * misWeight;
                 break;
+            }
+
+            // material in which ray propagates changes (only) on transmission
+            vec3 incid_halfspace = dot(woW, nW) * nW;
+            vec3 scatt_halfspace = dot(wiW, nW) * nW;
+            if (dot(incid_halfspace, scatt_halfspace)<0.0) 
+            {
+                rayMaterial = hitMaterial;
             }
 
             // If the bounce ray lies inside a dielectric, apply Beer's law for absorption       
@@ -2103,6 +2125,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     gl_FragData[0] = vec4(newL, newN);
     gl_FragData[1] = rnd;
     //gl_FragData[2] = pack_depth(clipDepth);
+    
 }
 
 void RENDER_ALL()
@@ -2572,16 +2595,24 @@ void main()
 	float X = L.x;
 	float Y = L.y;
 	float Z = L.z;
+	float sum = X + Y + Z;
+	float x = X / sum;
+	float y = Y / sum; 
 
 	// compute Reinhard tonemapping scale factor
-	float s = (1.0 + Y/(whitepoint*whitepoint)) / (1.0 + Y);
+	float scale = (1.0 + Y/(whitepoint*whitepoint)) / (1.0 + Y);
+	
+	Y *= scale;
+	X = x * Y / y;
+	Z = (1.0 - x - y) * (Y / y);
 
 	// Convert XYZ tristimulus to sRGB color space
 	float r =  3.2406*X - 1.5372*Y - 0.4986*Z;
 	float g = -0.9689*X + 1.8758*Y + 0.0415*Z;
 	float b =  0.0557*X - 0.2040*Y + 1.0570*Z;
 
-	vec3 Lp = vec3(s*r, s*g, s*b);
+	//vec3 Lp = vec3(s*r, s*g, s*b);
+	vec3 Lp = vec3(r, g, b);
 	vec3 S = pow(Lp, vec3(invGamma));
 
 	gl_FragColor = vec4(S, 0.0);

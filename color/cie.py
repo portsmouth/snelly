@@ -57,3 +57,48 @@ function wavelengthToXYZTable() {
 }
 ''' % (N, N, data)
 
+c_xx = 0.0; c_xy = 0.0; c_xz = 0.0
+c_yx = 0.0; c_yy = 0.0; c_yz = 0.0
+c_zx = 0.0; c_zy = 0.0; c_zz = 0.0
+
+c_x = 0.0; c_y = 0.0; c_z = 0.0;
+
+for n in range(0, N):
+
+	l = l_resampled[n]
+	x = float(X_resampled[n])
+	y = float(Y_resampled[n])
+	z = float(Z_resampled[n])
+
+	c_x += x * dl;
+	c_y += y * dl;
+	c_z += z * dl;
+
+	c_xx += x*x * dl
+	c_xy += x*y * dl
+	c_xz += x*z * dl
+
+	c_yx += y*x * dl
+	c_yy += y*y * dl
+	c_yz += y*z * dl
+
+	c_zx += z*x * dl
+	c_zy += z*y * dl
+	c_zz += z*z * dl
+
+
+print 'c_x, c_x, c_z: %f %f %f\n' % (c_x, c_y, c_z)
+
+print 'c_xx, c_xy, c_xz: %f %f %f' % (c_xx, c_xy, c_xz)
+print 'c_yx, c_yy, c_yz: %f %f %f' % (c_yx, c_yy, c_yz)
+print 'c_zx, c_zy, c_zz: %f %f %f' % (c_zx, c_zy, c_zz)
+
+M = numpy.matrix( [[c_xx, c_xy, c_xz], 
+	              [c_yx, c_yy, c_yz], 
+	              [c_zx, c_zy, c_zz]]) 
+
+print M
+
+print M.I
+
+

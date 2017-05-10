@@ -66,7 +66,7 @@ GUI.prototype.createEmissionSettings = function()
 	this.emissionSettings = {};
 	this.emissionSettings.spectrum = 'monochromatic';
 	
-	var skyPowerItem = this.emissionFolder.add(pathtracer, 'skyPower', 0.0, 1.0);
+	var skyPowerItem = this.emissionFolder.add(pathtracer, 'skyPower', 0.0, 100.0);
 	skyPowerItem.onChange( function(value) 
 	{ 
 		snelly.controls.enabled = false;
@@ -127,6 +127,11 @@ GUI.prototype.addParameter = function(parameters, param)
 	else                               { item = this.sceneFolder.add(parameters, name, min, max);       }
 	item.onChange( function(value) { snelly.reset(no_recompile); snelly.controls.enabled = false; } );
 	item.onFinishChange( function(value) { snelly.controls.enabled = true; } );
+}
+
+GUI.prototype.getSceneFolder = function()
+{
+	return this.sceneFolder;
 }
 
 GUI.prototype.createMaterialSettings = function()
