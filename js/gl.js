@@ -378,7 +378,7 @@ var GLU = {};
 			callback(imgInfo);
 		});
 
-		if ((new URL(url)).origin !== window.location.origin) 
+		//if ((new URL(url)).origin !== window.location.origin) 
 		{
   		  	img.crossOrigin = "";
   		}
