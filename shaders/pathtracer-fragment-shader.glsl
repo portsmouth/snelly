@@ -25,7 +25,7 @@ uniform float SkyPower;
 uniform vec3 diffuseAlbedoXYZ;
 uniform float roughnessDiele;
 uniform float roughnessMetal;
-uniform vec3 absorptionDieleXYZ;
+uniform vec3 absorptionDieleRGB;
 
 #define DENOM_TOLERANCE 1.0e-7
 #define HIT_TOLERANCE 1.0e-4
@@ -48,7 +48,6 @@ IOR_FUNC
 ///////////////////////////////////////////////////////////////////////////////////
 // SDF raymarcher
 ///////////////////////////////////////////////////////////////////////////////////
-
 
 // find first hit over specified segment
 bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
@@ -213,12 +212,12 @@ float powerHeuristic(const float a, const float b)
 // m = the microfacet normal (in the local space where z = the macrosurface normal)
 float microfacetEval(in vec3 m, in float roughness)
 {
-    float tanTheta2 = tanTheta2(m);
-    float cosTheta2 = cosTheta2(m);
+    float t2 = tanTheta2(m);
+    float c2 = cosTheta2(m);
     float roughnessSqr = roughness*roughness;
     float epsilon = 1.0e-9;
-    float exponent = tanTheta2 / max(roughnessSqr, epsilon);
-    float D = exp(-exponent) / (M_PI * max(roughnessSqr, epsilon) * cosTheta2*cosTheta2);
+    float exponent = t2 / max(roughnessSqr, epsilon);
+    float D = exp(-exponent) / max(M_PI*roughnessSqr*c2*c2, epsilon);
     return D;
 }
 
@@ -593,26 +592,14 @@ float sampleBsdf( in vec3 woL, in int material, in float wavelength_nm, in vec3 
 float pdfBsdf( in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm )
 {
     if      (material==MAT_DIELE) { return pdfDielectric(woL, wiL, roughnessDiele, wavelength_nm); }
-    else if (material==MAT_METAL) { return      pdfMetal(woL, wiL, roughnessMetal, wavelength_nm); }
-    else                          { return    pdfDiffuse(woL, wiL);                                }
+    else if (material==MAT_METAL) { return pdfMetal(woL, wiL, roughnessMetal, wavelength_nm);      }
+    else                          { return pdfDiffuse(woL, wiL);                                   }
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
 // Light sampling
 ////////////////////////////////////////////////////////////////////////////////
-
-/*
-vec3 environmentRadiance3(in vec3 dir)
-{
-    float phi = atan(dir.x, dir.z) + M_PI; // [0, 2*pi]
-    float theta = acos(dir.y);             // [0, pi]
-    float u = phi/(2.0*M_PI);
-    float v = theta/M_PI;
-    vec3 rgb = SkyPower * texture2D(envMap, vec2(u,v)).rgb; 
-    return rgb;
-}
-*/
 
 float environmentRadiance(in vec3 dir, in vec3 XYZ)
 {
@@ -669,6 +656,7 @@ float directLighting(in vec3 pW, Basis basis, in vec3 woW, in int material,
 }
 
 
+
 ////////////////////////////////////////////////////////////////////////////////
 // Pathtracing logic
 ////////////////////////////////////////////////////////////////////////////////
@@ -706,6 +694,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     float L;
     float throughput; 
 
+
     if ( !hit )
     {
         zHit = camFar;
@@ -725,7 +714,6 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
             Basis basis = makeBasis(nW);
 
             // Add direct lighting term
-            // @todo: if the vertex here is interior to a dielectric, direct lighting can be ignored
             L += throughput * directLighting(pW, basis, woW, hitMaterial, wavelength_nm, XYZ, rnd);
 
             // Sample BSDF for the next bounce direction
@@ -764,11 +752,11 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
                 rayMaterial = hitMaterial;
             }
 
-            // If the bounce ray lies inside a dielectric, apply Beer's law for absorption       
+            // If the bounce ray lies inside a dielectric, apply Beer's law for absorption
             if (rayMaterial==MAT_DIELE)
             {
                 float absorptionLength = length(pW_next - pW);
-                throughput *= exp(-absorptionLength * dot(absorptionDieleXYZ, XYZ));
+                throughput *= exp(-absorptionLength * dot(absorptionDieleRGB, RGB));
             }
 
             // Update vertex

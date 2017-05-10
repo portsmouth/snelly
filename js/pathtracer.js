@@ -75,7 +75,7 @@ var Pathtracer = function()
 	this.pathStates = [new PathtracerState(this.width, this.height), 
 					   new PathtracerState(this.width, this.height)];
 
-	this.maxBounces = 1;
+	this.maxBounces = 3;
 	this.maxMarchSteps = 32;
 	this.enable = true;
 	this.exposure = 10.0;
@@ -108,7 +108,7 @@ var Pathtracer = function()
   			(function() { GLU.loadImageAndCreateTextureInfo(url, 
 					function(imgInfo)
 					{
-						pathtracer.loaded = true;	
+						pathtracer.loaded =  true;	
 						pathtracer.envMap = imgInfo;	
 					});
   			})(pathtracer.loaded);
