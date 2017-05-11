@@ -46,13 +46,9 @@
 
 		// initial scene parameters
 		this.parameters = {}
-		//this.parameters.iterations = 4;
-		//this.parameters.rotate = 0.0;
-		//this.parameters.scale = 1.0;
-
-		//this.parameters.angularFacets = 8;
-		//this.parameters.scaleWidth = 1.0;
-		//this.parameters.scaleHeight = 1.0;
+		this.parameters.iterations = 4;
+		this.parameters.rotate = 0.0;
+		this.parameters.scale = 1.0;
 
 		this.parameters.shapes = ['Sphere', 'Cube', 'Octahedron', 'Dodecahedron', 'Icosahedron', 
 								'TruncatedOctahedron', 'TruncatedIcosahedron'];
@@ -175,89 +171,17 @@
 
 				float opI( float d1, float d2 ) { return max(d1,d2); }
 
+
 				float SDF_DIELECTRIC(vec3 X)                     
 				{
 					return opI( sdBox(X, vec3(_width, _height, _depth)), 
 								lattice(X, _spacing) );
 				}     
 
-				float SDF_METAL(vec3 X) { return 1.0e10; }
 
-
-			// Borrowed from https://www.shadertoy.com/view/ltfXDM by Nrx 
-			/*
-				uniform float _scaleWidth;                 
-				uniform float _scaleHeight;  
-
-				vec3 vRotateY (in vec3 p, in float angle) 
-				{
-					float c = cos(angle);
-					float s = sin(angle);
-					return vec3 (c * p.x - s * p.z, p.y, c * p.z + s * p.x);
-				}
-
-				vec3 normalTopA = normalize (vec3 (0.0, 1.0, 1.4));
-				vec3 normalTopB = normalize (vec3 (0.0, 1.0, 1.0));
-				vec3 normalTopC = normalize (vec3 (0.0, 1.0, 0.5));
-				vec3 normalBottomA = normalize (vec3 (0.0, -1.0, 1.0));
-				vec3 normalBottomB = normalize (vec3 (0.0, -1.0, 1.6));
-
-				float SDF__DIELECTRIC(vec3 p)                    
-				{            
-				    p.xz /= _scaleWidth;
-				    p.y  /= _scaleHeight;
-					float topCut = p.y - 1.0;
-					float angleStep = M_PI / float(${this.parameters.angularFacets});
-					float angle = angleStep * (0.5 + floor (atan (p.x, p.z) / angleStep));
-					vec3 q = vRotateY (p, angle);
-					float topA = dot (q, normalTopA) - 2.0;
-					float topC = dot (q, normalTopC) - 1.5;
-					float bottomA = dot (q, normalBottomA) - 1.7;
-					q = vRotateY (p, -angleStep * 0.5);
-					angle = angleStep * floor (atan (q.x, q.z) / angleStep);
-					q = vRotateY (p, angle);
-					float topB = dot (q, normalTopB) - 1.85;
-					float bottomB = dot (q, normalBottomB) - 1.9;
-
-					//float box = sdBox(p, vec3(-100.0, -2.5, -100.0), vec3(100.0, -2.0, 100.0));
-					float gem  = max(topCut, max(topA, max(topB, max(topC, max (bottomA, bottomB)))));
-					return gem;
-					//return opU(box, gem);
-				}     
-				
-
-				float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-				{                            
-					vec3 center = 0.5*(bmin + bmax);
-					vec3 halfExtents = 0.5*(bmax - bmin);         
-					vec3 d = abs(X-center) - halfExtents;
-					return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-				} 
-
-				float SDF__METAL(vec3 X)
-				{
-					return sdBox(X, vec3(-100.0, -2.5, -100.0), vec3(100.0, -2.0, 100.0));
-				}
-				*/
-			
-			/*
 			uniform float _rotate;
 			uniform float _scale;
 			#define TWOPI 6.28318530718
-
-			float sdBox(vec3 X, vec3 bounds)                     
-			{                                     
-				vec3 d = abs(X) - bounds;
-				return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-			} 
-
-			float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-			{                            
-				vec3 center = 0.5*(bmin + bmax);
-				vec3 halfExtents = 0.5*(bmax - bmin);         
-				vec3 d = abs(X-center) - halfExtents;
-				return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-			} 
 
 			vec2 rotate(vec2 v, float a) 
 			{
@@ -293,16 +217,11 @@
 				return sd;
 			}	
 
-			float SDF__METAL(vec3 X)
+			float SDF_METAL(vec3 X)
 			{
 				return menger(X);
 			}
 
-			float SDF__DIFFUSE(vec3 X)
-			{
-				return sdBox(X, vec3(-100.0, -2.5, -100.0), vec3(100.0, -2.0, 100.0));
-			}
-			*/
 		
 			////////////////////////////////////////////////////////////////////// end of shader code
 		`;
@@ -324,10 +243,10 @@
 		traceProgram.uniformF("_offset",  this.parameters.offset);
 
 		// (The shader parameter names here must be consistent with the GLSL sdf code defined above)
-		//traceProgram.uniformF("_rotate", this.parameters.rotate);
-		//traceProgram.uniformF("_scale", this.parameters.scale);
-		//traceProgram.uniformF("_scaleWidth", this.parameters.scaleWidth);
-		//traceProgram.uniformF("_scaleHeight", this.parameters.scaleHeight);
+		traceProgram.uniformF("_rotate", this.parameters.rotate);
+		traceProgram.uniformF("_scale", this.parameters.scale);
+		traceProgram.uniformF("_scaleWidth", this.parameters.scaleWidth);
+		traceProgram.uniformF("_scaleHeight", this.parameters.scaleHeight);
   }
 
   // Gives the raytracer some indication of (rough) scene size, so it
@@ -392,21 +311,19 @@
 		gui.addParameter(this.parameters, {name: 'offset', min: 0.0, max: 1.0});
 
   		// (iterations cannot be a shader uniform, so recompilation required on a change in that parameter)
-  		//gui.addParameter(this.parameters, {name: 'iterations', min: 1, max: 8, step: 1, recompile: true}); 
-  		//gui.addParameter(this.parameters, {name: 'rotate',     min: 0.0, max: 1.0}); 
-  		//gui.addParameter(this.parameters, {name: 'scale',      min: 0.0, max: 10.0});
-
-    	//gui.addParameter(this.parameters, {name: 'angularFacets', min: 1, max: 100, step: 1, recompile: true}); 
-  		//gui.addParameter(this.parameters, {name: 'scaleWidth',     min: 1.0, max: 2.0}); 
-  		//gui.addParameter(this.parameters, {name: 'scaleHeight',      min: 1.0, max: 2.0});
+  		gui.addParameter(this.parameters, {name: 'iterations', min: 1, max: 8, step: 1, recompile: true}); 
+  		gui.addParameter(this.parameters, {name: 'rotate',     min: 0.0, max: 1.0}); 
+  		gui.addParameter(this.parameters, {name: 'scale',      min: 0.0, max: 10.0});
   }
 
   // optionally supply an env-map texture URL (should be lat-long)
   Scene.prototype.envMap = function()
   {
-	  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_041_Path_Bg.jpg';
+	  	return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_041_Path_Bg.jpg';
 	  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_040_Field_Bg.jpg';
-	  	return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg';
+	  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg';
+	  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_110_Tunnel_Bg.jpg';
+	  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_Free_City_Night_Lights_Bg.jpg';
   }
 
 </script>

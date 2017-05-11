@@ -82,7 +82,7 @@ var Pathtracer = function()
 	this.gamma = 2.2;
 	this.whitepoint = 2.0;
 	this.fbo == null;
-	this.max_downres = 4;
+	this.max_downres = 1;
 	this.numSamples = 0;
 	this.skyPower = 1.0;
 	this.diffuseAlbedoRGB   = [1.0, 1.0, 1.0];
