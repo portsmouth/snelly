@@ -25,7 +25,7 @@ uniform float SkyPower;
 uniform vec3 diffuseAlbedoXYZ;
 uniform float roughnessDiele;
 uniform float roughnessMetal;
-uniform vec3 absorptionDieleRGB;
+uniform vec3  absorptionDieleRGB;
 
 #define DENOM_TOLERANCE 1.0e-7
 #define HIT_TOLERANCE 1.0e-4
@@ -189,7 +189,7 @@ vec3 xyzToRgb(vec3 XYZ)
     RGB.r =  3.2404542*XYZ.x - 1.5371385*XYZ.y - 0.4985314*XYZ.z;
     RGB.g = -0.9692660*XYZ.x + 1.8760108*XYZ.y + 0.0415560*XYZ.z;
     RGB.b =  0.0556434*XYZ.x - 0.2040259*XYZ.y + 1.0572252*XYZ.z;
-    return RGB;
+    return clamp(RGB, 0.0, 1.0);
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -611,6 +611,7 @@ float pdfBsdf( in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm
 // Light sampling
 ////////////////////////////////////////////////////////////////////////////////
 
+
 float environmentRadiance(in vec3 dir, in vec3 XYZ)
 {
     float phi = atan(dir.x, dir.z) + M_PI; // [0, 2*pi]
@@ -629,7 +630,6 @@ float environmentRadiance(in vec3 dir, in vec3 XYZ)
     c.x =  0.03382146*X - 0.02585410*Y - 0.00406490*Z;
     c.y = -0.02585410*X + 0.03209432*Y + 0.00227671*Z;
     c.z = -0.00406490*X + 0.00227671*Y + 0.00703345*Z;
-
     return dot(c, XYZ);
 }
 
@@ -767,7 +767,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
             {
                 float absorptionLength = length(pW_next - pW);
                 vec3 RGB = xyzToRgb(XYZ);
-                throughput *= exp(-absorptionLength * dot(absorptionDieleRGB, RGB));
+                throughput *= exp(-absorptionLength*dot(absorptionDieleRGB, RGB));
             }
 
             // Update vertex

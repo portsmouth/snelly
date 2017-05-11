@@ -18,12 +18,13 @@ var GLU = {};
 		this.gl = gl;
 
 		//console.log('Supported webGL extensions: ' + gl.getSupportedExtensions());
-		this.floatExt    = gl.getExtension("OES_texture_float");
-		this.floatLinExt = gl.getExtension("OES_texture_float_linear");
-		this.floatBufExt = gl.getExtension("WEBGL_color_buffer_float");
-		this.multiBufExt = gl.getExtension("WEBGL_draw_buffers");
-		this.depthTexExt = gl.getExtension("WEBGL_depth_texture");
+		this.floatExt       = gl.getExtension("OES_texture_float");
+		this.floatLinExt    = gl.getExtension("OES_texture_float_linear");
+		this.floatBufExt    = gl.getExtension("WEBGL_color_buffer_float");
+		this.multiBufExt    = gl.getExtension("WEBGL_draw_buffers");
+		this.depthTexExt    = gl.getExtension("WEBGL_depth_texture");
 		this.blendMinMaxExt = gl.getExtension("EXT_blend_minmax");
+		this.sRGBExt        = gl.getExtension('EXT_sRGB');
 
 		if (!this.floatExt || !this.floatLinExt) throw new Error("Your platform does not support float textures");
 		if (!this.multiBufExt)                   throw new Error("Your platform does not support the draw buffers extension");
@@ -374,7 +375,7 @@ var GLU = {};
 			imgInfo.url = url;
 			imgInfo.tex = tex;
 			gl.bindTexture(gl.TEXTURE_2D, tex);
-			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+			gl.texImage2D(gl.TEXTURE_2D, 0, GLU.sRGBExt.SRGB_EXT, GLU.sRGBExt.SRGB_EXT, gl.UNSIGNED_BYTE, img);
 			callback(imgInfo);
 		});
 

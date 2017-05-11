@@ -286,7 +286,7 @@ Dielectric.prototype.initGui  = function(parentFolder)
 							snelly.reset(true);
 						} );
 
-	this.absorptionScaleItem = parentFolder.add(this, 'absorptionScale', 0.0, 1.0);
+	this.absorptionScaleItem = parentFolder.add(this, 'absorptionScale', 0.0, 10.0);
 	this.absorptionScaleItem.onChange( function(value) { snelly.controls.enabled = false; snelly.reset(true); } );
 	this.absorptionScaleItem.onFinishChange( function(value) { snelly.controls.enabled = true; } );
 }

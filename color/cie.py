@@ -35,10 +35,10 @@ Y_resampled = numpy.interp(l_resampled, l_data, Y)
 Z_resampled = numpy.interp(l_resampled, l_data, Z)
 
 # Convert to RGB values using sRGB transformation.
-# Also compute the cross-term matrix needed to map sRGB texture colors into RGB basis function coefficients
-c_rr = 0.0; c_rg = 0.0; c_rb = 0.0
-c_gr = 0.0; c_gg = 0.0; c_gb = 0.0
-c_br = 0.0; c_bg = 0.0; c_bb = 0.0
+# Also compute cross-term matrix needed to map texture colors into XYZ basis function coefficients
+c_xx = 0.0; c_xy = 0.0; c_xz = 0.0
+c_yx = 0.0; c_yy = 0.0; c_yz = 0.0
+c_zx = 0.0; c_zy = 0.0; c_zz = 0.0
 data = ''
 for n in range(0, N):
 
@@ -47,39 +47,34 @@ for n in range(0, N):
 	y = float(Y_resampled[n])
 	z = float(Z_resampled[n])
 
-	# XYZ to RGB transformation
-	r =  3.2406*x - 1.5372*y - 0.4986*z
-	g = -0.9689*x + 1.8758*y + 0.0415*z
-	b =  0.0557*x - 0.2040*y + 1.0570*z
+	c_xx += x*x * dl
+	c_xy += x*y * dl
+	c_xz += x*z * dl
+	c_yx += y*x * dl
+	c_yy += y*y * dl
+	c_yz += y*z * dl
+	c_zx += z*x * dl
+	c_zy += z*y * dl
+	c_zz += z*z * dl
 
-	c_rr += r*r * dl
-	c_rg += r*g * dl
-	c_rb += r*b * dl
-	c_gr += g*r * dl
-	c_gg += g*g * dl
-	c_gb += g*b * dl
-	c_br += b*r * dl
-	c_bg += b*g * dl
-	c_bb += b*b * dl
-
-	data += '%f, %f, %f, 0.0' % (r, g, b)
+	data += '%f, %f, %f, 0.0' % (x, y, z)
 	if n!=N-1: data += ', ' 
 	if (n+1)%4==0: data += '\n\t\t'
 
 print '''
-// A table of %d vec4 RGB values in sRGB color space, corresponding to the %d wavelength samples
+// A table of %d vec4 tristimulus XYZ values, corresponding to the %d wavelength samples
 // between 390.0 and 750.0 nanometres
-function wavelengthToRGBTable() {
+function wavelengthToXYZTable() {
     return new Float32Array([
     		%s
         ]);
 }
 ''' % (N, N, data)
 
+M = numpy.matrix( [[c_xx, c_xy, c_xz], 
+	               [c_yx, c_yy, c_yz], 
+	               [c_zx, c_zy, c_zz]]) 
 
-M = numpy.matrix( [[c_rr, c_rg, c_rb], 
-	               [c_gr, c_gg, c_gb], 
-	               [c_br, c_bg, c_bb]]) 
 print M.I
 
 
