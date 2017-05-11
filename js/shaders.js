@@ -1360,7 +1360,7 @@ uniform float SkyPower;
 uniform vec3 diffuseAlbedoXYZ;
 uniform float roughnessDiele;
 uniform float roughnessMetal;
-uniform vec3 absorptionDieleXYZ;
+uniform vec3 absorptionDieleRGB;
 
 #define DENOM_TOLERANCE 1.0e-7
 #define HIT_TOLERANCE 1.0e-4
@@ -1516,6 +1516,16 @@ vec3 localToWorld(in vec3 vLocal, in Basis basis)
     return basis.tW*vLocal.x + basis.bW*vLocal.y + basis.nW*vLocal.z;
 }
 
+
+vec3 xyzToRgb(vec3 XYZ)
+{
+    // (using sRGB color space)
+    vec3 RGB;
+    RGB.r =  3.2404542*XYZ.x - 1.5371385*XYZ.y - 0.4985314*XYZ.z;
+    RGB.g = -0.9692660*XYZ.x + 1.8760108*XYZ.y + 0.0415560*XYZ.z;
+    RGB.b =  0.0556434*XYZ.x - 0.2040259*XYZ.y + 1.0572252*XYZ.z;
+    return RGB;
+}
 
 /////////////////////////////////////////////////////////////////////////
 // Sampling formulae
@@ -2091,7 +2101,8 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
             if (rayMaterial==MAT_DIELE)
             {
                 float absorptionLength = length(pW_next - pW);
-                throughput *= exp(-absorptionLength * dot(absorptionDieleXYZ, XYZ));
+                vec3 RGB = xyzToRgb(XYZ);
+                throughput *= exp(-absorptionLength * dot(absorptionDieleRGB, RGB));
             }
 
             // Update vertex

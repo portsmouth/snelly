@@ -257,9 +257,8 @@ Dielectric.prototype.syncShader = function(shader)
 	this.absorptionRGB[0] = sceneScale * this.absorptionScale * Math.max(0.0, 1.0 - this.absorptionColorF[0]);
 	this.absorptionRGB[1] = sceneScale * this.absorptionScale * Math.max(0.0, 1.0 - this.absorptionColorF[1]);
 	this.absorptionRGB[2] = sceneScale * this.absorptionScale * Math.max(0.0, 1.0 - this.absorptionColorF[2]);
-	
-	var absorptionXYZ = rgbToXyz(this.absorptionRGB);
-	shader.uniform3Fv("absorptionDieleXYZ", absorptionXYZ);
+
+	shader.uniform3Fv("absorptionDieleRGB", this.absorptionRGB);
 }
 
 Dielectric.prototype.initGui  = function(parentFolder) 

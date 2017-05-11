@@ -206,7 +206,7 @@ GUI.prototype.createMaterialSettings = function()
 									pathtracer.diffuseAlbedoRGB[1] = albedo[1] / 255.0;
 									pathtracer.diffuseAlbedoRGB[2] = albedo[2] / 255.0;
 								}
-								pathtracer.diffuseAlbedoXYZ   = rgbToXyz(pathtracer.diffuseAlbedoRGB);
+								pathtracer.diffuseAlbedoXYZ = rgbToXyz(pathtracer.diffuseAlbedoRGB);
 								snelly.reset(true);
 							} );
 		this.diffuseFolder.open();
