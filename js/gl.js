@@ -375,7 +375,7 @@ var GLU = {};
 			else                     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
 			callback(imgInfo);
 		});
-		if ((new URL(url)).origin !== window.location.origin) 
+		//if ((new URL(url)).origin !== window.location.origin) 
 		{
   		  	img.crossOrigin = "";
   		}

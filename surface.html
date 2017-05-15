@@ -39,8 +39,8 @@
 	{
 		// initial scene parameters
 		this.parameters = {};
-		this.parameters.foo = 1.0;
-		this.parameters.bar = 0.5;
+		this.parameters.foo = 2.0;
+		this.parameters.bar = 1.0;
 	}
 
 	// Optional name and description 
@@ -102,7 +102,7 @@
 
 				float sd = sdBox(X, vec3(1.0));
 				float scale = _scale;
-				const int iter = 1;
+				const int iter = 7;
 				for (int i=0; i<iter; i++) 
 				{
 					X.xy = rotate(X.xy, 2.0*sin(TWOPI*_rotate));
@@ -118,8 +118,8 @@
 				return sd;
 			}	
 
+			float opU( float d1, float d2 ) { return min(d1,d2); }
 			float opS(float A, float B) { return max(-B, A); }
-
 			float opI( float d1, float d2 ) { return max(d1,d2); }
 
 
@@ -135,15 +135,17 @@
 			float SDF_SURFACE(in vec3 X)                     
 			{
 				vec3 bmin = vec3(-100.0, -1.0, -100.0);
-				vec3 bmax = vec3( 100.0,  1.0,  100.0);
-				return sdBox(X, bmin, bmax);    
+				vec3 bmax = vec3( 100.0,  0.0,  100.0);
+				float shape = opI(menger(X), sdSphere(X, _bar));
+				float floor = sdBox(X, bmin, bmax);
+				return opU(floor, shape);    
 			}  
 
 			// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
 			vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X)
 			{
 				float ax = 1.0 - pow(0.5*(1.0 + cos(50.0*X.x)), 100.0);
-				float ay = 1.0 - pow(0.5*(1.0 + cos(50.0*X.y)), 100.0);
+				float ay = 1.0 - pow(0.5*(1.0 + cos(50.0*X.z)), 100.0);
 				float albedo = ax*ay;
 			    return vec3(albedo);
 			}
@@ -173,7 +175,7 @@
 			
 			float SDF_METAL(in vec3 X)                     
 			{	
-				return 1.0e6;
+				return 1.0e6; //opI(menger(X), sdSphere(X, _bar));
 			}  
 
 			// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
@@ -195,7 +197,7 @@
 			
 			float SDF_DIELECTRIC(vec3 X)                     
 			{
-			    return opS( sdSphere(X, _foo), sdSphere(X - vec3(_foo, 0.0, 0.0), _bar) );
+			    return 1.0e6;
 			}  
 
 			// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
@@ -260,7 +262,7 @@
   // set up gui and callbacks for this scene
   Scene.prototype.initGui = function(gui)            
   {
-	  	gui.addParameter(this.parameters, {name: 'foo', min: 0.0, max: 100.0});
+	  	gui.addParameter(this.parameters, {name: 'foo', min: 0.0, max: 5.0});
 	  	gui.addParameter(this.parameters, {name: 'bar', min: 0.0, max: 10.0});
   }
 
