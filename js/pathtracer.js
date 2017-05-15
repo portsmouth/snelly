@@ -4,7 +4,6 @@ var PathtracerState = function(width, height)
 {
 	var radianceData = new Float32Array(width*height*4); // Path radiance, and sample count 
 	var rngData      = new Float32Array(width*height*4); // Random number seed
-	//var depthData    = new Float32Array(width*height*4); // Packed depth
 	for (var i = 0; i<width*height; ++i)
 	{
 		for (var t = 0; t<4; ++t)
@@ -14,17 +13,14 @@ var PathtracerState = function(width, height)
 	}
 	this.radianceTex = new GLU.Texture(width, height, 4, true, false, true, radianceData);
 	this.rngTex      = new GLU.Texture(width, height, 4, true, false, true, rngData);
-	//this.depthTex    = new GLU.Texture(width, height, 4, true, false, true, depthData);
 }
 
 PathtracerState.prototype.bind = function(shader)
 {
 	this.radianceTex.bind(0);
 	this.rngTex.bind(1);
-	//this.depthTex.bind(2);
 	shader.uniformTexture("Radiance", this.radianceTex);
 	shader.uniformTexture("RngData", this.rngTex);
-	//shader.uniformTexture("Depth", this.depthTex);
 }
 
 PathtracerState.prototype.attach = function(fbo)
@@ -32,7 +28,6 @@ PathtracerState.prototype.attach = function(fbo)
 	var gl = GLU.gl;
 	fbo.attachTexture(this.radianceTex, 0);
 	fbo.attachTexture(this.rngTex, 1);
-	//fbo.attachTexture(this.depthTex, 2);
 	if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) != gl.FRAMEBUFFER_COMPLETE) 
 	{
 		GLU.fail("Invalid framebuffer");
@@ -44,7 +39,6 @@ PathtracerState.prototype.detach = function(fbo)
 	var gl = GLU.gl;
 	fbo.detachTexture(0);
 	fbo.detachTexture(1);
-	//fbo.detachTexture(2);
 }
 
 PathtracerState.prototype.clear = function(fbo)
@@ -75,8 +69,9 @@ var Pathtracer = function()
 	this.pathStates = [new PathtracerState(this.width, this.height), 
 					   new PathtracerState(this.width, this.height)];
 
+	// @todo: these setting are defaults which should be specifiable in the scene
 	this.maxBounces = 3;
-	this.maxMarchSteps = 32;
+	this.maxMarchSteps = 128;
 	this.enable = true;
 	this.exposure = 10.0;
 	this.gamma = 2.2;
@@ -85,22 +80,27 @@ var Pathtracer = function()
 	this.max_downres = 1;
 	this.numSamples = 0;
 	this.skyPower = 1.0;
-	this.diffuseAlbedoRGB   = [1.0, 1.0, 1.0];
-	this.diffuseAlbedoXYZ   = rgbToXyz(this.diffuseAlbedoRGB);
+	
+	this.surfaceDiffuseAlbedoRGB = [1.0, 1.0, 1.0];
+	this.surfaceDiffuseAlbedoXYZ = rgbToXyz(this.surfaceDiffuseAlbedoRGB);
+	this.surfaceSpecAlbedoRGB = [1.0, 1.0, 1.0];
+	this.surfaceSpecAlbedoXYZ = rgbToXyz(this.surfaceSpecAlbedoRGB);
+	this.surfaceRoughness = 0.1;
+	this.surfaceIor = 1.5;
 	this.absorptionDieleRGB = [0.0, 0.0, 0.0];
 
 	// Load shaders
-	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper", "pick", "filter"]);
+	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper", "filter"]);
 	this.filterPrograms = null;
 	this.compileShaders();
 
 	// load env map
 	this.loaded = true;
 	var sceneObj = snelly.getScene();
-	if (typeof sceneObj.envMap !== "undefined") 
+	this.envMap = null;
+	if (typeof sceneObj.envMap !== "undefined")
   	{
   		var url = sceneObj.envMap();
-  		//pathtracer.envMap = null;
   		if (url != "")
   		{
   			var pathtracer = this;
@@ -109,7 +109,7 @@ var Pathtracer = function()
 					function(imgInfo)
 					{
 						pathtracer.loaded =  true;	
-						pathtracer.envMap = imgInfo;	
+						pathtracer.envMap = imgInfo;
 					});
   			})(pathtracer.loaded);
   		}
@@ -162,7 +162,7 @@ Pathtracer.prototype.compileShaders = function()
 	// Insert dummy functions if missing 
 	if (sdfCode.indexOf("SDF_METAL(")      == -1) { sdfCode += `\n float SDF_METAL(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
 	if (sdfCode.indexOf("SDF_DIELECTRIC(") == -1) { sdfCode += `\n float SDF_DIELECTRIC(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
-	if (sdfCode.indexOf("SDF_DIFFUSE(")    == -1) { sdfCode += `\n float SDF_DIFFUSE(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
+	if (sdfCode.indexOf("SDF_SURFACE(")    == -1) { sdfCode += `\n float SDF_SURFACE(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
 
 	// @todo: insert material GLSL code
 	var dielectricObj = snelly.getLoadedDielectric(); if (dielectricObj == null) return;
@@ -201,87 +201,9 @@ Pathtracer.prototype.compileShaders = function()
 	}
 
 	// Adjunct programs
-	this.pickProgram      = new GLU.Shader('pick',       this.shaderSources, replacements);
 	this.tonemapProgram   = new GLU.Shader('tonemapper', this.shaderSources, null);
 }
 
-
-Pathtracer.prototype.pick = function(xPick, yPick)
-{
-	var sceneObj = snelly.getScene();
-	if (sceneObj == null) return null;
-	var gl = this.gl;
-	gl.viewport(0, 0, 1, 1);
-
-	this.pickProgram.bind();
-	sceneObj.syncShader(this.pickProgram); 
-
-	// sync camera info to shader	 
-	var camera = snelly.getCamera();
-	var camPos = camera.position.clone();
-	var camDir = camera.getWorldDirection();
-	var camY = camera.up.clone();
-	camY.transformDirection( camera.matrixWorld );
-	var camX = new THREE.Vector3();
-	camX.crossVectors(camY, camDir);
-
-	var ndcX = xPick;
-	var ndcY = yPick;
-
-	this.pickProgram.uniformF("ndcX", ndcX);
-	this.pickProgram.uniformF("ndcY", ndcY);
-	this.pickProgram.uniform3Fv("camPos", [camPos.x, camPos.y, camPos.z]);
-	this.pickProgram.uniform3Fv("camDir", [camDir.x, camDir.y, camDir.z]);
-	this.pickProgram.uniform3Fv("camX", [camX.x, camX.y, camX.z]);
-	this.pickProgram.uniform3Fv("camY", [camY.x, camY.y, camY.z]);
-	this.pickProgram.uniformF("camNear", camera.near);
-	this.pickProgram.uniformF("camFar", camera.far);
-	this.pickProgram.uniformF("camFovy", camera.fov);
-	this.pickProgram.uniformF("camZoom", camera.zoom);
-	this.pickProgram.uniformF("camAspect", camera.aspect);
-	this.pickProgram.uniformF("SceneScale", sceneObj.getScale()); 
-
-	var fbo = new GLU.RenderTarget();
-	fbo.bind();
-	fbo.drawBuffers(1);
-
-	var pickData = new Float32Array(4);
-	this.pickTex = new GLU.Texture(1, 1, 4, true, false, true, pickData);
-	fbo.attachTexture(this.pickTex, 0);
-
-	// Trace pick ray
-	this.quadVbo.bind();
-	this.quadVbo.draw(this.pickProgram, gl.TRIANGLE_FAN);
-
-	// Read floating point hit distance output from pick fragment shader
-	var pixels = new Uint8Array(4);
-	gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-	pixels = new Float32Array(pixels.buffer);
-	fbo.unbind();
-	var hitDist = pixels[0];
-	if (hitDist < 0.0) return null;
-
-	// Compute hit point given pick NDC, camera, and the hit distance
-	var fh = camera.near * Math.tan(0.5*camera.fov*Math.PI/180.0) / camera.zoom;
-	var fw = camera.aspect * fh;
-
-	var sX = camX.clone();
-	var sY = camY.clone();
-	sX.multiplyScalar(-fw*ndcX);
-	sY.multiplyScalar(fh*ndcY);
-	var s = sX.clone();
-	s.add(sY);
-
-	var D = camDir.clone();
-	D.multiplyScalar(camera.near);
-	D.add(s);
-	D.normalize(); // ray direction through camPos, towards hit point
-	D.multiplyScalar(hitDist);
-
-	var hitPoint = camPos.clone();
-	hitPoint.add(D);
-	return hitPoint;
-}
 
 Pathtracer.prototype.enabled = function()
 {
@@ -357,7 +279,16 @@ Pathtracer.prototype.render = function()
 	PATHTRACER_PROGRAM.uniformI("MaxBounces", this.maxBounces);
 	PATHTRACER_PROGRAM.uniformI("downRes", DOWN_RES);
 	PATHTRACER_PROGRAM.uniformF("SkyPower", this.skyPower);
-	PATHTRACER_PROGRAM.uniform3Fv("diffuseAlbedoXYZ", this.diffuseAlbedoXYZ);
+
+	// gamma correction of env map already done if sRGB ext was loaded
+	if (GLU.sRGBExt != null) PATHTRACER_PROGRAM.uniformF("gamma", 1.0);
+	else                     PATHTRACER_PROGRAM.uniformF("gamma", this.gamma);
+
+	// Material parameters (or multipliers on user defined values)
+	PATHTRACER_PROGRAM.uniform3Fv("surfaceDiffuseAlbedoXYZ", this.surfaceDiffuseAlbedoXYZ);
+	PATHTRACER_PROGRAM.uniform3Fv("surfaceSpecAlbedoXYZ", this.surfaceSpecAlbedoXYZ);
+	PATHTRACER_PROGRAM.uniformF("surfaceRoughness", this.surfaceRoughness);
+	PATHTRACER_PROGRAM.uniformF("surfaceIor", this.surfaceIor);
 
 	this.fbo.bind();
 	this.fbo.drawBuffers(2);
@@ -366,6 +297,7 @@ Pathtracer.prototype.render = function()
 	this.pathStates[current].bind(PATHTRACER_PROGRAM); // Read data from the 'current' state
 	this.pathStates[next].attach(this.fbo);            // Write data into the 'next' state
 
+	PATHTRACER_PROGRAM.uniformI("haveEnvMap", Boolean(this.envMap) ? 1 : 0);
 	if (this.envMap != null)
 	{
 		gl.activeTexture(gl.TEXTURE0 + 7);
@@ -373,6 +305,7 @@ Pathtracer.prototype.render = function()
 		var id = gl.getUniformLocation(PATHTRACER_PROGRAM.program, "envMap");
 		gl.uniform1i(id, 7);
 	}
+
 
 	// Upload current scene SDF shader parameters
 	sceneObj.syncShader(PATHTRACER_PROGRAM); 
@@ -414,7 +347,6 @@ Pathtracer.prototype.render = function()
 	{
 		// Use full resolution radiance buffer
 		radianceTexCurrent = this.pathStates[next].radianceTex;
-		//var depthTexCurrent = this.pathStates[next].depthTex;
 	}
 	else
 	{
@@ -423,9 +355,7 @@ Pathtracer.prototype.render = function()
 	}
 
 	radianceTexCurrent.bind(0);	
-	//depthTexCurrent.bind(1);
 	this.tonemapProgram.uniformTexture("Radiance", radianceTexCurrent);
-	//this.tonemapProgram.uniformTexture("DepthSurface", depthTexCurrent);
 	this.tonemapProgram.uniformF("exposure", this.exposure);
 	this.tonemapProgram.uniformF("invGamma", 1.0/this.gamma);
 	this.tonemapProgram.uniformF("whitepoint", this.whitepoint);

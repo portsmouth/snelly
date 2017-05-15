@@ -66,8 +66,8 @@ def download(metalname, url, Nresample, lmin, lmax):
 	
 		# wavelength_nm: new Float32Array([%s]),
 		code = '''function tabulated_%s() { // %s
-	return { n: new Float32Array([%s]),
-			 k: new Float32Array([%s]) } }
+return { n: new Float32Array([%s]),
+         k: new Float32Array([%s]) } }
 ''' % (metalname, "%s samples of n, k between %fnm and %fnm"%(Nresample, lmin, lmax), n_str, k_str)
 		
 		return code
@@ -79,8 +79,8 @@ print download("chromium",   "https://refractiveindex.info/tmp/main/Cr/Johnson.t
 print download("cobalt",     "https://refractiveindex.info/tmp/main/Co/Werner.txt",   Nresample=64, lmin=390.0, lmax=750.0)
 print download("copper",     "https://refractiveindex.info/tmp/main/Cu/Babar.txt",   Nresample=64, lmin=390.0, lmax=750.0)
 print download("gold",       "https://refractiveindex.info/tmp/main/Au/Johnson.txt", Nresample=64, lmin=390.0, lmax=750.0)
-print download("iridium",       "https://refractiveindex.info/tmp/main/Ir/Windt.txt", Nresample=64, lmin=390.0, lmax=750.0)
-print download("iron",       "https://refractiveindex.info/tmp/main/Fe/Johnson.txt", Nresample=64, lmin=390.0, lmax=750.0)
+print download("iridium",    "https://refractiveindex.info/tmp/main/Ir/Windt.txt",   Nresample=64, lmin=390.0, lmax=750.0)
+print download("iron",       "https://refractiveindex.info/tmp/main/Fe/Werner.txt", Nresample=64, lmin=390.0, lmax=750.0)
 print download("lead",       "https://refractiveindex.info/tmp/main/Pb/Ordal.txt",   Nresample=64, lmin=390.0, lmax=750.0)
 print download("mercury",    "https://refractiveindex.info/tmp/main/Hg/Inagaki.txt", Nresample=64, lmin=390.0, lmax=750.0)
 print download("molybdenum", "https://refractiveindex.info/tmp/main/Mo/Ordal.txt",   Nresample=64, lmin=390.0, lmax=750.0)

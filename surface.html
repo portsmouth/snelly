@@ -1,0 +1,314 @@
+
+
+<body onload="onLoad();">
+
+<?/* ----------- @todo: embed CSS here, no external file ------------*/?>
+ <head>
+<link rel="stylesheet" type="text/css" href="snelly.css">
+</head>
+
+<div id="container">
+    <div id="webglContainer"></div> <canvas id="render-canvas"></canvas>
+    <div id="textContainer"><canvas id="text-canvas"></canvas></div>  
+</div>
+
+
+<script type="text/javascript" src="js/thirdparty/jquery-1.11.3.min.js"></script>
+<script type="text/javascript" src="js/thirdparty/three/three.min.js"></script>
+<script type="text/javascript" src="js/thirdparty/three/libs/stats.min.js"></script>
+<script type="text/javascript" src="js/thirdparty/three/libs/dat.gui.min.js"></script>
+<script type="text/javascript" src="js/thirdparty/three/controls/OrbitControls.js"></script>
+
+<script type="text/javascript" src="js/gl.js"></script>
+<script type="text/javascript" src="js/gui.js"></script>
+<script type="text/javascript" src="js/shaders.js"></script>
+<script type="text/javascript" src="js/color.js"></script>
+<script type="text/javascript" src="js/materials.js"></script>
+<script type="text/javascript" src="js/spectra.js"></script>
+<script type="text/javascript" src="js/pathtracer.js"></script>
+<script type="text/javascript" src="js/snelly.js"></script>
+
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                         scene definition                          */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+
+	function Scene() 
+	{
+		// initial scene parameters
+		this.parameters = {};
+		this.parameters.foo = 1.0;
+		this.parameters.bar = 0.5;
+	}
+
+	// Optional name and description 
+	Scene.prototype.getName = function() { return "Hello world"; }
+	Scene.prototype.getDesc = function() { return "A simple example"; }
+
+	Scene.prototype.sdf = function()
+	{
+		return `
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			// Shader code
+			/////////////////////////////////////////////////////////////////////////////////////
+
+			uniform float _foo;
+			uniform float _bar;
+
+			float sdSphere(vec3 X, float r)                  
+			{                                     
+				return length(X) - r;       
+			}   
+
+			uniform float _rotate;
+			uniform float _scale;
+			#define TWOPI 6.28318530718
+
+			vec2 rotate(vec2 v, float a) 
+			{
+			 	return vec2(cos(a)*v.x + sin(a)*v.y, -sin(a)*v.x + cos(a)*v.y); 
+			}
+
+			float sdBox(vec3 X, vec3 bounds)                     
+			{                                     
+			    vec3 d = abs(X) - bounds;
+			    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+			} 
+
+			float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+			{                            
+				vec3 center = 0.5*(bmin + bmax);
+				vec3 halfExtents = 0.5*(bmax - bmin);         
+				vec3 d = abs(X-center) - halfExtents;
+				return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+			} 
+
+			float sdCross( in vec3 p )
+			{
+				float inf = 1.0e6;
+				float da = sdBox(p.xyz, vec3(inf,1.0,1.0));
+				float db = sdBox(p.yzx, vec3(1.0,inf,1.0));
+				float dc = sdBox(p.zxy, vec3(1.0,1.0,inf));
+				return min(da,min(db,dc));
+			}
+
+			float menger(vec3 X) 
+			{
+				float _rotate = 0.0;
+				float _scale = _foo;
+
+				float sd = sdBox(X, vec3(1.0));
+				float scale = _scale;
+				const int iter = 1;
+				for (int i=0; i<iter; i++) 
+				{
+					X.xy = rotate(X.xy, 2.0*sin(TWOPI*_rotate));
+					vec3 a = mod(X*scale, 2.0)-1.0;
+					scale *= 3.0;
+					vec3 r = abs(1.0 - 3.0*abs(a));
+					float da = max(r.x,r.y);
+					float db = max(r.y,r.z);
+					float dc = max(r.z,r.x);
+					float c = (min(da,min(db,dc))-1.0)/scale;
+					sd = max(sd, c);
+				}
+				return sd;
+			}	
+
+			float opS(float A, float B) { return max(-B, A); }
+
+			float opI( float d1, float d2 ) { return max(d1,d2); }
+
+
+			// Any of the user-defined functions below can be omitted, in which case it will be
+			// replaced with the default indicated.
+			// Note that the reflectances can be treated as [0,1] RGB values in sRGB color space.
+
+
+			//////////////////////////////////////////////////////
+			// Surface
+			//////////////////////////////////////////////////////
+
+			float SDF_SURFACE(in vec3 X)                     
+			{
+				vec3 bmin = vec3(-100.0, -1.0, -100.0);
+				vec3 bmax = vec3( 100.0,  1.0,  100.0);
+				return sdBox(X, bmin, bmax);    
+			}  
+
+			// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
+			vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X)
+			{
+				float ax = 1.0 - pow(0.5*(1.0 + cos(50.0*X.x)), 100.0);
+				float ay = 1.0 - pow(0.5*(1.0 + cos(50.0*X.y)), 100.0);
+				float albedo = ax*ay;
+			    return vec3(albedo);
+			}
+
+			// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
+			vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 X)
+			{
+			    return vec3(1.0);
+			}
+
+			// space-varying multiplier to the UI-exposed constant (defaults to 1.0)
+			float SURFACE_IOR(in vec3 X)
+			{
+			    return 1.0;
+			}
+
+			// space-varying multiplier to the UI-exposed constant (defaults to 1.0)
+			float SURFACE_ROUGHNESS(in vec3 X)
+			{
+			    return 1.0;
+			}
+
+
+			//////////////////////////////////////////////////////
+			// Metal
+			//////////////////////////////////////////////////////   
+			
+			float SDF_METAL(in vec3 X)                     
+			{	
+				return 1.0e6;
+			}  
+
+			// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
+			vec3 METAL_SPECULAR_REFLECTANCE(in vec3 X)
+			{
+			    return vec3(1.0, 1.0, 1.0);
+			}
+
+			// space-varying multiplier to the UI-exposed constant (defaults to 1.0)
+			float METAL_ROUGHNESS(in vec3 X)
+			{
+			    return 1.0;
+			}
+
+
+			//////////////////////////////////////////////////////
+			// Dielectric
+			//////////////////////////////////////////////////////   
+			
+			float SDF_DIELECTRIC(vec3 X)                     
+			{
+			    return opS( sdSphere(X, _foo), sdSphere(X - vec3(_foo, 0.0, 0.0), _bar) );
+			}  
+
+			// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
+			vec3 DIELECTRIC_SPECULAR_REFLECTANCE(in vec3 X)
+			{
+			    return vec3(1.0, 1.0, 1.0);
+			}
+
+			// space-varying multiplier to the UI-exposed constant (defaults to 1.0)
+			float DIELECTRIC_ROUGHNESS(in vec3 X)
+			{
+			    return 1.0;
+			}
+
+
+			////////////////////////////////////////////////////////////////////// end of shader code
+		`;
+	}
+
+
+
+  // Called whenever this scene UI was switched to, or changed while active,
+  // and syncs the params of the shader to the current UI settings
+  Scene.prototype.syncShader = function(shader)
+  {
+		shader.uniformF("_foo", this.parameters.foo);
+		shader.uniformF("_bar", this.parameters.bar);
+  }
+
+  // Gives the raytracer some indication of the (rough) scene length scale, so it can set 
+  // tolerances appropriately. Note, the raymarcher will march no further from the camera 
+  // than 100 times this scale, and the smallest resolvable structure is about 1.0e-5 this scale.
+  Scene.prototype.getScale = function()
+  {
+		return 1.0;
+  }
+
+  // Initial defaults for this scene
+  // camControls is a THREE.OrbitControls object
+    // camControls is a THREE.PerspectiveCamera object
+  Scene.prototype.init = function(camControls, camera)
+  {
+  		camControls.target.set(2.01584, -0.603169, -0.808580);
+		camera.position.set(-4.81888, 2.39746, 3.47067);
+
+  		// cam position
+
+  		// initial scene parameters
+
+  		 // initial choice of metal and dielectric (if used),
+  		 // and other material parameters in the UI
+
+  		// initial pathtracer settings
+
+  		// initial lighting settings
+
+  		// initial tonemapping settings
+
+
+  }
+
+  // set up gui and callbacks for this scene
+  Scene.prototype.initGui = function(gui)            
+  {
+	  	gui.addParameter(this.parameters, {name: 'foo', min: 0.0, max: 100.0});
+	  	gui.addParameter(this.parameters, {name: 'bar', min: 0.0, max: 10.0});
+  }
+
+  // optionally supply an env-map texture URL (should be lat-long)
+  Scene.prototype.envMap = function()
+  {
+  		//return '';
+	  	return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_040_Field_Bg.jpg';
+	  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_041_Path_Bg.jpg';
+	  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg';
+	  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_110_Tunnel_Bg.jpg';
+	  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_Free_City_Night_Lights_Bg.jpg';
+  }
+
+</script>
+
+
+
+<?/* -----------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+
+// Snelly object
+var snelly;
+
+// shim layer with setTimeout fallback
+window.requestAnimFrame = (function(){
+  return  window.requestAnimationFrame       ||
+          window.webkitRequestAnimationFrame ||
+          window.mozRequestAnimationFrame    ||
+          function( callback ){
+            window.setTimeout(callback, 1000/60);
+          };
+})();
+
+function onLoad()
+{
+	snelly = new Snelly(new Scene());
+	animateLoop();
+}
+
+function animateLoop() 
+{
+	snelly.render();
+	window.requestAnimFrame(animateLoop);
+}
+
+</script>
+</body>
+
+

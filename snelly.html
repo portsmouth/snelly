@@ -86,7 +86,7 @@
 		else
 		{
 			this.parameters.bulge = Math.max(this.parameters.bulge, 0.05);
-			func = `d += pow(abs(dot(p, GDFVectors[i])), 1.0/e)`;
+			func = `d += pow(abs(dot(p, GDFVectors[i])), 1.0/max(e, 1.0e-6))`;
 			ret = `pow(d, e) - r`;
 		}
 
@@ -229,24 +229,24 @@
 
   
   // Called whenever this scene UI was switched to, or changed while active,
-  // and syncs the params of the trace shader to the current UI settings
-  Scene.prototype.syncShader = function(traceProgram)
+  // and syncs the params of the shader to the current UI settings
+  Scene.prototype.syncShader = function(shader)
   {
-		traceProgram.uniform3Fv("GDFVectors", this.GDFVectorsFlattened);
+		shader.uniform3Fv("GDFVectors", this.GDFVectorsFlattened);
 
-		traceProgram.uniformF("_size", this.parameters.size);
-		traceProgram.uniformF("_bulge", this.parameters.bulge);
-		traceProgram.uniformF("_spacing", this.parameters.spacing);
-		traceProgram.uniformF("_width",  this.parameters.width);
-		traceProgram.uniformF("_height", this.parameters.height);
-		traceProgram.uniformF("_depth",  this.parameters.depth);
-		traceProgram.uniformF("_offset",  this.parameters.offset);
+		shader.uniformF("_size", this.parameters.size);
+		shader.uniformF("_bulge", this.parameters.bulge);
+		shader.uniformF("_spacing", this.parameters.spacing);
+		shader.uniformF("_width",  this.parameters.width);
+		shader.uniformF("_height", this.parameters.height);
+		shader.uniformF("_depth",  this.parameters.depth);
+		shader.uniformF("_offset",  this.parameters.offset);
 
 		// (The shader parameter names here must be consistent with the GLSL sdf code defined above)
-		traceProgram.uniformF("_rotate", this.parameters.rotate);
-		traceProgram.uniformF("_scale", this.parameters.scale);
-		traceProgram.uniformF("_scaleWidth", this.parameters.scaleWidth);
-		traceProgram.uniformF("_scaleHeight", this.parameters.scaleHeight);
+		shader.uniformF("_rotate", this.parameters.rotate);
+		shader.uniformF("_scale", this.parameters.scale);
+		shader.uniformF("_scaleWidth", this.parameters.scaleWidth);
+		shader.uniformF("_scaleHeight", this.parameters.scaleHeight);
   }
 
   // Gives the raytracer some indication of (rough) scene size, so it
@@ -348,6 +348,8 @@ window.requestAnimFrame = (function(){
 
 function onLoad()
 {
+	console.log('on load');
+	
 	// Instantiate Snelly
 	snelly = new Snelly(new Scene());
 	

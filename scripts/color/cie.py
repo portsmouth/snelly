@@ -18,9 +18,9 @@ Y = []
 Z = []
 for row in cie:
 	l_data.append( Decimal(row[0]) )
-	X.append( Decimal(row[1]) )
-	Y.append( Decimal(row[2]) )
-	Z.append( Decimal(row[3]) )
+	X.append( float(row[1]) )
+	Y.append( float(row[2] ) )
+	Z.append( float(row[3] ) )
 
 
 # Convert to 1024 XYZ values sampled at wavelengths between 390.0 and 750.0 nm
@@ -36,6 +36,9 @@ Z_resampled = numpy.interp(l_resampled, l_data, Z)
 
 # Convert to RGB values using sRGB transformation.
 # Also compute cross-term matrix needed to map texture colors into XYZ basis function coefficients
+c_x = 0.0;
+c_y = 0.0;
+c_z = 0.0;
 c_xx = 0.0; c_xy = 0.0; c_xz = 0.0
 c_yx = 0.0; c_yy = 0.0; c_yz = 0.0
 c_zx = 0.0; c_zy = 0.0; c_zz = 0.0
@@ -47,6 +50,9 @@ for n in range(0, N):
 	y = float(Y_resampled[n])
 	z = float(Z_resampled[n])
 
+	c_x  +=   x * dl
+	c_y  +=   y * dl
+	c_z  +=   z * dl
 	c_xx += x*x * dl
 	c_xy += x*y * dl
 	c_xz += x*z * dl
@@ -71,10 +77,13 @@ function wavelengthToXYZTable() {
 }
 ''' % (N, N, data)
 
+print 'XYZ norms: \n', c_x, c_y, c_z
+
 M = numpy.matrix( [[c_xx, c_xy, c_xz], 
 	               [c_yx, c_yy, c_yz], 
 	               [c_zx, c_zy, c_zz]]) 
+print '\nXYZ correlation matrix: \n', M
+print '\nXYZ correlation matrix inverse: \n', M.I
 
-print M.I
-
-
+# scale by an ad-hoc factor to make max RGB component about 1
+print 100.0 * M.I

@@ -135,26 +135,26 @@ FlatSpectrum.prototype.initGui = function(parentFolder)
 	this.minItem = parentFolder.add(this, 'Minimum wavelength', 390.0, 750.0, 0.1);
 	this.minItem.onChange( function(value) 
 	{ 
-		snelly.controls.enabled = false;
+		snelly.camControls.enabled = false;
 		if (ME['Minimum wavelength'] > ME['Maximum wavelength']-dw) 
 			ME['Minimum wavelength'] = ME['Maximum wavelength']-dw;
 		var no_recompile = true;
 		snelly.loadSpectrum(ME.getName());
 		snelly.reset(no_recompile);
 	});
-	this.minItem.onFinishChange( function(value) { snelly.controls.enabled = true; } );
+	this.minItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 
 	this.maxItem = parentFolder.add(this, 'Maximum wavelength', 390.0, 750.0, 0.1);
 	this.maxItem.onChange( function(value) 
 	{
-		snelly.controls.enabled = false; 
+		snelly.camControls.enabled = false; 
 		if (ME['Maximum wavelength'] < ME['Minimum wavelength']+dw) 
 			ME['Maximum wavelength'] = ME['Minimum wavelength']+dw;
 		var no_recompile = true;
 		snelly.loadSpectrum(ME.getName());
 		snelly.reset(no_recompile);
 	});
-	this.maxItem.onFinishChange( function(value) { snelly.controls.enabled = true; } );
+	this.maxItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 }
 
 FlatSpectrum.prototype.eraseGui = function(parentFolder)
@@ -190,12 +190,12 @@ BlackbodySpectrum.prototype.initGui = function(parentFolder)
 	this.temperatureItem = parentFolder.add(this, 'temperature', 300.0, 15000.0);
 	this.temperatureItem.onChange( function(value) 
 	{ 
-		snelly.controls.enabled = false;
+		snelly.camControls.enabled = false;
 		this.temperature = value;
 		snelly.loadSpectrum(ME.getName());
 		snelly.reset(true);
 	} );
-	this.temperatureItem.onFinishChange( function(value) { snelly.controls.enabled = true; } );
+	this.temperatureItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 }
 
 BlackbodySpectrum.prototype.eraseGui = function(parentFolder)

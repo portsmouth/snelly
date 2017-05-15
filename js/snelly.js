@@ -5,6 +5,9 @@ var Snelly = function(sceneObj)
 	this.initialized = false; 
 	snelly = this;
 
+	// @todo: should create the required canvas elements here
+	//        programmatically, rather than relying on them existing in the document.
+
 	var render_canvas = document.getElementById('render-canvas');
 	render_canvas.width  = window.innerWidth;
 	render_canvas.height = window.innerHeight;
@@ -18,15 +21,17 @@ var Snelly = function(sceneObj)
 	this.textCtx = text_canvas.getContext("2d");
 	this.onSnellyLink = false;
 
-	// Setup THREE.js GL camera and orbit controls for it
-	var VIEW_ANGLE = 45;
-	var ASPECT = this.width / this.height ;
+	// Setup THREE.js orbit camera
+	var VIEW_ANGLE = 45; // @todo: fov should be under user control
+	var ASPECT = this.width / this.height;
 	var NEAR = 0.05;
 	var FAR = 1000;
-	this.camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
-	this.controls = new THREE.OrbitControls(this.camera, this.container);
-	this.controls.zoomSpeed = 2.0;
-	this.controls.addEventListener( 'change', camChanged );
+	this.glCamera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
+	this.camControls = new THREE.OrbitControls(this.glCamera, this.container);
+	this.camControls.zoomSpeed = 2.0;
+	this.camControls.addEventListener( 'change', camChanged );
+	this.camControls.target.set(0.0, 0.0, 0.0);
+	this.glCamera.position.set(1.0, 1.0, 1.0);
 
 	this.gui = null;
 
@@ -65,44 +70,12 @@ var Snelly = function(sceneObj)
 	this.gui = new GUI();
 
 	// Setup keypress and mouse events
-	window.addEventListener('keydown', function(event) 
-	{
-		var charCode = (event.which) ? event.which : event.keyCode;
-		switch (charCode)
-		{
-			case 122: // F11 key: go fullscreen
-				var element	= document.body;
-				if      ( 'webkitCancelFullScreen' in document ) element.webkitRequestFullScreen();
-				else if ( 'mozCancelFullScreen'    in document ) element.mozRequestFullScreen();
-				else console.assert(false);
-				break;
-
-			case 70: // F key: reset cam  (@todo)
-				break;
-
-			case 82: // R key: reset scene 
-				// @todo
-				break;
-
-			case 72: // H key: hide dat gui
-				snelly.getGUI().visible = !(snelly.getGUI().visible);
-				break;
-
-			case 67: // C key: dev tool to dump cam and laser details, for setting scene defaults
-				var t = snelly.controls.target;
-				var c = snelly.camera.position;
-				console.log(`controls.target.set(${t.x.toPrecision(6)}, ${t.y.toPrecision(6)}, ${t.z.toPrecision(6)});`);
-				console.log(`camera.position.set(${c.x.toPrecision(6)}, ${c.y.toPrecision(6)}, ${c.z.toPrecision(6)});`);
-				break;
-			
-		}
-	}, false);
-
 	window.addEventListener( 'mousemove', this, false );
 	window.addEventListener( 'mousedown', this, false );
 	window.addEventListener( 'mouseup',   this, false );
 	window.addEventListener( 'contextmenu',   this, false );
 	window.addEventListener( 'click', this, false );
+	window.addEventListener( 'keydown', this, false );
 
 	this.initialized = true; 
 }
@@ -117,6 +90,7 @@ Snelly.prototype.handleEvent = function(event)
 		case 'mouseup':     this.onDocumentMouseUp(event);    break;
 		case 'contextmenu': this.onDocumentRightClick(event); break;
 		case 'click':       this.onClick(event);  break;
+		case 'keydown':     this.onKeydown(event);  break;
 	}
 }
 
@@ -132,9 +106,8 @@ Snelly.prototype.getGUI = function()
 
 Snelly.prototype.getCamera = function()
 {
-	return this.camera;
+	return this.glCamera;
 }
-
 
 //
 // Scene management
@@ -148,25 +121,20 @@ Snelly.prototype.getScene = function()
 Snelly.prototype.loadScene = function(sceneObj)
 {
 	this.sceneObj = sceneObj;
-	this.sceneObj.init(this.controls, this.camera, this.laser);
+	this.sceneObj.init(this.camControls, this.glCamera);
 
-	var gui = this.getGUI();
-	if (gui)
-	{
-		gui.emissionRadiusControl.max(4.0*this.sceneObj.getScale());
-	}
+	// @todo: if no init function provided, init cam pos 
+	//        according to scene scale
+	//camControls.target.set(0.0, 0.0, 0.0);
+	//camera.position.set(1.0, 1.0, 1.0);
 	
 	// Camera frustum update
-	this.camera.near = Math.max(1.0e-4, 1.0e-2*this.sceneObj.getScale());
-	this.camera.far  = Math.max(1.0e4,   1.0e4*this.sceneObj.getScale());
-	this.controls.update();	
+	this.glCamera.near = Math.max(1.0e-4, 1.0e-2*this.sceneObj.getScale());
+	this.glCamera.far  = Math.max(1.0e4,   1.0e4*this.sceneObj.getScale());
+	this.camControls.update();	
 	this.reset();
 }
 
-
-//
-// Spectrum management
-//
 
 // emission spectrum management
 Snelly.prototype.addSpectrum = function(spectrumObj)
@@ -185,7 +153,7 @@ Snelly.prototype.loadSpectrum = function(spectrumName)
 	var inverseCDF = this.spectrumObj.inverseCDF(this.LAMBDA_MIN, this.LAMBDA_MAX, this.SPECTRUM_SAMPLES);
 	this.emissionIcdf.bind(0);
     this.emissionIcdf.copy(inverseCDF);
-    this.reset();
+    this.reset(true);
 }
 
 Snelly.prototype.getLoadedSpectrum = function()
@@ -193,10 +161,8 @@ Snelly.prototype.getLoadedSpectrum = function()
 	return this.spectrumObj;
 }
 
-//
-// Material management
-//
 
+// Material management
 Snelly.prototype.getDielectrics = function()
 {
 	return this.materials.getDielectrics();
@@ -234,11 +200,8 @@ Snelly.prototype.getLoadedMetal = function()
 Snelly.prototype.reset = function(no_recompile = false)
 {	
 	if (!this.initialized) return;
-
 	this.pathtracer.reset(no_recompile);
-
 	this.gui.sync();
-
 	this.render();
 }
 
@@ -281,15 +244,14 @@ Snelly.prototype.resize = function()
 	this.height = height;
 
 	var render_canvas = document.getElementById('render-canvas');
+	var text_canvas = document.getElementById("text-canvas");
 	render_canvas.width  = width;
 	render_canvas.height = height;
-
-	var text_canvas = document.getElementById("text-canvas");
 	text_canvas.width  = width;
 	text_canvas.height = height
 
-	this.camera.aspect = width / height;
-	this.camera.updateProjectionMatrix();
+	this.glCamera.aspect = width / height;
+	this.glCamera.updateProjectionMatrix();
 
 	this.pathtracer.resize(width, height);
 
@@ -324,41 +286,77 @@ Snelly.prototype.onDocumentMouseMove = function(event)
 		this.onSnellyLink = false;
 	}
 
-	console.log('mouse move');
-	this.controls.update();
-	event.preventDefault();
+	this.camControls.update();
+	//event.preventDefault();
 }
 
 Snelly.prototype.onDocumentMouseDown = function(event)
 {
-	this.controls.update();
+	this.camControls.update();
 	//event.preventDefault();
 }
 
 Snelly.prototype.onDocumentMouseUp = function(event)
 {
-	this.controls.update();
+	this.camControls.update();
 	//event.preventDefault();
 }
 
 Snelly.prototype.onDocumentRightClick = function(event)
 {
+	/*
 	this.controls.update();
 	event.preventDefault();
 	if (event.altKey) return; // don't pick if alt-right-clicking (panning)
-
-	var xPick =   (( event.clientX - window.offsetLeft ) / window.width)*2 - 1;
-	var yPick = - (( event.clientY - window.offsetTop ) / window.height)*2 + 1;
-
+	var xPick =  (( event.clientX - window.offsetLeft ) / window.width)*2 - 1;
+	var yPick = -(( event.clientY - window.offsetTop ) / window.height)*2 + 1;
 	var pickedPoint = this.pathtracer.pick(xPick, yPick);
 	if (pickedPoint == null)
 	{
 		// unset?
 		return;
 	} 
-
 	var no_recompile = true;
 	this.reset(no_recompile);
+	*/
+}
+
+Snelly.prototype.onKeydown = function(event)
+{
+	var charCode = (event.which) ? event.which : event.keyCode;
+	switch (charCode)
+	{
+		case 122: // F11 key: go fullscreen
+			var element	= document.body;
+			if      ( 'webkitCancelFullScreen' in document ) element.webkitRequestFullScreen();
+			else if ( 'mozCancelFullScreen'    in document ) element.mozRequestFullScreen();
+			else console.assert(false);
+			break;
+
+		case 70: // F key: reset cam  (@todo)
+			break;
+
+		case 82: // R key: reset scene 
+			this.sceneObj.init(this.camControls, this.glCamera);
+			this.reset(true);
+			break;
+
+		case 72: // H key: hide dat gui
+			snelly.getGUI().visible = !(snelly.getGUI().visible);
+			break;
+
+		case 67: // C key: dev tool to dump cam and laser details, for setting scene defaults
+			var t = snelly.controls.target;
+			var c = snelly.camera.position;
+			console.log(`controls.target.set(${t.x.toPrecision(6)}, ${t.y.toPrecision(6)}, ${t.z.toPrecision(6)});`);
+			console.log(`camera.position.set(${c.x.toPrecision(6)}, ${c.y.toPrecision(6)}, ${c.z.toPrecision(6)});`);
+			break;
+		
+		case 87: console.log('w pressed'); break;
+		case 65: console.log('a pressed'); break;
+		case 83: console.log('s pressed'); break;
+		case 68: console.log('d pressed'); break;
+	}
 }
 
 function camChanged()

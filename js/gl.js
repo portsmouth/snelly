@@ -353,15 +353,11 @@ var GLU = {};
 	{
 		var tex = gl.createTexture();
 		gl.bindTexture(gl.TEXTURE_2D, tex);
-		// Fill the texture with a 1x1 blue pixel.
-		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
-		            new Uint8Array([0, 0, 255, 255]));
-
-		// let's assume all images are not a power of 2
+		if (GLU.sRGBExt != null) gl.texImage2D(gl.TEXTURE_2D, 0, GLU.sRGBExt.SRGB_EXT, 1, 1, 0, GLU.sRGBExt.SRGB_EXT, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 255, 255]));
+		else                     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 255, 255]));
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-
 		var imgInfo = {
 			width: 1,   // we don't know the size until it loads
 			height: 1,
@@ -375,11 +371,11 @@ var GLU = {};
 			imgInfo.url = url;
 			imgInfo.tex = tex;
 			gl.bindTexture(gl.TEXTURE_2D, tex);
-			gl.texImage2D(gl.TEXTURE_2D, 0, GLU.sRGBExt.SRGB_EXT, GLU.sRGBExt.SRGB_EXT, gl.UNSIGNED_BYTE, img);
+			if (GLU.sRGBExt != null) gl.texImage2D(gl.TEXTURE_2D, 0, GLU.sRGBExt.SRGB_EXT, GLU.sRGBExt.SRGB_EXT, gl.UNSIGNED_BYTE, img);
+			else                     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
 			callback(imgInfo);
 		});
-
-		//if ((new URL(url)).origin !== window.location.origin) 
+		if ((new URL(url)).origin !== window.location.origin) 
 		{
   		  	img.crossOrigin = "";
   		}
@@ -441,11 +437,6 @@ var GLU = {};
 		failureP.className = "warning-box";
 		failureP.innerHTML = message;
 
-		var errorImg = document.createElement("img"); 
-		errorImg.title = errorImg.alt = "The Element of Failure";
-		errorImg.src = "fail.png";
-		errorImg.width = 600;
-
 		var failureDiv = document.createElement("div"); 
 		failureDiv.className = "center";
 		failureDiv.appendChild(sorryP);
@@ -468,7 +459,7 @@ var GLU = {};
 	{
 		/* GL errors at this stage are to be expected to some degree,
 		   so display a nice error message and call it quits */
-		this.fail(e.message + ". This demo won't run in your browser.");
+		this.fail(e.message + ". This can't run in your browser.");
 		return;
 	}
 

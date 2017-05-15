@@ -10,7 +10,7 @@ var GUI = function()
 	
 	this.createSceneSettings();
 	this.createMaterialSettings();
-	this.createEmissionSettings();
+	this.createLightingSettings();
 	this.createPathtracerSettings();
 }
 
@@ -59,21 +59,21 @@ GUI.prototype.createPathtracerSettings = function()
 	this.pathtracerFolder.open();
 }
 
-GUI.prototype.createEmissionSettings = function()
+GUI.prototype.createLightingSettings = function()
 {
-	this.emissionFolder = this.gui.addFolder('Emission');
+	this.emissionFolder = this.gui.addFolder('Lighting');
 	var pathtracer = snelly.getPathtracer();
 	this.emissionSettings = {};
 	this.emissionSettings.spectrum = 'monochromatic';
 	
-	var skyPowerItem = this.emissionFolder.add(pathtracer, 'skyPower', 0.0, 100.0);
+	var skyPowerItem = this.emissionFolder.add(pathtracer, 'skyPower', 0.0, 10.0);
 	skyPowerItem.onChange( function(value) 
 	{ 
-		snelly.controls.enabled = false;
+		snelly.camControls.enabled = false;
 		var no_recompile = true;
 		pathtracer.reset(no_recompile);
 	} );
-	skyPowerItem.onFinishChange( function(value) { snelly.controls.enabled = true; } );
+	skyPowerItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 
 	// Spectrum selection
 	var GUI = this;
@@ -125,8 +125,8 @@ GUI.prototype.addParameter = function(parameters, param)
 	var item;
 	if (step==null || step==undefined) { item = this.sceneFolder.add(parameters, name, min, max, step); }
 	else                               { item = this.sceneFolder.add(parameters, name, min, max);       }
-	item.onChange( function(value) { snelly.reset(no_recompile); snelly.controls.enabled = false; } );
-	item.onFinishChange( function(value) { snelly.controls.enabled = true; } );
+	item.onChange( function(value) { snelly.reset(no_recompile); snelly.camControls.enabled = false; } );
+	item.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 }
 
 GUI.prototype.getSceneFolder = function()
@@ -185,31 +185,63 @@ GUI.prototype.createMaterialSettings = function()
 		this.dielectricFolder.open();
 	}
 
-	// Diffuse settings
-	if (sdfCode.indexOf("SDF_DIFFUSE(") !== -1)
+	// Surface settings
+	if (sdfCode.indexOf("SDF_SURFACE(") !== -1)
 	{
-		this.diffuseFolder = this.gui.addFolder('Diffuse material');
+		this.surfaceFolder = this.gui.addFolder('Surface material');
 		var pathtracer = snelly.getPathtracer();
-		this.diffuseAlbedo = [pathtracer.diffuseAlbedoRGB[0]*255.0, pathtracer.diffuseAlbedoRGB[1]*255.0, pathtracer.diffuseAlbedoRGB[2]*255.0];
-		var diffItem = this.diffuseFolder.addColor(this, 'diffuseAlbedo');
+
+		this.surfaceFolder.diffuseReflectance = [pathtracer.surfaceDiffuseAlbedoRGB[0]*255.0, pathtracer.surfaceDiffuseAlbedoRGB[1]*255.0, pathtracer.surfaceDiffuseAlbedoRGB[2]*255.0];
+		var diffItem = this.surfaceFolder.addColor(this.surfaceFolder, 'diffuseReflectance');
 		diffItem.onChange( function(albedo) {
 								if (typeof albedo==='string' || albedo instanceof String)
 								{
 									var color = hexToRgb(albedo);
-									pathtracer.diffuseAlbedoRGB[0] = color.r / 255.0;
-									pathtracer.diffuseAlbedoRGB[1] = color.g / 255.0;
-									pathtracer.diffuseAlbedoRGB[2] = color.b / 255.0;
+									pathtracer.surfaceDiffuseAlbedoRGB[0] = color.r / 255.0;
+									pathtracer.surfaceDiffuseAlbedoRGB[1] = color.g / 255.0;
+									pathtracer.surfaceDiffuseAlbedoRGB[2] = color.b / 255.0;
 								}
 								else
 								{
-									pathtracer.diffuseAlbedoRGB[0] = albedo[0] / 255.0;
-									pathtracer.diffuseAlbedoRGB[1] = albedo[1] / 255.0;
-									pathtracer.diffuseAlbedoRGB[2] = albedo[2] / 255.0;
+									pathtracer.surfaceDiffuseAlbedoRGB[0] = albedo[0] / 255.0;
+									pathtracer.surfaceDiffuseAlbedoRGB[1] = albedo[1] / 255.0;
+									pathtracer.surfaceDiffuseAlbedoRGB[2] = albedo[2] / 255.0;
 								}
-								pathtracer.diffuseAlbedoXYZ = rgbToXyz(pathtracer.diffuseAlbedoRGB);
+								pathtracer.surfaceDiffuseAlbedoXYZ = rgbToXyz(pathtracer.surfaceDiffuseAlbedoRGB);
 								snelly.reset(true);
 							} );
-		this.diffuseFolder.open();
+
+		this.surfaceFolder.specularReflectance = [pathtracer.surfaceSpecAlbedoRGB[0]*255.0, pathtracer.surfaceSpecAlbedoRGB[1]*255.0, pathtracer.surfaceSpecAlbedoRGB[2]*255.0];
+		var specItem = this.surfaceFolder.addColor(this.surfaceFolder, 'specularReflectance');
+		specItem.onChange( function(albedo) {
+								if (typeof albedo==='string' || albedo instanceof String)
+								{
+									var color = hexToRgb(albedo);
+									pathtracer.surfaceSpecAlbedoRGB[0] = color.r / 255.0;
+									pathtracer.surfaceSpecAlbedoRGB[1] = color.g / 255.0;
+									pathtracer.surfaceSpecAlbedoRGB[2] = color.b / 255.0;
+								}
+								else
+								{
+									pathtracer.surfaceSpecAlbedoRGB[0] = albedo[0] / 255.0;
+									pathtracer.surfaceSpecAlbedoRGB[1] = albedo[1] / 255.0;
+									pathtracer.surfaceSpecAlbedoRGB[2] = albedo[2] / 255.0;
+								}
+								pathtracer.surfaceSpecAlbedoXYZ = rgbToXyz(pathtracer.surfaceSpecAlbedoRGB);
+								snelly.reset(true);
+							} );
+
+		this.roughness = pathtracer.surfaceRoughness;
+		this.roughnessItem = this.surfaceFolder.add(this, 'roughness', 0.0, 0.1);
+		this.roughnessItem.onChange( function(value) { pathtracer.surfaceRoughness = value; snelly.camControls.enabled = false; snelly.reset(true); } );
+		this.roughnessItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
+
+		this.ior = pathtracer.surfaceIor;
+		this.iorItem = this.surfaceFolder.add(this, 'ior', 0.0, 10.0);
+		this.iorItem.onChange( function(value) { pathtracer.surfaceIor = value; snelly.camControls.enabled = false; snelly.reset(true); } );
+		this.iorItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
+
+		this.surfaceFolder.open();
 	}
 
 	this.gui.remember(this.materialSettings);
