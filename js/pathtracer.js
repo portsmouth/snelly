@@ -4,12 +4,12 @@ var PathtracerState = function(width, height)
 {
 	var radianceData = new Float32Array(width*height*4); // Path radiance, and sample count 
 	var rngData      = new Float32Array(width*height*4); // Random number seed
-	for (var i = 0; i<width*height; ++i)
+	for (var i=0; i<width*height; ++i)
 	{
-		for (var t = 0; t<4; ++t)
-		{
-			rngData[i*4 + t] = Math.random()*4194167.0;
-		}
+		rngData[i*4 + 0] = Math.random()*4194167.0;
+		rngData[i*4 + 1] = Math.random()*4194167.0;
+		rngData[i*4 + 2] = Math.random()*4194167.0;
+		rngData[i*4 + 3] = Math.random()*4194167.0;
 	}
 	this.radianceTex = new GLU.Texture(width, height, 4, true, false, true, radianceData);
 	this.rngTex      = new GLU.Texture(width, height, 4, true, false, true, rngData);
@@ -41,6 +41,7 @@ PathtracerState.prototype.detach = function(fbo)
 	fbo.detachTexture(1);
 }
 
+
 PathtracerState.prototype.clear = function(fbo)
 {
 	// clear radiance buffer
@@ -68,31 +69,23 @@ var Pathtracer = function()
 	this.currentState = 0;
 	this.pathStates = [new PathtracerState(this.width, this.height), 
 					   new PathtracerState(this.width, this.height)];
+	this.fbo == null;
+	this.max_downres = 5;
+	this.numSamples = 0;
 
-	// @todo: these setting are defaults which should be specifiable in the scene
+	// Default user-adjustable settings 
+	this.renderMode = 'pt';
 	this.maxBounces = 3;
-	this.maxMarchSteps = 128;
-	this.enable = true;
-	this.exposure = 10.0;
+	this.maxMarchSteps = 256;
+	this.skyPower = 1.0;
+	this.skyTemperature = 6000.0;
+	this.exposure = 1.0;
 	this.gamma = 2.2;
 	this.whitepoint = 2.0;
-	this.fbo == null;
-	this.max_downres = 1;
-	this.numSamples = 0;
-	this.skyPower = 1.0;
-	
-	this.surfaceDiffuseAlbedoRGB = [1.0, 1.0, 1.0];
-	this.surfaceDiffuseAlbedoXYZ = rgbToXyz(this.surfaceDiffuseAlbedoRGB);
-	this.surfaceSpecAlbedoRGB = [1.0, 1.0, 1.0];
-	this.surfaceSpecAlbedoXYZ = rgbToXyz(this.surfaceSpecAlbedoRGB);
-	this.surfaceRoughness = 0.1;
-	this.surfaceIor = 1.5;
-	this.absorptionDieleRGB = [0.0, 0.0, 0.0];
 
 	// Load shaders
 	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper", "filter"]);
 	this.filterPrograms = null;
-	this.compileShaders();
 
 	// load env map
 	this.loaded = true;
@@ -157,12 +150,23 @@ Pathtracer.prototype.compileShaders = function()
 	// Inject code for the current scene SDF:
 	var sceneObj = snelly.getScene();
 	if (sceneObj == null) return;
-	var sdfCode = sceneObj.sdf();
+	if (typeof sceneObj.shader == "undefined") { GLU.fail('Scene must define a "shader" function!'); }
+	var shader = sceneObj.shader();
 
-	// Insert dummy functions if missing 
-	if (sdfCode.indexOf("SDF_METAL(")      == -1) { sdfCode += `\n float SDF_METAL(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
-	if (sdfCode.indexOf("SDF_DIELECTRIC(") == -1) { sdfCode += `\n float SDF_DIELECTRIC(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
-	if (sdfCode.indexOf("SDF_SURFACE(")    == -1) { sdfCode += `\n float SDF_SURFACE(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
+	// Insert default functions for those not implemented 
+	if (shader.indexOf("SDF_SURFACE(")                     == -1) { shader += `\n float SDF_SURFACE(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
+ 	if (shader.indexOf("SURFACE_DIFFUSE_REFLECTANCE(")     == -1) { shader += `\n vec3 SURFACE_DIFFUSE_REFLECTANCE(vec3 X) { return vec3(1.0); }\n`; }
+ 	if (shader.indexOf("SURFACE_SPECULAR_REFLECTANCE(")    == -1) { shader += `\n vec3 SURFACE_SPECULAR_REFLECTANCE(vec3 X) { return vec3(1.0); }\n`; }
+ 	if (shader.indexOf("SURFACE_IOR(")                     == -1) { shader += `\n float SURFACE_IOR(vec3 X) { return 1.0; }\n`; }
+ 	if (shader.indexOf("SURFACE_ROUGHNESS(")               == -1) { shader += `\n float SURFACE_ROUGHNESS(vec3 X) { return 1.0; }\n`; }
+ 	
+ 	if (shader.indexOf("SDF_METAL(")                       == -1) { shader += `\n float SDF_METAL(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
+ 	if (shader.indexOf("METAL_SPECULAR_REFLECTANCE(")      == -1) { shader += `\n vec3 METAL_SPECULAR_REFLECTANCE(vec3 X) { return vec3(1.0); }\n`; }
+ 	if (shader.indexOf("METAL_ROUGHNESS(")                 == -1) { shader += `\n float METAL_ROUGHNESS(vec3 X) { return 1.0; }\n`; }
+ 	
+ 	if (shader.indexOf("SDF_DIELECTRIC(")                  == -1) { shader += `\n float SDF_DIELECTRIC(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
+ 	if (shader.indexOf("DIELECTRIC_SPECULAR_REFLECTANCE(") == -1) { shader += `\n vec3 DIELECTRIC_SPECULAR_REFLECTANCE(vec3 X) { return vec3(1.0); }\n`; }
+ 	if (shader.indexOf("DIELECTRIC_ROUGHNESS(")            == -1) { shader += `\n float DIELECTRIC_ROUGHNESS(vec3 X) { return 1.0; }\n`; }
 
 	// @todo: insert material GLSL code
 	var dielectricObj = snelly.getLoadedDielectric(); if (dielectricObj == null) return;
@@ -173,7 +177,7 @@ Pathtracer.prototype.compileShaders = function()
 	// Copy the current scene and material routines into the source code
 	// of the trace fragment shader
 	replacements = {};
-	replacements.SDF_FUNC        = sdfCode;
+	replacements.SHADER          = shader;
 	replacements.IOR_FUNC        = iorCodeDiele + '\n' + iorCodeMetal;
 	replacements.MAX_MARCH_STEPS = this.maxMarchSteps;
 	replacements.MAX_BOUNCES     = this.maxBounces;
@@ -181,27 +185,46 @@ Pathtracer.prototype.compileShaders = function()
 	// Compile pathtracer with different entry point according to mode.
 	// Here shaderSources is a dict from name (e.g. "trace")
 	// to a dict {v:vertexShaderSource, f:fragmentShaderSource}
-	replacements.RENDER_ALL = 'main';
-	replacements.RENDER_BLOCKS = 'RENDER_BLOCKS';
-	this.pathtraceAllProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
 
-	replacements.RENDER_BLOCKS = 'main';
-	replacements.RENDER_ALL = 'RENDER_ALL';
-	this.pathtraceBlocksProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
+	switch (this.renderMode)
+	{
+		case 'ao':
+			replacements.ENTRY_AO = 'main';
+			this.aoProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
+			break;
+
+		case 'normals':
+			replacements.ENTRY_NORMALS = 'main';
+			this.normalsProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
+			break;
+
+		case 'pt':
+		default:
+			replacements.ENTRY_PATHTRACE_ALL = 'main';
+			replacements.ENTRY_PATHTRACE_BLOCKS = 'ENTRY_PATHTRACE_BLOCKS';
+			this.pathtraceAllProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
+			replacements.ENTRY_PATHTRACE_BLOCKS = 'main';
+			replacements.ENTRY_PATHTRACE_ALL = 'ENTRY_PATHTRACE_ALL';
+			this.pathtraceBlocksProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
+			break;
+	}
 
 	// Compile filter programs for all required kernel widths (once only):
-	if (this.filterPrograms == null)
+	if (this.renderMode == 'pt')
 	{
-		this.filterPrograms = {};
-		for (var d=this.max_downres; d>=1; d--) 
+		if (this.filterPrograms == null)
 		{
-			replacements.DOWN_RES = d;
-			this.filterPrograms[d] = new GLU.Shader('filter', this.shaderSources, replacements);
+			this.filterPrograms = {};
+			for (var d=this.max_downres; d>=1; d--) 
+			{
+				replacements.DOWN_RES = d;
+				this.filterPrograms[d] = new GLU.Shader('filter', this.shaderSources, replacements);
+			}
 		}
 	}
 
-	// Adjunct programs
-	this.tonemapProgram   = new GLU.Shader('tonemapper', this.shaderSources, null);
+	// Tonemapping program
+	this.tonemapProgram = new GLU.Shader('tonemapper', this.shaderSources, null);
 }
 
 
@@ -217,12 +240,9 @@ Pathtracer.prototype.depthTestEnabled = function()
 
 Pathtracer.prototype.render = function()
 {
-	if (!this.enable) return;
 	if (!this.loaded) return;
 
-	var sceneObj      = snelly.getScene();            if (sceneObj==null) return;
-	var metalObj      = snelly.getLoadedMetal();      if (metalObj==null) return;
-	var dielectricObj = snelly.getLoadedDielectric(); if (dielectricObj==null) return;
+	var sceneObj = snelly.getScene(); if (sceneObj==null) return;
 	if (snelly.getSpectra()==null) return;
 
 	var gl = this.gl;
@@ -233,21 +253,37 @@ Pathtracer.prototype.render = function()
 	/// Pathtracing
 	////////////////////////////////////////////////
 
-	// Choose pathtracing mode according to total sample count:
-	var DOWN_RES = Math.floor(Math.sqrt(this.width * this.height / Math.max(this.numSamples, 1)));
-	DOWN_RES = Math.max(1, Math.min(this.max_downres, DOWN_RES));
-	var PATHTRACER_PROGRAM = null;
-	if (DOWN_RES <= 1.0) 
+	var INTEGRATOR_PROGRAM = null;
+
+	switch (this.renderMode)
 	{
-		// Pathtrace all pixels
-		PATHTRACER_PROGRAM = this.pathtraceAllProgram;
+		case 'ao':
+			INTEGRATOR_PROGRAM = this.aoProgram;
+			break;
+
+		case 'normals':
+			INTEGRATOR_PROGRAM = this.normalsProgram;
+			break;
+
+		case 'pt':
+		default:
+			// Choose pathtracing mode according to total sample count:
+			var DOWN_RES = Math.floor(Math.sqrt(this.width * this.height / Math.max(this.numSamples, 1)));
+			DOWN_RES = 1; //Math.max(1, Math.min(this.max_downres, DOWN_RES));
+			if (DOWN_RES <= 1.0) 
+			{
+				// Pathtrace all pixels
+				INTEGRATOR_PROGRAM = this.pathtraceAllProgram;
+			}
+			else
+			{
+				// Pathtrace a subset, until > 1 spp has accumulated
+				INTEGRATOR_PROGRAM = this.pathtraceBlocksProgram;
+			}
+			break;
 	}
-	else
-	{
-		// Pathtrace a subset, until > 1 spp has accumulated
-		PATHTRACER_PROGRAM = this.pathtraceBlocksProgram;
-	}
-	PATHTRACER_PROGRAM.bind();
+
+	INTEGRATOR_PROGRAM.bind();
 
 	// sync camera info to shader	 
 	var camera = snelly.getCamera();
@@ -257,72 +293,64 @@ Pathtracer.prototype.render = function()
 	camUp.transformDirection( camera.matrixWorld );
 	var camX = new THREE.Vector3();
 	camX.crossVectors(camUp, camDir);
-	PATHTRACER_PROGRAM.uniform3Fv("camPos", [camPos.x, camPos.y, camPos.z]);
-	PATHTRACER_PROGRAM.uniform3Fv("camDir", [camDir.x, camDir.y, camDir.z]);
-	PATHTRACER_PROGRAM.uniform3Fv("camX", [camX.x, camX.y, camX.z]);
-	PATHTRACER_PROGRAM.uniform3Fv("camY", [camUp.x, camUp.y, camUp.z]);
-	PATHTRACER_PROGRAM.uniformF("camNear", camera.near);
-	PATHTRACER_PROGRAM.uniformF("camFar", camera.far);
-	PATHTRACER_PROGRAM.uniformF("camFovy", camera.fov);
-	PATHTRACER_PROGRAM.uniformF("camZoom", camera.zoom);
-	PATHTRACER_PROGRAM.uniformF("camAspect", camera.aspect);
-	PATHTRACER_PROGRAM.uniform2Fv("resolution", [this.width, this.height]);
-	PATHTRACER_PROGRAM.uniformF("SceneScale", sceneObj.getScale()); 
+	INTEGRATOR_PROGRAM.uniform3Fv("camPos", [camPos.x, camPos.y, camPos.z]);
+	INTEGRATOR_PROGRAM.uniform3Fv("camDir", [camDir.x, camDir.y, camDir.z]);
+	INTEGRATOR_PROGRAM.uniform3Fv("camX", [camX.x, camX.y, camX.z]);
+	INTEGRATOR_PROGRAM.uniform3Fv("camY", [camUp.x, camUp.y, camUp.z]);
+	INTEGRATOR_PROGRAM.uniformF("camNear", camera.near);
+	INTEGRATOR_PROGRAM.uniformF("camFar", camera.far);
+	INTEGRATOR_PROGRAM.uniformF("camFovy", camera.fov);
+	INTEGRATOR_PROGRAM.uniformF("camZoom", camera.zoom);
+	INTEGRATOR_PROGRAM.uniformF("camAspect", camera.aspect);
+	INTEGRATOR_PROGRAM.uniform2Fv("resolution", [this.width, this.height]);
+	INTEGRATOR_PROGRAM.uniformF("sceneScale", sceneObj.getScale()); 
 
 	// Read wavelength -> XYZ table
 	snelly.wavelengthToXYZ.bind(2);
-	PATHTRACER_PROGRAM.uniformTexture("WavelengthToXYZ", snelly.wavelengthToXYZ);
+	INTEGRATOR_PROGRAM.uniformTexture("WavelengthToXYZ", snelly.wavelengthToXYZ);
 	snelly.emissionIcdf.bind(3);
-	PATHTRACER_PROGRAM.uniformTexture("ICDF", snelly.emissionIcdf);
+	INTEGRATOR_PROGRAM.uniformTexture("ICDF", snelly.emissionIcdf);
 	
 	// Pathtracing options
-	PATHTRACER_PROGRAM.uniformI("MaxBounces", this.maxBounces);
-	PATHTRACER_PROGRAM.uniformI("downRes", DOWN_RES);
-	PATHTRACER_PROGRAM.uniformF("SkyPower", this.skyPower);
+	INTEGRATOR_PROGRAM.uniformI("maxBounces", this.maxBounces);
+	INTEGRATOR_PROGRAM.uniformI("downRes", DOWN_RES);
+	INTEGRATOR_PROGRAM.uniformF("skyPower", this.skyPower);
 
 	// gamma correction of env map already done if sRGB ext was loaded
-	if (GLU.sRGBExt != null) PATHTRACER_PROGRAM.uniformF("gamma", 1.0);
-	else                     PATHTRACER_PROGRAM.uniformF("gamma", this.gamma);
-
-	// Material parameters (or multipliers on user defined values)
-	PATHTRACER_PROGRAM.uniform3Fv("surfaceDiffuseAlbedoXYZ", this.surfaceDiffuseAlbedoXYZ);
-	PATHTRACER_PROGRAM.uniform3Fv("surfaceSpecAlbedoXYZ", this.surfaceSpecAlbedoXYZ);
-	PATHTRACER_PROGRAM.uniformF("surfaceRoughness", this.surfaceRoughness);
-	PATHTRACER_PROGRAM.uniformF("surfaceIor", this.surfaceIor);
+	if (GLU.sRGBExt != null) INTEGRATOR_PROGRAM.uniformF("gamma", 1.0);
+	else                     INTEGRATOR_PROGRAM.uniformF("gamma", this.gamma);
 
 	this.fbo.bind();
 	this.fbo.drawBuffers(2);
 	var current = this.currentState;
 	var next    = 1 - current;
-	this.pathStates[current].bind(PATHTRACER_PROGRAM); // Read data from the 'current' state
+	this.pathStates[current].bind(INTEGRATOR_PROGRAM); // Read data from the 'current' state
 	this.pathStates[next].attach(this.fbo);            // Write data into the 'next' state
 
-	PATHTRACER_PROGRAM.uniformI("haveEnvMap", Boolean(this.envMap) ? 1 : 0);
+	INTEGRATOR_PROGRAM.uniformI("haveEnvMap", Boolean(this.envMap) ? 1 : 0);
 	if (this.envMap != null)
 	{
 		gl.activeTexture(gl.TEXTURE0 + 7);
 		gl.bindTexture(gl.TEXTURE_2D, this.envMap.tex);
-		var id = gl.getUniformLocation(PATHTRACER_PROGRAM.program, "envMap");
+		var id = gl.getUniformLocation(INTEGRATOR_PROGRAM.program, "envMap");
 		gl.uniform1i(id, 7);
 	}
 
-
 	// Upload current scene SDF shader parameters
-	sceneObj.syncShader(PATHTRACER_PROGRAM); 
-	dielectricObj.syncShader(PATHTRACER_PROGRAM); // upload current dielectric IOR parameters
-	metalObj.syncShader(PATHTRACER_PROGRAM);      // upload current metal IOR parameters
+	sceneObj.syncShader(INTEGRATOR_PROGRAM); 
+	snelly.materials.syncShader(INTEGRATOR_PROGRAM);
 
 	// Trace one path per pixel
 	gl.disable(gl.BLEND);
 	this.quadVbo.bind();
-	this.quadVbo.draw(PATHTRACER_PROGRAM, gl.TRIANGLE_FAN);
+	this.quadVbo.draw(INTEGRATOR_PROGRAM, gl.TRIANGLE_FAN);
 	this.fbo.unbind();
 
 	////////////////////////////////////////////////
 	/// Filtering / progressive rendering
 	////////////////////////////////////////////////
 
-	if (DOWN_RES > 1) 
+	if ((this.renderMode=='pt') && (DOWN_RES>1))
 	{
 		this.fbo.bind();
 		this.fbo.drawBuffers(1);
@@ -343,7 +371,7 @@ Pathtracer.prototype.render = function()
 
 	this.tonemapProgram.bind();
 	var radianceTexCurrent;
-	if (DOWN_RES <= 1) 
+	if ((this.renderMode!='pt') || DOWN_RES <= 1) 
 	{
 		// Use full resolution radiance buffer
 		radianceTexCurrent = this.pathStates[next].radianceTex;
@@ -391,7 +419,7 @@ Pathtracer.prototype.resize = function(width, height)
 
 	this.quadVbo = this.createQuadVbo();
 	this.fbo = new GLU.RenderTarget();
-	this.reset();
+	this.reset(true);
 }
 
 
