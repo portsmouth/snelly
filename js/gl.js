@@ -430,21 +430,22 @@ var GLU = {};
 	this.fail = function(message)
 	{
 		var sorryP = document.createElement("p"); 
-		sorryP.appendChild(document.createTextNode("Sorry! :("));
-		sorryP.style.fontSize = "50px";
+		sorryP.appendChild(document.createTextNode("[Snelly] error occurred:"));
+		sorryP.style.fontSize = "32px";
+		sorryP.style.color = 'red';
 
 		var failureP = document.createElement("p");
 		failureP.className = "warning-box";
-		failureP.innerHTML = message;
+		failureP.style.fontSize = "24px";
+		failureP.innerHTML = '<pre>' + '    ' + message + '</pre>';
 
 		var failureDiv = document.createElement("div"); 
 		failureDiv.className = "center";
 		failureDiv.appendChild(sorryP);
-		failureDiv.appendChild(errorImg);
 		failureDiv.appendChild(failureP);
 
-		document.getElementById("content").appendChild(failureDiv);
-		this.overlay.style.display = this.canvas.style.display = 'none';
+		document.getElementById("container").appendChild(failureDiv);
+		this.canvas.style.display = 'none';
 	}
 
 	this.canvas = document.getElementById('render-canvas');
