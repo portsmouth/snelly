@@ -3,6 +3,7 @@
 var Snelly = function(sceneObj)
 {
 	this.initialized = false; 
+	this.sceneObj = sceneObj;
 	snelly = this;
 
 	// @todo: should create the required canvas elements here
@@ -26,45 +27,37 @@ var Snelly = function(sceneObj)
 	var ASPECT = this.width / this.height;
 	var NEAR = 0.05;
 	var FAR = 1000;
-	this.glCamera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
-	this.camControls = new THREE.OrbitControls(this.glCamera, this.container);
+	this.camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
+	this.camera.lookAt(new THREE.Vector3(0.0, 0.0, 0.0));
+	this.camera.position.set(1.0, 1.0, 1.0);
+	this.camControls = new THREE.OrbitControls(this.camera, this.container);
 	this.camControls.zoomSpeed = 2.0;
 	this.camControls.addEventListener( 'change', camChanged );
-	this.camControls.target.set(0.0, 0.0, 0.0);
-	this.glCamera.position.set(1.0, 1.0, 1.0);
+	this.camControls.keyPanSpeed = 100.0;
 
 	this.gui = null;
-
-	// Load scene
-	this.loadScene(sceneObj);
 
 	// Instantiate materials
 	this.materials = new Materials();
 
 	// Instantiate distance field pathtracer
 	this.pathtracer = new Pathtracer();
+		
+	// Spectrum initialization
+	this.spectra = {}
+	this.SPECTRUM_SAMPLES = 1024;
+	this.spectrumObj = null;
+	this.LAMBDA_MIN = 390.0;
+    this.LAMBDA_MAX = 750.0;
+	var wToXYZ = wavelengthToXYZTable();
+	this.wavelengthToXYZ = new GLU.Texture(wToXYZ.length/4, 1, 4, true,  true, true, wToXYZ);
+	this.emissionIcdf    = new GLU.Texture(4*this.SPECTRUM_SAMPLES, 1, 1, true, true, true, null);
+
+	// Allow user to programmatically initialize the camera, materials, and renderer
+	this.initScene();
 
 	// Do initial resize:
 	this.resize();
-	
-	// Instantiate spectra
-	{
-		// Spectrum initialization
-		this.spectra = {}
-		this.SPECTRUM_SAMPLES = 1024;
-		this.spectrumObj = null;
-		this.LAMBDA_MIN = 390.0;
-	    this.LAMBDA_MAX = 750.0;
-		var wToXYZ = wavelengthToXYZTable();
-		this.wavelengthToXYZ = new GLU.Texture(wToXYZ.length/4, 1, 4, true,  true, true, wToXYZ);
-		this.emissionIcdf    = new GLU.Texture(4*this.SPECTRUM_SAMPLES, 1, 1, true, true, true, null);
-
-		this.addSpectrum( new FlatSpectrum("flat", "Flat spectrum", 400.0, 700.0) );
-		this.addSpectrum( new BlackbodySpectrum("blackbody", "Blackbody spectrum", 6000.0) );
-		this.addSpectrum( new MonochromaticSpectrum("monochromatic", "Monochromatic spectrum", 650.0) ); 
-
-		this.loadSpectrum("blackbody");
-	}
 
 	// Create dat gui
 	this.gui = new GUI();
@@ -106,7 +99,7 @@ Snelly.prototype.getGUI = function()
 
 Snelly.prototype.getCamera = function()
 {
-	return this.glCamera;
+	return this.camera;
 }
 
 //
@@ -118,19 +111,26 @@ Snelly.prototype.getScene = function()
 	return this.sceneObj;
 }
 
-Snelly.prototype.loadScene = function(sceneObj)
+Snelly.prototype.initScene = function()
 {
-	this.sceneObj = sceneObj;
-	this.sceneObj.init(this.camControls, this.glCamera);
+	if (typeof this.sceneObj.shader == "undefined")
+	{
+		GLU.fail('Scene must define a "shader" function!');
+	}
+	
+	if (typeof this.sceneObj.initCamera     !== "undefined") this.sceneObj.initCamera(this.camera, this.camControls);
+  	if (typeof this.sceneObj.initRenderer   !== "undefined") this.sceneObj.initRenderer(this.pathtracer);
+  	if (typeof this.sceneObj.initMaterials  !== "undefined") this.sceneObj.initMaterials(this.materials);
+  	
+  	this.pathtracer.compileShaders();
 
-	// @todo: if no init function provided, init cam pos 
-	//        according to scene scale
-	//camControls.target.set(0.0, 0.0, 0.0);
-	//camera.position.set(1.0, 1.0, 1.0);
+  	this.spectra = [];
+	this.addSpectrum( new BlackbodySpectrum("blackbody", "Blackbody spectrum", this.pathtracer.skyTemperature) );
+  	this.loadSpectrum("blackbody");
 	
 	// Camera frustum update
-	this.glCamera.near = Math.max(1.0e-4, 1.0e-2*this.sceneObj.getScale());
-	this.glCamera.far  = Math.max(1.0e4,   1.0e4*this.sceneObj.getScale());
+	this.camera.near = Math.max(1.0e-4, 1.0e-2*this.sceneObj.getScale());
+	this.camera.far  = Math.max(1.0e4,   1.0e4*this.sceneObj.getScale());
 	this.camControls.update();	
 	this.reset();
 }
@@ -195,6 +195,11 @@ Snelly.prototype.getLoadedMetal = function()
 	return this.materials.getLoadedMetal();
 }
 
+Snelly.prototype.getSurface = function()
+{
+	return this.materials.loadSurface();
+}
+
 
 // Renderer reset on camera update
 Snelly.prototype.reset = function(no_recompile = false)
@@ -210,6 +215,7 @@ Snelly.prototype.render = function()
 {
 	if (!this.initialized) return;
 	if (this.sceneObj == null) return;
+
 	var gl = GLU.gl;
 	gl.viewport(0, 0, this.width, this.height);
 	gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -250,8 +256,9 @@ Snelly.prototype.resize = function()
 	text_canvas.width  = width;
 	text_canvas.height = height
 
-	this.glCamera.aspect = width / height;
-	this.glCamera.updateProjectionMatrix();
+	this.camera.aspect = width / height;
+	this.camera.updateProjectionMatrix();
+	this.camControls.update();
 
 	this.pathtracer.resize(width, height);
 
@@ -305,7 +312,7 @@ Snelly.prototype.onDocumentMouseUp = function(event)
 Snelly.prototype.onDocumentRightClick = function(event)
 {
 	/*
-	this.controls.update();
+	this.camControls.update();
 	event.preventDefault();
 	if (event.altKey) return; // don't pick if alt-right-clicking (panning)
 	var xPick =  (( event.clientX - window.offsetLeft ) / window.width)*2 - 1;
@@ -337,8 +344,7 @@ Snelly.prototype.onKeydown = function(event)
 			break;
 
 		case 82: // R key: reset scene 
-			this.sceneObj.init(this.camControls, this.glCamera);
-			this.reset(true);
+			this.initScene();
 			break;
 
 		case 72: // H key: hide dat gui
@@ -346,16 +352,16 @@ Snelly.prototype.onKeydown = function(event)
 			break;
 
 		case 67: // C key: dev tool to dump cam and laser details, for setting scene defaults
-			var t = snelly.controls.target;
+			var t = snelly.camera.target;
 			var c = snelly.camera.position;
 			console.log(`controls.target.set(${t.x.toPrecision(6)}, ${t.y.toPrecision(6)}, ${t.z.toPrecision(6)});`);
 			console.log(`camera.position.set(${c.x.toPrecision(6)}, ${c.y.toPrecision(6)}, ${c.z.toPrecision(6)});`);
 			break;
 		
-		case 87: console.log('w pressed'); break;
-		case 65: console.log('a pressed'); break;
-		case 83: console.log('s pressed'); break;
-		case 68: console.log('d pressed'); break;
+		//case 87: console.log('w pressed'); break;
+		//case 65: console.log('a pressed'); break;
+		//case 83: console.log('s pressed'); break;
+		//case 68: console.log('d pressed'); break;
 	}
 }
 

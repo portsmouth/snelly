@@ -20,15 +20,58 @@ Material.prototype.getDesc = function()
 	return this._desc;
 }
 
-Material.prototype.getRoughness = function()
+
+////////////////////////////////////////////////////////
+// Surface ('uber' material)
+////////////////////////////////////////////////////////
+
+function Surface(name, desc)
 {
-	return this.roughness;
+	Material.call(this, name, desc);
+
+	this.diffuseAlbedo = [1.0, 1.0, 1.0];
+	this.specAlbedo = [1.0, 1.0, 1.0];
+	this.roughness = 0.1;
+	this.ior = 1.5;
 }
+
+Surface.prototype = Object.create(Material.prototype);
+
+Surface.prototype.setRoughness = function(roughness)
+{
+	this.roughness = roughness;
+}
+
+Surface.prototype.setIor = function(roughness)
+{
+	this.ior = ior;
+}
+
+Surface.prototype.setDiffuseAlbedo = function(diffuseAlbedo)
+{
+	this.diffuseAlbedoRGB = diffuseAlbedo;
+}
+
+Surface.prototype.setSpecAlbedo = function(specAlbedo)
+{
+	this.specAlbedoRGB = specAlbedo;
+}
+
+Surface.prototype.syncShader = function(shader)
+{
+	this.diffuseAlbedoXYZ = rgbToXyz(this.diffuseAlbedo);
+	this.specAlbedoXYZ    = rgbToXyz(this.specAlbedo);
+	shader.uniform3Fv("surfaceDiffuseAlbedoXYZ", this.diffuseAlbedoXYZ);
+	shader.uniform3Fv("surfaceSpecAlbedoXYZ", this.specAlbedoXYZ);
+	shader.uniformF("surfaceRoughness", this.roughness);
+	shader.uniformF("surfaceIor", this.ior);
+}
+
+
 
 ////////////////////////////////////////////////////////
 // Metals
 ////////////////////////////////////////////////////////
-
 
 function Metal(name, desc)
 {
@@ -38,16 +81,10 @@ function Metal(name, desc)
 
 Metal.prototype = Object.create(Material.prototype);
 
-Metal.prototype.sample = function()
+Metal.prototype.setRoughness = function(roughness)
 {
-	return `
-				float SAMPLE(inout vec3 X, inout vec3 D, vec3 N, float wavelength_nm, inout vec4 rnd)
-				{                                                          
-					return sampleMetal(X, D, N, IOR(wavelength_nm), K(wavelength_nm), rnd);    
-				}
-	`;
+	this.roughness = roughness;
 }
-
 
 Metal.prototype.syncShader = function(shader)
 {
@@ -61,10 +98,17 @@ Metal.prototype.initGui  = function(parentFolder)
 	this.roughnessItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 }
 
+Metal.prototype.syncGui = function() 
+{
+
+}
+
 Metal.prototype.eraseGui = function(parentFolder) 
 { 
 	parentFolder.remove(this.roughnessItem);
 }
+
+
 
 
 function tabulated_aluminium() { // 64 samples of n, k between 390.000000nm and 750.000000nm
@@ -225,21 +269,17 @@ function Dielectric(name, desc)
 {
 	Material.call(this, name, desc);
 	this.roughness = 0.001;
-	this.absorptionScale = 0.0;
-	this.absorptionColor  = [0.0, 0.0, 0.0];
+	this.absorptionScale = 100.0;
+	this.absorptionColor  = [0.5, 0.5, 0.5];
 	this.absorptionColorF = [0.0, 0.0, 0.0];
 	this.absorptionRGB    = [0.0, 0.0, 0.0];
 }
 
 Dielectric.prototype = Object.create(Material.prototype);
 
-Dielectric.prototype.sample = function()
+Dielectric.prototype.setRoughness = function(roughness)
 {
-	return `
-float SAMPLE(inout vec3 X, inout vec3 D, vec3 N, float wavelength_nm, inout vec4 rnd)
-{                                                          
-	return sampleDielectric(X, D, N, IOR_DIELE(wavelength_nm), rnd);       
-}`;
+	this.roughness = roughness;
 }
 
 Dielectric.prototype.syncShader = function(shader)
@@ -253,9 +293,9 @@ Dielectric.prototype.syncShader = function(shader)
 		// make absorption scale relative to scene scale, if one was defined
 		 sceneScale = sceneObj.getScale();
 	}
-	this.absorptionRGB[0] = sceneScale * this.absorptionScale * Math.max(0.0, 1.0 - this.absorptionColorF[0]);
-	this.absorptionRGB[1] = sceneScale * this.absorptionScale * Math.max(0.0, 1.0 - this.absorptionColorF[1]);
-	this.absorptionRGB[2] = sceneScale * this.absorptionScale * Math.max(0.0, 1.0 - this.absorptionColorF[2]);
+	this.absorptionRGB[0] = sceneScale/Math.max(this.absorptionScale, 1.0e-3) * Math.max(0.0, 1.0 - this.absorptionColor[0]);
+	this.absorptionRGB[1] = sceneScale/Math.max(this.absorptionScale, 1.0e-3) * Math.max(0.0, 1.0 - this.absorptionColor[1]);
+	this.absorptionRGB[2] = sceneScale/Math.max(this.absorptionScale, 1.0e-3) * Math.max(0.0, 1.0 - this.absorptionColor[2]);
 
 	shader.uniform3Fv("dieleAbsorptionRGB", this.absorptionRGB);
 }
@@ -266,27 +306,28 @@ Dielectric.prototype.initGui  = function(parentFolder)
 	this.roughnessItem.onChange( function(value) { snelly.camControls.enabled = false; snelly.reset(true); } );
 	this.roughnessItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 
-	this.absorptionColorItem = parentFolder.addColor(this, 'absorptionColor');
+	this.absorption = [this.absorptionColor[0]*255.0, this.absorptionColor[1]*255.0, this.absorptionColor[2]*255.0];
+	this.absorptionColorItem = parentFolder.addColor(this, 'absorption');
 	var ME = this;
 	this.absorptionColorItem.onChange( function(value) {
 							if (typeof value==='string' || value instanceof String)
 							{
 								var color = hexToRgb(value);
-								ME.absorptionColorF[0] = color.r / 255.0;
-								ME.absorptionColorF[1] = color.g / 255.0;
-								ME.absorptionColorF[2] = color.b / 255.0;
+								ME.absorptionColor[0] = color.r / 255.0;
+								ME.absorptionColor[1] = color.g / 255.0;
+								ME.absorptionColor[2] = color.b / 255.0;
 							}
 							else
 							{
-								ME.absorptionColorF[0] = value[0] / 255.0;
-								ME.absorptionColorF[1] = value[1] / 255.0;
-								ME.absorptionColorF[2] = value[2] / 255.0;
+								ME.absorptionColor[0] = value[0] / 255.0;
+								ME.absorptionColor[1] = value[1] / 255.0;
+								ME.absorptionColor[2] = value[2] / 255.0;
 							}
 							snelly.reset(true);
 						} );
 
-	this.absorptionScaleItem = parentFolder.add(this, 'absorptionScale', 0.0, 10.0);
-	this.absorptionScaleItem.onChange( function(value) { snelly.camControls.enabled = false; snelly.reset(true); } );
+	this.absorptionScaleItem = parentFolder.add(this, 'absorptionScale', 0.0, 100.0);
+	this.absorptionScaleItem.onChange( function(value) { snelly.camera.enabled = false; snelly.reset(true); } );
 	this.absorptionScaleItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 }
 
@@ -606,11 +647,14 @@ var Materials = function()
 		this.addMetal( new TabulatedMetal("Vanadium",   "", tabulated_vanadium()  ));
 		this.addMetal( new TabulatedMetal("Zinc",       "", tabulated_zinc()      ));
 		this.addMetal( new TabulatedMetal("Zirconium",  "", tabulated_zirconium() ));
-	}
 
-	// Load the initial material
-	this.loadDielectric("Glass (LASF35)");
-	this.loadMetal("Copper");
+		// Surface (uber)
+		this.surfaceObj = new Surface("Surface", "");
+
+		// Defaults:
+		this.loadDielectric("Glass (BK7)");
+		this.loadMetal("Titanium");
+	}
 }
 
 Materials.prototype.addDielectric = function(materialObj)
@@ -636,11 +680,13 @@ Materials.prototype.getMetals = function()
 Materials.prototype.loadDielectric = function(dielectricName)
 {
 	this.dielectricObj = this.dielectrics[dielectricName];
+	return this.dielectricObj;
 }
 
 Materials.prototype.loadMetal = function(metalName)
 {
 	this.metalObj = this.metals[metalName];
+	return this.metalObj;
 }
 
 Materials.prototype.getLoadedDielectric = function()
@@ -653,4 +699,17 @@ Materials.prototype.getLoadedMetal = function()
 	return this.metalObj;
 }
 
+Materials.prototype.loadSurface  = function()
+{
+	return this.surfaceObj;
+}
 
+// Upload current material parameters
+Materials.prototype.syncShader  = function(program)
+{
+	if (this.metalObj      !== null) this.metalObj.syncShader(program);
+	if (this.dielectricObj !== null) this.dielectricObj.syncShader(program);
+	if (this.surfaceObj    !== null) this.surfaceObj.syncShader(program);
+}
+
+	

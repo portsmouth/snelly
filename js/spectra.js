@@ -171,14 +171,14 @@ FlatSpectrum.prototype.eraseGui = function(parentFolder)
 function BlackbodySpectrum(name, desc, temperature) // temperature in Kelvin
 {
 	Spectrum.call(this, name, desc);
-	this.temperature = temperature;
+	this.skyTemperature = temperature;
 }
 
 BlackbodySpectrum.prototype = Object.create(Spectrum.prototype);
 
 BlackbodySpectrum.prototype.spectrum = function(wavelength)  // wavelength in nm
 {
-    var boltzmann_factor = 1.43877737467e7 / (wavelength*this.temperature);
+    var boltzmann_factor = 1.43877737467e7 / (wavelength*this.skyTemperature);
     var l = wavelength/360.0; // wavelength relative to 360nm
     return 1.0 / (l*l*l*l*l*(Math.exp(boltzmann_factor) - 1.0));
 }
@@ -187,11 +187,11 @@ BlackbodySpectrum.prototype.spectrum = function(wavelength)  // wavelength in nm
 BlackbodySpectrum.prototype.initGui = function(parentFolder)
 {
 	ME = this;
-	this.temperatureItem = parentFolder.add(this, 'temperature', 300.0, 15000.0);
+	this.temperatureItem = parentFolder.add(this, 'skyTemperature', 300.0, 15000.0);
 	this.temperatureItem.onChange( function(value) 
 	{ 
 		snelly.camControls.enabled = false;
-		this.temperature = value;
+		this.skyTemperature = value;
 		snelly.loadSpectrum(ME.getName());
 		snelly.reset(true);
 	} );
