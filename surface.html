@@ -210,6 +210,7 @@ Scene.prototype.initRenderer = function(renderer)
 	renderer.mode = 'pt';  // The other modes are: 'ao', 'normals'
 	renderer.maxBounces = 3;
 	renderer.maxMarchSteps = 256;
+	renderer.radianceClamp = 3.0; // (log scale)
 	renderer.skyPower = 5.0;
 	renderer.skyTemperature = 6000.0;
 	renderer.exposure = 1.0;

@@ -24,6 +24,7 @@ uniform float sceneScale;
 uniform float skyPower;
 uniform bool haveEnvMap;
 uniform float gamma;
+uniform float radianceClamp;
 
 uniform float metalRoughness;
 uniform float dieleRoughness;
@@ -35,7 +36,7 @@ uniform float surfaceIor;
 
 #define DENOM_TOLERANCE 1.0e-7
 #define HIT_TOLERANCE 1.0e-4
-#define PDF_EPSILON 1.0e-5
+#define PDF_EPSILON 1.0e-6
 
 #define MAT_VACUU  -1
 #define MAT_DIELE  0
@@ -740,10 +741,9 @@ float directLighting(in vec3 pW, Basis basis, in vec3 woW, in int material,
 
     float f = evaluateBsdf(pW, woL, wiL, material, wavelength_nm, XYZ, rnd);
     float misWeight = powerHeuristic(lightPdf, bsdfPdf);
-    return f * Li * abs(dot(wiW, basis.nW)) * misWeight / max(PDF_EPSILON, lightPdf);
+    float fOverPdf = min(radianceClamp, f/max(PDF_EPSILON, lightPdf));
+    return fOverPdf * Li * abs(dot(wiW, basis.nW)) * misWeight;
 }
-
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // Pathtracing integrator
@@ -830,7 +830,8 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
             }
 
             // Update path throughput
-            throughput *= f * abs(dot(wiW, nW)) / max(PDF_EPSILON, bsdfPdf);
+            float fOverPdf = min(radianceClamp, f/max(PDF_EPSILON, bsdfPdf));
+            throughput *= fOverPdf * abs(dot(wiW, nW));
 
             // Trace bounce ray
             float displacement = 3.0*HIT_TOLERANCE*sceneScale;

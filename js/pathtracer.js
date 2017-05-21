@@ -77,6 +77,7 @@ var Pathtracer = function()
 	this.renderMode = 'pt';
 	this.maxBounces = 3;
 	this.maxMarchSteps = 256;
+	this.radianceClamp = 1.0e3;
 	this.skyPower = 1.0;
 	this.skyTemperature = 6000.0;
 	this.exposure = 1.0;
@@ -315,6 +316,7 @@ Pathtracer.prototype.render = function()
 	INTEGRATOR_PROGRAM.uniformI("maxBounces", this.maxBounces);
 	INTEGRATOR_PROGRAM.uniformI("downRes", DOWN_RES);
 	INTEGRATOR_PROGRAM.uniformF("skyPower", this.skyPower);
+	INTEGRATOR_PROGRAM.uniformF("radianceClamp", Math.pow(10.0, this.radianceClamp));
 
 	// gamma correction of env map already done if sRGB ext was loaded
 	if (GLU.sRGBExt != null) INTEGRATOR_PROGRAM.uniformF("gamma", 1.0);
@@ -336,7 +338,7 @@ Pathtracer.prototype.render = function()
 		gl.uniform1i(id, 7);
 	}
 
-	// Upload current scene SDF shader parameters
+	// Upload current scene shader parameters
 	sceneObj.syncShader(INTEGRATOR_PROGRAM); 
 	snelly.materials.syncShader(INTEGRATOR_PROGRAM);
 

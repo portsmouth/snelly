@@ -47,9 +47,9 @@ GUI.prototype.createRendererSettings = function()
 	// @todo: add a basic AO and normals mode as well, useful for scene debugging.
 	var renderModes = ['pt', 'ao', 'normals'];
 	this.rendererFolder.add(pathtracer, 'renderMode', renderModes).onChange( function(renderMode) { pathtracer.renderMode = renderMode; pathtracer.reset(); });
-	
 	this.rendererFolder.add(pathtracer, 'maxBounces', 1, 10).onChange( function(value) { pathtracer.maxBounces = Math.floor(value); pathtracer.reset(); } );
 	this.rendererFolder.add(pathtracer, 'maxMarchSteps', 1, 1024).onChange( function(value) { pathtracer.maxMarchSteps = Math.floor(value); pathtracer.reset(); } );
+	this.rendererFolder.add(pathtracer, 'radianceClamp', 0.0, 10.0).onChange( function(value) { pathtracer.reset(); } );
 	this.rendererFolder.add(pathtracer, 'exposure', 0.0, 50.0);
 	this.rendererFolder.add(pathtracer, 'gamma', 0.0, 3.0);
 	this.rendererFolder.add(pathtracer, 'whitepoint', 0.0, 2.0);
