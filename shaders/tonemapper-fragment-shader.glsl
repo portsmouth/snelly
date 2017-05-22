@@ -23,7 +23,6 @@ void constrain_rgb(inout vec3 RGB)
 void main()
 {
 	vec3 L = exposure * texture2D(Radiance, vTexCoord).rgb;
-	//vec3 L = exposure * texture2D(Radiance, vTexCoord).rgb;
 	float X = L.x;
 	float Y = L.y;
 	float Z = L.z;
@@ -49,5 +48,5 @@ void main()
 	// apply gamma correction
 	vec3 S = pow(abs(RGB), vec3(invGamma));
 
-	gl_FragColor =vec4(S, 0.0);
+	gl_FragColor = vec4(S, 0.0);
 }

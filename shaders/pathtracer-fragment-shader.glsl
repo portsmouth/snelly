@@ -25,6 +25,7 @@ uniform float skyPower;
 uniform bool haveEnvMap;
 uniform float gamma;
 uniform float radianceClamp;
+uniform float skipProbability;
 
 uniform float metalRoughness;
 uniform float dieleRoughness;
@@ -762,8 +763,7 @@ vec3 constuctPrimaryDir(in vec2 pixel)
 
 void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
 {
-    /*
-    if (rand(rnd)>0.1)
+    if (rand(rnd) < skipProbability)
     {
         vec4 oldL = texture2D(Radiance, vTexCoord);
         float oldN = oldL.w;
@@ -774,7 +774,6 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         gl_FragData[1] = rnd;
         return;
     } 
-    */
 
     // Sample photon wavelength via the inverse CDF of the emission spectrum
     // (here w is spectral offset, i.e. wavelength = 360.0 + (750.0 - 360.0)*w)
@@ -939,7 +938,13 @@ void ENTRY_NORMALS()
         color = rgbToXyz(0.5*(nW+vec3(1.0)));
     }
 
-    gl_FragData[0] = vec4(color, 1.0);
+   // Write updated radiance and sample count
+    vec4 oldL = texture2D(Radiance, vTexCoord);
+    float oldN = oldL.w;
+    float newN = oldN + 1.0;
+    vec3 newL = (oldN*oldL.rgb + color) / newN;
+
+    gl_FragData[0] = vec4(newL, newN);
     gl_FragData[1] = rnd;
 }
 
@@ -957,6 +962,9 @@ void ENTRY_AO()
     pixel += -0.5 + vec2(rand(rnd), rand(rnd));
     vec3 primaryDir = constuctPrimaryDir(pixel);
 
+    float w = texture2D(ICDF, vec2(rand(rnd), 0.5)).r;
+    vec3 XYZ = texture2D(WavelengthToXYZ, vec2(w, 0.5)).rgb;
+    
     // Raycast to first hit point
     vec3 pW;
     vec3 woW = -primaryDir;
@@ -976,8 +984,10 @@ void ENTRY_AO()
         vec3 wiL = sampleHemisphere(rnd, hemispherePdf);
         vec3 wiW = localToWorld(wiL, basis);
 
+        float diffuseAlbedo = clamp(dot(XYZ, SURFACE_DIFFUSE_REFL_XYZ(pW)), 0.0, 1.0);
+
         // Set incident radiance to 0.0 or 1.0 according to whether the AO ray hit anything or missed.
-        if (!Occluded(pW, wiW)) L = 1.0;///max(hemispherePdf, 1.0e-2);
+        if (!Occluded(pW, wiW)) L = diffuseAlbedo;
     }
 
     vec3 color = rgbToXyz(vec3(L));

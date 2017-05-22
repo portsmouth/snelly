@@ -48,14 +48,14 @@ void main()
 
     vec3 mean = vec3(0.0);
     float norm = 0.0;
-    for (int i=-2*DOWN_RES; i<=2*DOWN_RES; ++i)
+    for (int i=-DOWN_RES; i<=DOWN_RES; ++i)
     {
         float _i = max(min(maxx, pixel.x+float(i)), 0.0);
         float u = _i*invRes.x;
         float dx = float(i)*invWidth;
         float dx2 = dx*dx;
 
-        for (int j=-2*DOWN_RES; j<2*DOWN_RES; ++j)
+        for (int j=-DOWN_RES; j<DOWN_RES; ++j)
         {
             float _j = max(min(maxy, pixel.y+float(j)), 0.0);
             float v = _j*invRes.y;
@@ -166,6 +166,7 @@ uniform float skyPower;
 uniform bool haveEnvMap;
 uniform float gamma;
 uniform float radianceClamp;
+uniform float skipProbability;
 
 uniform float metalRoughness;
 uniform float dieleRoughness;
@@ -903,8 +904,7 @@ vec3 constuctPrimaryDir(in vec2 pixel)
 
 void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
 {
-    /*
-    if (rand(rnd)>0.1)
+    if (rand(rnd) < skipProbability)
     {
         vec4 oldL = texture2D(Radiance, vTexCoord);
         float oldN = oldL.w;
@@ -915,7 +915,6 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         gl_FragData[1] = rnd;
         return;
     } 
-    */
 
     // Sample photon wavelength via the inverse CDF of the emission spectrum
     // (here w is spectral offset, i.e. wavelength = 360.0 + (750.0 - 360.0)*w)
@@ -1080,7 +1079,13 @@ void ENTRY_NORMALS()
         color = rgbToXyz(0.5*(nW+vec3(1.0)));
     }
 
-    gl_FragData[0] = vec4(color, 1.0);
+   // Write updated radiance and sample count
+    vec4 oldL = texture2D(Radiance, vTexCoord);
+    float oldN = oldL.w;
+    float newN = oldN + 1.0;
+    vec3 newL = (oldN*oldL.rgb + color) / newN;
+
+    gl_FragData[0] = vec4(newL, newN);
     gl_FragData[1] = rnd;
 }
 
@@ -1098,6 +1103,9 @@ void ENTRY_AO()
     pixel += -0.5 + vec2(rand(rnd), rand(rnd));
     vec3 primaryDir = constuctPrimaryDir(pixel);
 
+    float w = texture2D(ICDF, vec2(rand(rnd), 0.5)).r;
+    vec3 XYZ = texture2D(WavelengthToXYZ, vec2(w, 0.5)).rgb;
+    
     // Raycast to first hit point
     vec3 pW;
     vec3 woW = -primaryDir;
@@ -1117,8 +1125,10 @@ void ENTRY_AO()
         vec3 wiL = sampleHemisphere(rnd, hemispherePdf);
         vec3 wiW = localToWorld(wiL, basis);
 
+        float diffuseAlbedo = clamp(dot(XYZ, SURFACE_DIFFUSE_REFL_XYZ(pW)), 0.0, 1.0);
+
         // Set incident radiance to 0.0 or 1.0 according to whether the AO ray hit anything or missed.
-        if (!Occluded(pW, wiW)) L = 1.0;///max(hemispherePdf, 1.0e-2);
+        if (!Occluded(pW, wiW)) L = diffuseAlbedo;
     }
 
     vec3 color = rgbToXyz(vec3(L));
@@ -1220,7 +1230,6 @@ void constrain_rgb(inout vec3 RGB)
 void main()
 {
 	vec3 L = exposure * texture2D(Radiance, vTexCoord).rgb;
-	//vec3 L = exposure * texture2D(Radiance, vTexCoord).rgb;
 	float X = L.x;
 	float Y = L.y;
 	float Z = L.z;
@@ -1246,7 +1255,7 @@ void main()
 	// apply gamma correction
 	vec3 S = pow(abs(RGB), vec3(invGamma));
 
-	gl_FragColor =vec4(S, 0.0);
+	gl_FragColor = vec4(S, 0.0);
 }
 `,
 

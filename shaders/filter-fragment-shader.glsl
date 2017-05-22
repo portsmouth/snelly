@@ -22,14 +22,14 @@ void main()
 
     vec3 mean = vec3(0.0);
     float norm = 0.0;
-    for (int i=-2*DOWN_RES; i<=2*DOWN_RES; ++i)
+    for (int i=-DOWN_RES; i<=DOWN_RES; ++i)
     {
         float _i = max(min(maxx, pixel.x+float(i)), 0.0);
         float u = _i*invRes.x;
         float dx = float(i)*invWidth;
         float dx2 = dx*dx;
 
-        for (int j=-2*DOWN_RES; j<2*DOWN_RES; ++j)
+        for (int j=-DOWN_RES; j<DOWN_RES; ++j)
         {
             float _j = max(min(maxy, pixel.y+float(j)), 0.0);
             float v = _j*invRes.y;

@@ -73,11 +73,14 @@ GUI.prototype.createRendererSettings = function()
 
 GUI.prototype.createSceneSettings = function()
 {
-	this.sceneFolder = this.gui.addFolder('Scene');
 	var sceneObj = snelly.getScene();
-	sceneObj.initGui(this);
-	this.sceneFolder.open();
-	this.gui.remember(this.sceneSettings);
+	if (typeof sceneObj.initGui !== "undefined") 
+	{
+		this.sceneFolder = this.gui.addFolder('Scene');
+		sceneObj.initGui(this);
+		this.sceneFolder.open();
+		this.gui.remember(this.sceneSettings);
+	}
 }
 
 GUI.prototype.addParameter = function(parameters, param)
@@ -182,15 +185,15 @@ GUI.prototype.createMaterialSettings = function()
 								if (typeof albedo==='string' || albedo instanceof String)
 								{
 									var color = hexToRgb(albedo);
-									specAlbedo.specAlbedo[0] = color.r / 255.0;
-									specAlbedo.specAlbedo[1] = color.g / 255.0;
-									specAlbedo.specAlbedo[2] = color.b / 255.0;
+									surfaceObj.specAlbedo[0] = color.r / 255.0;
+									surfaceObj.specAlbedo[1] = color.g / 255.0;
+									surfaceObj.specAlbedo[2] = color.b / 255.0;
 								}
 								else
 								{
-									specAlbedo.specAlbedo[0] = albedo[0] / 255.0;
-									specAlbedo.specAlbedo[1] = albedo[1] / 255.0;
-									specAlbedo.specAlbedo[2] = albedo[2] / 255.0;
+									surfaceObj.specAlbedo[0] = albedo[0] / 255.0;
+									surfaceObj.specAlbedo[1] = albedo[1] / 255.0;
+									surfaceObj.specAlbedo[2] = albedo[2] / 255.0;
 								}
 								snelly.reset(true);
 							} );

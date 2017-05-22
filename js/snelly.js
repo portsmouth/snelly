@@ -129,8 +129,13 @@ Snelly.prototype.initScene = function()
   	this.loadSpectrum("blackbody");
 	
 	// Camera frustum update
-	this.camera.near = Math.max(1.0e-4, 1.0e-2*this.sceneObj.getScale());
-	this.camera.far  = Math.max(1.0e4,   1.0e4*this.sceneObj.getScale());
+	var sceneScale = 1.0;
+	if (typeof this.sceneObj.getScale !== "undefined") 
+	{
+		sceneScale = this.sceneObj.getScale();
+	}
+	this.camera.near = Math.max(1.0e-4, 1.0e-2*sceneScale);
+	this.camera.far  = Math.max(1.0e4,   1.0e4*sceneScale);
 	this.camControls.update();	
 	this.reset();
 }
@@ -237,8 +242,7 @@ Snelly.prototype.render = function()
 	  	else                   this.textCtx.fillStyle = "#ffff00";
 	  	this.textCtx.fillText('Snelly renderer', 14, 20);
 	  	this.textCtx.fillStyle = "#aaaaff";
-	  	//this.textCtx.fillText('ray count:    ' + (lsStats.rayCount/1.0e6).toPrecision(3) + 'M', 14, 35);
-	  	//this.textCtx.fillText('waves traced: ' + lsStats.wavesTraced,    14, 50);
+	  	this.textCtx.fillText('spp: ' + (this.pathtracer.spp).toPrecision(3), 14, 35);
 	}
 }
 

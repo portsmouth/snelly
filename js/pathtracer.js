@@ -70,8 +70,10 @@ var Pathtracer = function()
 	this.pathStates = [new PathtracerState(this.width, this.height), 
 					   new PathtracerState(this.width, this.height)];
 	this.fbo == null;
-	this.max_downres = 5;
+	this.max_downres = 3;
 	this.numSamples = 0;
+	this.frametime_measure_ms = 0.0;
+	this.spp = 0.0;
 
 	// Default user-adjustable settings 
 	this.renderMode = 'pt';
@@ -83,6 +85,8 @@ var Pathtracer = function()
 	this.exposure = 1.0;
 	this.gamma = 2.2;
 	this.whitepoint = 2.0;
+	this.skipProbability = 0.0;
+	this.goalFrametimeMs = 60.0;
 
 	// Load shaders
 	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper", "filter"]);
@@ -138,6 +142,7 @@ Pathtracer.prototype.reset = function(no_recompile = false)
 {
 	this.downres = this.max_downres;
 	this.numSamples = 0;
+	//this.frametime_measure_ms = 0.0;
 
 	if (!no_recompile) this.compileShaders();
 	this.currentState = 0;
@@ -246,6 +251,8 @@ Pathtracer.prototype.render = function()
 	var sceneObj = snelly.getScene(); if (sceneObj==null) return;
 	if (snelly.getSpectra()==null) return;
 
+	var timer_start = performance.now();
+
 	var gl = this.gl;
 	gl.disable(gl.DEPTH_TEST);
 	gl.viewport(0, 0, this.width, this.height);
@@ -255,6 +262,7 @@ Pathtracer.prototype.render = function()
 	////////////////////////////////////////////////
 
 	var INTEGRATOR_PROGRAM = null;
+	var DOWN_RES = 1.0;
 
 	switch (this.renderMode)
 	{
@@ -270,7 +278,8 @@ Pathtracer.prototype.render = function()
 		default:
 			// Choose pathtracing mode according to total sample count:
 			var DOWN_RES = Math.floor(Math.sqrt(this.width * this.height / Math.max(this.numSamples, 1)));
-			DOWN_RES = 1; //Math.max(1, Math.min(this.max_downres, DOWN_RES));
+			DOWN_RES = Math.max(1, Math.min(this.max_downres, DOWN_RES));
+			if (this.frametime_measure_ms < 2.0*this.goalFrametimeMs) DOWN_RES = 1.0;
 			if (DOWN_RES <= 1.0) 
 			{
 				// Pathtrace all pixels
@@ -304,7 +313,13 @@ Pathtracer.prototype.render = function()
 	INTEGRATOR_PROGRAM.uniformF("camZoom", camera.zoom);
 	INTEGRATOR_PROGRAM.uniformF("camAspect", camera.aspect);
 	INTEGRATOR_PROGRAM.uniform2Fv("resolution", [this.width, this.height]);
-	INTEGRATOR_PROGRAM.uniformF("sceneScale", sceneObj.getScale()); 
+
+	var sceneScale = 1.0;
+	if (typeof sceneObj.getScale !== "undefined") 
+	{
+		sceneScale = sceneObj.getScale();
+	}
+	INTEGRATOR_PROGRAM.uniformF("sceneScale", sceneScale); 
 
 	// Read wavelength -> XYZ table
 	snelly.wavelengthToXYZ.bind(2);
@@ -317,6 +332,7 @@ Pathtracer.prototype.render = function()
 	INTEGRATOR_PROGRAM.uniformI("downRes", DOWN_RES);
 	INTEGRATOR_PROGRAM.uniformF("skyPower", this.skyPower);
 	INTEGRATOR_PROGRAM.uniformF("radianceClamp", Math.pow(10.0, this.radianceClamp));
+	INTEGRATOR_PROGRAM.uniformF("skipProbability", this.skipProbability);
 
 	// gamma correction of env map already done if sRGB ext was loaded
 	if (GLU.sRGBExt != null) INTEGRATOR_PROGRAM.uniformF("gamma", 1.0);
@@ -339,7 +355,10 @@ Pathtracer.prototype.render = function()
 	}
 
 	// Upload current scene shader parameters
-	sceneObj.syncShader(INTEGRATOR_PROGRAM); 
+	if (typeof sceneObj.syncShader !== "undefined") 
+	{
+		sceneObj.syncShader(INTEGRATOR_PROGRAM); 
+	}
 	snelly.materials.syncShader(INTEGRATOR_PROGRAM);
 
 	// Trace one path per pixel
@@ -399,8 +418,27 @@ Pathtracer.prototype.render = function()
 	// Ping-pong ..
 	this.currentState = next;
 
+	// Frame timing
+	var timer_end = performance.now();
+	var frame_time_ms = (timer_end - timer_start);
+	if (this.numSamples==0)
+	{
+		this.frametime_measure_ms = frame_time_ms;
+	}
+	else
+	{
+		var smoothing = 0.05;
+		var prev_frame_time_ms = this.frametime_measure_ms;
+		this.frametime_measure_ms = smoothing*frame_time_ms+ (1.0-smoothing)*prev_frame_time_ms;
+	}
+
+	// Update skip probability to try to achieve interactive framerate
+	var goalMs = Math.max(1.0, this.goalFrametimeMs);
+	this.skipProbability = Math.max(0.0, 1.0-goalMs/this.frametime_measure_ms);
+
 	// Update sample count
-	this.numSamples += this.width * this.height / (DOWN_RES * DOWN_RES);
+	this.numSamples += (1.0-this.skipProbability) * this.width * this.height / (DOWN_RES * DOWN_RES);
+	this.spp = this.numSamples / (this.width * this.height);
 
 	this.fbo.unbind();
 }
