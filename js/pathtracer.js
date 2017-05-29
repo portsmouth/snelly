@@ -72,6 +72,9 @@ var Pathtracer = function()
 	this.fbo == null;
 	this.max_downres = 3;
 	this.numSamples = 0;
+	this.numFramesSinceReset = 0;
+	this.numFramesSinceInit = 0;
+
 	this.frametime_measure_ms = 0.0;
 	this.spp = 0.0;
 
@@ -79,14 +82,14 @@ var Pathtracer = function()
 	this.renderMode = 'pt';
 	this.maxBounces = 3;
 	this.maxMarchSteps = 256;
-	this.radianceClamp = 1.0e3;
+	this.radianceClamp = 3.0;
 	this.skyPower = 1.0;
 	this.skyTemperature = 6000.0;
 	this.exposure = 1.0;
 	this.gamma = 2.2;
 	this.whitepoint = 2.0;
 	this.skipProbability = 0.0;
-	this.goalFrametimeMs = 60.0;
+	this.goalFrametimeMs = 1.0;
 
 	// Load shaders
 	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper", "filter"]);
@@ -138,12 +141,12 @@ Pathtracer.prototype.createQuadVbo = function()
 	return vbo;
 }
 
-Pathtracer.prototype.reset = function(no_recompile = false)
+Pathtracer.prototype.reset = function(no_recompile = false, hard = false)
 {
 	this.downres = this.max_downres;
 	this.numSamples = 0;
-	//this.frametime_measure_ms = 0.0;
-
+	this.numFramesSinceReset = 0;
+	if (hard) this.numFramesSinceInit = 0;
 	if (!no_recompile) this.compileShaders();
 	this.currentState = 0;
 	this.pathStates[this.currentState].clear(this.fbo);
@@ -153,6 +156,8 @@ Pathtracer.prototype.reset = function(no_recompile = false)
 
 Pathtracer.prototype.compileShaders = function()
 {
+	console.log('compiling shaders..');
+
 	// Inject code for the current scene SDF:
 	var sceneObj = snelly.getScene();
 	if (sceneObj == null) return;
@@ -253,9 +258,14 @@ Pathtracer.prototype.render = function()
 
 	var timer_start = performance.now();
 
-	var gl = this.gl;
+	let gl = this.gl;
 	gl.disable(gl.DEPTH_TEST);
 	gl.viewport(0, 0, this.width, this.height);
+
+	if (typeof sceneObj.preframeCallback != "undefined")
+	{
+		sceneObj.preframeCallback(snelly, gl);
+	}
 
 	////////////////////////////////////////////////
 	/// Pathtracing
@@ -439,8 +449,15 @@ Pathtracer.prototype.render = function()
 	// Update sample count
 	this.numSamples += (1.0-this.skipProbability) * this.width * this.height / (DOWN_RES * DOWN_RES);
 	this.spp = this.numSamples / (this.width * this.height);
+	this.numFramesSinceReset++;
+	this.numFramesSinceInit++;
 
 	this.fbo.unbind();
+
+	if (typeof sceneObj.postframeCallback != "undefined")
+	{
+		sceneObj.postframeCallback(snelly, gl);
+	}
 }
 
 

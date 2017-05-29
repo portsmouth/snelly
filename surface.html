@@ -2,6 +2,7 @@
 
 <body onload="onLoad();">
 
+<?/* ----------- do not modify ------------*/?>
 <?/* ----------- @todo: embed CSS here, no external file ------------*/?>
  <head>
 <link rel="stylesheet" type="text/css" href="snelly.css">
@@ -11,7 +12,6 @@
     <div id="webglContainer"></div> <canvas id="render-canvas"></canvas>
     <div id="textContainer"><canvas id="text-canvas"></canvas></div>  
 </div>
-
 
 <script type="text/javascript" src="js/thirdparty/jquery-1.11.3.min.js"></script>
 <script type="text/javascript" src="js/thirdparty/three/three.min.js"></script>
@@ -35,15 +35,95 @@
 
 <script type="text/javascript">
 
-function Scene() 
-{
-	// initial UI scene parameters
-	this.parameters = {};
+function Scene() {}
 
-	// scene settings:
-	this.parameters.foo = 2.0;
-	this.parameters.bar = 2.0;
+/////////////////////////////////////////////////////////////////////////////////
+// Scene state initialization
+/////////////////////////////////////////////////////////////////////////////////
+
+// Optionally, provide this function which generates the init code to re-generate 
+// the current parameter settings. This will be dumped to the console (along with 
+// the rest of the UI state) on pressing key 'O', allowing scene user-parameter 
+// state to be tweaked in the UI then saved by copy-pasting into the init function.
+Scene.prototype.initGenerator = function()
+{
+	return `
+this.parameters = {};
+this.parameters.foo = ${this.parameters.foo};
+this.parameters.bar = ${this.parameters.bar};
+this.frame = 0;
+	`; 
 }
+
+Scene.prototype.init = function(snelly)
+{
+	let renderer  = snelly.getRenderer();
+	let camera    = snelly.getCamera();
+	let controls  = snelly.getControls();
+	let materials = snelly.getMaterials();
+
+	////////////////// copy-pasted console output on 'O', begin /////////////////////
+
+	this.parameters = {};
+	this.parameters.foo = 0.7892882311486962;
+	this.parameters.bar = 0;
+	this.frame = 0;
+	snelly.showGUI(false);
+
+	// Camera settins:
+	// 		camera is a THREE.PerspectiveCamera object
+	// 		controls is a THREE.OrbitControls object
+	camera.fov = 45;
+	camera.up.set(0, 1, 0);
+	//camera.lookAt(new THREE.Vector3(-0.013661883756091644, -0.22754946350020774, -0.9736706757985236));
+	camera.position.set(0.011622464934610664, 0.475561534689623, 1.640799247002282);
+	controls.target.set(-0.011902128678671532, 0.08374086084009465, -0.03577825319842449);
+	controls.zoomSpeed = 2;
+	controls.keyPanSpeed = 100;
+
+	// Renderer settings
+	renderer.renderMode = 'ao';  // The other modes are: 'ao', 'normals'
+	renderer.maxBounces = 3;
+	renderer.maxMarchSteps = 174;
+	renderer.radianceClamp = 3; // (log scale)
+	renderer.skyPower = 6.314305849189569;
+	renderer.skyTemperature = 6000;
+	renderer.exposure = 5.637773079633545;
+	renderer.gamma = 1.6913319238900635;
+	renderer.whitepoint = 2;
+	renderer.goalFrametimeMs = 60;
+
+	// Material settings
+	let surface = materials.loadSurface();
+	surface.roughness = 0.001127554615926709;
+	surface.ior = 1.3530655391120507;
+	surface.diffuseAlbedo = [0.23529411764705888, 0.0807381776239908, 0.0807381776239908];
+	surface.specAlbedo = [0.11764705882352944, 0.11764705882352944, 0.11764705882352944];
+
+	let dielectric = materials.loadDielectric('Glass (K7)');
+	dielectric.absorptionColor = [1, 0.9411764705882353, 0.9411764705882353];
+	dielectric.absorptionScale = 0.17; // mfp in multiples of scene scale
+	dielectric.roughness = 0.004510218463706836;
+
+	let metal = materials.loadMetal('Gold');
+	metal.roughness = 0.05;
+
+	////////////////// copy-pasted console output on 'O', end /////////////////////
+}
+
+
+// Optionally, supply an env-map texture URL (must be a lat-long format image).
+// (If this is function not implemented, or it returns the empty string, a uniform
+// temperature blackbody sky is used).
+Scene.prototype.envMap = function()
+{
+  	return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_040_Field_Bg.jpg';
+  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_041_Path_Bg.jpg';
+  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg';
+  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_110_Tunnel_Bg.jpg';
+  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_Free_City_Night_Lights_Bg.jpg';
+}
+
 
 // Optional name and description 
 Scene.prototype.getName = function() { return "Hello world"; }
@@ -54,6 +134,7 @@ Scene.prototype.getDesc = function() { return "A simple example"; }
 // Shader code
 /////////////////////////////////////////////////////////////////////////////////////
 
+// This function is mandatory!
 Scene.prototype.shader = function()
 {
 	return `
@@ -87,7 +168,7 @@ Scene.prototype.shader = function()
 			float _rotate = 30.0;
 			float sd = sdBox(X, vec3(1.0));
 			float scale = 1.0;;
-			const int iter = 5;
+			const int iter = 3;
 			for (int i=0; i<iter; i++) 
 			{
 				X.xy = rotate(X.xy, 2.0*sin(TWOPI*_rotate));
@@ -222,14 +303,14 @@ Scene.prototype.shader = function()
 }
 
 
-// set up gui and callbacks for this scene
+// Optional. Set up gui and callbacks for this scene
 Scene.prototype.initGui = function(gui)            
 {
-  	gui.addParameter(this.parameters, {name: 'foo', min: 0.0, max: 10.0});
-  	gui.addParameter(this.parameters, {name: 'bar', min: 0.0, max: 10.0});
+  	gui.addParameter(this.parameters, {name: 'foo', min: 0.0, max: 1.0});
+  	gui.addParameter(this.parameters, {name: 'bar', min: 0.0, max: 1.0});
 }
 
-// Called whenever the UI is changed,
+// Optional. Called whenever the UI is changed,
 // and must sync the params of the shader with the current UI settings
 Scene.prototype.syncShader = function(shader)
 {
@@ -237,70 +318,111 @@ Scene.prototype.syncShader = function(shader)
 	shader.uniformF("_bar", this.parameters.bar);
 }
 
-// Gives the raytracer some indication of the (rough) scene length scale, so it can set 
-// tolerances appropriately. Note, the raymarcher will march no further from the camera 
-// than 100 times this scale, and the smallest resolvable structure is about 1.0e-5 this scale.
-Scene.prototype.getScasle = function()
+// Optional. Gives the raytracer some indication of the (rough) scene length scale, 
+// so it can set tolerances appropriately. Note, the raymarcher will march no further
+// from the camera than 100 times this scale, and the smallest resolvable structure 
+// is about 1.0e-5 this scale.
+Scene.prototype.getScale = function()
 {
 	return 1.0;
 }
 
-// Initial settings for this scene
-Scene.prototype.initCamera = function(camera, controls)
-{
-	// camera:
-	// camera is a THREE.PerspectiveCamera object
-	// controls is a THREE.OrbitControls object
-	camera.fov = 60.0;
-	camera.up.set(0.0, 1.0, 0.0);
-	camera.lookAt(new THREE.Vector3(2.01584, -0.603169, -0.808580));
-	camera.position.set(-4.81888, 2.39746, 3.47067);
 
-	controls.zoomSpeed = 1.0;
-	controls.keyPanSpeed = 10.0;// * this.getScale();
+//////////////////////////////////////////////////////////////////////////////////
+// Callbacks
+//////////////////////////////////////////////////////////////////////////////////
+
+// Optional callback before every frame
+Scene.prototype.preframeCallback = function(snelly, gl)
+{
+	let renderer  = snelly.getRenderer();
+	let camera    = snelly.getCamera();
+	let controls  = snelly.getControls();
+	let materials = snelly.getMaterials();
+	let gui       = snelly.getGUI();
+
+	if (this.frame==0)
+	{
+		this.axisProj = new THREE.Vector3();
+		this.axisPerp = new THREE.Vector3();
+
+		let targetToCam = new THREE.Vector3();
+		targetToCam.copy(camera.position).sub(controls.target);
+
+		let axis = camera.up;
+		this.axisProj.copy(controls.target);
+		this.axisProj.addScaledVector(axis, axis.dot(targetToCam));
+		this.axisPerp.copy(targetToCam).sub(this.axisProj);
+	}
+
+	// Can implement animation rendering logic here
+	// to update scene programmatically according to global time since init
+	let FPS = 24.0;
+	let time = this.frame/FPS;
+	let period = 10.0;
+	this.endFrame = period * FPS;
+	
+	if (renderer.spp >= 100.0)
+	{	
+		// animate camera	
+		let phase = 2.0*Math.PI*time/period;
+
+		// code to orbit around current target at the same azimuth and radius:
+		let rot = new THREE.Quaternion();
+		let axis = camera.up;
+		rot.setFromAxisAngle(axis, phase);
+		let newAxisPerp = new THREE.Vector3();
+		newAxisPerp.copy(this.axisPerp);
+		newAxisPerp.applyQuaternion(rot);
+		
+		let newCamPos = new THREE.Vector3();
+		newCamPos.copy(controls.target);
+		newCamPos.add(this.axisProj);
+		newCamPos.add(newAxisPerp);
+		camera.position.copy(newCamPos);
+		controls.update();
+
+		// animate user scene parameters
+		this.parameters.foo = Math.abs(Math.sin(phase));
+		this.parameters.bar = 0.5*Math.abs(Math.cos(phase));
+
+		// animate materials
+		let surface = materials.getSurface();
+		surface.diffuseAlbedo = [phase, 0.1, 1.0-phase];
+		gui.sync();
+
+		let no_recompile = true;
+		let reinit = false;
+		renderer.reset(no_recompile, reinit);
+
+		this.frame++;
+	}
 }
 
-Scene.prototype.initRenderer = function(renderer)
+
+// Optional callback after every frame
+Scene.prototype.postframeCallback = function(snelly, gl)
 {
-	renderer.mode = 'pt';  // The other modes are: 'ao', 'normals'
-	renderer.maxBounces = 3;
-	renderer.maxMarchSteps = 256;
-	renderer.radianceClamp = 3.0; // (log scale)
-	renderer.skyPower = 5.0;
-	renderer.skyTemperature = 6000.0;
-	renderer.exposure = 1.0;
-	renderer.gamma = 2.2;
-	renderer.whitepoint = 2.0;
-	renderer.goalFrametimeMs = 60.0;
-}
+	let renderer  = snelly.getRenderer();
+	
+	// User code to post webGL framebuffer data to local server for processing
+	if (this.frame>0 && renderer.spp >= 100.0 && this.frame<=this.endFrame)
+	{
+		let dataURI = gl.canvas.toDataURL();
 
-Scene.prototype.initMaterials = function(materials)
-{
-	var surface = materials.loadSurface();
-	surface.roughness = 0.1;
-	surface.ior = 1.5;
-	surface.diffuseAlbedo = [0.3, 1.0, 0.0];
-	surface.specAlbedo = [0.1, 0.1, 0.1];
+		var mimetype = dataURI.split(",")[0].split(':')[1].split(';')[0];
+		var byteString = atob(dataURI.split(',')[1]);
+		var u8a = new Uint8Array(byteString.length);
+		for (var i = 0; i < byteString.length; i++) 
+		{
+			u8a[i] = byteString.charCodeAt(i);
+		}
+		let blob = new Blob([u8a.buffer], { type: mimetype });
 
-	var dielectric = materials.loadDielectric("Diamond");
-	dielectric.absorptionColor = [1.0, 0.2, 0.1];
-	dielectric.absorptionScale = 3.0; // mfp in multiples of scene scale
-	dielectric.roughness = 0.01;
-
-	var metal = materials.loadMetal("Gold");
-	metal.roughness = 0.05;
-}
-
-
-// optionally supply an env-map texture URL (should be lat-long)
-Scene.prototype.envMap = function()
-{
-		//return '';
-  	return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_040_Field_Bg.jpg';
-  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_041_Path_Bg.jpg';
-  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg';
-  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_110_Tunnel_Bg.jpg';
-  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_Free_City_Night_Lights_Bg.jpg';
+		let r = new XMLHttpRequest();
+		r.open('POST', 'http://localhost:3999/' + this.frame, false);
+		r.send(blob);
+	}
 }
 
 </script>

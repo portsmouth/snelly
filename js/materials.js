@@ -49,7 +49,7 @@ Surface.prototype.setIor = function(roughness)
 
 Surface.prototype.setDiffuseAlbedo = function(diffuseAlbedo)
 {
-	this.diffuseAlbedoRGB = diffuseAlbedo;
+	this.diffuseAlbedo = diffuseAlbedo;
 }
 
 Surface.prototype.setSpecAlbedo = function(specAlbedo)
@@ -93,7 +93,7 @@ Metal.prototype.syncShader = function(shader)
 
 Metal.prototype.initGui  = function(parentFolder) 
 { 
-	this.roughnessItem = parentFolder.add(this, 'roughness', 0.0, 0.1);
+	this.roughnessItem = parentFolder.add(this, 'roughness', 0.0, 0.1).listen();
 	this.roughnessItem.onChange( function(value) { snelly.camControls.enabled = false; snelly.reset(true); } );
 	this.roughnessItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 }
@@ -268,8 +268,8 @@ TabulatedMetal.prototype.eraseGui = function(parentFolder) { Metal.prototype.era
 function Dielectric(name, desc)
 {
 	Material.call(this, name, desc);
-	this.roughness = 0.001;
-	this.absorptionScale = 100.0;
+	this.roughness = 0.005;
+	this.absorptionScale = 1.0;
 	this.absorptionColor  = [0.5, 0.5, 0.5];
 	this.absorptionColorF = [0.0, 0.0, 0.0];
 	this.absorptionRGB    = [0.0, 0.0, 0.0];
@@ -302,12 +302,12 @@ Dielectric.prototype.syncShader = function(shader)
 
 Dielectric.prototype.initGui  = function(parentFolder) 
 { 
-	this.roughnessItem = parentFolder.add(this, 'roughness', 0.0, 0.1);
+	this.roughnessItem = parentFolder.add(this, 'roughness', 0.0, 0.1).listen();
 	this.roughnessItem.onChange( function(value) { snelly.camControls.enabled = false; snelly.reset(true); } );
 	this.roughnessItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 
 	this.absorption = [this.absorptionColor[0]*255.0, this.absorptionColor[1]*255.0, this.absorptionColor[2]*255.0];
-	this.absorptionColorItem = parentFolder.addColor(this, 'absorption');
+	this.absorptionColorItem = parentFolder.addColor(this, 'absorption').listen();
 	var ME = this;
 	this.absorptionColorItem.onChange( function(value) {
 							if (typeof value==='string' || value instanceof String)
@@ -326,7 +326,7 @@ Dielectric.prototype.initGui  = function(parentFolder)
 							snelly.reset(true);
 						} );
 
-	this.absorptionScaleItem = parentFolder.add(this, 'absorptionScale', 0.0, 100.0);
+	this.absorptionScaleItem = parentFolder.add(this, 'absorptionScale', 0.0, 1.0);
 	this.absorptionScaleItem.onChange( function(value) { snelly.camera.enabled = false; snelly.reset(true); } );
 	this.absorptionScaleItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 }
@@ -370,7 +370,7 @@ ConstantDielectric.prototype.syncShader = function(shader)
 // set up gui and callbacks for this material
 ConstantDielectric.prototype.initGui = function(parentFolder)
 {
-	this.iorItem = parentFolder.add(this, 'iorVal', 0.0, 5.0);
+	this.iorItem = parentFolder.add(this, 'iorVal', 0.0, 5.0).listen();
 	this.iorItem.onChange( function(value) { snelly.camControls.enabled = false; snelly.reset(true); } );
 	this.iorItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 
@@ -700,6 +700,11 @@ Materials.prototype.getLoadedMetal = function()
 }
 
 Materials.prototype.loadSurface  = function()
+{
+	return this.surfaceObj;
+}
+
+Materials.prototype.getSurface  = function()
 {
 	return this.surfaceObj;
 }

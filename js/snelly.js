@@ -2,7 +2,8 @@
 
 var Snelly = function(sceneObj)
 {
-	this.initialized = false; 
+	this.initialized = false;
+	this.rendering = false;
 	this.sceneObj = sceneObj;
 	snelly = this;
 
@@ -32,7 +33,7 @@ var Snelly = function(sceneObj)
 	this.camera.position.set(1.0, 1.0, 1.0);
 	this.camControls = new THREE.OrbitControls(this.camera, this.container);
 	this.camControls.zoomSpeed = 2.0;
-	this.camControls.addEventListener( 'change', camChanged );
+	this.camControls.addEventListener('change', camChanged);
 	this.camControls.keyPanSpeed = 100.0;
 
 	this.gui = null;
@@ -60,6 +61,7 @@ var Snelly = function(sceneObj)
 	this.resize();
 
 	// Create dat gui
+	this.guiVisible = true;
 	this.gui = new GUI();
 
 	// Setup keypress and mouse events
@@ -92,6 +94,11 @@ Snelly.prototype.getPathtracer = function()
 	return this.pathtracer;
 }
 
+Snelly.prototype.getRenderer = function()
+{
+	return this.pathtracer;
+}
+
 Snelly.prototype.getGUI = function()
 {
 	return this.gui;
@@ -101,6 +108,17 @@ Snelly.prototype.getCamera = function()
 {
 	return this.camera;
 }
+
+Snelly.prototype.getControls = function()
+{
+	return this.camControls;
+}
+
+Snelly.prototype.showGUI = function(showGUI)
+{
+	this.guiVisible = showGUI;
+}
+
 
 //
 // Scene management
@@ -117,10 +135,9 @@ Snelly.prototype.initScene = function()
 	{
 		GLU.fail('Scene must define a "shader" function!');
 	}
-	
-	if (typeof this.sceneObj.initCamera     !== "undefined") this.sceneObj.initCamera(this.camera, this.camControls);
-  	if (typeof this.sceneObj.initRenderer   !== "undefined") this.sceneObj.initRenderer(this.pathtracer);
-  	if (typeof this.sceneObj.initMaterials  !== "undefined") this.sceneObj.initMaterials(this.materials);
+
+	// Call user-defined init function	
+	if (typeof this.sceneObj.init !== "undefined") this.sceneObj.init(this);
   	
   	this.pathtracer.compileShaders();
 
@@ -128,7 +145,7 @@ Snelly.prototype.initScene = function()
 	this.addSpectrum( new BlackbodySpectrum("blackbody", "Blackbody spectrum", this.pathtracer.skyTemperature) );
   	this.loadSpectrum("blackbody");
 	
-	// Camera frustum update
+	// Camera update
 	var sceneScale = 1.0;
 	if (typeof this.sceneObj.getScale !== "undefined") 
 	{
@@ -140,6 +157,70 @@ Snelly.prototype.initScene = function()
 	this.reset();
 }
 
+
+Snelly.prototype.dumpScene = function()
+{
+	let camera = this.camera;
+	let controls = this.camControls;
+	let renderer = this.pathtracer;
+	let materials = this.materials;
+
+	var code = `////////////////// copy-pasted console output on 'O', begin /////////////////////\n`;
+	code += `
+let renderer  = snelly.getRenderer();
+let camera    = snelly.getCamera();
+let controls  = snelly.getControls();
+let materials = snelly.getMaterials();
+	`;
+
+	if (typeof this.sceneObj.initGenerator !== "undefined") 
+	{
+		code += this.sceneObj.initGenerator();
+	}
+	
+	code += `
+// Camera settings:
+// 		camera is a THREE.PerspectiveCamera object
+// 		controls is a THREE.OrbitControls object
+camera.fov = ${camera.fov};
+camera.up.set(${camera.up.x}, ${camera.up.y}, ${camera.up.z});
+camera.position.set(${camera.position.x}, ${camera.position.y}, ${camera.position.z});
+controls.target.set(${controls.target.x}, ${controls.target.y}, ${controls.target.z});
+controls.zoomSpeed = ${controls.zoomSpeed};
+controls.keyPanSpeed = ${controls.keyPanSpeed};
+
+// Renderer settings
+renderer.renderMode = '${renderer.renderMode}';  // The other modes are: 'ao', 'normals'
+renderer.maxBounces = ${renderer.maxBounces};
+renderer.maxMarchSteps = ${renderer.maxMarchSteps};
+renderer.radianceClamp = ${renderer.radianceClamp}; // (log scale)
+renderer.skyPower = ${renderer.skyPower};
+renderer.skyTemperature = ${renderer.skyTemperature};
+renderer.exposure = ${renderer.exposure};
+renderer.gamma = ${renderer.gamma};
+renderer.whitepoint = ${renderer.whitepoint};
+renderer.goalFrametimeMs = ${renderer.goalFrametimeMs};
+
+// Material settings
+let surface = materials.loadSurface();
+surface.roughness = ${materials.loadSurface().roughness};
+surface.ior = ${materials.loadSurface().ior};
+surface.diffuseAlbedo = [${materials.loadSurface().diffuseAlbedo[0]}, ${materials.loadSurface().diffuseAlbedo[1]}, ${materials.loadSurface().diffuseAlbedo[2]}];
+surface.specAlbedo = [${materials.loadSurface().specAlbedo[0]}, ${materials.loadSurface().specAlbedo[1]}, ${materials.loadSurface().specAlbedo[2]}];
+
+let dielectric = materials.loadDielectric('${materials.getLoadedDielectric().getName()}');
+dielectric.absorptionColor = [${materials.getLoadedDielectric().absorptionColor[0]}, ${materials.getLoadedDielectric().absorptionColor[1]}, ${materials.getLoadedDielectric().absorptionColor[2]}];
+dielectric.absorptionScale = ${materials.getLoadedDielectric().absorptionScale}; // mfp in multiples of scene scale
+dielectric.roughness = ${materials.getLoadedDielectric().roughness};
+
+let metal = materials.loadMetal('${materials.getLoadedMetal().getName()}');
+metal.roughness = ${materials.getLoadedMetal().roughness};
+
+////////////////// copy-pasted console output on 'O', end /////////////////////
+	`;
+
+	return code;
+}
 
 // emission spectrum management
 Snelly.prototype.addSpectrum = function(spectrumObj)
@@ -168,6 +249,12 @@ Snelly.prototype.getLoadedSpectrum = function()
 
 
 // Material management
+
+Snelly.prototype.getMaterials = function()
+{
+	return this.materials;
+}
+
 Snelly.prototype.getDielectrics = function()
 {
 	return this.materials.getDielectrics();
@@ -214,10 +301,12 @@ Snelly.prototype.reset = function(no_recompile = false)
 	this.gui.sync();
 	this.render();
 }
-
+   
 // Render all 
 Snelly.prototype.render = function()
 {
+	this.rendering = true;
+
 	if (!this.initialized) return;
 	if (this.sceneObj == null) return;
 
@@ -236,14 +325,17 @@ Snelly.prototype.render = function()
 	this.textCtx.font = '12px monospace';	// This determines the size of the text and the font family used
 	this.textCtx.clearRect(0, 0, this.textCtx.canvas.width, this.textCtx.canvas.height);
 	this.textCtx.globalAlpha = 0.95;
-	if (snelly.getGUI().visible)
+	if (this.guiVisible)
 	{
+		snelly.getGUI().visible = true;
 	  	if (this.onSnellyLink) this.textCtx.fillStyle = "#ff5500";
 	  	else                   this.textCtx.fillStyle = "#ffff00";
 	  	this.textCtx.fillText('Snelly renderer', 14, 20);
 	  	this.textCtx.fillStyle = "#aaaaff";
 	  	this.textCtx.fillText('spp: ' + (this.pathtracer.spp).toPrecision(3), 14, 35);
 	}
+
+	this.rendering = false;
 }
 
 Snelly.prototype.resize = function()
@@ -316,19 +408,19 @@ Snelly.prototype.onDocumentMouseUp = function(event)
 Snelly.prototype.onDocumentRightClick = function(event)
 {
 	/*
-	this.camControls.update();
-	event.preventDefault();
-	if (event.altKey) return; // don't pick if alt-right-clicking (panning)
-	var xPick =  (( event.clientX - window.offsetLeft ) / window.width)*2 - 1;
-	var yPick = -(( event.clientY - window.offsetTop ) / window.height)*2 + 1;
-	var pickedPoint = this.pathtracer.pick(xPick, yPick);
-	if (pickedPoint == null)
-	{
-		// unset?
-		return;
-	} 
-	var no_recompile = true;
-	this.reset(no_recompile);
+		this.camControls.update();
+		event.preventDefault();
+		if (event.altKey) return; // don't pick if alt-right-clicking (panning)
+		var xPick =  (( event.clientX - window.offsetLeft ) / window.width)*2 - 1;
+		var yPick = -(( event.clientY - window.offsetTop ) / window.height)*2 + 1;
+		var pickedPoint = this.pathtracer.pick(xPick, yPick);
+		if (pickedPoint == null)
+		{
+			// unset?
+			return;
+		} 
+		var no_recompile = true;
+		this.reset(no_recompile);
 	*/
 }
 
@@ -351,8 +443,9 @@ Snelly.prototype.onKeydown = function(event)
 			this.initScene();
 			break;
 
-		case 72: // H key: hide dat gui
-			snelly.getGUI().visible = !(snelly.getGUI().visible);
+		case 72: // H key: toggle hide/show dat gui
+			this.guiVisible = !this.guiVisible;
+			snelly.getGUI().visible = this.guiVisible;
 			break;
 
 		case 67: // C key: dev tool to dump cam and laser details, for setting scene defaults
@@ -362,6 +455,10 @@ Snelly.prototype.onKeydown = function(event)
 			console.log(`camera.position.set(${c.x.toPrecision(6)}, ${c.y.toPrecision(6)}, ${c.z.toPrecision(6)});`);
 			break;
 		
+		case 79: // O key: output scene settings code to console
+			let code = this.dumpScene();
+			console.log(code);
+
 		//case 87: console.log('w pressed'); break;
 		//case 65: console.log('a pressed'); break;
 		//case 83: console.log('s pressed'); break;
@@ -371,9 +468,11 @@ Snelly.prototype.onKeydown = function(event)
 
 function camChanged()
 {
-	var no_recompile = true;
-	snelly.reset(no_recompile);
-	snelly.render();
+	if (!snelly.rendering)
+	{
+		var no_recompile = true;
+		snelly.reset(no_recompile);
+	}
 }
 
 
