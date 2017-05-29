@@ -57,38 +57,38 @@ this.frame = 0;
 
 Scene.prototype.init = function(snelly)
 {
+	////////////////// copy-pasted console output on 'O', begin /////////////////////
+	
 	let renderer  = snelly.getRenderer();
 	let camera    = snelly.getCamera();
 	let controls  = snelly.getControls();
 	let materials = snelly.getMaterials();
-
-	////////////////// copy-pasted console output on 'O', begin /////////////////////
-
+		
 	this.parameters = {};
-	this.parameters.foo = 0.7892882311486962;
-	this.parameters.bar = 0;
+	this.parameters.foo = 0.631430584918957;
+	this.parameters.bar = 0.5863284002818887;
 	this.frame = 0;
-	snelly.showGUI(false);
 
-	// Camera settins:
+	snelly.showGUI(false);
+		
+	// Camera settings:
 	// 		camera is a THREE.PerspectiveCamera object
 	// 		controls is a THREE.OrbitControls object
 	camera.fov = 45;
 	camera.up.set(0, 1, 0);
-	//camera.lookAt(new THREE.Vector3(-0.013661883756091644, -0.22754946350020774, -0.9736706757985236));
-	camera.position.set(0.011622464934610664, 0.475561534689623, 1.640799247002282);
-	controls.target.set(-0.011902128678671532, 0.08374086084009465, -0.03577825319842449);
+	camera.position.set(-0.7767078014789545, 0.9527027931313896, 1.1841642556575482);
+	controls.target.set(0.05102604766293419, 0.008914283126821333, 0.0055596211392795495);
 	controls.zoomSpeed = 2;
 	controls.keyPanSpeed = 100;
 
 	// Renderer settings
-	renderer.renderMode = 'ao';  // The other modes are: 'ao', 'normals'
+	renderer.renderMode = 'pt';  // The other modes are: 'ao', 'normals'
 	renderer.maxBounces = 3;
-	renderer.maxMarchSteps = 174;
-	renderer.radianceClamp = 3; // (log scale)
+	renderer.maxMarchSteps = 256;
+	renderer.radianceClamp = 0.4355179704016914; // (log scale)
 	renderer.skyPower = 6.314305849189569;
 	renderer.skyTemperature = 6000;
-	renderer.exposure = 5.637773079633545;
+	renderer.exposure = 12.4031007751938;
 	renderer.gamma = 1.6913319238900635;
 	renderer.whitepoint = 2;
 	renderer.goalFrametimeMs = 60;
@@ -103,7 +103,7 @@ Scene.prototype.init = function(snelly)
 	let dielectric = materials.loadDielectric('Glass (K7)');
 	dielectric.absorptionColor = [1, 0.9411764705882353, 0.9411764705882353];
 	dielectric.absorptionScale = 0.17; // mfp in multiples of scene scale
-	dielectric.roughness = 0.004510218463706836;
+	dielectric.roughness = 0.030443974630021145;
 
 	let metal = materials.loadMetal('Gold');
 	metal.roughness = 0.05;
@@ -168,7 +168,7 @@ Scene.prototype.shader = function()
 			float _rotate = 30.0;
 			float sd = sdBox(X, vec3(1.0));
 			float scale = 1.0;;
-			const int iter = 3;
+			const int iter = 6;
 			for (int i=0; i<iter; i++) 
 			{
 				X.xy = rotate(X.xy, 2.0*sin(TWOPI*_rotate));
@@ -229,9 +229,13 @@ Scene.prototype.shader = function()
 		// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
 		vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X)
 		{
-			float ax = 1.0 - pow(0.5*(1.0 + cos(50.0*X.x)), 100.0);
-			float ay = 1.0 - pow(0.5*(1.0 + cos(50.0*X.z)), 100.0);
-			float albedo = ax*ay;
+			float albedo = 1.0;
+			if (X.y>0.0)
+			{
+				float ax = 1.0 - pow(0.5*(1.0 + cos(50.0*X.x)), 100.0);
+				float ay = 1.0 - pow(0.5*(1.0 + cos(50.0*X.z)), 100.0);
+				albedo = ax*ay;
+			}
 		    return vec3(albedo);
 		}
 
@@ -332,7 +336,10 @@ Scene.prototype.getScale = function()
 // Callbacks
 //////////////////////////////////////////////////////////////////////////////////
 
-// Optional callback before every frame
+// Optional callback before and after every frame.
+// Animation rendering logic can be implemented here by updating the scene 
+// programmatically according to the global time since init
+
 Scene.prototype.preframeCallback = function(snelly, gl)
 {
 	let renderer  = snelly.getRenderer();
@@ -343,6 +350,12 @@ Scene.prototype.preframeCallback = function(snelly, gl)
 
 	if (this.frame==0)
 	{
+		let FPS = 24.0;
+		let time = this.frame/FPS;
+		let period = 10.0;
+		this.endFrame = period * FPS;
+		this.advanceFrame = false;
+
 		this.axisProj = new THREE.Vector3();
 		this.axisPerp = new THREE.Vector3();
 
@@ -355,14 +368,8 @@ Scene.prototype.preframeCallback = function(snelly, gl)
 		this.axisPerp.copy(targetToCam).sub(this.axisProj);
 	}
 
-	// Can implement animation rendering logic here
-	// to update scene programmatically according to global time since init
-	let FPS = 24.0;
-	let time = this.frame/FPS;
-	let period = 10.0;
-	this.endFrame = period * FPS;
-	
-	if (renderer.spp >= 100.0)
+	// Advance scene state to next frame, if we just exported a rendered frame.
+	if (this.advanceFrame)
 	{	
 		// animate camera	
 		let phase = 2.0*Math.PI*time/period;
@@ -396,6 +403,7 @@ Scene.prototype.preframeCallback = function(snelly, gl)
 		renderer.reset(no_recompile, reinit);
 
 		this.frame++;
+		this.advanceFrame = false;
 	}
 }
 
@@ -404,9 +412,10 @@ Scene.prototype.preframeCallback = function(snelly, gl)
 Scene.prototype.postframeCallback = function(snelly, gl)
 {
 	let renderer  = snelly.getRenderer();
-	
+	let targetSPP = 100.0;
+
 	// User code to post webGL framebuffer data to local server for processing
-	if (this.frame>0 && renderer.spp >= 100.0 && this.frame<=this.endFrame)
+	if (0) //this.frame>0 && renderer.spp>=targetSPP && this.frame<=this.endFrame)
 	{
 		let dataURI = gl.canvas.toDataURL();
 
@@ -422,6 +431,8 @@ Scene.prototype.postframeCallback = function(snelly, gl)
 		let r = new XMLHttpRequest();
 		r.open('POST', 'http://localhost:3999/' + this.frame, false);
 		r.send(blob);
+		
+		this.advanceFrame = true;
 	}
 }
 

@@ -37,6 +37,7 @@ var Snelly = function(sceneObj)
 	this.camControls.keyPanSpeed = 100.0;
 
 	this.gui = null;
+	this.guiVisible = true;
 
 	// Instantiate materials
 	this.materials = new Materials();
@@ -61,8 +62,7 @@ var Snelly = function(sceneObj)
 	this.resize();
 
 	// Create dat gui
-	this.guiVisible = true;
-	this.gui = new GUI();
+	this.gui = new GUI(this.guiVisible);
 
 	// Setup keypress and mouse events
 	window.addEventListener( 'mousemove', this, false );
@@ -154,7 +154,7 @@ Snelly.prototype.initScene = function()
 	this.camera.near = Math.max(1.0e-4, 1.0e-2*sceneScale);
 	this.camera.far  = Math.max(1.0e4,   1.0e4*sceneScale);
 	this.camControls.update();	
-	this.reset();
+	this.reset(false);
 }
 
 
@@ -178,6 +178,8 @@ let materials = snelly.getMaterials();
 		code += this.sceneObj.initGenerator();
 	}
 	
+	code += this.guiVisible ? `\nsnelly.showGUI(true);\n` : `\nsnelly.showGUI(false);\n`;
+
 	code += `
 // Camera settings:
 // 		camera is a THREE.PerspectiveCamera object
@@ -327,7 +329,6 @@ Snelly.prototype.render = function()
 	this.textCtx.globalAlpha = 0.95;
 	if (this.guiVisible)
 	{
-		snelly.getGUI().visible = true;
 	  	if (this.onSnellyLink) this.textCtx.fillStyle = "#ff5500";
 	  	else                   this.textCtx.fillStyle = "#ffff00";
 	  	this.textCtx.fillText('Snelly renderer', 14, 20);
@@ -445,7 +446,7 @@ Snelly.prototype.onKeydown = function(event)
 
 		case 72: // H key: toggle hide/show dat gui
 			this.guiVisible = !this.guiVisible;
-			snelly.getGUI().visible = this.guiVisible;
+			snelly.getGUI().toggleHide();
 			break;
 
 		case 67: // C key: dev tool to dump cam and laser details, for setting scene defaults

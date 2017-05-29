@@ -1,16 +1,18 @@
 
 
-var GUI = function() 
+var GUI = function(visible = true) 
 {
 	// Create dat gui
 	this.gui = new dat.GUI();
 	this.gui.domElement.id = 'gui';
 	var gui = this.gui;
-	this.visible = true;
+	this.visible = visible;
 	
 	this.createSceneSettings();
 	this.createMaterialSettings();
 	this.createRendererSettings();
+	if (!visible)
+		this.gui.__proto__.constructor.toggleHide();
 }
 
 function updateDisplay(gui) 
@@ -26,6 +28,11 @@ function updateDisplay(gui)
 GUI.prototype.sync = function()
 {
 	updateDisplay(this.gui);
+}
+
+GUI.prototype.toggleHide = function()
+{
+	this.visible = !this.visible;
 }
 
 function hexToRgb(hex) 
