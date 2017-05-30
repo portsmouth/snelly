@@ -51,7 +51,7 @@ Scene.prototype.initGenerator = function()
 this.parameters = {};
 this.parameters.foo = ${this.parameters.foo};
 this.parameters.bar = ${this.parameters.bar};
-this.frame = 0;
+this.animFrame = 0;
 	`; 
 }
 
@@ -66,49 +66,160 @@ Scene.prototype.init = function(snelly)
 		
 	this.parameters = {};
 	this.parameters.foo = 0.631430584918957;
+	this.parameters.foo2 = 0.631430584918957;
 	this.parameters.bar = 0.5863284002818887;
-	this.frame = 0;
+	this.animFrame = 0;
 
 	snelly.showGUI(false);
 		
 	// Camera settings:
 	// 		camera is a THREE.PerspectiveCamera object
 	// 		controls is a THREE.OrbitControls object
-	camera.fov = 45;
+	camera.fov = 40;
 	camera.up.set(0, 1, 0);
-	camera.position.set(-0.7767078014789545, 0.9527027931313896, 1.1841642556575482);
-	controls.target.set(0.05102604766293419, 0.008914283126821333, 0.0055596211392795495);
+	camera.position.set(-3.7987995289497105, 3.50565369210148, 3.9561774983519684);
+	controls.target.set(0.0371344633810977, -0.030567217009180497, 0.022022000504228156);
 	controls.zoomSpeed = 2;
 	controls.keyPanSpeed = 100;
 
 	// Renderer settings
+	//renderer.width = 1280; // (if either width or height are not specified, render size will be taken from window
+	//renderer.height = 720; // and will then auto-resize with the window)
 	renderer.renderMode = 'pt';  // The other modes are: 'ao', 'normals'
-	renderer.maxBounces = 3;
+	renderer.maxBounces = 5;
 	renderer.maxMarchSteps = 256;
 	renderer.radianceClamp = 0.4355179704016914; // (log scale)
-	renderer.skyPower = 6.314305849189569;
+	renderer.skyPower = 4.0;
 	renderer.skyTemperature = 6000;
-	renderer.exposure = 12.4031007751938;
-	renderer.gamma = 1.6913319238900635;
+	renderer.exposure = 4.5;
+	renderer.gamma = 2.2;
 	renderer.whitepoint = 2;
-	renderer.goalFrametimeMs = 60;
+	renderer.goalFrametimeMs = 200;
 
 	// Material settings
 	let surface = materials.loadSurface();
-	surface.roughness = 0.001127554615926709;
+	surface.roughness = 0.05;
 	surface.ior = 1.3530655391120507;
-	surface.diffuseAlbedo = [0.23529411764705888, 0.0807381776239908, 0.0807381776239908];
-	surface.specAlbedo = [0.11764705882352944, 0.11764705882352944, 0.11764705882352944];
+	surface.diffuseAlbedo = [0.5, 0.5, 0.5]; //0.7156862745098039, 0.18985910396453856, 0.0771818531334102];
+	surface.specAlbedo = [0.0, 0.0, 0.0]; //0.1470588235294118, 0.1470588235294118, 0.1470588235294118];
 
-	let dielectric = materials.loadDielectric('Glass (K7)');
-	dielectric.absorptionColor = [1, 0.9411764705882353, 0.9411764705882353];
-	dielectric.absorptionScale = 0.17; // mfp in multiples of scene scale
+	let dielectric = materials.loadDielectric('Diamond');
+	dielectric.absorptionColor = [1.0, 1.0, 1.0];
+	dielectric.absorptionScale = 1.0; // mfp in multiples of scene scale
 	dielectric.roughness = 0.030443974630021145;
 
 	let metal = materials.loadMetal('Gold');
 	metal.roughness = 0.05;
 
 	////////////////// copy-pasted console output on 'O', end /////////////////////
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////////////
+// Callbacks
+//////////////////////////////////////////////////////////////////////////////////
+
+// Optional callback before and after every frame.
+// Animation rendering logic can be implemented here by updating the scene 
+// programmatically according to the global time since init
+
+Scene.prototype.preframeCallback = function(snelly, gl)
+{
+	let renderer  = snelly.getRenderer();
+	let camera    = snelly.getCamera();
+	let controls  = snelly.getControls();
+	let materials = snelly.getMaterials();
+	let gui       = snelly.getGUI();
+
+	let FPS = 24.0;
+	let time = this.animFrame/FPS;
+	let period = 180.0;
+	this.endFrame = period * FPS;
+
+	// animate camera (here a simple 'turntable' orbit about the original cam target)
+	let axis = camera.up;
+
+	if (this.animFrame > this.endFrame) this.animFrame = 0;
+	if (this.animFrame==0)
+	{
+		this.advanceFrame = false;
+
+		this.axisProj = new THREE.Vector3();
+		this.axisPerp = new THREE.Vector3();
+		let targetToCam = new THREE.Vector3();
+		targetToCam.copy(camera.position).sub(controls.target);
+		this.axisProj.copy(controls.target);
+		this.axisProj.addScaledVector(axis, axis.dot(targetToCam));
+		this.axisPerp.copy(targetToCam).sub(this.axisProj);
+	}
+
+	let phase = 2.0*Math.PI*time/period;
+	let rot = new THREE.Quaternion();
+	rot.setFromAxisAngle(axis, phase);
+	let newAxisPerp = new THREE.Vector3();
+	newAxisPerp.copy(this.axisPerp);
+	newAxisPerp.applyQuaternion(rot);
+	
+	let newCamPos = new THREE.Vector3();
+	newCamPos.copy(controls.target);
+	newCamPos.add(this.axisProj);
+	newCamPos.add(newAxisPerp);
+	camera.position.copy(newCamPos);
+	controls.update();
+
+	// animate user scene parameters
+	this.parameters.foo  = Math.abs(Math.cos(Math.exp(0.5+0.5*Math.sin(phase))));
+	this.parameters.foo2 = Math.abs(Math.cos(Math.exp(0.5-0.5*Math.sin(7.0*phase))));
+	this.parameters.bar = 3.0*Math.abs(0.333+Math.cos(Math.exp(0.5+0.5*Math.cos(3.0*phase))));
+
+	// animate materials
+	let surface = materials.getSurface();
+	surface.roughness = 0.1; //*Math.pow(Math.abs(Math.sin(11.0*phase)), 3.0);
+	//surface.diffuseAlbedo = [phase, 0.1, 1.0-phase];
+
+	let dielectric = materials.getDielectric();
+	dielectric.roughness = 0.1*Math.pow(Math.abs(Math.sin(phase)), 5.0);
+
+	// Advance scene state to next anim frame, if we just exported a rendered frame
+	if (this.advanceFrame)
+	{	
+		gui.sync();
+		let no_recompile = true;
+		let reinit = false;
+		renderer.reset(no_recompile, reinit);
+		this.advanceFrame = false;
+	}
+}
+
+
+// Optional callback after every frame
+Scene.prototype.postframeCallback = function(snelly, gl)
+{
+	return;
+	let renderer  = snelly.getRenderer();
+	let targetSPP = 250.0;
+
+	// User code to post webGL framebuffer data to local server for processing
+	if (this.animFrame>=0 && renderer.spp>=targetSPP && this.animFrame<=this.endFrame)
+	{
+		console.log(this.animFrame);
+		let dataURI = gl.canvas.toDataURL();
+		var mimetype = dataURI.split(",")[0].split(':')[1].split(';')[0];
+		var byteString = atob(dataURI.split(',')[1]);
+		var u8a = new Uint8Array(byteString.length);
+		for (var i = 0; i < byteString.length; i++) 
+		{
+			u8a[i] = byteString.charCodeAt(i);
+		}
+		let blob = new Blob([u8a.buffer], { type: mimetype });
+		let r = new XMLHttpRequest();
+		r.open('POST', 'http://localhost:3999/' + this.animFrame, false);
+		r.send(blob);
+
+		this.advanceFrame = true;
+		this.animFrame++;
+	}
 }
 
 
@@ -139,6 +250,7 @@ Scene.prototype.shader = function()
 {
 	return `
 		uniform float _foo;
+		uniform float _foo2;
 		uniform float _bar;
 
 		#define TWOPI 6.28318530718
@@ -165,9 +277,9 @@ Scene.prototype.shader = function()
 
 		float menger(vec3 X) 
 		{
-			float _rotate = 30.0;
+			float _rotate = _foo2;
 			float sd = sdBox(X, vec3(1.0));
-			float scale = 1.0;;
+			float scale = _foo;
 			const int iter = 6;
 			for (int i=0; i<iter; i++) 
 			{
@@ -222,15 +334,14 @@ Scene.prototype.shader = function()
 			vec3 bmin = vec3(-100.0, -1.0, -100.0);
 			vec3 bmax = vec3( 100.0,  0.0,  100.0);
 			float floor = sdBox(X, bmin, bmax);
-
-			return opU(floor, opI(sdSphere(X, _foo), menger(X)));
+			return opU(floor, menger(X));
 		}  
 
 		// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
 		vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X)
 		{
 			float albedo = 1.0;
-			if (X.y>0.0)
+			if (X.y<=0.001)
 			{
 				float ax = 1.0 - pow(0.5*(1.0 + cos(50.0*X.x)), 100.0);
 				float ay = 1.0 - pow(0.5*(1.0 + cos(50.0*X.z)), 100.0);
@@ -307,20 +418,24 @@ Scene.prototype.shader = function()
 }
 
 
-// Optional. Set up gui and callbacks for this scene
-Scene.prototype.initGui = function(gui)            
-{
-  	gui.addParameter(this.parameters, {name: 'foo', min: 0.0, max: 1.0});
-  	gui.addParameter(this.parameters, {name: 'bar', min: 0.0, max: 1.0});
-}
-
 // Optional. Called whenever the UI is changed,
 // and must sync the params of the shader with the current UI settings
 Scene.prototype.syncShader = function(shader)
 {
 	shader.uniformF("_foo", this.parameters.foo);
+	shader.uniformF("_foo2", this.parameters.foo2);
 	shader.uniformF("_bar", this.parameters.bar);
 }
+
+// Optional. Set up gui and callbacks for this scene
+Scene.prototype.initGui = function(gui)            
+{
+  	gui.addParameter(this.parameters, {name: 'foo', min: 0.0, max: 1.0});
+  	gui.addParameter(this.parameters, {name: 'foo2', min: 0.0, max: 1.0});
+  	gui.addParameter(this.parameters, {name: 'bar', min: 0.0, max: 1.0});
+}
+
+
 
 // Optional. Gives the raytracer some indication of the (rough) scene length scale, 
 // so it can set tolerances appropriately. Note, the raymarcher will march no further
@@ -329,111 +444,6 @@ Scene.prototype.syncShader = function(shader)
 Scene.prototype.getScale = function()
 {
 	return 1.0;
-}
-
-
-//////////////////////////////////////////////////////////////////////////////////
-// Callbacks
-//////////////////////////////////////////////////////////////////////////////////
-
-// Optional callback before and after every frame.
-// Animation rendering logic can be implemented here by updating the scene 
-// programmatically according to the global time since init
-
-Scene.prototype.preframeCallback = function(snelly, gl)
-{
-	let renderer  = snelly.getRenderer();
-	let camera    = snelly.getCamera();
-	let controls  = snelly.getControls();
-	let materials = snelly.getMaterials();
-	let gui       = snelly.getGUI();
-
-	if (this.frame==0)
-	{
-		let FPS = 24.0;
-		let time = this.frame/FPS;
-		let period = 10.0;
-		this.endFrame = period * FPS;
-		this.advanceFrame = false;
-
-		this.axisProj = new THREE.Vector3();
-		this.axisPerp = new THREE.Vector3();
-
-		let targetToCam = new THREE.Vector3();
-		targetToCam.copy(camera.position).sub(controls.target);
-
-		let axis = camera.up;
-		this.axisProj.copy(controls.target);
-		this.axisProj.addScaledVector(axis, axis.dot(targetToCam));
-		this.axisPerp.copy(targetToCam).sub(this.axisProj);
-	}
-
-	// Advance scene state to next frame, if we just exported a rendered frame.
-	if (this.advanceFrame)
-	{	
-		// animate camera	
-		let phase = 2.0*Math.PI*time/period;
-
-		// code to orbit around current target at the same azimuth and radius:
-		let rot = new THREE.Quaternion();
-		let axis = camera.up;
-		rot.setFromAxisAngle(axis, phase);
-		let newAxisPerp = new THREE.Vector3();
-		newAxisPerp.copy(this.axisPerp);
-		newAxisPerp.applyQuaternion(rot);
-		
-		let newCamPos = new THREE.Vector3();
-		newCamPos.copy(controls.target);
-		newCamPos.add(this.axisProj);
-		newCamPos.add(newAxisPerp);
-		camera.position.copy(newCamPos);
-		controls.update();
-
-		// animate user scene parameters
-		this.parameters.foo = Math.abs(Math.sin(phase));
-		this.parameters.bar = 0.5*Math.abs(Math.cos(phase));
-
-		// animate materials
-		let surface = materials.getSurface();
-		surface.diffuseAlbedo = [phase, 0.1, 1.0-phase];
-		gui.sync();
-
-		let no_recompile = true;
-		let reinit = false;
-		renderer.reset(no_recompile, reinit);
-
-		this.frame++;
-		this.advanceFrame = false;
-	}
-}
-
-
-// Optional callback after every frame
-Scene.prototype.postframeCallback = function(snelly, gl)
-{
-	let renderer  = snelly.getRenderer();
-	let targetSPP = 100.0;
-
-	// User code to post webGL framebuffer data to local server for processing
-	if (0) //this.frame>0 && renderer.spp>=targetSPP && this.frame<=this.endFrame)
-	{
-		let dataURI = gl.canvas.toDataURL();
-
-		var mimetype = dataURI.split(",")[0].split(':')[1].split(';')[0];
-		var byteString = atob(dataURI.split(',')[1]);
-		var u8a = new Uint8Array(byteString.length);
-		for (var i = 0; i < byteString.length; i++) 
-		{
-			u8a[i] = byteString.charCodeAt(i);
-		}
-		let blob = new Blob([u8a.buffer], { type: mimetype });
-
-		let r = new XMLHttpRequest();
-		r.open('POST', 'http://localhost:3999/' + this.frame, false);
-		r.send(blob);
-		
-		this.advanceFrame = true;
-	}
 }
 
 </script>
