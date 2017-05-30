@@ -59,7 +59,7 @@ var Pathtracer = function()
 	this.gl = GLU.gl;
 	var gl = GLU.gl;
 
-	var render_canvas = document.getElementById('render-canvas');
+	var render_canvas = snelly.render_canvas;
 	render_canvas.width  = window.innerWidth;
 	render_canvas.height = window.innerHeight;
 	this._width = render_canvas.width;

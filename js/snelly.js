@@ -7,20 +7,20 @@ var Snelly = function(sceneObj)
 	this.sceneObj = sceneObj;
 	snelly = this;
 
-	// @todo: should create the required canvas elements here
-	//        programmatically, rather than relying on them existing in the document.
+	let container = document.getElementById("container");
+	this.container = container;
+
 	var render_canvas = document.getElementById('render-canvas');
-	render_canvas.width  = window.innerWidth;
-	render_canvas.height = window.innerHeight;
+	this.render_canvas = render_canvas;
 	this.width = render_canvas.width;
 	this.height = render_canvas.height;
-	window.addEventListener( 'resize', this, false );
-	this.container = document.getElementById('container');
 
-	// Text canvas
-	var text_canvas = document.getElementById("text-canvas");
+	var text_canvas = document.getElementById('text-canvas');
+	this.text_canvas = text_canvas;
 	this.textCtx = text_canvas.getContext("2d");
 	this.onSnellyLink = false;
+
+	window.addEventListener( 'resize', this, false );
 
 	// Setup THREE.js orbit camera
 	var VIEW_ANGLE = 45; // @todo: fov should be under user control
@@ -363,11 +363,11 @@ Snelly.prototype._resize = function(width, height)
 	this.width = width;
 	this.height = height;
 
-	var render_canvas = document.getElementById('render-canvas');
+	var render_canvas = this.render_canvas;
 	render_canvas.width  = width;
 	render_canvas.height = height;
 
-	var text_canvas = document.getElementById("text-canvas");
+	var text_canvas = this.text_canvas;
 	text_canvas.width  = width;
 	text_canvas.height = height
 

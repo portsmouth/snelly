@@ -448,9 +448,55 @@ var GLU = {};
 		this.canvas.style.display = 'none';
 	}
 
-	this.canvas = document.getElementById('render-canvas');
-	this.canvas.width = 1;
-	this.canvas.height= 1;
+	// Create CSS rules for the document contents
+	var sheet = window.document.styleSheets[0];
+
+	sheet.insertRule(`body{
+  margin: 0px;
+  overflow: hidden;
+}`, sheet.cssRules.length);
+
+	sheet.insertRule(`#container {
+    position: relative;
+    margin: 0px;
+    padding: 0px;
+}`, sheet.cssRules.length);
+
+	sheet.insertRule(`#textContainer {
+    position: absolute;
+    margin: 0px;
+    overflow: hidden;
+    left: 0px;
+    top: 0px;
+    pointer-events: none;   
+    z-index: 1;
+}`, sheet.cssRules.length);
+
+	sheet.insertRule(`#gui { 
+    position: absolute; 
+    z-index: 100;
+    right: 0px;
+}`, sheet.cssRules.length);
+
+	// Create here the DOM elements for renderer and text canvas
+	var container = document.createElement("div");
+	container.id = "container";
+	document.body.appendChild(container);
+
+	var render_canvas = document.createElement('canvas');
+	render_canvas.id = "render-canvas";
+	render_canvas.width  = window.innerWidth;
+	render_canvas.height = window.innerHeight;
+	container.appendChild(render_canvas);
+	this.canvas = render_canvas;
+
+	var textContainer = document.createElement("div");
+	textContainer.id = "textContainer";
+	container.appendChild(textContainer);
+
+	var text_canvas = document.createElement('canvas');
+	text_canvas.id = "text-canvas";
+	textContainer.appendChild(text_canvas);
 
 	try 
 	{
