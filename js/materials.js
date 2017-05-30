@@ -694,10 +694,21 @@ Materials.prototype.getLoadedDielectric = function()
 	return this.dielectricObj;
 }
 
+Materials.prototype.getDielectric = function()
+{
+	return this.getLoadedDielectric();
+}
+
 Materials.prototype.getLoadedMetal = function()
 {
 	return this.metalObj;
 }
+
+Materials.prototype.getMetal = function()
+{
+	return this.getLoadedMetal();
+}
+
 
 Materials.prototype.loadSurface  = function()
 {
