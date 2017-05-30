@@ -41,20 +41,10 @@ function Scene() {}
 // Scene state initialization
 /////////////////////////////////////////////////////////////////////////////////
 
-// Optionally, provide this function which generates the init code to re-generate 
-// the current parameter settings. This will be dumped to the console (along with 
-// the rest of the UI state) on pressing key 'O', allowing scene user-parameter 
-// state to be tweaked in the UI then saved by copy-pasting into the init function.
-Scene.prototype.initGenerator = function()
-{
-	return `
-this.parameters = {};
-this.parameters.foo = ${this.parameters.foo};
-this.parameters.bar = ${this.parameters.bar};
-this.frame = 0;
-	`; 
-}
-
+/**
+* Optionally (but usually), provide this function to set scene and renderer initial state.
+* @param {Snelly} The snelly object
+*/
 Scene.prototype.init = function(snelly)
 {
 	////////////////// copy-pasted console output on 'O', begin /////////////////////
@@ -111,10 +101,27 @@ Scene.prototype.init = function(snelly)
 	////////////////// copy-pasted console output on 'O', end /////////////////////
 }
 
+/**
+* Optionally, provide this function which generates the init code to re-generate 
+* the current UI parameter settings. This will be dumped to the console (along with 
+* the rest of the UI state) on pressing key 'O', allowing the scene and renderer
+* state to be tweaked in the UI then saved by copy-pasting code into the init function below.
+*/
+Scene.prototype.initGenerator = function()
+{
+	return `
+this.parameters = {};
+this.parameters.foo = ${this.parameters.foo};
+this.parameters.bar = ${this.parameters.bar};
+this.frame = 0;
+	`; 
+}
 
-// Optionally, supply an env-map texture URL (must be a lat-long format image).
-// (If this is function not implemented, or it returns the empty string, a uniform
-// temperature blackbody sky is used).
+/**
+* Optionally, supply an env-map texture URL (must be a lat-long format image).
+* (If this is function not implemented, or it returns the empty string, a uniform
+* temperature blackbody sky is used).
+*/
 Scene.prototype.envMap = function()
 {
   	return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_040_Field_Bg.jpg';
@@ -124,9 +131,14 @@ Scene.prototype.envMap = function()
   	//return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_Free_City_Night_Lights_Bg.jpg';
 }
 
-
-// Optional name and description 
+/**
+* Optional name 
+*/
 Scene.prototype.getName = function() { return "Hello world"; }
+
+/**
+* Optional description 
+*/
 Scene.prototype.getDesc = function() { return "A simple example"; }
 
 
@@ -134,10 +146,38 @@ Scene.prototype.getDesc = function() { return "A simple example"; }
 // Shader code
 /////////////////////////////////////////////////////////////////////////////////////
 
-// This function is mandatory!
+/**
+* Return a chunk of GLSL code defining the SDFs which determine the geometry of uber-surface, metal and dielectric materials in the scene.
+* Define also (optionally) functions giving the 3d spatial dependence of the material parameters.
+* This function is mandatory!
+
+* The code must define at least one of the three functions:
+*
+*      float SDF_METAL(vec3 X);
+*      float SDF_DIELECTRIC(vec3 X);
+*      float SDF_DIFFUSE(vec3 X);
+*
+* (If only one or two of these are present, the others will not be rendered).
+* Optionally, any of the following functions defining the spatial modulation of material parameters can be defined:
+*
+*		float SDF_SURFACE(in vec3 X)                     
+*		vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X)
+*		vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 X)
+*		float SURFACE_IOR(in vec3 X)
+*		float SURFACE_ROUGHNESS(in vec3 X)
+*
+*		float SDF_METAL(in vec3 X)                     
+*		vec3 METAL_SPECULAR_REFLECTANCE(in vec3 X)
+*		float METAL_ROUGHNESS(in vec3 X)
+*		
+*		float SDF_DIELECTRIC(vec3 X)                     
+*		vec3 DIELECTRIC_SPECULAR_REFLECTANCE(in vec3 X)
+*		float DIELECTRIC_ROUGHNESS(in vec3 X)
+*/
 Scene.prototype.shader = function()
 {
 	return `
+
 		uniform float _foo;
 		uniform float _bar;
 
@@ -207,11 +247,9 @@ Scene.prototype.shader = function()
 		float opI( float d1, float d2 ) { return max(d1,d2); }
 
 
-
-		// Any of the user-defined functions below can be omitted, in which case it will be
+		// Any of the user-defined functions below can be omitted, in which case they will be
 		// replaced with the default indicated.
 		// Note that the reflectances can be treated as [0,1] RGB values in sRGB color space.
-
 
 		//////////////////////////////////////////////////////
 		// Surface
@@ -306,26 +344,33 @@ Scene.prototype.shader = function()
 	`;
 }
 
-
-// Optional. Set up gui and callbacks for this scene
+/**
+/* Optional. Set up gui and callbacks for this scene
+* @param {GUI} The GUI object
+*/
 Scene.prototype.initGui = function(gui)            
 {
   	gui.addParameter(this.parameters, {name: 'foo', min: 0.0, max: 1.0});
   	gui.addParameter(this.parameters, {name: 'bar', min: 0.0, max: 1.0});
 }
 
-// Optional. Called whenever the UI is changed,
-// and must sync the params of the shader with the current UI settings
+/**
+/* Optional. Called whenever the UI is changed,
+/* and must sync the params of the shader with the current UI settings
+* @param {Shader} The Shader object 
+*/
 Scene.prototype.syncShader = function(shader)
 {
 	shader.uniformF("_foo", this.parameters.foo);
 	shader.uniformF("_bar", this.parameters.bar);
 }
 
-// Optional. Gives the raytracer some indication of the (rough) scene length scale, 
-// so it can set tolerances appropriately. Note, the raymarcher will march no further
-// from the camera than 100 times this scale, and the smallest resolvable structure 
-// is about 1.0e-5 this scale.
+/**
+* Optional. Gives the raytracer some indication of the (rough) scene length scale, 
+* so it can set tolerances appropriately. Note, the raymarcher will march no further
+* from the camera than 100 times this scale, and the smallest resolvable structure 
+* is about 1.0e-5 this scale.
+*/
 Scene.prototype.getScale = function()
 {
 	return 1.0;
@@ -336,10 +381,13 @@ Scene.prototype.getScale = function()
 // Callbacks
 //////////////////////////////////////////////////////////////////////////////////
 
-// Optional callback before and after every frame.
-// Animation rendering logic can be implemented here by updating the scene 
-// programmatically according to the global time since init
-
+/** 
+ * Optional callback before and after every frame.
+ * Animation rendering logic can be implemented here by updating the scene 
+ * programmatically according to the global time since init
+ * @param {Snelly} The snelly object
+ * @param {WebGLRenderingContext} The webGL context
+ */
 Scene.prototype.preframeCallback = function(snelly, gl)
 {
 	let renderer  = snelly.getRenderer();
@@ -407,8 +455,11 @@ Scene.prototype.preframeCallback = function(snelly, gl)
 	}
 }
 
-
-// Optional callback after every frame
+/**
+/* Optional callback after every frame
+ * @param {Snelly} The snelly object
+ * @param {WebGLRenderingContext} The webGL context
+*/
 Scene.prototype.postframeCallback = function(snelly, gl)
 {
 	let renderer  = snelly.getRenderer();

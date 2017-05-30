@@ -104,6 +104,10 @@ Snelly.prototype.getGUI = function()
 	return this.gui;
 }
 
+/**
+* Get camera object
+ * @returns {THREE.PerspectiveCamera} the camera object.
+*/
 Snelly.prototype.getCamera = function()
 {
 	return this.camera;
@@ -252,6 +256,10 @@ Snelly.prototype.getLoadedSpectrum = function()
 
 // Material management
 
+/**
+* Get materials object
+ * @returns {Materials} the Materials object.
+*/
 Snelly.prototype.getMaterials = function()
 {
 	return this.materials;
@@ -289,6 +297,10 @@ Snelly.prototype.getLoadedMetal = function()
 	return this.materials.getLoadedMetal();
 }
 
+/**
+* Get Surface object
+ * @returns {Surface} the Surface object.
+*/
 Snelly.prototype.getSurface = function()
 {
 	return this.materials.loadSurface();

@@ -37,6 +37,10 @@ function Surface(name, desc)
 
 Surface.prototype = Object.create(Material.prototype);
 
+/**
+* Set surface roughness
+ * @param {number} the surface roughness in [0,1].
+*/
 Surface.prototype.setRoughness = function(roughness)
 {
 	this.roughness = roughness;
