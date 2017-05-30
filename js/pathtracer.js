@@ -62,13 +62,13 @@ var Pathtracer = function()
 	var render_canvas = document.getElementById('render-canvas');
 	render_canvas.width  = window.innerWidth;
 	render_canvas.height = window.innerHeight;
-	this.width = render_canvas.width;
-	this.height = render_canvas.height;
+	this._width = render_canvas.width;
+	this._height = render_canvas.height;
 
 	// Initialize pathtracing textures:
 	this.currentState = 0;
-	this.pathStates = [new PathtracerState(this.width, this.height), 
-					   new PathtracerState(this.width, this.height)];
+	this.pathStates = [new PathtracerState(this._width, this._height), 
+					   new PathtracerState(this._width, this._height)];
 	this.fbo == null;
 	this.max_downres = 3;
 	this.numSamples = 0;
@@ -123,7 +123,7 @@ var Pathtracer = function()
 	this.fbo = new GLU.RenderTarget();
 	
 	// Trigger initial buffer generation
-	this.resize(this.width, this.height);
+	this.resize(this._width, this._height);
 }
 
 Pathtracer.prototype.createQuadVbo = function()
@@ -260,7 +260,7 @@ Pathtracer.prototype.render = function()
 
 	let gl = this.gl;
 	gl.disable(gl.DEPTH_TEST);
-	gl.viewport(0, 0, this.width, this.height);
+	gl.viewport(0, 0, this._width, this._height);
 
 	if (typeof sceneObj.preframeCallback != "undefined")
 	{
@@ -322,7 +322,7 @@ Pathtracer.prototype.render = function()
 	INTEGRATOR_PROGRAM.uniformF("camFovy", camera.fov);
 	INTEGRATOR_PROGRAM.uniformF("camZoom", camera.zoom);
 	INTEGRATOR_PROGRAM.uniformF("camAspect", camera.aspect);
-	INTEGRATOR_PROGRAM.uniform2Fv("resolution", [this.width, this.height]);
+	INTEGRATOR_PROGRAM.uniform2Fv("resolution", [this._width, this._height]);
 
 	var sceneScale = 1.0;
 	if (typeof sceneObj.getScale !== "undefined") 
@@ -390,7 +390,7 @@ Pathtracer.prototype.render = function()
 		this.pathStates[next].radianceTex.bind(0);    // read radiance
 		this.filterPrograms[DOWN_RES].uniformTexture("Radiance", this.pathStates[next].radianceTex);
 		this.fbo.attachTexture(this.filteredTex, 0);  // write filter-averaged mean
-		this.filterPrograms[DOWN_RES].uniform2Fv("resolution", [this.width, this.height]);
+		this.filterPrograms[DOWN_RES].uniform2Fv("resolution", [this._width, this._height]);
 		this.quadVbo.bind();
 		this.quadVbo.draw(this.filterPrograms[DOWN_RES], gl.TRIANGLE_FAN);
 		this.fbo.unbind();
@@ -447,7 +447,7 @@ Pathtracer.prototype.render = function()
 	this.skipProbability = Math.max(0.0, 1.0-goalMs/this.frametime_measure_ms);
 
 	// Update sample count
-	this.numSamples += (1.0-this.skipProbability) * this.width * this.height / (DOWN_RES * DOWN_RES);
+	this.numSamples += (1.0-this.skipProbability) * this._width * this._height / (DOWN_RES * DOWN_RES);
 	this.spp = this.numSamples / (this.width * this.height);
 	this.numFramesSinceReset++;
 	this.numFramesSinceInit++;
@@ -463,12 +463,12 @@ Pathtracer.prototype.render = function()
 
 Pathtracer.prototype.resize = function(width, height)
 {
-	this.width = width;
-	this.height = height;
+	this._width = width;
+	this._height = height;
 
 	this.fbo.unbind();
-	this.pathStates = [new PathtracerState(this.width, this.height), 
-					   new PathtracerState(this.width, this.height)];
+	this.pathStates = [new PathtracerState(this._width, this._height), 
+					   new PathtracerState(this._width, this._height)];
 
     // texture for progressive mode
 	var filteredData = new Float32Array(width*height*4); 

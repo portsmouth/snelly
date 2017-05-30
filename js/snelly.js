@@ -9,7 +9,6 @@ var Snelly = function(sceneObj)
 
 	// @todo: should create the required canvas elements here
 	//        programmatically, rather than relying on them existing in the document.
-
 	var render_canvas = document.getElementById('render-canvas');
 	render_canvas.width  = window.innerWidth;
 	render_canvas.height = window.innerHeight;
@@ -44,6 +43,7 @@ var Snelly = function(sceneObj)
 
 	// Instantiate distance field pathtracer
 	this.pathtracer = new Pathtracer();
+	this.auto_resize = true;
 		
 	// Spectrum initialization
 	this.spectra = {}
@@ -140,6 +140,13 @@ Snelly.prototype.initScene = function()
 	if (typeof this.sceneObj.init !== "undefined") this.sceneObj.init(this);
   	
   	this.pathtracer.compileShaders();
+
+  	// Fix renderer to width & height, if they were specified
+  	if ((typeof this.pathtracer.width!=="undefined") && (typeof this.pathtracer.height!=="undefined"))
+  	{
+  		this.auto_resize = false;
+  		this._resize(this.pathtracer.width, this.pathtracer.height);
+  	}
 
   	this.spectra = [];
 	this.addSpectrum( new BlackbodySpectrum("blackbody", "Blackbody spectrum", this.pathtracer.skyTemperature) );
@@ -339,17 +346,16 @@ Snelly.prototype.render = function()
 	this.rendering = false;
 }
 
-Snelly.prototype.resize = function()
+Snelly.prototype._resize = function(width, height)
 {
-	var width = window.innerWidth;
-	var height = window.innerHeight;
 	this.width = width;
 	this.height = height;
 
 	var render_canvas = document.getElementById('render-canvas');
-	var text_canvas = document.getElementById("text-canvas");
 	render_canvas.width  = width;
 	render_canvas.height = height;
+
+	var text_canvas = document.getElementById("text-canvas");
 	text_canvas.width  = width;
 	text_canvas.height = height
 
@@ -358,9 +364,19 @@ Snelly.prototype.resize = function()
 	this.camControls.update();
 
 	this.pathtracer.resize(width, height);
+}
 
-	if (this.initialized)
-		this.render();
+Snelly.prototype.resize = function()
+{
+	if (this.auto_resize)
+	{
+		let width = window.innerWidth;
+		let height = window.innerHeight;
+		this._resize(width, height);
+
+		if (this.initialized)
+			this.render();
+	}
 }
 
 
@@ -447,13 +463,6 @@ Snelly.prototype.onKeydown = function(event)
 		case 72: // H key: toggle hide/show dat gui
 			this.guiVisible = !this.guiVisible;
 			snelly.getGUI().toggleHide();
-			break;
-
-		case 67: // C key: dev tool to dump cam and laser details, for setting scene defaults
-			var t = snelly.camera.target;
-			var c = snelly.camera.position;
-			console.log(`controls.target.set(${t.x.toPrecision(6)}, ${t.y.toPrecision(6)}, ${t.z.toPrecision(6)});`);
-			console.log(`camera.position.set(${c.x.toPrecision(6)}, ${c.y.toPrecision(6)}, ${c.z.toPrecision(6)});`);
 			break;
 		
 		case 79: // O key: output scene settings code to console
