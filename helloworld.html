@@ -1,0 +1,101 @@
+
+
+<body onload="onLoad();">
+<script type="text/javascript" src="js/compiled/snelly.min.js"></script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                         scene definition                          */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+
+function Scene() {}
+
+Scene.prototype.init = function(snelly)
+{
+	this.parameters = {};
+	this.parameters.radius = 0.28;
+	this.parameters.size = 0.22;
+
+	let camera    = snelly.getCamera();
+	let controls  = snelly.getControls();
+	camera.up.set(0, 1, 0);
+	camera.position.set(0.3, 0.5, 0.5);
+	controls.target.set(0.0, 0.0, 0.0);
+
+	let materials = snelly.getMaterials();
+	materials.loadMetal('Aluminium');
+}
+
+Scene.prototype.shader = function()
+{
+	return `
+		uniform float radius;
+		uniform float size;
+		
+		float sdSphere(vec3 X, float r) { return length(X) - r; }
+		float sdBox(vec3 X, vec3 b) { vec3 d = abs(X)-b; return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0)); } 
+		float subtract(float A, float B) { return max(-B, A); }
+
+		float SDF_METAL(in vec3 X)                     
+		{	
+			float box    = sdBox(X, vec3(size, size, size));
+			float sphere = sdSphere(X, radius);
+			return subtract(box, sphere);
+		} 
+	`;
+}
+
+Scene.prototype.initGui = function(gui)            
+{
+  	gui.addParameter(this.parameters, {name: 'radius', min: 0.0, max: 1.0});
+  	gui.addParameter(this.parameters, {name: 'size', min: 0.0, max: 1.0});
+}
+
+Scene.prototype.syncShader = function(shader)
+{
+	shader.uniformF("radius", this.parameters.radius);
+	shader.uniformF("size", this.parameters.size);
+}
+
+Scene.prototype.getScale = function()
+{
+	return 1.0;
+}
+
+Scene.prototype.envMap = function() { return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg'; }
+
+</script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                            main loop                              */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+
+window.requestAnimFrame = (function(){
+  return  window.requestAnimationFrame       ||
+          window.webkitRequestAnimationFrame ||
+          window.mozRequestAnimationFrame    ||
+          function( callback ){
+            window.setTimeout(callback, 1000/60);
+          };
+})();
+
+var snelly;
+function onLoad()
+{
+	snelly = new Snelly(new Scene());
+	animateLoop();
+}
+function animateLoop() 
+{
+	snelly.render();
+	window.requestAnimFrame(animateLoop);
+}
+
+</script>
+
+</body>
+
+
