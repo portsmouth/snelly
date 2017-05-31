@@ -1,4 +1,7 @@
 
+#extension GL_EXT_draw_buffers : require
+precision highp float;
+
 uniform sampler2D Radiance;
 varying vec2 vTexCoord;
 

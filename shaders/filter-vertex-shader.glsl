@@ -1,4 +1,8 @@
 
+
+#extension GL_EXT_draw_buffers : require
+precision highp float;
+
 attribute vec3 Position;
 attribute vec2 TexCoord;
 

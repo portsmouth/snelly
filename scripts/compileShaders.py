@@ -9,9 +9,6 @@ import imp
 ShaderDir = 'shaders'
 src = "var Shaders = {\n\n"
 
-commonPath = ShaderDir + '/common.glsl'
-commonCode = open(commonPath).read().strip().split('\n')
-
 debug = False
 
 for f in os.listdir(ShaderDir):
@@ -29,7 +26,7 @@ for f in os.listdir(ShaderDir):
     path = os.path.join(ShaderDir, f)
     lines = open(path).read().strip().split('\n')
     
-    code = list(commonCode)
+    code = []
     code.append('')
     code.extend(lines)
 

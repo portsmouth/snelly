@@ -2,21 +2,7 @@
 
 <body onload="onLoad();">
 
-<script type="text/javascript" src="js/thirdparty/jquery-1.11.3.min.js"></script>
-<script type="text/javascript" src="js/thirdparty/three/three.min.js"></script>
-<script type="text/javascript" src="js/thirdparty/three/libs/stats.min.js"></script>
-<script type="text/javascript" src="js/thirdparty/three/libs/dat.gui.min.js"></script>
-<script type="text/javascript" src="js/thirdparty/three/controls/OrbitControls.js"></script>
-
-<script type="text/javascript" src="js/gl.js"></script>
-<script type="text/javascript" src="js/gui.js"></script>
-<script type="text/javascript" src="js/shaders.js"></script>
-<script type="text/javascript" src="js/color.js"></script>
-<script type="text/javascript" src="js/materials.js"></script>
-<script type="text/javascript" src="js/spectra.js"></script>
-<script type="text/javascript" src="js/pathtracer.js"></script>
-<script type="text/javascript" src="js/snelly.js"></script>
-
+<script type="text/javascript" src="js/compiled/snelly.min.js"></script>
 
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
@@ -331,11 +317,9 @@ Scene.prototype.shader = function()
 		    return 1.0;
 		}
 
-
 		////////////////////////////////////////////////////////////////////// end of shader code
 	`;
 }
-
 
 /**
 /* Optional. Set up gui and callbacks for this scene
@@ -360,7 +344,6 @@ Scene.prototype.syncShader = function(shader)
 	shader.uniformF("_bar", this.parameters.bar);
 }
 
-
 /**
 * Optional. Gives the raytracer some indication of the (rough) scene length scale, 
 * so it can set tolerances appropriately. Note, the raymarcher will march no further
@@ -373,11 +356,9 @@ Scene.prototype.getScale = function()
 }
 
 
-
 //////////////////////////////////////////////////////////////////////////////////
 // Callbacks
 //////////////////////////////////////////////////////////////////////////////////
-
 
 /** 
  * Optional callback before every frame.
@@ -497,7 +478,10 @@ Scene.prototype.postframeCallback = function(snelly, gl)
 
 </script>
 
-<?/* -----------------------------------------------------------------*/?>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                            main loop                              */?>
+<?/* ------------------------------------------------------------------*/?>
 
 <script type="text/javascript">
 

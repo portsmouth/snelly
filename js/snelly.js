@@ -75,6 +75,11 @@ var Snelly = function(sceneObj)
 	this.initialized = true; 
 }
 
+Snelly.prototype.getVersion = function()
+{
+	return [1, 0, 0];
+}
+
 Snelly.prototype.handleEvent = function(event)
 {
 	switch (event.type)
@@ -176,7 +181,7 @@ Snelly.prototype.dumpScene = function()
 	let renderer = this.pathtracer;
 	let materials = this.materials;
 
-	var code = `////////////////// copy-pasted console output on 'O', begin /////////////////////\n`;
+	var code = `/******* copy-pasted console output on 'O', begin *******/\n`;
 	code += `
 let renderer  = snelly.getRenderer();
 let camera    = snelly.getCamera();
@@ -192,9 +197,10 @@ let materials = snelly.getMaterials();
 	code += this.guiVisible ? `\nsnelly.showGUI(true);\n` : `\nsnelly.showGUI(false);\n`;
 
 	code += `
-// Camera settings:
-// 		camera is a THREE.PerspectiveCamera object
-// 		controls is a THREE.OrbitControls object
+/** Camera settings:
+*		camera is a THREE.PerspectiveCamera object
+* 		controls is a THREE.OrbitControls object
+*/
 camera.fov = ${camera.fov};
 camera.up.set(${camera.up.x}, ${camera.up.y}, ${camera.up.z});
 camera.position.set(${camera.position.x}, ${camera.position.y}, ${camera.position.z});
@@ -202,7 +208,7 @@ controls.target.set(${controls.target.x}, ${controls.target.y}, ${controls.targe
 controls.zoomSpeed = ${controls.zoomSpeed};
 controls.keyPanSpeed = ${controls.keyPanSpeed};
 
-// Renderer settings
+/** Renderer settings **/
 renderer.renderMode = '${renderer.renderMode}';  // The other modes are: 'ao', 'normals'
 renderer.maxBounces = ${renderer.maxBounces};
 renderer.maxMarchSteps = ${renderer.maxMarchSteps};
@@ -214,7 +220,7 @@ renderer.gamma = ${renderer.gamma};
 renderer.whitepoint = ${renderer.whitepoint};
 renderer.goalFrametimeMs = ${renderer.goalFrametimeMs};
 
-// Material settings
+/** Material settings **/
 let surface = materials.loadSurface();
 surface.roughness = ${materials.loadSurface().roughness};
 surface.ior = ${materials.loadSurface().ior};
@@ -229,7 +235,7 @@ dielectric.roughness = ${materials.getLoadedDielectric().roughness};
 let metal = materials.loadMetal('${materials.getLoadedMetal().getName()}');
 metal.roughness = ${materials.getLoadedMetal().roughness};
 
-////////////////// copy-pasted console output on 'O', end /////////////////////
+/******* copy-pasted console output on 'O', end *******/
 	`;
 
 	return code;
@@ -350,7 +356,8 @@ Snelly.prototype.render = function()
 	{
 	  	if (this.onSnellyLink) this.textCtx.fillStyle = "#ff5500";
 	  	else                   this.textCtx.fillStyle = "#ffff00";
-	  	this.textCtx.fillText('Snelly renderer', 14, 20);
+	  	let ver = this.getVersion();
+	  	this.textCtx.fillText('Snelly renderer v'+ver[0]+'.'+ver[1]+'.'+ver[2], 14, 20);
 	  	this.textCtx.fillStyle = "#aaaaff";
 	  	this.textCtx.fillText('spp: ' + (this.pathtracer.spp).toPrecision(3), 14, 35);
 	}

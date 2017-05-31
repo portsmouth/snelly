@@ -1,9 +1,12 @@
 
+
+#extension GL_EXT_draw_buffers : require
+precision highp float;
+
 uniform sampler2D Radiance;      
 uniform vec2 resolution;
 
 #define RADIANCE_TOLERANCE 1.0e-6
-
 
 float filter(float r2)
 {
@@ -50,10 +53,6 @@ void main()
     mean /= max(norm, RADIANCE_TOLERANCE);
     gl_FragData[0] = vec4(mean, 1.0);
 }
-
-
-
-
 
 
 
