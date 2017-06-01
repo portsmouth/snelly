@@ -22,7 +22,8 @@ uniform float camFar;
 uniform float camFovy; // degrees 
 uniform float camZoom;
 uniform float camAspect;
-uniform float sceneScale;
+uniform float minScale;
+uniform float maxScale;
 uniform float skyPower;
 uniform bool haveEnvMap;
 uniform float gamma;
@@ -38,7 +39,6 @@ uniform float surfaceRoughness;
 uniform float surfaceIor;
 
 #define DENOM_TOLERANCE 1.0e-7
-#define HIT_TOLERANCE 1.0e-4
 #define PDF_EPSILON 1.0e-6
 
 #define MAT_VACUU  -1
@@ -64,7 +64,7 @@ IOR_FUNC
 bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
                    inout vec3 hit, inout int material)
 {
-    float minMarchDist = HIT_TOLERANCE*sceneScale;
+    float minMarchDist = minScale;
     float sdf_diele = abs(SDF_DIELECTRIC(start));
     float sdf_metal = abs(SDF_METAL(start));
     float sdf_surfa = abs(SDF_SURFACE(start));
@@ -95,7 +95,7 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
 bool traceRay(in vec3 start, in vec3 dir, 
               inout vec3 hit, inout int material)
 {
-    float maxMarchDist = 1.0e5*sceneScale;
+    float maxMarchDist = maxScale;
     material = MAT_VACUU;
     return traceDistance(start, dir, maxMarchDist, hit, material);
 }
@@ -104,7 +104,7 @@ bool traceRay(in vec3 start, in vec3 dir,
 // (whether not occluded along finite length segment)
 bool Visible(in vec3 start, in vec3 end)
 {
-    float eps = 3.0*HIT_TOLERANCE*sceneScale;
+    float eps = 3.0*minScale;
     vec3 dir = normalize(end - start);
     float maxDist = length(end - start);
     vec3 delta = eps * dir;
@@ -117,7 +117,7 @@ bool Visible(in vec3 start, in vec3 end)
 // (whether occluded along infinite ray)
 bool Occluded(in vec3 start, in vec3 dir)
 {
-    float eps = 3.0*HIT_TOLERANCE*sceneScale;
+    float eps = 3.0*minScale;
     vec3 delta = eps * dir;
     vec3 p;
     int material;
@@ -129,7 +129,7 @@ bool Occluded(in vec3 start, in vec3 dir)
 vec3 normal(in vec3 pW, int material)
 {
     // Compute normal as gradient of SDF
-    float normalEpsilon = 2.0*HIT_TOLERANCE*sceneScale;
+    float normalEpsilon = 2.0*minScale;
     vec3 e = vec3(normalEpsilon, 0.0, 0.0);
     vec3 xyyp = pW+e.xyy; vec3 xyyn = pW-e.xyy;
     vec3 yxyp = pW+e.yxy; vec3 yxyn = pW-e.yxy;
@@ -707,14 +707,13 @@ float pdfBsdf( in vec3 X, in vec3 woL, in vec3 wiL, in int material, in float wa
 // Light sampling
 ////////////////////////////////////////////////////////////////////////////////
 
-
-float environmentRadiance(in vec3 dir, in vec3 XYZ)
+vec3 environmentRadianceXYZ(in vec3 dir)
 {
     float phi = atan(dir.x, dir.z) + M_PI; // [0, 2*pi]
     float theta = acos(dir.y);             // [0, pi]
     float u = phi/(2.0*M_PI);
     float v = theta/M_PI;
-    vec3 XYZ_sky;
+    vec3 XYZ;
     if (haveEnvMap)
     {
         vec3 RGB = texture2D(envMap, vec2(u,v)).rgb;
@@ -722,18 +721,23 @@ float environmentRadiance(in vec3 dir, in vec3 XYZ)
         RGB.g = pow(RGB.g, gamma);
         RGB.b = pow(RGB.b, gamma);
         RGB *= skyPower;
-        XYZ_sky = rgbToXyz(RGB);
+        XYZ = rgbToXyz(RGB);
     }
     else
     {
-        XYZ_sky = skyPower * vec3(1.0);
+        XYZ = skyPower * vec3(1.0);
     }
-    // convert to radiance via expansion in color matching functions
+    return XYZ;
+}
+
+float environmentRadiance(in vec3 dir, in vec3 XYZ)
+{
+    vec3 XYZ_sky = environmentRadianceXYZ(dir);
+
+    // convert to radiance at the given wavelength
     vec3 XYZ_spec = xyz_to_spectrum(XYZ_sky);
     return dot(XYZ, XYZ_spec);
 }
-
-
 
 float directLighting(in vec3 pW, Basis basis, in vec3 woW, in int material, 
                      float wavelength_nm, in vec3 XYZ, inout vec4 rnd)
@@ -816,16 +820,16 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     int rayMaterial = MAT_VACUU;
     int hitMaterial;
     bool hit = traceRay(camPos, primaryDir, pW, hitMaterial);
-    float L = 0.0;
-    float throughput; 
-
+    
+    vec3 colorXYZ; 
     if ( !hit )
     {
-        L = environmentRadiance(primaryDir, XYZ);
+        colorXYZ = environmentRadianceXYZ(primaryDir);
     }
     else
-    {       
-        throughput = 1.0;
+    {   
+        float L = 0.0;    
+        float throughput = 1.0;
         for (int bounce=0; bounce<MAX_BOUNCES; ++bounce)
         {
             // Compute normal at current surface vertex
@@ -853,7 +857,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
             throughput *= fOverPdf * abs(dot(wiW, nW));
 
             // Trace bounce ray
-            float displacement = 3.0*HIT_TOLERANCE*sceneScale;
+            float displacement = 3.0*minScale;
             float wiWnW = dot(wiW, nW);
             pW += nW * sign(wiWnW) * displacement; // perturb vertex into half-space of scattered ray
             vec3 pW_next;
@@ -882,15 +886,15 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
             woW = -rayDir;
             pW = pW_next;
         }
-    }
 
-    vec3 color = XYZ * L;
+        colorXYZ = XYZ * L;
+    }
 
     // Write updated radiance and sample count
     vec4 oldL = texture2D(Radiance, vTexCoord);
     float oldN = oldL.w;
     float newN = oldN + 1.0;
-    vec3 newL = (oldN*oldL.rgb + color) / newN;
+    vec3 newL = (oldN*oldL.rgb + colorXYZ) / newN;
 
     gl_FragData[0] = vec4(newL, newN);
     gl_FragData[1] = rnd;

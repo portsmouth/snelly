@@ -89,7 +89,7 @@ Snelly.prototype.handleEvent = function(event)
 		case 'mousemove':   this.onDocumentMouseMove(event);  break;
 		case 'mousedown':   this.onDocumentMouseDown(event);  break;
 		case 'mouseup':     this.onDocumentMouseUp(event);    break;
-		case 'contextmenu': this.onDocumentRightClick(event); break;
+		//case 'contextmenu': this.onDocumentRightClick(event); break;
 		case 'click':       this.onClick(event);  break;
 		case 'keydown':     this.onKeydown(event);  break;
 	}
@@ -153,11 +153,26 @@ Snelly.prototype.initScene = function()
 	{
 		this.sceneName = this.sceneObj.getName();
 	}
+
 	this.sceneURL = '';
 	if (typeof this.sceneObj.getURL !== "undefined") 
 	{
 		this.sceneURL = this.sceneObj.getURL();
 	}
+
+	this.minScale = 1.0e-4;
+	if (typeof this.sceneObj.getMinScale !== "undefined") 
+	{
+		this.minScale = this.sceneObj.getMinScale(); // sanity
+	}
+	this.minScale = Math.max(1.0e-6, this.minScale);
+
+	this.maxScale = 1.0e2;
+	if (typeof this.sceneObj.getMaxScale !== "undefined")
+	{
+		this.maxScale = this.sceneObj.getMaxScale();
+	}
+	this.maxScale = Math.min(1.0e6, this.maxScale); // sanity
 
 	// cache initial camera position to allow reset on 'F'
 	this.initial_camera_position = new THREE.Vector3();
@@ -181,13 +196,8 @@ Snelly.prototype.initScene = function()
   	this.loadSpectrum("blackbody");
 	
 	// Camera setup
-	var sceneScale = 1.0;
-	if (typeof this.sceneObj.getScale !== "undefined") 
-	{
-		sceneScale = this.sceneObj.getScale();
-	}
-	this.camera.near = Math.max(1.0e-4, 1.0e-2*sceneScale);
-	this.camera.far  = Math.max(1.0e4,   1.0e4*sceneScale);
+	this.camera.near = this.minScale;
+	this.camera.far  = this.maxScale;
 	this.camControls.update();	
 	this.reset(false);
 }
@@ -355,12 +365,6 @@ Snelly.prototype.render = function()
 
 	if (!this.initialized) return;
 	if (this.sceneObj == null) return;
-
-	var gl = GLU.gl;
-	gl.viewport(0, 0, this.width, this.height);
-	gl.clearColor(0.0, 0.0, 0.0, 1.0);
-	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-	gl.disable(gl.DEPTH_TEST);
 
 	// Render distance field surface via pathtracing
 	this.pathtracer.render();
