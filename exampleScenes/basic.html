@@ -96,12 +96,12 @@ Scene.prototype.syncShader = function(shader)
 
 	let c = Math.cos(8.0*phase);
 	let s = Math.sin(8.0*phase);
- 	let tx = [
+ 	let tx = Float32Array([
        c, s, 0, 0,
       -s, c, 0, 0,
        0, 0, 1, 0,
        0, 0, 0, 1,
-    ];
+    ]);
 	shader.uniformMatrix4fv("transform", tx);
 }
 

@@ -4,6 +4,9 @@
 // Material
 ////////////////////////////////////////////////////////
 
+/** @constructor 
+* Generic material.
+*/
 function Material(name, desc)
 {
 	this._name = name;
@@ -25,6 +28,18 @@ Material.prototype.getDesc = function()
 // Surface ('uber' material)
 ////////////////////////////////////////////////////////
 
+/** @constructor 
+* Generic uber-surface material. Control via properties:
+* @property {number}  roughness    - The surface roughness
+* @property {number}  ior          - The surface coating ior
+* @property {Array}  diffuseAlbedo - The surface diffuse (RGB) color
+* @property {Array}  specAlbedo    - The surface spec (RGB) color
+* @example
+*   surface.roughness = 0.05;
+*	surface.ior = 1.3530655391120507;
+*	surface.diffuseAlbedo = [0.5, 0.5, 0.5];
+*	surface.specAlbedo = [0.0, 0.0, 0.0];
+*/
 function Surface(name, desc)
 {
 	Material.call(this, name, desc);
@@ -77,6 +92,12 @@ Surface.prototype.syncShader = function(shader)
 // Metals
 ////////////////////////////////////////////////////////
 
+/** @constructor 
+* Generic dielectric material.
+* @example
+*  let metal = materials.loadMetal('Gold');
+*  metal.roughness = 0.05;
+*/
 function Metal(name, desc)
 {
 	Material.call(this, name, desc);
@@ -269,6 +290,14 @@ TabulatedMetal.prototype.eraseGui = function(parentFolder) { Metal.prototype.era
 // Dielectrics
 ////////////////////////////////////////////////////////
 
+/** @constructor 
+* Generic dielectric material.
+* @example
+* 	let dielectric = materials.loadDielectric('Diamond');
+*	dielectric.absorptionColor = [1.0, 1.0, 1.0];
+*	dielectric.absorptionScale = 1.0; // mfp in multiples of scene scale
+*	dielectric.roughness = 0.030443974630021145;
+*/
 function Dielectric(name, desc)
 {
 	Material.call(this, name, desc);
@@ -592,6 +621,12 @@ CauchyDielectric.prototype.eraseGui = function(parentFolder) { Dielectric.protot
 // Material manager
 ////////////////////////////////////////////////////
 
+/** @constructor 
+* This object controls the properties of the three basic material types:
+*  - Dielectric (multiple different sub-types)
+*  - Metal (multiple different sub-types)
+*  - Surface (an uber-shader like materal)
+*/
 var Materials = function()
 {
 	this.dielectrics = {}
@@ -653,7 +688,7 @@ var Materials = function()
 
 		// Defaults:
 		this.loadDielectric("Glass (BK7)");
-		this.loadMetal("Titanium");
+		this.loadMetal("Aluminium");
 	}
 }
 
@@ -677,12 +712,66 @@ Materials.prototype.getMetals = function()
 	return this.metals;
 }
 
+/**
+* Load the desired Dielectric object by name. Supported dielectrics are:
+*	-  "Constant IOR dielectric"
+*	-  "Glass (BK7)"
+*	-  "Glass (K7)"
+*	-  "Glass (F5)"
+*	-  "Glass (LAFN7)"
+*	-  "Glass (LASF35)"
+*	-  "Glass (N-LAK33A)"
+*	-  "Glass (N-FK51A)"
+*	-  "Glass (SF4)"
+*	-  "Glass (SF67)"
+*	-  "Water"
+*	-  "Polycarbonate"
+*	-  "Glycerol"
+*	-  "Liquid Crystal (E7)"
+*	-  "Diamond"
+*	-  "Quartz"
+*	-  "Fused Silica"
+*	-  "Sapphire"
+*	-  "Sodium Chloride"
+*	-  "Proustite"
+*	-  "Rutile (Titanium Dioxide)"
+*	-  "Silver Chloride"
+* @param {String} dielectricName - one of the names listed above
+* @returns {Dielectric} - the loaded dielectric
+*/
 Materials.prototype.loadDielectric = function(dielectricName)
 {
 	this.dielectricObj = this.dielectrics[dielectricName];
 	return this.dielectricObj;
 }
 
+/**
+* Load the desired Metal object by name. Supported metals are:
+*	-  "Aluminium"
+*	-  "Brass",   
+*	-  "Calcium", 
+*	-  "Chromium",
+*	-  "Cobalt",  
+*	-  "Copper",  
+*	-  "Gold",    
+*	-  "Iridium", 
+*	-  "Iron",    
+*	-  "Lead",    
+*	-  "Mercury", 
+*	-  "Molybdenum
+*	-  "Nickel",  
+*	-  "Palladium"
+*	-  "Platinum",
+*	-  "Silicon", 
+*	-  "Silver",  
+*	-  "Titanium",
+*	-  "Tungsten",
+*	-  "Vanadium",
+*	-  "Zinc",    
+*	-  "Zirconium"
+* @param {String} metalName - one of the names listed above
+* @returns {Metal} - the loaded metal
+*/
 Materials.prototype.loadMetal = function(metalName)
 {
 	this.metalObj = this.metals[metalName];
@@ -694,6 +783,10 @@ Materials.prototype.getLoadedDielectric = function()
 	return this.dielectricObj;
 }
 
+/**
+* Get the currently loaded Dielectric object.
+* @returns {Dielectric}
+*/
 Materials.prototype.getDielectric = function()
 {
 	return this.getLoadedDielectric();
@@ -704,6 +797,10 @@ Materials.prototype.getLoadedMetal = function()
 	return this.metalObj;
 }
 
+/**
+* Get the currently loaded Metal object.
+* @returns {Metal}
+*/
 Materials.prototype.getMetal = function()
 {
 	return this.getLoadedMetal();
@@ -715,6 +812,10 @@ Materials.prototype.loadSurface  = function()
 	return this.surfaceObj;
 }
 
+/**
+* Get the Surface object.
+* @returns {Surface}
+*/
 Materials.prototype.getSurface  = function()
 {
 	return this.surfaceObj;

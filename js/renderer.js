@@ -53,6 +53,7 @@ PathtracerState.prototype.clear = function(fbo)
 	fbo.unbind();
 }
 
+/** @constructor */
 var Renderer = function()
 {
 	this.gl = GLU.gl;

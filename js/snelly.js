@@ -1,5 +1,8 @@
 
-
+/** @constructor 
+*  Snelly is the global object providing access to all functionality in the system.
+* @param {Scene} sceneObj - The user-defined scene
+*/
 var Snelly = function(sceneObj)
 {
 	this.initialized = false;
@@ -76,6 +79,10 @@ var Snelly = function(sceneObj)
 	this.initialized = true; 
 }
 
+/**
+* Returns the current version number of the snelly system, in the format [1, 2, 3]
+*  @returns {Array}
+*/
 Snelly.prototype.getVersion = function()
 {
 	return [1, 0, 0];
@@ -95,30 +102,46 @@ Snelly.prototype.handleEvent = function(event)
 	}
 }
 
+/**
+* Access to the Renderer object
+*  @returns {Renderer} 
+*/
 Snelly.prototype.getRenderer = function()
 {
 	return this.pathtracer;
 }
 
+/**
+* Access to the GUI object
+*  @returns {Renderer} 
+*/
 Snelly.prototype.getGUI = function()
 {
 	return this.gui;
 }
 
 /**
-* Get camera object
- * @returns {THREE.PerspectiveCamera} the camera object.
+* Access to the camera object
+* @returns {THREE.PerspectiveCamera}.
 */
 Snelly.prototype.getCamera = function()
 {
 	return this.camera;
 }
 
+/**
+* Access to the camera controller object
+* @returns {THREE.OrbitControls}.
+*/
 Snelly.prototype.getControls = function()
 {
 	return this.camControls;
 }
 
+/**
+* Programmatically show or hide the dat.GUI UI
+* @param {Boolean} snelly - The snelly object
+*/
 Snelly.prototype.showGUI = function(showGUI)
 {
 	this.guiVisible = showGUI;
@@ -141,6 +164,26 @@ Snelly.prototype.initScene = function()
 		GLU.fail('Scene must define a "shader" function!');
 	}
 
+	// Obtain min.max scale, if specified
+	this.minScale = 1.0e-4;
+	if (typeof this.sceneObj.getMinScale !== "undefined") 
+	{
+		this.minScale = this.sceneObj.getMinScale(); // sanity
+	}
+	this.minScale = Math.max(1.0e-6, this.minScale);
+
+	this.maxScale = 1.0e2;
+	if (typeof this.sceneObj.getMaxScale !== "undefined")
+	{
+		this.maxScale = this.sceneObj.getMaxScale();
+	}
+	this.maxScale = Math.min(1.0e6, this.maxScale); // sanity
+
+	// Set initial default camera position and target based on max scale
+	let po = 0.1*this.maxScale;
+	this.camera.position.set(po, po, po);
+	this.camControls.target.set(0.0, 0.0, 0.0);
+
 	// Call user-defined init function	
 	if (typeof this.sceneObj.init !== "undefined") 
 	{
@@ -159,20 +202,6 @@ Snelly.prototype.initScene = function()
 	{
 		this.sceneURL = this.sceneObj.getURL();
 	}
-
-	this.minScale = 1.0e-4;
-	if (typeof this.sceneObj.getMinScale !== "undefined") 
-	{
-		this.minScale = this.sceneObj.getMinScale(); // sanity
-	}
-	this.minScale = Math.max(1.0e-6, this.minScale);
-
-	this.maxScale = 1.0e2;
-	if (typeof this.sceneObj.getMaxScale !== "undefined")
-	{
-		this.maxScale = this.sceneObj.getMaxScale();
-	}
-	this.maxScale = Math.min(1.0e6, this.maxScale); // sanity
 
 	// cache initial camera position to allow reset on 'F'
 	this.initial_camera_position = new THREE.Vector3();

@@ -101,7 +101,6 @@ var GLU = {};
 		{
 			// Something went wrong during compilation; get the error
 			var shaderTypeStr = (shaderType==gl.VERTEX_SHADER) ? 'vertex' : 'fragment';
-			console.log(shaderSource);
 			throw ("Could not compile " + shaderName + " " + shaderTypeStr + " shader: " + gl.getShaderInfoLog(shader));
 		}
 		return shader;
@@ -168,6 +167,10 @@ var GLU = {};
 	        gl.uniform1i(id, texture.boundUnit);
 	}
 
+	/** Provide an integer (via uniform1i) to the currently bound shader
+	* @param {string} name - The name of the uniform variable
+	* @param {number} i - The integer value
+	*/
 	this.Shader.prototype.uniformI = function(name, i) 
 	{
 		var id = this.uniformIndex(name);
@@ -175,6 +178,10 @@ var GLU = {};
 		    gl.uniform1i(id, i);
 	}
 
+	/** Provide a float (via uniform1f) to the currently bound shader
+	* @param {string} name - The name of the uniform variable
+	* @param {number} i - The float value
+	*/
 	this.Shader.prototype.uniformF = function(name, f) 
 	{
 		var id = this.uniformIndex(name);
@@ -182,6 +189,11 @@ var GLU = {};
 		    gl.uniform1f(id, f);
 	}
 
+	/** Provide a vec2 uniform (via uniform2f) to the currently bound shader
+	* @param {string} name - The name of the uniform variable
+	* @param {number} f1 - The first float value
+	* @param {number} f2 - The second float value
+	*/
 	this.Shader.prototype.uniform2F = function(name, f1, f2) 
 	{
 		var id = this.uniformIndex(name);
@@ -189,6 +201,11 @@ var GLU = {};
 		    gl.uniform2f(id, f1, f2);
 	}
 
+	/** Provide an array of floats (via uniform1Fv) to the currently bound shader
+	*   i.e. the shader declares e.g. `uniform float values[19];`
+	* @param {string} name - The name of the uniform variable
+	* @param {Float32Array} fvec - An array of floats
+	*/
 	this.Shader.prototype.uniform1Fv = function(name, fvec) 
 	{
 		var id = this.uniformIndex(name);
@@ -196,6 +213,11 @@ var GLU = {};
 		    gl.uniform1fv(id, fvec);
 	}
 
+	/** Provide an array of vec2 (via uniform2fv) to the currently bound shader
+	*   i.e. the shader declares e.g. `uniform vec2 vectors[19];`
+	* @param {string} name - The name of the uniform variable
+	* @param {Float32Array} fvec2 - An array of floats, 2 per vector
+	*/
 	this.Shader.prototype.uniform2Fv = function(name, fvec2) 
 	{
 		var id = this.uniformIndex(name);
@@ -203,6 +225,12 @@ var GLU = {};
 		    gl.uniform2fv(id, fvec2);
 	}
 
+	/** Provide a vec3 uniform (via uniform3f) to the currently bound shader
+	* @param {string} name - The name of the uniform variable
+	* @param {number} f1 - The first float value
+	* @param {number} f2 - The second float value
+	* @param {number} f3 - The third float value
+	*/
 	this.Shader.prototype.uniform3F = function(name, f1, f2, f3) 
 	{
 		var id = this.uniformIndex(name);
@@ -210,7 +238,11 @@ var GLU = {};
 		    gl.uniform3f(id, f1, f2, f3);
 	}
 
-
+	/** Provide an array of vec3 (via uniform3fv) to the currently bound shader
+	*   i.e. the shader declares e.g. `uniform vec3 vectors[19];`
+	* @param {string} name - The name of the uniform variable
+	* @param {Float32Array} fvec3 - An array of floats, 3 per vector
+	*/
 	this.Shader.prototype.uniform3Fv = function(name, fvec3) 
 	{
 		var id = this.uniformIndex(name);
@@ -218,6 +250,13 @@ var GLU = {};
 		    gl.uniform3fv(id, fvec3);
 	}
 
+	/** Provide a vec4 uniform (via uniform4F) to the currently bound shader
+	* @param {string} name - The name of the uniform variable
+	* @param {number} f1 - The first float value
+	* @param {number} f2 - The second float value
+	* @param {number} f3 - The third float value
+	* @param {number} f3 - The fourth float value
+	*/
 	this.Shader.prototype.uniform4F = function(name, f1, f2, f3, f4) 
 	{
 		var id = this.uniformIndex(name);
@@ -225,6 +264,11 @@ var GLU = {};
 		    gl.uniform4F(id, f1, f2, f3, f4);
 	}
 
+	/** Provide an array of vec4 (via uniform4fv) to the currently bound shader
+	*   i.e. the shader declares e.g. `uniform vec4 vectors[19];`
+	* @param {string} name - The name of the uniform variable
+	* @param {Float32Array} fvec4 - An array of floats, 4 per vector
+	*/
 	this.Shader.prototype.uniform4Fv = function(name, fvec4) 
 	{
 		var id = this.uniformIndex(name);
@@ -232,6 +276,11 @@ var GLU = {};
 		    gl.uniform4fv(id, fvec4);
 	}
 
+	/** Provide a matrix (via uniformMatrix4fv) to the currently bound shader
+	/*  i.e. the shader declares e.g. `uniform mat4 matrix;` 
+	* @param {string} name - The name of the uniform variable
+	* @param {Float32Array} matrixArray16 - An array of 16 floats
+	*/
 	this.Shader.prototype.uniformMatrix4fv = function(name, matrixArray16) 
 	{
 		var id = this.uniformIndex(name);

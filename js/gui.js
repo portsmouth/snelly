@@ -1,5 +1,5 @@
 
-
+/** @constructor */
 var GUI = function(visible = true) 
 {
 	// Create dat gui
