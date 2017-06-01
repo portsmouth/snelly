@@ -2,6 +2,7 @@ Snelly is a webGL-based pathtracer of SDF (signed distance field) scenes.
 
 The entire HTML source of a very basic scene is the following:
 
+```javascript
     <body onload="onLoad();">
     <script type="text/javascript" src="../js/compiled/snelly.min.js"></script>
     <script type="text/javascript">
@@ -35,6 +36,7 @@ The entire HTML source of a very basic scene is the following:
 
     </script>
     </body>
+```
 
 ## Scene
 
