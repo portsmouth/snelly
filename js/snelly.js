@@ -146,8 +146,18 @@ Snelly.prototype.initScene = function()
 	}
 
 	// Call user-defined init function	
-	if (typeof this.sceneObj.init !== "undefined") this.sceneObj.init(this);
-  	
+	if (typeof this.sceneObj.init !== "undefined") 
+	{
+		this.sceneObj.init(this);
+	}
+
+	// cache initial camera position to allow reset on 'F'
+	this.initial_camera_position = new THREE.Vector3();
+	this.initial_camera_position.copy(this.camera.position);
+	this.initial_camera_target = new THREE.Vector3();
+	this.initial_camera_target.copy(this.camControls.target);
+
+	// Compile GLSL shaders
   	this.pathtracer.compileShaders();
 
   	// Fix renderer to width & height, if they were specified
@@ -157,11 +167,12 @@ Snelly.prototype.initScene = function()
   		this._resize(this.pathtracer.width, this.pathtracer.height);
   	}
 
+  	// Set up blackbody spectrum sampling
   	this.spectra = [];
 	this.addSpectrum( new BlackbodySpectrum("blackbody", "Blackbody spectrum", this.pathtracer.skyTemperature) );
   	this.loadSpectrum("blackbody");
 	
-	// Camera update
+	// Camera setup
 	var sceneScale = 1.0;
 	if (typeof this.sceneObj.getScale !== "undefined") 
 	{
@@ -218,7 +229,7 @@ renderer.skyTemperature = ${renderer.skyTemperature};
 renderer.exposure = ${renderer.exposure};
 renderer.gamma = ${renderer.gamma};
 renderer.whitepoint = ${renderer.whitepoint};
-renderer.goalFrametimeMs = ${renderer.goalFrametimeMs};
+renderer.goalFPS = ${renderer.goalFPS};
 
 /** Material settings **/
 let surface = materials.loadSurface();
@@ -473,6 +484,9 @@ Snelly.prototype.onKeydown = function(event)
 			break;
 
 		case 70: // F key: reset cam  (@todo)
+			this.camera.position.copy(this.initial_camera_position);
+			this.camControls.target.copy(this.initial_camera_target);
+			this.reset(true);
 			break;
 
 		case 82: // R key: reset scene 
