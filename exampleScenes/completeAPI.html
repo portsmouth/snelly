@@ -2,7 +2,20 @@
 
 <body onload="onLoad();">
 
-<script type="text/javascript" src="js/compiled/snelly.min.js"></script>
+<script type="text/javascript" src="js/thirdparty/jquery-1.11.3.min.js"></script>
+<script type="text/javascript" src="js/thirdparty/three/three.min.js"></script>
+<script type="text/javascript" src="js/thirdparty/three/libs/stats.min.js"></script>
+<script type="text/javascript" src="js/thirdparty/three/libs/dat.gui.min.js"></script>
+<script type="text/javascript" src="js/thirdparty/three/controls/OrbitControls.js"></script>
+
+<script type="text/javascript" src="js/gl.js"></script>
+<script type="text/javascript" src="js/gui.js"></script>
+<script type="text/javascript" src="js/shaders.js"></script>
+<script type="text/javascript" src="js/color.js"></script>
+<script type="text/javascript" src="js/materials.js"></script>
+<script type="text/javascript" src="js/spectra.js"></script>
+<script type="text/javascript" src="js/pathtracer.js"></script>
+<script type="text/javascript" src="js/snelly.js"></script>
 
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
@@ -48,18 +61,19 @@ Scene.prototype.init = function(snelly)
 	controls.keyPanSpeed = 100;
 
 	// Renderer settings
-	renderer.width = 1280; // (if either width or height are not specified, render size will be taken from window
-	renderer.height = 720; // and will then auto-resize with the window)
+	//renderer.width = 1280; // (if either width or height are not specified, render size will be taken from window
+	//renderer.height = 720; // and will then auto-resize with the window)
 	renderer.renderMode = 'pt';  // The other modes are: 'ao', 'normals'
-	renderer.maxBounces = 5;
-	renderer.maxMarchSteps = 256;
+	renderer.maxBounces = 9;
+	renderer.maxMarchSteps = 512;
 	renderer.radianceClamp = 0.4355179704016914; // (log scale)
 	renderer.skyPower = 4.0;
 	renderer.skyTemperature = 6000;
 	renderer.exposure = 4.5;
 	renderer.gamma = 2.2;
 	renderer.whitepoint = 2;
-	renderer.goalFrametimeMs = 200;
+	renderer.goalFPS = 10;
+	renderer.hitTolerance = 1.0e-5; // relative to scene scale (smaller is slower)
 
 	// Material settings
 	let surface = materials.loadSurface();
@@ -187,7 +201,7 @@ Scene.prototype.shader = function()
 			float _rotate = _foo2;
 			float sd = sdBox(X, vec3(1.0));
 			float scale = _foo;
-			const int iter = 6;
+			const int iter = 10;
 			for (int i=0; i<iter; i++) 
 			{
 				X.xy = rotate(X.xy, 2.0*sin(TWOPI*_rotate));
@@ -417,13 +431,13 @@ Scene.prototype.preframeCallback = function(snelly, gl)
 	controls.update();
 
 	// animate user scene parameters
-	this.parameters.foo  = Math.abs(Math.cos(Math.exp(0.5+0.5*Math.sin(phase))));
-	this.parameters.foo2 = Math.abs(Math.cos(Math.exp(0.5-0.5*Math.sin(7.0*phase))));
-	this.parameters.bar = 3.0*Math.abs(0.333+Math.cos(Math.exp(0.5+0.5*Math.cos(3.0*phase))));
+	//this.parameters.foo  = Math.abs(Math.cos(Math.exp(0.5+0.5*Math.sin(phase))));
+	//this.parameters.foo2 = Math.abs(Math.cos(Math.exp(0.5-0.5*Math.sin(7.0*phase))));
+	//this.parameters.bar = 3.0*Math.abs(0.333+Math.cos(Math.exp(0.5+0.5*Math.cos(3.0*phase))));
 
 	// animate materials
 	let surface = materials.getSurface();
-	surface.roughness = 0.1; //*Math.pow(Math.abs(Math.sin(11.0*phase)), 3.0);
+	//surface.roughness = 0.1; //*Math.pow(Math.abs(Math.sin(11.0*phase)), 3.0);
 	//surface.diffuseAlbedo = [phase, 0.1, 1.0-phase];
 
 	let dielectric = materials.getDielectric();
@@ -434,8 +448,7 @@ Scene.prototype.preframeCallback = function(snelly, gl)
 	{	
 		gui.sync();
 		let no_recompile = true;
-		let reinit = false;
-		renderer.reset(no_recompile, reinit);
+		renderer.reset(no_recompile);
 		this.advanceFrame = false;
 	}
 }

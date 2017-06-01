@@ -1,7 +1,20 @@
 
 <body onload="onLoad();">
 
-<script type="text/javascript" src="../js/compiled/snelly.min.js"></script>
+<script type="text/javascript" src="../js/thirdparty/jquery-1.11.3.min.js"></script>
+<script type="text/javascript" src="../js/thirdparty/three/three.min.js"></script>
+<script type="text/javascript" src="../js/thirdparty/three/libs/stats.min.js"></script>
+<script type="text/javascript" src="../js/thirdparty/three/libs/dat.gui.min.js"></script>
+<script type="text/javascript" src="../js/thirdparty/three/controls/OrbitControls.js"></script>
+
+<script type="text/javascript" src="../js/gl.js"></script>
+<script type="text/javascript" src="../js/gui.js"></script>
+<script type="text/javascript" src="../js/shaders.js"></script>
+<script type="text/javascript" src="../js/color.js"></script>
+<script type="text/javascript" src="../js/materials.js"></script>
+<script type="text/javascript" src="../js/spectra.js"></script>
+<script type="text/javascript" src="../js/pathtracer.js"></script>
+<script type="text/javascript" src="../js/snelly.js"></script>
 
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
@@ -58,7 +71,7 @@ Scene.prototype.shader = function()
 
 		float SDF_DIELECTRIC(in vec3 X)                     
 		{	
-			vec4 p; p.xyz = X; p.w = 1.0;
+			vec4 p = vec4(X.x, X.y, X.z, 1.0);
 			vec4 q = transform*p;
 			return sdTorus(q.xyz, vec2(radius, 0.333*radius));
 		} 
@@ -67,7 +80,7 @@ Scene.prototype.shader = function()
 
 Scene.prototype.initGui = function(gui)            
 {
-  	gui.addParameter(this.parameters, {name: 'radius', min: 0.0, max: 2.5});
+  	gui.addParameter(this.parameters, {name: 'radius', min: 0.0, max: 1.0});
   	gui.addParameter(this.parameters, {name: 'size', min: 0.0, max: 1.0});
 }
 
@@ -99,7 +112,6 @@ Scene.prototype.envMap = function() { return 'https://cdn.rawgit.com/portsmouth/
 
 Scene.prototype.preframeCallback = function(snelly, gl)
 {
-	//return;
 	let renderer  = snelly.getRenderer();
 	let camera    = snelly.getCamera();
 	let controls  = snelly.getControls();
@@ -128,8 +140,6 @@ Scene.prototype.preframeCallback = function(snelly, gl)
 
 	if (this.advanceFrame)
 	{
-		//gui.sync(); 
-
 		// Tell renderer to restart sampling
 		let no_recompile = true;
 		renderer.reset(no_recompile);
