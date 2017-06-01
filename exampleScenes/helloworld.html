@@ -13,20 +13,19 @@
     Scene.prototype.shader = function()
     {
         return `
-            uniform float R;
-            float sdSphere(vec3 X, float r) { return length(X)-r; }   
-            float SDF_DIELECTRIC(in vec3 X)                     
-            {   
-                return sdSphere(X, R);
-            } 
+        uniform float R;
+        float sdSphere(vec3 X, float r) { return length(X)-r; }
+        float SDF_METAL(in vec3 X)                     
+        {   
+            vec3 q = vec3(6.0*R);
+            return sdSphere(mod(X, q)- 0.5*q, R);
+        } 
         `;
     }
 
     Scene.prototype.initGui = function(gui) { gui.addParameter(this.par, {name: 'R', min: 0.0, max: 1.0}); }
     Scene.prototype.syncShader = function(shader) { shader.uniformF("R", this.par.R); }
-    Scene.prototype.getScale = function() { return 1.0; }
 
-    var snelly;
     function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
     function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
 

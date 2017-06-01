@@ -1,4 +1,5 @@
-Snelly is a webGL-based pathtracer of SDF (signed distance field) scenes. 
+
+Snelly is system for physically-based SDF (signed distance field) pathtracing in a web browser. 
 
 The entire HTML source of a very basic scene is the following:
 
@@ -10,27 +11,25 @@ The entire HTML source of a very basic scene is the following:
     function Scene() {}
     Scene.prototype.init = function(snelly)
     {
-    	this.par = {};
-    	this.par.R = 0.5;
+        this.par = {};
+        this.par.R = 0.5;
     }
 
     Scene.prototype.shader = function()
     {
-    	return `
-    		uniform float R;
-    		float sdSphere(vec3 X, float r) { return length(X)-r; }   
-    		float SDF_DIELECTRIC(in vec3 X)                     
-    		{	
-    			return sdSphere(X, R);
-    		} 
-    	`;
+        return `
+            uniform float R;
+            float sdSphere(vec3 X, float r) { return length(X)-r; }   
+            float SDF_DIELECTRIC(in vec3 X)                     
+            {   
+                return sdSphere(X, R);
+            } 
+        `;
     }
 
     Scene.prototype.initGui = function(gui) { gui.addParameter(this.par, {name: 'R', min: 0.0, max: 1.0}); }
     Scene.prototype.syncShader = function(shader) { shader.uniformF("R", this.par.R); }
-    Scene.prototype.getScale = function() { return 1.0; }
 
-    var snelly;
     function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
     function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
 

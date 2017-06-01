@@ -273,7 +273,7 @@ function Dielectric(name, desc)
 {
 	Material.call(this, name, desc);
 	this.roughness = 0.005;
-	this.absorptionScale = 1.0;
+	this.absorptionScale = -1.0; // set later based on scene maxScale
 	this.absorptionColor  = [0.5, 0.5, 0.5];
 	this.absorptionColorF = [0.0, 0.0, 0.0];
 	this.absorptionRGB    = [0.0, 0.0, 0.0];
@@ -290,13 +290,7 @@ Dielectric.prototype.syncShader = function(shader)
 {
 	shader.uniformF("dieleRoughness", this.roughness);
 
-	var sceneScale = 1.0;
-	var sceneObj = snelly.getScene();
-	if (typeof sceneObj.getScale !== "undefined") 
-	{
-		// make absorption scale relative to scene scale, if one was defined
-		 sceneScale = sceneObj.getScale();
-	}
+	var sceneScale = snelly.maxScale;
 	this.absorptionRGB[0] = sceneScale/Math.max(this.absorptionScale, 1.0e-3) * Math.max(0.0, 1.0 - this.absorptionColor[0]);
 	this.absorptionRGB[1] = sceneScale/Math.max(this.absorptionScale, 1.0e-3) * Math.max(0.0, 1.0 - this.absorptionColor[1]);
 	this.absorptionRGB[2] = sceneScale/Math.max(this.absorptionScale, 1.0e-3) * Math.max(0.0, 1.0 - this.absorptionColor[2]);
@@ -306,6 +300,8 @@ Dielectric.prototype.syncShader = function(shader)
 
 Dielectric.prototype.initGui  = function(parentFolder) 
 { 
+	if (this.absorptionScale<0.0) this.absorptionScale = snelly.maxScale; 
+
 	this.roughnessItem = parentFolder.add(this, 'roughness', 0.0, 0.1);
 	this.roughnessItem.onChange( function(value) { snelly.camControls.enabled = false; snelly.reset(true); } );
 	this.roughnessItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
@@ -330,7 +326,7 @@ Dielectric.prototype.initGui  = function(parentFolder)
 							snelly.reset(true);
 						} );
 
-	this.absorptionScaleItem = parentFolder.add(this, 'absorptionScale', 0.0, 1.0);
+	this.absorptionScaleItem = parentFolder.add(this, 'absorptionScale', 0.0, snelly.maxScale);
 	this.absorptionScaleItem.onChange( function(value) { snelly.camera.enabled = false; snelly.reset(true); } );
 	this.absorptionScaleItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 }

@@ -249,12 +249,6 @@
 		shader.uniformF("_scaleHeight", this.parameters.scaleHeight);
   }
 
-  // Gives the raytracer some indication of (rough) scene size, so it
-  // can set tolerances appropriately.
-  Scene.prototype.getScale = function()
-  {
-		return 1.0;
-  }
 
   // Initial cam position default for this scene
   Scene.prototype.init = function(controls, camera, laser)

@@ -1,7 +1,20 @@
 
 <body onload="onLoad();">
 
-<script type="text/javascript" src="../js/compiled/snelly.min.js"></script>
+<script type="text/javascript" src="../js/thirdparty/jquery-1.11.3.min.js"></script>
+<script type="text/javascript" src="../js/thirdparty/three/three.min.js"></script>
+<script type="text/javascript" src="../js/thirdparty/three/libs/stats.min.js"></script>
+<script type="text/javascript" src="../js/thirdparty/three/libs/dat.gui.min.js"></script>
+<script type="text/javascript" src="../js/thirdparty/three/controls/OrbitControls.js"></script>
+
+<script type="text/javascript" src="../js/gl.js"></script>
+<script type="text/javascript" src="../js/gui.js"></script>
+<script type="text/javascript" src="../js/shaders.js"></script>
+<script type="text/javascript" src="../js/color.js"></script>
+<script type="text/javascript" src="../js/materials.js"></script>
+<script type="text/javascript" src="../js/spectra.js"></script>
+<script type="text/javascript" src="../js/renderer.js"></script>
+<script type="text/javascript" src="../js/snelly.js"></script>
 
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
@@ -17,6 +30,12 @@ Scene.prototype.init = function(snelly)
 	this.parameters.radius = 0.28;
 	this.parameters.size = 0.22;
 
+	this.FPS = 24.0;
+	this.targetSPP = 0.0;
+	this.period = 30.0;
+	this.animFrame = 0;
+	this.advanceFrame = false;
+
 	let camera    = snelly.getCamera();
 	let controls  = snelly.getControls();
 	camera.up.set(0, 1, 0);
@@ -29,11 +48,7 @@ Scene.prototype.init = function(snelly)
 
 	let renderer = snelly.getRenderer();
 	renderer.maxBounces = 5;
-
-	this.FPS = 24.0;
-	this.period = 30.0;
-	this.animFrame = 0;
-	this.advanceFrame = false;
+	renderer.minsSPPToRedraw = this.targetSPP;
 }
 
 Scene.prototype.shader = function()
@@ -79,8 +94,8 @@ Scene.prototype.syncShader = function(shader)
 	let time = this.animFrame/this.FPS;
 	let phase = 2.0*Math.PI*time/this.period;
 
-	let c = Math.cos(phase);
-	let s = Math.sin(phase);
+	let c = Math.cos(8.0*phase);
+	let s = Math.sin(8.0*phase);
  	let tx = [
        c, s, 0, 0,
       -s, c, 0, 0,
@@ -88,11 +103,6 @@ Scene.prototype.syncShader = function(shader)
        0, 0, 0, 1,
     ];
 	shader.uniformMatrix4fv("transform", tx);
-}
-
-Scene.prototype.getScale = function()
-{
-	return 1.0;
 }
 
 Scene.prototype.envMap = function() { return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg'; }
@@ -128,7 +138,7 @@ Scene.prototype.preframeCallback = function(snelly, gl)
 
 	if (this.advanceFrame)
 	{
-		//gui.sync(); 
+		gui.sync(); 
 
 		// Tell renderer to restart sampling
 		let no_recompile = true;
@@ -136,13 +146,26 @@ Scene.prototype.preframeCallback = function(snelly, gl)
 
 		this.advanceFrame = false;
 	}
+
+	this.timer_start = performance.now();
 }
 
 Scene.prototype.postframeCallback = function(snelly, gl)
 {
+	// pause if FPS exceeded our goal
+	var timer_end = performance.now();
+	var frame_time_ms = (timer_end - this.timer_start);
+	let goal_ms = Math.min(1.0e3, Math.max(1.0, 1.0e3/this.FPS));
+	if (frame_time_ms<goal_ms)
+	{
+		(function pause(ms) {
+		    var t0 = performance.now(); var t1 = null;
+		    do { t1 = performance.now(); } while (t1-t0 < ms);
+		}(goal_ms-frame_time_ms));
+	}
+
 	let renderer = snelly.getRenderer();
-	let targetSPP = 3.0;
-	if (this.animFrame>=0 && renderer.spp>=targetSPP && this.animFrame<=this.endFrame)
+	if (this.animFrame>=0 && renderer.spp>=this.targetSPP && this.animFrame<=this.endFrame)
 	{
 		this.advanceFrame = true;
 		this.animFrame++;
