@@ -19,6 +19,7 @@ var Snelly = function(sceneObj)
 	this.text_canvas = text_canvas;
 	this.textCtx = text_canvas.getContext("2d");
 	this.onSnellyLink = false;
+	this.onUserLink = false;
 
 	window.addEventListener( 'resize', this, false );
 
@@ -149,6 +150,18 @@ Snelly.prototype.initScene = function()
 	if (typeof this.sceneObj.init !== "undefined") 
 	{
 		this.sceneObj.init(this);
+	}
+
+	// Read optional scene name and URL, if provided
+	this.sceneName = '';
+	if (typeof this.sceneObj.getName !== "undefined") 
+	{
+		this.sceneName = this.sceneObj.getName();
+	}
+	this.sceneURL = '';
+	if (typeof this.sceneObj.getURL !== "undefined") 
+	{
+		this.sceneURL = this.sceneObj.getURL();
 	}
 
 	// cache initial camera position to allow reset on 'F'
@@ -369,8 +382,19 @@ Snelly.prototype.render = function()
 	  	else                   this.textCtx.fillStyle = "#ffff00";
 	  	let ver = this.getVersion();
 	  	this.textCtx.fillText('Snelly renderer v'+ver[0]+'.'+ver[1]+'.'+ver[2], 14, 20);
-	  	this.textCtx.fillStyle = "#aaaaff";
+	  	this.textCtx.fillStyle = "#ffccaa";
 	  	this.textCtx.fillText('spp: ' + (this.pathtracer.spp).toPrecision(3), 14, 35);
+	  	if (this.sceneName != '')
+	  	{
+	  		this.textCtx.fillStyle = "#ffaa22";
+	  		this.textCtx.fillText(this.sceneName, 14, this.height-25);
+	  	}
+		if (this.sceneURL != '')
+		{
+			if (this.onUserLink) this.textCtx.fillStyle = "#aaccff";
+	  		else                 this.textCtx.fillStyle = "#55aaff";
+	  		this.textCtx.fillText(this.sceneURL, 14, this.height-40);
+		}
 	}
 
 	this.rendering = false;
@@ -421,54 +445,31 @@ Snelly.prototype.onClick = function(event)
 
 Snelly.prototype.onDocumentMouseMove = function(event)
 {
-	// Check whether user is trying to click the Snelly home link
+	// Check whether user is trying to click the Snelly home link, or user link
 	var textCtx = this.textCtx;
 	var x = event.pageX;
     var y = event.pageY;
-	var linkWidth = this.textCtx.measureText('Snelly renderer').width;
-	if (x>14 && x<14+linkWidth &&
-		y>15 && y<25 )
+	let linkWidth = this.textCtx.measureText('Snelly renderer vX.X.X').width;
+	if (x>14 && x<14+linkWidth && y>15 && y<25) this.onSnellyLink = true;
+	else this.onSnellyLink = false;
+	if (this.sceneURL != '')
 	{
-		this.onSnellyLink = true;
-	}
-	else
-	{
-		this.onSnellyLink = false;
+		linkWidth = this.textCtx.measureText(this.sceneURL).width;
+		if (x>14 && x<14+linkWidth && y>this.height-45 && y<this.height-35) this.onUserLink = true;
+		else this.onUserLink = false;
 	}
 
 	this.camControls.update();
-	//event.preventDefault();
 }
 
 Snelly.prototype.onDocumentMouseDown = function(event)
 {
 	this.camControls.update();
-	//event.preventDefault();
 }
 
 Snelly.prototype.onDocumentMouseUp = function(event)
 {
 	this.camControls.update();
-	//event.preventDefault();
-}
-
-Snelly.prototype.onDocumentRightClick = function(event)
-{
-	/*
-		this.camControls.update();
-		event.preventDefault();
-		if (event.altKey) return; // don't pick if alt-right-clicking (panning)
-		var xPick =  (( event.clientX - window.offsetLeft ) / window.width)*2 - 1;
-		var yPick = -(( event.clientY - window.offsetTop ) / window.height)*2 + 1;
-		var pickedPoint = this.pathtracer.pick(xPick, yPick);
-		if (pickedPoint == null)
-		{
-			// unset?
-			return;
-		} 
-		var no_recompile = true;
-		this.reset(no_recompile);
-	*/
 }
 
 Snelly.prototype.onKeydown = function(event)
