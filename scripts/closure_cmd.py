@@ -18,7 +18,7 @@ jsSources = [
 '../js/color.js',
 '../js/materials.js',
 '../js/spectra.js',
-'../js/pathtracer.js',
+'../js/renderer.js',
 '../js/snelly.js' 
 ]
 
