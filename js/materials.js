@@ -97,7 +97,7 @@ Metal.prototype.syncShader = function(shader)
 
 Metal.prototype.initGui  = function(parentFolder) 
 { 
-	this.roughnessItem = parentFolder.add(this, 'roughness', 0.0, 0.1).listen();
+	this.roughnessItem = parentFolder.add(this, 'roughness', 0.0, 0.1);
 	this.roughnessItem.onChange( function(value) { snelly.camControls.enabled = false; snelly.reset(true); } );
 	this.roughnessItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 }
@@ -306,12 +306,12 @@ Dielectric.prototype.syncShader = function(shader)
 
 Dielectric.prototype.initGui  = function(parentFolder) 
 { 
-	this.roughnessItem = parentFolder.add(this, 'roughness', 0.0, 0.1).listen();
+	this.roughnessItem = parentFolder.add(this, 'roughness', 0.0, 0.1);
 	this.roughnessItem.onChange( function(value) { snelly.camControls.enabled = false; snelly.reset(true); } );
 	this.roughnessItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 
 	this.absorption = [this.absorptionColor[0]*255.0, this.absorptionColor[1]*255.0, this.absorptionColor[2]*255.0];
-	this.absorptionColorItem = parentFolder.addColor(this, 'absorption').listen();
+	this.absorptionColorItem = parentFolder.addColor(this, 'absorption');
 	var ME = this;
 	this.absorptionColorItem.onChange( function(value) {
 							if (typeof value==='string' || value instanceof String)
@@ -374,7 +374,7 @@ ConstantDielectric.prototype.syncShader = function(shader)
 // set up gui and callbacks for this material
 ConstantDielectric.prototype.initGui = function(parentFolder)
 {
-	this.iorItem = parentFolder.add(this, 'iorVal', 0.0, 5.0).listen();
+	this.iorItem = parentFolder.add(this, 'iorVal', 0.0, 5.0);
 	this.iorItem.onChange( function(value) { snelly.camControls.enabled = false; snelly.reset(true); } );
 	this.iorItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 

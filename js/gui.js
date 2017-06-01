@@ -102,8 +102,8 @@ GUI.prototype.addParameter = function(parameters, param)
 	var no_recompile = true;
 	if (!(recompile==null || recompile==undefined)) no_recompile = !recompile;
 	var item;
-	if (step==null || step==undefined) { item = this.sceneFolder.add(parameters, name, min, max, step).listen(); }
-	else                               { item = this.sceneFolder.add(parameters, name, min, max).listen();       }
+	if (step==null || step==undefined) { item = this.sceneFolder.add(parameters, name, min, max, step); }
+	else                               { item = this.sceneFolder.add(parameters, name, min, max);       }
 	item.onChange( function(value) { snelly.reset(no_recompile); snelly.camera.enabled = false; } );
 	item.onFinishChange( function(value) { snelly.camera.enabled = true; } );
 }
@@ -130,7 +130,7 @@ GUI.prototype.createMaterialSettings = function()
 		var metalNames = Object.keys(metals);
 		this.metalMaterialSettings = {};
 		this.metalMaterialSettings["metal"] = metalName;
-		var metalItem = this.metalFolder.add(this.metalMaterialSettings, 'metal', metalNames).listen();
+		var metalItem = this.metalFolder.add(this.metalMaterialSettings, 'metal', metalNames);
 		metalItem.onChange( function(materialName) {
 							var materialObj = snelly.getLoadedMetal(); // remove gui for current material
 							materialObj.eraseGui(GUI.metalFolder);
@@ -152,7 +152,7 @@ GUI.prototype.createMaterialSettings = function()
 		var dielectricNames = Object.keys(dielectrics);
 		this.dielMaterialSettings = {};
 		this.dielMaterialSettings["dielectric"] = dielectricName;
-		var dielItem = this.dielectricFolder.add(this.dielMaterialSettings, 'dielectric', dielectricNames).listen();
+		var dielItem = this.dielectricFolder.add(this.dielMaterialSettings, 'dielectric', dielectricNames);
 		dielItem.onChange( function(materialName) {
 							var materialObj = snelly.getLoadedDielectric(); // remove gui for current material
 							materialObj.eraseGui(GUI.dielectricFolder);
@@ -170,7 +170,7 @@ GUI.prototype.createMaterialSettings = function()
 		this.surfaceFolder = this.gui.addFolder('Surface material');
 		var surfaceObj = snelly.getSurface();
 		this.surfaceFolder.diffuse = [surfaceObj.diffuseAlbedo[0]*255.0, surfaceObj.diffuseAlbedo[1]*255.0, surfaceObj.diffuseAlbedo[2]*255.0];
-		var diffItem = this.surfaceFolder.addColor(this.surfaceFolder, 'diffuse').listen();
+		var diffItem = this.surfaceFolder.addColor(this.surfaceFolder, 'diffuse');
 		diffItem.onChange( function(albedo) {
 								if (typeof albedo==='string' || albedo instanceof String)
 								{
@@ -189,7 +189,7 @@ GUI.prototype.createMaterialSettings = function()
 							} );
 
 		this.surfaceFolder.specular = [surfaceObj.specAlbedo[0]*255.0, surfaceObj.specAlbedo[1]*255.0, surfaceObj.specAlbedo[2]*255.0];
-		var specItem = this.surfaceFolder.addColor(this.surfaceFolder, 'specular').listen();
+		var specItem = this.surfaceFolder.addColor(this.surfaceFolder, 'specular');
 		specItem.onChange( function(albedo) {
 								if (typeof albedo==='string' || albedo instanceof String)
 								{
@@ -207,11 +207,11 @@ GUI.prototype.createMaterialSettings = function()
 								snelly.reset(true);
 							} );
 
-		this.roughnessItem = this.surfaceFolder.add(surfaceObj, 'roughness', 0.0, 0.1).listen();
+		this.roughnessItem = this.surfaceFolder.add(surfaceObj, 'roughness', 0.0, 0.1);
 		this.roughnessItem.onChange( function(value) { surfaceObj.roughness = value; snelly.camera.enabled = false; snelly.reset(true); } );
 		this.roughnessItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
 
-		this.iorItem = this.surfaceFolder.add(surfaceObj, 'ior', 0.0, 10.0).listen();
+		this.iorItem = this.surfaceFolder.add(surfaceObj, 'ior', 0.0, 10.0);
 		this.iorItem.onChange( function(value) { surfaceObj.ior = value; snelly.camera.enabled = false; snelly.reset(true); } );
 		this.iorItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
 
