@@ -43,7 +43,7 @@ var Snelly = function(sceneObj)
 	this.materials = new Materials();
 
 	// Instantiate distance field pathtracer
-	this.pathtracer = new Pathtracer();
+	this.pathtracer = new Renderer();
 	this.auto_resize = true;
 		
 	// Spectrum initialization
@@ -93,11 +93,6 @@ Snelly.prototype.handleEvent = function(event)
 		case 'click':       this.onClick(event);  break;
 		case 'keydown':     this.onKeydown(event);  break;
 	}
-}
-
-Snelly.prototype.getPathtracer = function()
-{
-	return this.pathtracer;
 }
 
 Snelly.prototype.getRenderer = function()

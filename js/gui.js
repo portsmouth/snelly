@@ -49,7 +49,7 @@ GUI.prototype.createRendererSettings = function()
 {
 	this.rendererFolder = this.gui.addFolder('Renderer');
 	this.pathtracerSettings = {};
-	var pathtracer = snelly.getPathtracer();
+	var pathtracer = snelly.getRenderer();
 	var camera = snelly.getCamera();
 
 	// @todo: add a basic AO and normals mode as well, useful for scene debugging.
