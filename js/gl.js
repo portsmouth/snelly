@@ -101,6 +101,7 @@ var GLU = {};
 		{
 			// Something went wrong during compilation; get the error
 			var shaderTypeStr = (shaderType==gl.VERTEX_SHADER) ? 'vertex' : 'fragment';
+			console.log(shaderSource);
 			throw ("Could not compile " + shaderName + " " + shaderTypeStr + " shader: " + gl.getShaderInfoLog(shader));
 		}
 		return shader;
@@ -229,6 +230,13 @@ var GLU = {};
 		var id = this.uniformIndex(name);
 		if (id != -1)
 		    gl.uniform4fv(id, fvec4);
+	}
+
+	this.Shader.prototype.uniformMatrix4fv = function(name, matrixArray16) 
+	{
+		var id = this.uniformIndex(name);
+		if (id != -1)
+		    gl.uniformMatrix4fv(id, false, matrixArray16);
 	}
 
 	///////////////////////////////////////////////////
