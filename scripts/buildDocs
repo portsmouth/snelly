@@ -1,9 +1,0 @@
- #!/bin/bash
- documentation readme ./js/sceneAPI.js -f md --section "Scene" 
- documentation readme ./js/snelly.js -f md --section "Snelly"
- documentation readme ./js/renderer.js -f md --section "Renderer"
- documentation readme ./js/materials.js -f md --section "Materials"
- documentation readme ./js/gui.js -f md --section "Gui"
- documentation readme ./js/gl.js -f md --section "GLU"
-
- 

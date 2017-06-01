@@ -16,13 +16,23 @@
     -   [getMaxScale](#getmaxscale)
     -   [preframeCallback](#preframecallback)
     -   [postframeCallback](#postframecallback)
--   [Snelly](#snelly)
-    -   [getCamera](#getcamera)
-    -   [getMaterials](#getmaterials)
+-   [Materials](#materials)
+    -   [loadDielectric](#loaddielectric)
+    -   [loadMetal](#loadmetal)
+    -   [getDielectric](#getdielectric)
+    -   [getMetal](#getmetal)
     -   [getSurface](#getsurface)
+-   [Snelly](#snelly)
+    -   [getVersion](#getversion)
+    -   [getRenderer](#getrenderer)
+    -   [getGUI](#getgui)
+    -   [getCamera](#getcamera)
+    -   [getControls](#getcontrols)
+    -   [showGUI](#showgui)
+    -   [getMaterials](#getmaterials)
+    -   [getSurface](#getsurface-1)
 -   [Rendering](#rendering)
 -   [Renderer](#renderer)
--   [Materials](#materials)
 -   [Utilities](#utilities)
 -   [uniformI](#uniformi)
 -   [uniformF](#uniformf)
@@ -39,7 +49,17 @@
 
 ## Scene description
 
-We define a scene by specifying three things. Blah.
+We define the rendered scene by specifying, via the [Scene#shader](#sceneshader), three GLSL functions:
+
+    - `SDF_SURFACE(vec3 X)`: the SDF of the uber-surface material
+    - `SDF_METAL(vec3 X)`: the SDF of the (selected) metal material
+    - `SDF_DIELECTRIC(vec3 X)`: the SDF of the (selected) dielectric material
+
+These functions are assumed to be SDFs where the negative region corresponds to the interior of the body.
+Thus there are at most only three types of material in the scene.
+
+The details of the properties of the three material types can be selected via the [Materials](#materials) object.
+In addition, spatial dependence of the material surface properties can be introduced by providing modulating GLSL functions.
 
 
 ## Scene
@@ -177,17 +197,136 @@ programmatically according to the global time since init
 -   `The` **[Snelly](#snelly)** snelly object
 -   `The` **[WebGLRenderingContext](https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext)** webGL context
 
+## Materials
+
+### loadDielectric
+
+Load the desired Dielectric object by name. Supported dielectics are:
+
+-   "Constant IOR dielectric"
+-   "Glass (BK7)"
+-   "Glass (K7)"
+-   "Glass (F5)"
+-   "Glass (LAFN7)"
+-   "Glass (LASF35)"
+-   "Glass (N-LAK33A)"
+-   "Glass (N-FK51A)"
+-   "Glass (SF4)"
+-   "Glass (SF67)"
+-   "Water"
+-   "Polycarbonate"
+-   "Glycerol"
+-   "Liquid Crystal (E7)"
+-   "Diamond"
+-   "Quartz"
+-   "Fused Silica"
+-   "Sapphire"
+-   "Sodium Chloride"
+-   "Proustite"
+-   "Rutile (Titanium Dioxide)"
+-   "Silver Chloride"
+
+**Parameters**
+
+-   `dielectricName` **[String](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** one of the names listed above
+
+Returns **Dielectric** the loaded dielectric
+
+### loadMetal
+
+Load the desired Metal object by name. Supported metals are:
+
+-   "Aluminium"
+-   "Brass",   
+-   "Calcium", 
+-   "Chromium",
+-   "Cobalt",  
+-   "Copper",  
+-   "Gold",    
+-   "Iridium", 
+-   "Iron",    
+-   "Lead",    
+-   "Mercury", 
+-   "Molybdenum
+-   "Nickel",  
+-   "Palladium"
+-   "Platinum",
+-   "Silicon", 
+-   "Silver",  
+-   "Titanium",
+-   "Tungsten",
+-   "Vanadium",
+-   "Zinc",    
+-   "Zirconium"
+
+**Parameters**
+
+-   `metalName` **[String](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** one of the names listed above
+
+Returns **Metal** the loaded metal
+
+### getDielectric
+
+Get the currently loaded Dielectric object.
+
+Returns **Dielectric** 
+
+### getMetal
+
+Get the currently loaded Metal object.
+
+Returns **Metal** 
+
+### getSurface
+
+Get the Surface object.
+
+Returns **Surface** 
+
 ## Snelly
 
 **Parameters**
 
--   `sceneObj`  
+-   `sceneObj` **[Scene](#scene)** The user-defined scene
+
+### getVersion
+
+Returns the current version number of the snelly system, in the format [1, 2, 3]
+
+Returns **[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)** 
+
+### getRenderer
+
+Access to the Renderer object
+
+Returns **[Renderer](#renderer)** 
+
+### getGUI
+
+Access to the GUI object
+
+Returns **[Renderer](#renderer)** 
 
 ### getCamera
 
-Get camera object
+Access to the camera object
 
-Returns **THREE.PerspectiveCamera** the camera object.
+Returns **THREE.PerspectiveCamera** .
+
+### getControls
+
+Access to the camera controller object
+
+Returns **THREE.OrbitControls** .
+
+### showGUI
+
+Programmatically show or hide the dat.GUI UI
+
+**Parameters**
+
+-   `showGUI`  
+-   `snelly` **[Boolean](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean)** The snelly object
 
 ### getMaterials
 
@@ -203,16 +342,35 @@ Returns **Surface** the Surface object.
 
 ## Rendering
 
-We render a scene by specifying three things.
+The renderer itself is a uni-directional pathtracer (with adjunct modes for ambient occlusion and normals rendering).
+
+## Pathtracing
+
+Relevent parameters are
+
+      renderer.renderMode      (default 'pt')
+      renderer.maxBounces      (default 4)
+      renderer.maxMarchSteps 
+      renderer.radianceClamp   (log scale)
+      renderer.skyPower 
+      renderer.skyTemperature 
+      renderer.exposure 
+      renderer.gamma 
+      renderer.whitepoint 
+      renderer.goalFPS 
+
+### Lighting
+
+For simplicity, the only light in the scene is a (non-HDRI) environment map. This can be specified via a URL to 
+to a lat-long map, or otherwise will be taken to be a constant intensity sky. (See the envMap call).
+In both cases, the sky spectrum is modulated by a blackbody emission spectrum with adjustable temperature.
 
 
 ## Renderer
 
-## Materials
-
 ## Utilities
 
-We provide some utilities.
+We provide some utilities for more easily setting up GUI control of the GLSL-defined scene.
 
 
 ## uniformI
