@@ -13,7 +13,6 @@ uniform sampler2D envMap;           // 7
 varying vec2 vTexCoord;
 
 uniform vec2 resolution;
-uniform int downRes;
 uniform vec3 camPos;
 uniform vec3 camDir;
 uniform vec3 camX;
@@ -904,32 +903,6 @@ void ENTRY_PATHTRACE_ALL()
     pathtrace(gl_FragCoord.xy, rnd);
 }
 
-void ENTRY_PATHTRACE_BLOCKS()
-{
-    vec2 pixel = gl_FragCoord.xy - vec2(0.5, 0.5); // shift to get integer coords 
-    float xrem = mod(float(pixel.x), float(downRes));
-    float yrem = mod(float(pixel.y), float(downRes));
-    float maxx = resolution.x-1.0;
-    float maxy = resolution.y-1.0;
-    vec4 rnd = texture2D(RngData, vTexCoord);
-
-    // Sample only 1 pixel per block (the lower left one)
-    float MOD_TOL = 1.0e-3;
-    if (xrem<MOD_TOL && yrem<MOD_TOL)
-    {
-        // jitter pixel in block..
-        pixel += float(downRes) * vec2(rand(rnd), rand(rnd));
-        pixel.x = min(pixel.x, maxx);
-        pixel.y = min(pixel.y, maxy);
-        pathtrace(pixel, rnd);
-    }
-    else
-    {
-        gl_FragData[0] = texture2D(Radiance, vTexCoord);
-        gl_FragData[1] = rnd;
-    }
-}
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // Normals integrator
@@ -977,6 +950,17 @@ void ENTRY_NORMALS()
 void ENTRY_AO()
 {
     vec4 rnd = texture2D(RngData, vTexCoord);
+    if (rand(rnd) < skipProbability)
+    {
+        vec4 oldL = texture2D(Radiance, vTexCoord);
+        float oldN = oldL.w;
+        float newN = oldN;
+        vec3 newL = oldL.rgb;
+
+        gl_FragData[0] = vec4(newL, newN);
+        gl_FragData[1] = rnd;
+        return;
+    } 
 
     // Jitter over pixel
     vec2 pixel = gl_FragCoord.xy;

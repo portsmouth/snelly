@@ -70,7 +70,6 @@ var Pathtracer = function()
 	this.pathStates = [new PathtracerState(this._width, this._height), 
 					   new PathtracerState(this._width, this._height)];
 	this.fbo == null;
-	this.max_downres = 3;
 	this.numSamples = 0;
 	this.numFramesSinceReset = 0;
 	this.numFramesSinceInit = 0;
@@ -89,7 +88,7 @@ var Pathtracer = function()
 	this.gamma = 2.2;
 	this.whitepoint = 2.0;
 	this.skipProbability = 0.0;
-	this.goalFrametimeMs = 1.0;
+	this.goalFPS = 20.0;
 
 	// Load shaders
 	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper", "filter"]);
@@ -141,12 +140,10 @@ Pathtracer.prototype.createQuadVbo = function()
 	return vbo;
 }
 
-Pathtracer.prototype.reset = function(no_recompile = false, hard = false)
+Pathtracer.prototype.reset = function(no_recompile = false)
 {
-	this.downres = this.max_downres;
 	this.numSamples = 0;
 	this.numFramesSinceReset = 0;
-	if (hard) this.numFramesSinceInit = 0;
 	if (!no_recompile) this.compileShaders();
 	this.currentState = 0;
 	this.pathStates[this.currentState].clear(this.fbo);
@@ -156,8 +153,6 @@ Pathtracer.prototype.reset = function(no_recompile = false, hard = false)
 
 Pathtracer.prototype.compileShaders = function()
 {
-	console.log('compiling shaders..');
-
 	// Inject code for the current scene SDF:
 	var sceneObj = snelly.getScene();
 	if (sceneObj == null) return;
@@ -212,26 +207,8 @@ Pathtracer.prototype.compileShaders = function()
 		case 'pt':
 		default:
 			replacements.ENTRY_PATHTRACE_ALL = 'main';
-			replacements.ENTRY_PATHTRACE_BLOCKS = 'ENTRY_PATHTRACE_BLOCKS';
 			this.pathtraceAllProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
-			replacements.ENTRY_PATHTRACE_BLOCKS = 'main';
-			replacements.ENTRY_PATHTRACE_ALL = 'ENTRY_PATHTRACE_ALL';
-			this.pathtraceBlocksProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
 			break;
-	}
-
-	// Compile filter programs for all required kernel widths (once only):
-	if (this.renderMode == 'pt')
-	{
-		if (this.filterPrograms == null)
-		{
-			this.filterPrograms = {};
-			for (var d=this.max_downres; d>=1; d--) 
-			{
-				replacements.DOWN_RES = d;
-				this.filterPrograms[d] = new GLU.Shader('filter', this.shaderSources, replacements);
-			}
-		}
 	}
 
 	// Tonemapping program
@@ -272,8 +249,6 @@ Pathtracer.prototype.render = function()
 	////////////////////////////////////////////////
 
 	var INTEGRATOR_PROGRAM = null;
-	var DOWN_RES = 1.0;
-
 	switch (this.renderMode)
 	{
 		case 'ao':
@@ -286,20 +261,7 @@ Pathtracer.prototype.render = function()
 
 		case 'pt':
 		default:
-			// Choose pathtracing mode according to total sample count:
-			var DOWN_RES = Math.floor(Math.sqrt(this.width * this.height / Math.max(this.numSamples, 1)));
-			DOWN_RES = Math.max(1, Math.min(this.max_downres, DOWN_RES));
-			if (this.frametime_measure_ms < 2.0*this.goalFrametimeMs) DOWN_RES = 1.0;
-			if (DOWN_RES <= 1.0) 
-			{
-				// Pathtrace all pixels
-				INTEGRATOR_PROGRAM = this.pathtraceAllProgram;
-			}
-			else
-			{
-				// Pathtrace a subset, until > 1 spp has accumulated
-				INTEGRATOR_PROGRAM = this.pathtraceBlocksProgram;
-			}
+			INTEGRATOR_PROGRAM = this.pathtraceAllProgram;
 			break;
 	}
 
@@ -339,7 +301,6 @@ Pathtracer.prototype.render = function()
 	
 	// Pathtracing options
 	INTEGRATOR_PROGRAM.uniformI("maxBounces", this.maxBounces);
-	INTEGRATOR_PROGRAM.uniformI("downRes", DOWN_RES);
 	INTEGRATOR_PROGRAM.uniformF("skyPower", this.skyPower);
 	INTEGRATOR_PROGRAM.uniformF("radianceClamp", Math.pow(10.0, this.radianceClamp));
 	INTEGRATOR_PROGRAM.uniformF("skipProbability", this.skipProbability);
@@ -378,41 +339,11 @@ Pathtracer.prototype.render = function()
 	this.fbo.unbind();
 
 	////////////////////////////////////////////////
-	/// Filtering / progressive rendering
-	////////////////////////////////////////////////
-
-	if ((this.renderMode=='pt') && (DOWN_RES>1))
-	{
-		this.fbo.bind();
-		this.fbo.drawBuffers(1);
-		// Generate filtered image from sparse radiance samples
-		this.filterPrograms[DOWN_RES].bind();
-		this.pathStates[next].radianceTex.bind(0);    // read radiance
-		this.filterPrograms[DOWN_RES].uniformTexture("Radiance", this.pathStates[next].radianceTex);
-		this.fbo.attachTexture(this.filteredTex, 0);  // write filter-averaged mean
-		this.filterPrograms[DOWN_RES].uniform2Fv("resolution", [this._width, this._height]);
-		this.quadVbo.bind();
-		this.quadVbo.draw(this.filterPrograms[DOWN_RES], gl.TRIANGLE_FAN);
-		this.fbo.unbind();
-	}
-
-	////////////////////////////////////////////////
 	/// Tonemapping / compositing
 	////////////////////////////////////////////////
 
 	this.tonemapProgram.bind();
-	var radianceTexCurrent;
-	if ((this.renderMode!='pt') || DOWN_RES <= 1) 
-	{
-		// Use full resolution radiance buffer
-		radianceTexCurrent = this.pathStates[next].radianceTex;
-	}
-	else
-	{
-		// Use filtered radiance buffer until sufficient sample count reached
-		radianceTexCurrent = this.filteredTex;
-	}
-
+	var radianceTexCurrent = this.pathStates[next].radianceTex;
 	radianceTexCurrent.bind(0);	
 	this.tonemapProgram.uniformTexture("Radiance", radianceTexCurrent);
 	this.tonemapProgram.uniformF("exposure", this.exposure);
@@ -437,18 +368,20 @@ Pathtracer.prototype.render = function()
 	}
 	else
 	{
+		// apply exponential smoothing to frame time measurements
 		var smoothing = 0.05;
 		var prev_frame_time_ms = this.frametime_measure_ms;
-		this.frametime_measure_ms = smoothing*frame_time_ms+ (1.0-smoothing)*prev_frame_time_ms;
+		this.frametime_measure_ms = smoothing*frame_time_ms + (1.0-smoothing)*prev_frame_time_ms;
 	}
+	this.frametime_measure_ms = Math.max(1.0-6, this.frametime_measure_ms);
 
 	// Update skip probability to try to achieve interactive framerate
-	var goalMs = Math.max(1.0, this.goalFrametimeMs);
+	let goalMs = Math.min(1.0e3, Math.max(1.0, 1.0e3/this.goalFPS));
 	this.skipProbability = Math.max(0.0, 1.0-goalMs/this.frametime_measure_ms);
 
 	// Update sample count
-	this.numSamples += (1.0-this.skipProbability) * this._width * this._height / (DOWN_RES * DOWN_RES);
-	this.spp = this.numSamples / (this.width * this.height);
+	this.numSamples += (1.0-this.skipProbability) * this._width * this._height;
+	this.spp = this.numSamples / (this._width * this._height);
 	this.numFramesSinceReset++;
 	this.numFramesSinceInit++;
 
