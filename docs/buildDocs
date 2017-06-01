@@ -1,0 +1,6 @@
+ #!/bin/bash
+documentation build --config ./documentation.yml ../js/sceneAPI.js ../js/snelly.js ../js/renderer.js ../js/materials.js ../js/gui.js ../js/gl.js -f md > docs.md
+
+
+
+

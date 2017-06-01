@@ -1,0 +1,26 @@
+ 
+ toc:
+  - name: Scene description
+    description: |
+      We define a scene by specifying three things. Blah.
+  
+  - Scene
+  - Snelly
+
+  - name: Rendering
+    description:
+      We render a scene by specifying three things.
+
+  - Renderer
+  - Materials
+
+  - name: Utilities
+    description:
+      We provide some utilities.
+
+  - Gui
+  - GLU
+
+  
+
+
