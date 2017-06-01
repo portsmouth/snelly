@@ -45,7 +45,11 @@
 -   [uniform4Fv](#uniform4fv)
 -   [uniformMatrix4fv](#uniformmatrix4fv)
 -   [GUI](#gui)
--   [setRoughness](#setroughness)
+-   [Material](#material)
+-   [Surface](#surface)
+    -   [setRoughness](#setroughness)
+-   [Metal](#metal)
+-   [Dielectric](#dielectric)
 
 ## Scene description
 
@@ -201,7 +205,7 @@ programmatically according to the global time since init
 
 ### loadDielectric
 
-Load the desired Dielectric object by name. Supported dielectics are:
+Load the desired Dielectric object by name. Supported dielectrics are:
 
 -   "Constant IOR dielectric"
 -   "Glass (BK7)"
@@ -230,7 +234,7 @@ Load the desired Dielectric object by name. Supported dielectics are:
 
 -   `dielectricName` **[String](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** one of the names listed above
 
-Returns **Dielectric** the loaded dielectric
+Returns **[Dielectric](#dielectric)** the loaded dielectric
 
 ### loadMetal
 
@@ -263,25 +267,25 @@ Load the desired Metal object by name. Supported metals are:
 
 -   `metalName` **[String](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** one of the names listed above
 
-Returns **Metal** the loaded metal
+Returns **[Metal](#metal)** the loaded metal
 
 ### getDielectric
 
 Get the currently loaded Dielectric object.
 
-Returns **Dielectric** 
+Returns **[Dielectric](#dielectric)** 
 
 ### getMetal
 
 Get the currently loaded Metal object.
 
-Returns **Metal** 
+Returns **[Metal](#metal)** 
 
 ### getSurface
 
 Get the Surface object.
 
-Returns **Surface** 
+Returns **[Surface](#surface)** 
 
 ## Snelly
 
@@ -338,7 +342,7 @@ Returns **[Materials](#materials)** the Materials object.
 
 Get Surface object
 
-Returns **Surface** the Surface object.
+Returns **[Surface](#surface)** the Surface object.
 
 ## Rendering
 
@@ -481,7 +485,37 @@ Provide a matrix (via uniformMatrix4fv) to the currently bound shader
 
 -   `visible`   (optional, default `true`)
 
-## setRoughness
+## Material
+
+**Parameters**
+
+-   `name`  
+-   `desc`  
+
+## Surface
+
+**Parameters**
+
+-   `name`  
+-   `desc`  
+
+**Properties**
+
+-   `roughness` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The surface roughness
+-   `ior` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The surface coating ior
+-   `diffuseAlbedo` **[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)** The surface diffuse (RGB) color
+-   `specAlbedo` **[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)** The surface spec (RGB) color
+
+**Examples**
+
+```javascript
+surface.roughness = 0.05;
+surface.ior = 1.3530655391120507;
+surface.diffuseAlbedo = [0.5, 0.5, 0.5];
+surface.specAlbedo = [0.0, 0.0, 0.0];
+```
+
+### setRoughness
 
 Set surface roughness
 
@@ -489,3 +523,33 @@ Set surface roughness
 
 -   `roughness`  
 -   `the` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** surface roughness in [0,1].
+
+## Metal
+
+**Parameters**
+
+-   `name`  
+-   `desc`  
+
+**Examples**
+
+```javascript
+let metal = materials.loadMetal('Gold');
+ metal.roughness = 0.05;
+```
+
+## Dielectric
+
+**Parameters**
+
+-   `name`  
+-   `desc`  
+
+**Examples**
+
+```javascript
+let dielectric = materials.loadDielectric('Diamond');
+dielectric.absorptionColor = [1.0, 1.0, 1.0];
+dielectric.absorptionScale = 1.0; // mfp in multiples of scene scale
+dielectric.roughness = 0.030443974630021145;
+```
