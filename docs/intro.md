@@ -8,9 +8,35 @@ A Snelly scene is a single, standalone HTML file, which has the following overal
 <script type="text/javascript">
 
 function Scene() {}
-Scene.prototype.shader = function() { return `<GLSL code>`; }
+Scene.prototype.shader = function() 
+{ 
+  /* GLSL code */ 
+  return `
+    uniform float foo; 
+    float SDF_SURFACE(vec3 X)    { /* <code omitted> */ }
+    float SDF_METAL(vec3 X)      { /* <code omitted> */ }
+    float SDF_DIELECTRIC(vec3 X) { /* <code omitted> */ }
+    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X) { /* <code omitted> */ }
+    // etc.
+  `; 
+}
 
-Scene.prototype.init = function(snelly) { /* initial scene setup */ }
+Scene.prototype.init = function(snelly) 
+{ 
+  /* initial scene setup */
+  let renderer  = snelly.getRenderer();
+  let camera    = snelly.getCamera();
+  let controls  = snelly.getControls();
+  let materials = snelly.getMaterials();
+  
+  camera.position.set(6.0, 3.0, -6.0);
+  controls.target.set(0.0, 0.0, 0.0);
+  renderer.maxBounces = 9;
+  materials.loadMetal('Copper');
+  materials.loadDielectric('Diamond');
+  // etc..
+}
+
 Scene.prototype.getMinScale = function() { return 1.0e-4; /* raymarch tolerance */ }
 Scene.prototype.getMaxScale = function() { return 1.0e2; /* raymarch infinity */ }
 Scene.prototype.envMap = function()  { return '<env map url>'; }
@@ -37,6 +63,7 @@ Thus we define the rendered scene geometry by specifying, via the {@link Scene#s
 	- SDF_METAL(vec3 X): the SDF of the (selected) metal material
 	- SDF_DIELECTRIC(vec3 X): the SDF of the (selected) dielectric material
   
+ We use [dat.GUI](https://workshop.chromeexperiments.com/examples/gui/#1--Basic-Usage) to provide a simple interactive UI for the scene and renderer state. Basic scene controls can be added via the 
  UI or animation control over the scene can be coded by adding uniform variables in the SDF functions, and setting them to the corresponding UI values in the {@link Scene#syncShader} function.
 
 The details of the properties of the three material types can then be specified in {@link Scene#init} via the {@link Materials} object. Additional spatial dependence of the material surface properties can be introduced by providing modulating GLSL functions.
