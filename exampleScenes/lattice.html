@@ -296,18 +296,18 @@
 	  	this.typeItem = gui.getSceneFolder().add(this.parameters, 'shape', this.parameters.shapes);
 		this.typeItem.onChange( function(value) { snelly.reset(); } );
 
-	  	gui.addParameter(this.parameters, {name: 'size', min: 0.0, max: 10.0});
-		gui.addParameter(this.parameters, {name: 'bulge', min: 0.0, max: 1.0});
-		gui.addParameter(this.parameters, {name: 'spacing', min: 0.0, max: 50.0});
-		gui.addParameter(this.parameters, {name: 'width', min: 0.0, max: 100.0});
-		gui.addParameter(this.parameters, {name: 'height', min: 0.0, max: 100.0});
-		gui.addParameter(this.parameters, {name: 'depth', min: 0.0, max: 100.0});
-		gui.addParameter(this.parameters, {name: 'offset', min: 0.0, max: 1.0});
+	  	gui.addSlider(this.parameters, {name: 'size', min: 0.0, max: 10.0});
+		gui.addSlider(this.parameters, {name: 'bulge', min: 0.0, max: 1.0});
+		gui.addSlider(this.parameters, {name: 'spacing', min: 0.0, max: 50.0});
+		gui.addSlider(this.parameters, {name: 'width', min: 0.0, max: 100.0});
+		gui.addSlider(this.parameters, {name: 'height', min: 0.0, max: 100.0});
+		gui.addSlider(this.parameters, {name: 'depth', min: 0.0, max: 100.0});
+		gui.addSlider(this.parameters, {name: 'offset', min: 0.0, max: 1.0});
 
   		// (iterations cannot be a shader uniform, so recompilation required on a change in that parameter)
-  		gui.addParameter(this.parameters, {name: 'iterations', min: 1, max: 8, step: 1, recompile: true}); 
-  		gui.addParameter(this.parameters, {name: 'rotate',     min: 0.0, max: 1.0}); 
-  		gui.addParameter(this.parameters, {name: 'scale',      min: 0.0, max: 10.0});
+  		gui.addSlider(this.parameters, {name: 'iterations', min: 1, max: 8, step: 1, recompile: true}); 
+  		gui.addSlider(this.parameters, {name: 'rotate',     min: 0.0, max: 1.0}); 
+  		gui.addSlider(this.parameters, {name: 'scale',      min: 0.0, max: 10.0});
   }
 
   // optionally supply an env-map texture URL (should be lat-long)

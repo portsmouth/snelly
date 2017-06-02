@@ -82,8 +82,8 @@ Scene.prototype.shader = function()
 
 Scene.prototype.initGui = function(gui)            
 {
-  	gui.addParameter(this.parameters, {name: 'radius', min: 0.0, max: 2.5});
-  	gui.addParameter(this.parameters, {name: 'size', min: 0.0, max: 1.0});
+  	gui.addSlider(this.parameters, {name: 'radius', min: 0.0, max: 2.5});
+  	gui.addSlider(this.parameters, {name: 'size', min: 0.0, max: 1.0});
 }
 
 Scene.prototype.syncShader = function(shader)
@@ -96,12 +96,12 @@ Scene.prototype.syncShader = function(shader)
 
 	let c = Math.cos(8.0*phase);
 	let s = Math.sin(8.0*phase);
- 	let tx = Float32Array([
+ 	let tx = [
        c, s, 0, 0,
       -s, c, 0, 0,
        0, 0, 1, 0,
        0, 0, 0, 1,
-    ]);
+    ];
 	shader.uniformMatrix4fv("transform", tx);
 }
 

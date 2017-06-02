@@ -25,20 +25,21 @@ function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLo
 </script>
 </body>
 ```
-
-The only mandatory function to implement in Scene is Scene#shader, the other are all optional. However the {@link Scene.init} function is almost always needed, to set the initial camera orientation at least.
+The only mandatory function to implement in Scene is {@link Scene#shader}, the other are all optional. However the {@link Scene#init} function is almost always needed, to set the initial camera orientation at least.
 
 ### Geometry
 
 A Snelly scene is assume to consist of only (up to) three specified materials: a metal, a dielectric, and a plastic-like material ("uber" material). Each material has an associated surface which is defined by an SDF (signed distance function), i.e. where each function is negative corresponds to the interior of the body.
 
-Thus we define the rendered scene geometry by specifying, via the {@link Scene.shader} call, three GLSL functions:
+Thus we define the rendered scene geometry by specifying, via the {@link Scene#shader} call, three GLSL functions:
 
 	- SDF_SURFACE(vec3 X): the SDF of the uber-surface material
 	- SDF_METAL(vec3 X): the SDF of the (selected) metal material
 	- SDF_DIELECTRIC(vec3 X): the SDF of the (selected) dielectric material
   
-The details of the properties of the three material types can then be specified in {@link Scene.init} via the {@link Materials} object. Additional spatial dependence of the material surface properties can be introduced by providing modulating GLSL functions.
+ UI or animation control over the scene can be coded by adding uniform variables in the SDF functions, and setting them to the corresponding UI values in the {@link Scene#syncShader} function.
+
+The details of the properties of the three material types can then be specified in {@link Scene#init} via the {@link Materials} object. Additional spatial dependence of the material surface properties can be introduced by providing modulating GLSL functions.
 
 Procedural camera motion and scene animation can be authored (programmatically) via the pre- and post-frame callbacks.
 
@@ -56,13 +57,11 @@ to a lat-long map, via the {@link Scene#envMap} call:
 	*/
 	Scene.prototype.envMap = function()
 	{
-	  	return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_040_Field_Bg.jpg';
-	  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_041_Path_Bg.jpg';
-	  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg';
-	  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_110_Tunnel_Bg.jpg';
-	  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_Free_City_Night_Lights_Bg.jpg';
+	  	return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_040_Field_Bg.jpg';Lights_Bg.jpg';
 	}
 ```
+
+Other such env-maps are available from [here](https://github.com/portsmouth/envmaps) (convert to RawGit links first).
 
 Or otherwise will be taken to be a constant intensity sky. 
 In both cases, the sky spectrum is modulated by a blackbody emission spectrum with adjustable temperature (Set via {@link Renderer#skyTemperature}).
