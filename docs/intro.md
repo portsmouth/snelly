@@ -1,10 +1,8 @@
 
-## Scene
-
 ### HTML structure
 
 A Snelly scene is a single, standalone HTML file, which has the following overall structure:
-```
+```html
 <body onload="onLoad();">
 <script type="text/javascript" src="../js/compiled/snelly.min.js"></script>
 <script type="text/javascript">
@@ -34,10 +32,11 @@ The only mandatory function to implement in Scene is {@link Scene.shader}, the o
 
 A Snelly scene is assume to consist of only (up to) three specified materials: a metal, a dielectric, and a plastic-like material ("uber" material). Each material has an associated surface which is defined by an SDF (signed distance function), i.e. where each function is negative corresponds to the interior of the body.
 
-Thus we define the rendered scene geometry by specifying, via the {@link Scene.shader}, three GLSL functions:
-	- `SDF_SURFACE(vec3 X)`: the SDF of the uber-surface material
-	- `SDF_METAL(vec3 X)`: the SDF of the (selected) metal material
-	- `SDF_DIELECTRIC(vec3 X)`: the SDF of the (selected) dielectric material
+Thus we define the rendered scene geometry by specifying, via the {@link Scene.shader} call, three GLSL functions:
+
+	- SDF_SURFACE(vec3 X): the SDF of the uber-surface material
+	- SDF_METAL(vec3 X): the SDF of the (selected) metal material
+	- SDF_DIELECTRIC(vec3 X): the SDF of the (selected) dielectric material
   
 The details of the properties of the three material types can then be specified in {@link Scene.init} via the {@link Materials} object. Additional spatial dependence of the material surface properties can be introduced by providing modulating GLSL functions.
 
