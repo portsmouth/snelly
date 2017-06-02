@@ -27,7 +27,7 @@ function updateDisplay(gui)
     }
 }
 
-/** @constructor 
+/**
 * Call to explicitly force the GUI to synchronize with the
 * current parameter values, if they have been changed programmatically.
 */
@@ -98,7 +98,21 @@ GUI.prototype.createSceneSettings = function()
 	}
 }
 
-GUI.prototype.addParameter = function(parameters, param)
+/** 
+ * Add a dat.GUI UI slider to control a float parameter.
+ * The scene parameters need to be organized into an Object as
+ * key-value pairs, for supply to this function.
+ * @param {Object} parameters - the parameters object for the scene, with key-value pairs for all parameters
+ * @param {Object} param - the slider range for this parameter, in the form `{name: 'foo', min: 0.0, max: 100.0, step: 1.0}` (step is optional)
+ * @example
+ *		Scene.prototype.initGui = function(gui)            
+ *		{
+ *			gui.addSlider(this.parameters, c);
+ *			gui.addSlider(this.parameters, {name: 'foo2', min: 0.0, max: 1.0});
+ *			gui.addSlider(this.parameters, {name: 'bar', min: 0.0, max: 3.0});
+ *		}
+ */
+GUI.prototype.addSlider = function(parameters, param)
 {
 	var name = param.name;
 	var min  = param.min;
@@ -112,6 +126,12 @@ GUI.prototype.addParameter = function(parameters, param)
 	else                               { item = this.sceneFolder.add(parameters, name, min, max);       }
 	item.onChange( function(value) { snelly.reset(no_recompile); snelly.camera.enabled = false; } );
 	item.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+}
+
+// deprecate
+GUI.prototype.addParameter = function(parameters, param)
+{
+	this.addSlider(parameters, param);
 }
 
 GUI.prototype.getSceneFolder = function()

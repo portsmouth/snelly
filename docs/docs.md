@@ -2,8 +2,8 @@
 
 ### Table of Contents
 
--   [Scene description](#scene-description)
--   [Scene](#scene-1)
+-   [Introduction](#introduction)
+-   [Scene](#scene)
     -   [init](#init)
     -   [initGenerator](#initgenerator)
     -   [envMap](#envmap)
@@ -16,7 +16,6 @@
     -   [getMaxScale](#getmaxscale)
     -   [preframeCallback](#preframecallback)
     -   [postframeCallback](#postframecallback)
--   [Snelly global object](#snelly-global-object)
 -   [Snelly](#snelly)
     -   [getVersion](#getversion)
     -   [getRenderer](#getrenderer)
@@ -26,52 +25,109 @@
     -   [showGUI](#showgui)
     -   [getMaterials](#getmaterials)
     -   [getSurface](#getsurface)
+-   [Renderer](#renderer)
+    -   [reset](#reset)
 -   [Materials](#materials)
--   [Materials](#materials-1)
     -   [loadDielectric](#loaddielectric)
     -   [loadMetal](#loadmetal)
     -   [getDielectric](#getdielectric)
     -   [getMetal](#getmetal)
     -   [getSurface](#getsurface-1)
+-   [Material](#material)
 -   [Surface](#surface)
 -   [Dielectric](#dielectric)
 -   [Metal](#metal)
--   [Rendering](#rendering)
--   [Renderer](#renderer)
-    -   [reset](#reset)
--   [Utilities](#utilities)
 -   [GUI](#gui)
     -   [sync](#sync)
+    -   [addSlider](#addslider)
 -   [GLU](#glu)
--   [uniformI](#uniformi)
--   [uniformF](#uniformf)
--   [uniform2F](#uniform2f)
--   [uniform1Fv](#uniform1fv)
--   [uniform2Fv](#uniform2fv)
--   [uniform3F](#uniform3f)
--   [uniform3Fv](#uniform3fv)
--   [uniform4F](#uniform4f)
--   [uniform4Fv](#uniform4fv)
--   [uniformMatrix4fv](#uniformmatrix4fv)
--   [Material](#material)
+    -   [uniformI](#uniformi)
+    -   [uniformF](#uniformf)
+    -   [uniform2F](#uniform2f)
+    -   [uniform1Fv](#uniform1fv)
+    -   [uniform2Fv](#uniform2fv)
+    -   [uniform3F](#uniform3f)
+    -   [uniform3Fv](#uniform3fv)
+    -   [uniform4F](#uniform4f)
+    -   [uniform4Fv](#uniform4fv)
+    -   [uniformMatrix4fv](#uniformmatrix4fv)
 
-## Scene description
+## Introduction
 
-## Scene
+### HTML structure
+
+A Snelly scene is a single, standalone HTML file, which has the following overall structure:
+
+```html
+<body onload="onLoad();">
+<script type="text/javascript" src="../js/compiled/snelly.min.js"></script>
+<script type="text/javascript">
+
+function Scene() {}
+Scene.prototype.shader = function() 
+{ 
+  /* GLSL code */ 
+  return `
+    uniform float foo; 
+    float SDF_SURFACE(vec3 X)    { /* <code omitted> */ }
+    float SDF_METAL(vec3 X)      { /* <code omitted> */ }
+    float SDF_DIELECTRIC(vec3 X) { /* <code omitted> */ }
+    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X) { /* <code omitted> */ }
+    // etc.
+  `; 
+}
+
+Scene.prototype.init = function(snelly) 
+{ 
+  /* initial scene setup */
+  let renderer  = snelly.getRenderer();
+  let camera    = snelly.getCamera();
+  let controls  = snelly.getControls();
+  let materials = snelly.getMaterials();
+  
+  camera.position.set(6.0, 3.0, -6.0);
+  controls.target.set(0.0, 0.0, 0.0);
+  renderer.maxBounces = 9;
+  materials.loadMetal('Copper');
+  materials.loadDielectric('Diamond');
+  // etc..
+}
+
+Scene.prototype.getMinScale = function() { return 1.0e-4; /* raymarch tolerance */ }
+Scene.prototype.getMaxScale = function() { return 1.0e2; /* raymarch infinity */ }
+Scene.prototype.envMap = function()  { return '<env map url>'; }
+Scene.prototype.initGui = function(gui) { /* setup GUI */  }
+Scene.prototype.syncShader = function(shader) { /* sync shader with GUI */ }
+Scene.prototype.preframeCallback = function(snelly, gl) { /* custom logic */ }
+Scene.prototype.postframeCallback = function(snelly, gl) { /* custom logic */ }
+
+function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+
+</script>
+</body>
+```
+
+The only mandatory function to implement in Scene is [Scene#shader](#sceneshader), the other are all optional. However the [Scene#init](#sceneinit) function is almost always needed, to set the initial camera orientation at least.
 
 ### Geometry
 
-We define the rendered scene geometry by specifying, via the [Scene#shader](#sceneshader), three GLSL functions:
+A Snelly scene is assumed to consist of only (up to) three specified materials: a metal, a dielectric, and a plastic-like material ("uber" material). Each material has an associated surface which is defined by an SDF (signed distance function), i.e. where each function is negative corresponds to the interior of the body.
 
-    - `SDF_SURFACE(vec3 X)`: the SDF of the uber-surface material
-    - `SDF_METAL(vec3 X)`: the SDF of the (selected) metal material
-    - `SDF_DIELECTRIC(vec3 X)`: the SDF of the (selected) dielectric material
+Thus we define the rendered scene geometry by specifying, via the [Scene#shader](#sceneshader) call, three GLSL functions:
 
-These functions are assumed to be SDFs where the negative region corresponds to the interior of the body.
-Thus there are at most only three types of material in the scene.
+    - SDF_SURFACE(vec3 X): the SDF of the uber-surface material
+    - SDF_METAL(vec3 X): the SDF of the (selected) metal material
+    - SDF_DIELECTRIC(vec3 X): the SDF of the (selected) dielectric material
 
-The details of the properties of the three material types can be selected via the [Materials](#materials) object.
-In addition, spatial dependence of the material surface properties can be introduced by providing modulating GLSL functions.
+ We use [dat.GUI](https://workshop.chromeexperiments.com/examples/gui/#1--Basic-Usage) to provide a simple interactive UI for the scene and renderer state. Basic scene controls can be added via the 
+ UI or animation control over the scene can be coded by adding uniform variables in the SDF functions, and setting them to the corresponding UI values in the [Scene#syncShader](#scenesyncshader) function.
+
+The details of the properties of the three material types can then be specified in [Scene#init](#sceneinit) via the [Materials](#materials) object. Additional spatial dependence of the material surface properties can be introduced by providing modulating GLSL functions.
+
+Procedural camera motion and scene animation can be authored (programmatically) via the pre- and post-frame callbacks.
+
+As a standalone web page, a Snelly scene can be easily shared, for example by keeping the HTML file in a GitHub repository and simply linking to the file via [RawGit](https://rawgit.com/). 
 
 ### Lighting
 
@@ -86,9 +142,11 @@ to a lat-long map, via the [Scene#envMap](#sceneenvmap) call:
 	*/
 	Scene.prototype.envMap = function()
 	{
-	  	return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_040_Field_Bg.jpg';
+	  	return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_040_Field_Bg.jpg';Lights_Bg.jpg';
 	}
 ```
+
+Other such env-maps are available from [here](https://github.com/portsmouth/envmaps) (convert to RawGit links first).
 
 Or otherwise will be taken to be a constant intensity sky. 
 In both cases, the sky spectrum is modulated by a blackbody emission spectrum with adjustable temperature (Set via [Renderer#skyTemperature](Renderer#skyTemperature)).
@@ -172,9 +230,8 @@ Scene.prototype.initGenerator = function()
 	return `
 this.parameters = {};
 this.parameters.foo = ${this.parameters.foo};
-this.parameters.foo2 = ${this.parameters.foo2};
 this.parameters.bar = ${this.parameters.bar};
-this.animFrame = ${this.animFrame};
+this.frame = 0;
 	`; 
 }
 ```
@@ -183,7 +240,7 @@ With this code in place, the output on pressing 'O' is then a faithful represent
 
 ### Callbacks and animation
 
-For implementation of custom animation logic, we use the simple mechanism of pre- and post-frame user callbacks, wherein the user can implement whatever logic he needs. See the provided examples for details of how to use this implement animating scenes, and movie rendering.
+For implementation of custom animation logic, we use the simple mechanism of pre- and post-frame user callbacks, wherein the user can implement whatever logic he needs to programmatically animate the scene, camera, and materials. See the provided examples for details of how to use this implement animating scenes, and movie rendering.
 
     Scene.prototype.preframeCallback = function(snelly, gl);
     Scene.prototype.postframeCallback = function(snelly, gl);
@@ -191,11 +248,11 @@ For implementation of custom animation logic, we use the simple mechanism of pre
 
 ## Scene
 
-[js/sceneAPI.js:3-3](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/sceneAPI.js#L3-L3 "Source code on GitHub")
+[js/sceneAPI.js:3-3](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/sceneAPI.js#L3-L3 "Source code on GitHub")
 
 ### init
 
-[js/sceneAPI.js:13-70](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/sceneAPI.js#L13-L70 "Source code on GitHub")
+[js/sceneAPI.js:13-70](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/sceneAPI.js#L13-L70 "Source code on GitHub")
 
 Optionally (but usually), provide this function to set scene and renderer initial state.
 
@@ -205,7 +262,7 @@ Optionally (but usually), provide this function to set scene and renderer initia
 
 ### initGenerator
 
-[js/sceneAPI.js:78-86](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/sceneAPI.js#L78-L86 "Source code on GitHub")
+[js/sceneAPI.js:78-86](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/sceneAPI.js#L78-L86 "Source code on GitHub")
 
 Optionally, provide this function which generates the init code to re-generate 
 the current UI parameter settings. This will be dumped to the console (along with 
@@ -214,7 +271,7 @@ state to be tweaked in the UI then saved by copy-pasting code into the init func
 
 ### envMap
 
-[js/sceneAPI.js:93-100](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/sceneAPI.js#L93-L100 "Source code on GitHub")
+[js/sceneAPI.js:93-100](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/sceneAPI.js#L93-L100 "Source code on GitHub")
 
 Optionally, supply an env-map texture URL (must be a lat-long format image).
 (If this is function not implemented, or it returns the empty string, a uniform
@@ -222,23 +279,24 @@ temperature blackbody sky is used).
 
 ### getName
 
-[js/sceneAPI.js:106-106](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/sceneAPI.js#L106-L106 "Source code on GitHub")
+[js/sceneAPI.js:106-106](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/sceneAPI.js#L106-L106 "Source code on GitHub")
 
 Optional name (displayed in UI)
 
 ### getURL
 
-[js/sceneAPI.js:111-111](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/sceneAPI.js#L111-L111 "Source code on GitHub")
+[js/sceneAPI.js:111-111](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/sceneAPI.js#L111-L111 "Source code on GitHub")
 
 Optional clickable URL (displayed in UI)
 
 ### shader
 
-[js/sceneAPI.js:158-324](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/sceneAPI.js#L158-L324 "Source code on GitHub")
+[js/sceneAPI.js:159-326](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/sceneAPI.js#L159-L326 "Source code on GitHub")
 
-This function is mandatory!
 Return a chunk of GLSL code defining the SDFs which determine the geometry of uber-surface, metal and dielectric materials in the scene.
 Define also (optionally) functions giving the 3d spatial dependence of the material parameters.
+This function is mandatory!
+
 The code _must_ define at least one of the three functions:
 
 ```glsl
@@ -247,7 +305,7 @@ The code _must_ define at least one of the three functions:
      float SDF_DIFFUSE(vec3 X);
 ```
 
-If only one or two of these are present, the others will not be rendered.
+(If only one or two of these are present, the others will not be rendered).
 Optionally, any of the following functions defining the spatial _modulation_ of material parameters can be defined.
 (Any of the user-defined functions below can be omitted, in which case they will be replaced with the default indicated).
 
@@ -281,7 +339,7 @@ Returns **[String](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Refer
 
 ### initGui
 
-[js/sceneAPI.js:330-335](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/sceneAPI.js#L330-L335 "Source code on GitHub")
+[js/sceneAPI.js:332-337](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/sceneAPI.js#L332-L337 "Source code on GitHub")
 
 /\* Optional. Set up gui and callbacks for this scene
 
@@ -292,7 +350,7 @@ Returns **[String](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Refer
 
 ### syncShader
 
-[js/sceneAPI.js:342-347](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/sceneAPI.js#L342-L347 "Source code on GitHub")
+[js/sceneAPI.js:344-349](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/sceneAPI.js#L344-L349 "Source code on GitHub")
 
 /_ Optional. Called whenever the UI is changed,
 /_ and must sync the params of the shader with the current UI settings
@@ -304,7 +362,7 @@ Returns **[String](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Refer
 
 ### getMinScale
 
-[js/sceneAPI.js:355-358](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/sceneAPI.js#L355-L358 "Source code on GitHub")
+[js/sceneAPI.js:357-360](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/sceneAPI.js#L357-L360 "Source code on GitHub")
 
 Optional. Gives the raytracer some indication of the (rough) minimum length scale, 
 so it can set tolerances appropriately. This sets the rough length scale of the smallest 
@@ -313,7 +371,7 @@ Defaults to 0.0001.
 
 ### getMaxScale
 
-[js/sceneAPI.js:368-371](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/sceneAPI.js#L368-L371 "Source code on GitHub")
+[js/sceneAPI.js:370-373](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/sceneAPI.js#L370-L373 "Source code on GitHub")
 
 Optional. Gives the raytracer some indication of the (rough) maximum length scale, 
 so it can set tolerances appropriately. The raymarcher will march no further
@@ -323,7 +381,7 @@ Defaults to 100.0.
 
 ### preframeCallback
 
-[js/sceneAPI.js:385-455](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/sceneAPI.js#L385-L455 "Source code on GitHub")
+[js/sceneAPI.js:387-457](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/sceneAPI.js#L387-L457 "Source code on GitHub")
 
 Optional callback before every frame.
 Animation rendering logic can be implemented here by updating the scene 
@@ -338,7 +396,7 @@ programmatically according to the global time since init
 
 ### postframeCallback
 
-[js/sceneAPI.js:465-491](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/sceneAPI.js#L465-L491 "Source code on GitHub")
+[js/sceneAPI.js:467-493](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/sceneAPI.js#L467-L493 "Source code on GitHub")
 
 Optional callback after every frame.
 Animation rendering logic can be implemented here by updating the scene 
@@ -351,14 +409,9 @@ programmatically according to the global time since init
 -   `The` **[Snelly](#snelly)** snelly object
 -   `The` **[WebGLRenderingContext](https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext)** webGL context
 
-## Snelly global object
-
-Snelly is the global object providing access to all functionality in the system.
-
-
 ## Snelly
 
-[js/snelly.js:5-79](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/snelly.js#L5-L79 "Source code on GitHub")
+[js/snelly.js:6-80](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/snelly.js#L6-L80 "Source code on GitHub")
 
 **Parameters**
 
@@ -366,7 +419,7 @@ Snelly is the global object providing access to all functionality in the system.
 
 ### getVersion
 
-[js/snelly.js:85-88](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/snelly.js#L85-L88 "Source code on GitHub")
+[js/snelly.js:86-89](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/snelly.js#L86-L89 "Source code on GitHub")
 
 Returns the current version number of the snelly system, in the format [1, 2, 3]
 
@@ -374,7 +427,7 @@ Returns **[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Refere
 
 ### getRenderer
 
-[js/snelly.js:108-111](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/snelly.js#L108-L111 "Source code on GitHub")
+[js/snelly.js:109-112](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/snelly.js#L109-L112 "Source code on GitHub")
 
 Access to the Renderer object
 
@@ -382,15 +435,15 @@ Returns **[Renderer](#renderer)**
 
 ### getGUI
 
-[js/snelly.js:117-120](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/snelly.js#L117-L120 "Source code on GitHub")
+[js/snelly.js:118-121](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/snelly.js#L118-L121 "Source code on GitHub")
 
 Access to the GUI object
 
-Returns **[Renderer](#renderer)** 
+Returns **[GUI](#gui)** 
 
 ### getCamera
 
-[js/snelly.js:126-129](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/snelly.js#L126-L129 "Source code on GitHub")
+[js/snelly.js:127-130](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/snelly.js#L127-L130 "Source code on GitHub")
 
 Access to the camera object
 
@@ -398,7 +451,7 @@ Returns **THREE.PerspectiveCamera** .
 
 ### getControls
 
-[js/snelly.js:135-138](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/snelly.js#L135-L138 "Source code on GitHub")
+[js/snelly.js:136-139](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/snelly.js#L136-L139 "Source code on GitHub")
 
 Access to the camera controller object
 
@@ -406,43 +459,66 @@ Returns **THREE.OrbitControls** .
 
 ### showGUI
 
-[js/snelly.js:144-147](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/snelly.js#L144-L147 "Source code on GitHub")
+[js/snelly.js:145-148](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/snelly.js#L145-L148 "Source code on GitHub")
 
 Programmatically show or hide the dat.GUI UI
 
 **Parameters**
 
--   `showGUI`  
--   `snelly` **[Boolean](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean)** The snelly object
+-   `showGUI` **[Boolean](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean)** toggle
 
 ### getMaterials
 
-[js/snelly.js:333-336](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/snelly.js#L333-L336 "Source code on GitHub")
+[js/snelly.js:334-337](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/snelly.js#L334-L337 "Source code on GitHub")
 
 Get materials object
 
-Returns **[Materials](#materials)** the Materials object.
+Returns **[Materials](#materials)** 
 
 ### getSurface
 
-[js/snelly.js:374-377](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/snelly.js#L374-L377 "Source code on GitHub")
+[js/snelly.js:375-378](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/snelly.js#L375-L378 "Source code on GitHub")
 
 Get Surface object
 
-Returns **[Surface](#surface)** the Surface object.
+Returns **[Surface](#surface)** 
+
+## Renderer
+
+[js/renderer.js:71-142](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/renderer.js#L71-L142 "Source code on GitHub")
+
+**Properties**
+
+-   `width` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** width (if not specified, fits to window)
+-   `height` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** height (if not specified, fits to window)
+-   `renderMode` **[string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)?** rendering mode (either 'pt', 'ao', or 'normals')
+-   `maxMarchSteps` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** maximum number of raymarching steps per path segment
+-   `radianceClamp` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** clamp radiance to this max value, for firefly reduction
+-   `skyPower` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** sky power (arbitrary units)
+-   `skyTemperature` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** sky temperature (in Kelvin)
+-   `exposure` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** exposure, on a log scale
+-   `gamma` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** display gamma correction
+-   `whitepoint` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** tonemapping whitepoint
+-   `goalFPS` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** sampling will adjust to try to match goal FPS
+-   `minsSPPToRedraw` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** if >0.0, renderer will not redraw until the specified SPP have been accumulated
+
+### reset
+
+[js/renderer.js:163-171](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/renderer.js#L163-L171 "Source code on GitHub")
+
+Restart accumulating samples.
+
+**Parameters**
+
+-   `no_recompile` **[Boolean](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean)** set to true if shaders need recompilation too (optional, default `false`)
 
 ## Materials
 
-The API for specifying material properties.
-
-
-## Materials
-
-[js/materials.js:595-658](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/materials.js#L595-L658 "Source code on GitHub")
+[js/materials.js:598-661](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/materials.js#L598-L661 "Source code on GitHub")
 
 ### loadDielectric
 
-[js/materials.js:707-711](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/materials.js#L707-L711 "Source code on GitHub")
+[js/materials.js:710-714](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/materials.js#L710-L714 "Source code on GitHub")
 
 Load the desired Dielectric object by name. Supported dielectrics are:
 
@@ -477,7 +553,7 @@ Returns **[Dielectric](#dielectric)** the loaded dielectric
 
 ### loadMetal
 
-[js/materials.js:740-744](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/materials.js#L740-L744 "Source code on GitHub")
+[js/materials.js:743-747](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/materials.js#L743-L747 "Source code on GitHub")
 
 Load the desired Metal object by name. Supported metals are:
 
@@ -512,7 +588,7 @@ Returns **[Metal](#metal)** the loaded metal
 
 ### getDielectric
 
-[js/materials.js:755-758](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/materials.js#L755-L758 "Source code on GitHub")
+[js/materials.js:758-761](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/materials.js#L758-L761 "Source code on GitHub")
 
 Get the currently loaded Dielectric object.
 
@@ -520,7 +596,7 @@ Returns **[Dielectric](#dielectric)**
 
 ### getMetal
 
-[js/materials.js:769-772](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/materials.js#L769-L772 "Source code on GitHub")
+[js/materials.js:772-775](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/materials.js#L772-L775 "Source code on GitHub")
 
 Get the currently loaded Metal object.
 
@@ -528,15 +604,24 @@ Returns **[Metal](#metal)**
 
 ### getSurface
 
-[js/materials.js:784-787](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/materials.js#L784-L787 "Source code on GitHub")
+[js/materials.js:787-790](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/materials.js#L787-L790 "Source code on GitHub")
 
 Get the Surface object.
 
 Returns **[Surface](#surface)** 
 
+## Material
+
+[js/materials.js:10-14](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/materials.js#L10-L14 "Source code on GitHub")
+
+**Parameters**
+
+-   `name`  
+-   `desc`  
+
 ## Surface
 
-[js/materials.js:43-51](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/materials.js#L43-L51 "Source code on GitHub")
+[js/materials.js:44-52](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/materials.js#L44-L52 "Source code on GitHub")
 
 **Parameters**
 
@@ -561,7 +646,7 @@ surface.specAlbedo = [0.0, 0.0, 0.0];
 
 ## Dielectric
 
-[js/materials.js:271-279](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/materials.js#L271-L279 "Source code on GitHub")
+[js/materials.js:274-282](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/materials.js#L274-L282 "Source code on GitHub")
 
 **Parameters**
 
@@ -583,7 +668,7 @@ dielectric.roughness = 0.030443974630021145;
 
 ## Metal
 
-[js/materials.js:78-82](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/materials.js#L78-L82 "Source code on GitHub")
+[js/materials.js:80-84](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/materials.js#L80-L84 "Source code on GitHub")
 
 **Parameters**
 
@@ -601,48 +686,9 @@ let metal = materials.loadMetal('Gold');
  metal.roughness = 0.05;
 ```
 
-## Rendering
-
-The renderer itself is a uni-directional pathtracer (with adjunct modes for ambient occlusion and normals rendering).
-
-
-## Renderer
-
-[js/renderer.js:71-142](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/renderer.js#L71-L142 "Source code on GitHub")
-
-**Parameters**
-
--   `width` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** width (if not specified, fits to window)
--   `height` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** height (if not specified, fits to window)
--   `renderMode` **[string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** rendering mode (either 'pt', 'ao', or 'normals') (optional, default `pt`)
--   `maxMarchSteps` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** maximum number of raymarching steps per path segment (optional, default `512`)
--   `radianceClamp` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** clamp radiance to this max value, for firefly reduction
--   `skyPower` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** sky power (arbitrary units) (optional, default `4.0`)
--   `skyTemperature` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** sky temperature (in Kelvin) (optional, default `6000`)
--   `exposure` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** exposure, on a log scale (optional, default `4.5`)
--   `gamma` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** display gamma correction (optional, default `2.2`)
--   `whitepoint` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** tonemapping whitepoint (optional, default `2.0`)
--   `goalFPS` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** sampling will adjust to try to match goal FPS (optional, default `10.0`)
--   `minsSPPToRedraw` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** if >0.0, renderer will not redraw until the specified SPP have been accumulated (optional, default `0.0`)
-
-### reset
-
-[js/renderer.js:163-171](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/renderer.js#L163-L171 "Source code on GitHub")
-
-Restart accumulating samples.
-
-**Parameters**
-
--   `no_recompile` **[Boolean](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean)** set to true if shaders need recompilation too (optional, default `false`)
-
-## Utilities
-
-These utilities provide for more easily setting up GUI control of the GLSL-defined scene.
-
-
 ## GUI
 
-[js/gui.js:5-18](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/gui.js#L5-L18 "Source code on GitHub")
+[js/gui.js:5-18](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/gui.js#L5-L18 "Source code on GitHub")
 
 **Parameters**
 
@@ -650,19 +696,46 @@ These utilities provide for more easily setting up GUI control of the GLSL-defin
 
 ### sync
 
-[js/gui.js:34-37](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/gui.js#L34-L37 "Source code on GitHub")
+[js/gui.js:34-37](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/gui.js#L34-L37 "Source code on GitHub")
+
+Call to explicitly force the GUI to synchronize with the
+current parameter values, if they have been changed programmatically.
+
+### addSlider
+
+[js/gui.js:115-129](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/gui.js#L115-L129 "Source code on GitHub")
+
+Add a dat.GUI UI slider to control a float parameter.
+The scene parameters need to be organized into an Object as
+key-value pairs, for supply to this function.
+
+**Parameters**
+
+-   `parameters` **[Object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)** the parameters object for the scene, with key-value pairs for all parameters
+-   `param` **[Object](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)** the slider range for this parameter, in the form `{name: 'foo', min: 0.0, max: 100.0, step: 1.0}` (step is optional)
+
+**Examples**
+
+```javascript
+Scene.prototype.initGui = function(gui)            
+	{
+		gui.addSlider(this.parameters, c);
+		gui.addSlider(this.parameters, {name: 'foo2', min: 0.0, max: 1.0});
+		gui.addSlider(this.parameters, {name: 'bar', min: 0.0, max: 3.0});
+	}
+```
 
 ## GLU
 
-[js/gl.js:8-8](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/gl.js#L8-L8 "Source code on GitHub")
+[js/gl.js:8-8](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/gl.js#L8-L8 "Source code on GitHub")
 
 Namespace for webGL utility wrappers.
 Functions for loading uniform variables is exposed to the user
 for convenience.
 
-## uniformI
+### uniformI
 
-[js/gl.js:179-184](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/gl.js#L179-L184 "Source code on GitHub")
+[js/gl.js:180-185](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/gl.js#L180-L185 "Source code on GitHub")
 
 Provide an integer (via uniform1i) to the currently bound shader
 
@@ -671,21 +744,20 @@ Provide an integer (via uniform1i) to the currently bound shader
 -   `name` **[string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** The name of the uniform variable
 -   `i` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The integer value
 
-## uniformF
+### uniformF
 
-[js/gl.js:190-195](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/gl.js#L190-L195 "Source code on GitHub")
+[js/gl.js:192-197](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/gl.js#L192-L197 "Source code on GitHub")
 
 Provide a float (via uniform1f) to the currently bound shader
 
 **Parameters**
 
 -   `name` **[string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** The name of the uniform variable
--   `f`  
--   `i` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The float value
+-   `f` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The float value
 
-## uniform2F
+### uniform2F
 
-[js/gl.js:202-207](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/gl.js#L202-L207 "Source code on GitHub")
+[js/gl.js:205-210](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/gl.js#L205-L210 "Source code on GitHub")
 
 Provide a vec2 uniform (via uniform2f) to the currently bound shader
 
@@ -695,9 +767,9 @@ Provide a vec2 uniform (via uniform2f) to the currently bound shader
 -   `f1` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The first float value
 -   `f2` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The second float value
 
-## uniform1Fv
+### uniform1Fv
 
-[js/gl.js:214-219](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/gl.js#L214-L219 "Source code on GitHub")
+[js/gl.js:218-223](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/gl.js#L218-L223 "Source code on GitHub")
 
 Provide an array of floats (via uniform1Fv) to the currently bound shader
   i.e. the shader declares e.g. `uniform float values[19];`
@@ -707,9 +779,9 @@ Provide an array of floats (via uniform1Fv) to the currently bound shader
 -   `name` **[string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** The name of the uniform variable
 -   `fvec` **[Float32Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array)** An array of floats
 
-## uniform2Fv
+### uniform2Fv
 
-[js/gl.js:226-231](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/gl.js#L226-L231 "Source code on GitHub")
+[js/gl.js:231-236](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/gl.js#L231-L236 "Source code on GitHub")
 
 Provide an array of vec2 (via uniform2fv) to the currently bound shader
   i.e. the shader declares e.g. `uniform vec2 vectors[19];`
@@ -719,9 +791,9 @@ Provide an array of vec2 (via uniform2fv) to the currently bound shader
 -   `name` **[string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** The name of the uniform variable
 -   `fvec2` **[Float32Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array)** An array of floats, 2 per vector
 
-## uniform3F
+### uniform3F
 
-[js/gl.js:239-244](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/gl.js#L239-L244 "Source code on GitHub")
+[js/gl.js:245-250](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/gl.js#L245-L250 "Source code on GitHub")
 
 Provide a vec3 uniform (via uniform3f) to the currently bound shader
 
@@ -732,9 +804,9 @@ Provide a vec3 uniform (via uniform3f) to the currently bound shader
 -   `f2` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The second float value
 -   `f3` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The third float value
 
-## uniform3Fv
+### uniform3Fv
 
-[js/gl.js:251-256](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/gl.js#L251-L256 "Source code on GitHub")
+[js/gl.js:258-263](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/gl.js#L258-L263 "Source code on GitHub")
 
 Provide an array of vec3 (via uniform3fv) to the currently bound shader
   i.e. the shader declares e.g. `uniform vec3 vectors[19];`
@@ -744,9 +816,9 @@ Provide an array of vec3 (via uniform3fv) to the currently bound shader
 -   `name` **[string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** The name of the uniform variable
 -   `fvec3` **[Float32Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array)** An array of floats, 3 per vector
 
-## uniform4F
+### uniform4F
 
-[js/gl.js:265-270](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/gl.js#L265-L270 "Source code on GitHub")
+[js/gl.js:273-278](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/gl.js#L273-L278 "Source code on GitHub")
 
 Provide a vec4 uniform (via uniform4F) to the currently bound shader
 
@@ -755,12 +827,12 @@ Provide a vec4 uniform (via uniform4F) to the currently bound shader
 -   `name` **[string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** The name of the uniform variable
 -   `f1` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The first float value
 -   `f2` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The second float value
--   `f3` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The fourth float value
--   `f4`  
+-   `f3` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The third float value
+-   `f4` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The fourth float value
 
-## uniform4Fv
+### uniform4Fv
 
-[js/gl.js:277-282](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/gl.js#L277-L282 "Source code on GitHub")
+[js/gl.js:286-291](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/gl.js#L286-L291 "Source code on GitHub")
 
 Provide an array of vec4 (via uniform4fv) to the currently bound shader
   i.e. the shader declares e.g. `uniform vec4 vectors[19];`
@@ -770,23 +842,14 @@ Provide an array of vec4 (via uniform4fv) to the currently bound shader
 -   `name` **[string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** The name of the uniform variable
 -   `fvec4` **[Float32Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array)** An array of floats, 4 per vector
 
-## uniformMatrix4fv
+### uniformMatrix4fv
 
-[js/gl.js:289-294](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/gl.js#L289-L294 "Source code on GitHub")
+[js/gl.js:299-304](https://github.com/portsmouth/snellypt/blob/5851571c71c7fda3be82ddd66438960fcbcf0407/js/gl.js#L299-L304 "Source code on GitHub")
 
 Provide a matrix (via uniformMatrix4fv) to the currently bound shader
-/\*  i.e. the shader declares e.g. `uniform mat4 matrix;`
+ i.e. the shader declares e.g. `uniform mat4 matrix;`
 
 **Parameters**
 
 -   `name` **[string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** The name of the uniform variable
 -   `matrixArray16` **[Float32Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array)** An array of 16 floats
-
-## Material
-
-[js/materials.js:10-14](https://github.com/portsmouth/snellypt/blob/630f90727696303b2483ffaa7e1e2b1911a0a40b/js/materials.js#L10-L14 "Source code on GitHub")
-
-**Parameters**
-
--   `name`  
--   `desc`  

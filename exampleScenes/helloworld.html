@@ -44,7 +44,7 @@ Scene.prototype.shader = function()
 
 Scene.prototype.envMap = function() 
 { return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg'; }
-Scene.prototype.initGui = function(gui) { gui.addParameter(this.par, {name: 'R', min: 0.0, max: 1.0}); }
+Scene.prototype.initGui = function(gui) { gui.addSlider(this.par, {name: 'R', min: 0.0, max: 1.0}); }
 Scene.prototype.syncShader = function(shader) { shader.uniformF("R", this.par.R); }
 
 function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }

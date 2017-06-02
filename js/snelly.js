@@ -1,5 +1,6 @@
 
 /** @constructor 
+* Snelly is the global object providing access to all functionality in the system.
 * @param {Scene} sceneObj - The user-defined scene
 */
 var Snelly = function(sceneObj)
@@ -112,7 +113,7 @@ Snelly.prototype.getRenderer = function()
 
 /**
 * Access to the GUI object
-*  @returns {Renderer} 
+*  @returns {GUI} 
 */
 Snelly.prototype.getGUI = function()
 {
@@ -139,7 +140,7 @@ Snelly.prototype.getControls = function()
 
 /**
 * Programmatically show or hide the dat.GUI UI
-* @param {Boolean} snelly - The snelly object
+* @param {Boolean} showGUI - toggle
 */
 Snelly.prototype.showGUI = function(showGUI)
 {
@@ -328,7 +329,7 @@ Snelly.prototype.getLoadedSpectrum = function()
 
 /**
 * Get materials object
- * @returns {Materials} the Materials object.
+ * @returns {Materials}
 */
 Snelly.prototype.getMaterials = function()
 {
@@ -369,7 +370,7 @@ Snelly.prototype.getLoadedMetal = function()
 
 /**
 * Get Surface object
- * @returns {Surface} the Surface object.
+ * @returns {Surface}
 */
 Snelly.prototype.getSurface = function()
 {

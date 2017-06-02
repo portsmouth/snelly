@@ -29,6 +29,7 @@ Material.prototype.getDesc = function()
 ////////////////////////////////////////////////////////
 
 /** @constructor 
+  * @extends Material
 * Generic uber-surface material. Control via properties:
 * @property {number}  roughness    - The surface roughness
 * @property {number}  ior          - The surface coating ior
@@ -69,6 +70,7 @@ Surface.prototype.syncShader = function(shader)
 ////////////////////////////////////////////////////////
 
 /** @constructor 
+* @extends Material
 * Generic metal material.
 * @property {number}  roughness  - The metal surface roughness
 * @example
@@ -260,6 +262,7 @@ TabulatedMetal.prototype.eraseGui = function(parentFolder) { Metal.prototype.era
 ////////////////////////////////////////////////////////
 
 /** @constructor 
+* @extends Material
 * Generic dielectric material.
 * @property {number}  roughness  - The dielectric surface roughness
 * @example
