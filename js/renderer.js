@@ -53,7 +53,21 @@ PathtracerState.prototype.clear = function(fbo)
 	fbo.unbind();
 }
 
-/** @constructor */
+/** @constructor 
+* Interface to the pathtracer.
+* @property {number} [width]  - width (if not specified, fits to window) 
+* @property {number} [height] - height (if not specified, fits to window) 
+* @property {string} [renderMode=pt] - rendering mode (either 'pt', 'ao', or 'normals') 
+* @property {number} [maxMarchSteps=512] - maximum number of raymarching steps per path segment
+* @property {number} [radianceClamp] - clamp radiance to this max value, for firefly reduction
+* @property {number} [skyPower=4.0] - sky power (arbitrary units)
+* @property {number} [skyTemperature=6000] - sky temperature (in Kelvin)
+* @property {number} [exposure=4.5] - exposure, on a log scale
+* @property {number} [gamma=2.2] - display gamma correction
+* @property {number} [whitepoint=2.0] - tonemapping whitepoint
+* @property {number} [goalFPS=10.0] - sampling will adjust to try to match goal FPS
+* @property {number} [minsSPPToRedraw=0.0] - if >0.0, renderer will not redraw until the specified SPP have been accumulated
+*/
 var Renderer = function()
 {
 	this.gl = GLU.gl;
@@ -70,14 +84,16 @@ var Renderer = function()
 	this.pathStates = [new PathtracerState(this._width, this._height), 
 					   new PathtracerState(this._width, this._height)];
 	this.fbo == null;
+
+	// Internal properties (@todo: use underscore to make this more explicit?)
 	this.numSamples = 0;
 	this.numFramesSinceReset = 0;
 	this.numFramesSinceInit = 0;
-
+	this.skipProbability = 0.0;
 	this.frametime_measure_ms = 0.0;
 	this.spp = 0.0;
 
-	// Default user-adjustable settings 
+	// Default user-adjustable properties 
 	this.renderMode = 'pt';
 	this.maxBounces = 3;
 	this.maxMarchSteps = 256;
@@ -87,7 +103,6 @@ var Renderer = function()
 	this.exposure = 3.0;
 	this.gamma = 2.2;
 	this.whitepoint = 2.0;
-	this.skipProbability = 0.0;
 	this.goalFPS = 20.0;
 	this.minsSPPToRedraw = 0.0;
 
@@ -141,6 +156,10 @@ Renderer.prototype.createQuadVbo = function()
 	return vbo;
 }
 
+/**
+* Restart accumulating samples.
+* @param {Boolean} [no_recompile=false] - set to true if shaders need recompilation too
+*/
 Renderer.prototype.reset = function(no_recompile = false)
 {
 	this.numSamples = 0;

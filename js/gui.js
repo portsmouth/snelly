@@ -1,5 +1,7 @@
 
-/** @constructor */
+/** @constructor 
+* Interface to the dat.GUI UI.
+*/
 var GUI = function(visible = true) 
 {
 	// Create dat gui
@@ -25,6 +27,10 @@ function updateDisplay(gui)
     }
 }
 
+/** @constructor 
+* Call to explicitly force the GUI to synchronize with the
+* current parameter values, if they have been changed programmatically.
+*/
 GUI.prototype.sync = function()
 {
 	updateDisplay(this.gui);

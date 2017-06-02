@@ -52,30 +52,6 @@ function Surface(name, desc)
 
 Surface.prototype = Object.create(Material.prototype);
 
-/**
-* Set surface roughness
- * @param {number} the surface roughness in [0,1].
-*/
-Surface.prototype.setRoughness = function(roughness)
-{
-	this.roughness = roughness;
-}
-
-Surface.prototype.setIor = function(roughness)
-{
-	this.ior = ior;
-}
-
-Surface.prototype.setDiffuseAlbedo = function(diffuseAlbedo)
-{
-	this.diffuseAlbedo = diffuseAlbedo;
-}
-
-Surface.prototype.setSpecAlbedo = function(specAlbedo)
-{
-	this.specAlbedoRGB = specAlbedo;
-}
-
 Surface.prototype.syncShader = function(shader)
 {
 	this.diffuseAlbedoXYZ = rgbToXyz(this.diffuseAlbedo);
@@ -93,7 +69,8 @@ Surface.prototype.syncShader = function(shader)
 ////////////////////////////////////////////////////////
 
 /** @constructor 
-* Generic dielectric material.
+* Generic metal material.
+* @property {number}  roughness  - The metal surface roughness
 * @example
 *  let metal = materials.loadMetal('Gold');
 *  metal.roughness = 0.05;
@@ -105,11 +82,6 @@ function Metal(name, desc)
 }
 
 Metal.prototype = Object.create(Material.prototype);
-
-Metal.prototype.setRoughness = function(roughness)
-{
-	this.roughness = roughness;
-}
 
 Metal.prototype.syncShader = function(shader)
 {
@@ -132,9 +104,6 @@ Metal.prototype.eraseGui = function(parentFolder)
 { 
 	parentFolder.remove(this.roughnessItem);
 }
-
-
-
 
 function tabulated_aluminium() { // 64 samples of n, k between 390.000000nm and 750.000000nm
         return { n: new Float32Array([0.0508064516129,0.0526497695853,0.0535437100213,0.0518379530917,0.050132196162,0.0503712273642,0.0507736418511,0.0511633986928,0.0515368814192,0.0519103641457,0.052,0.052,0.052,0.0522873284907,0.0526101694915,0.0529330104923,0.0527616541353,0.0524609022556,0.0521601503759,0.052,0.052,0.052,0.052,0.0519313269841,0.0518500571429,0.0517687873016,0.0516875174603,0.0513434577259,0.0509726122449,0.0506017667638,0.0502309212828,0.0500476972281,0.049979466951,0.0499112366738,0.0498430063966,0.0497747761194,0.0494565472155,0.0491195012107,0.0487824552058,0.048445409201,0.0481083631961,0.048246595092,0.048528803681,0.0488110122699,0.0490932208589,0.0493754294479,0.0496514128296,0.0498340181031,0.0500166233766,0.0501992286501,0.0503818339237,0.0505644391972,0.0507470444707,0.0508711252205,0.0509713015873,0.0510714779541,0.051171654321,0.0512718306878,0.0513720070547,0.0514721834215,0.0516020488722,0.0517499185464,0.0518977882206,0.0520456578947]),
@@ -292,6 +261,7 @@ TabulatedMetal.prototype.eraseGui = function(parentFolder) { Metal.prototype.era
 
 /** @constructor 
 * Generic dielectric material.
+* @property {number}  roughness  - The dielectric surface roughness
 * @example
 * 	let dielectric = materials.loadDielectric('Diamond');
 *	dielectric.absorptionColor = [1.0, 1.0, 1.0];
@@ -309,11 +279,6 @@ function Dielectric(name, desc)
 }
 
 Dielectric.prototype = Object.create(Material.prototype);
-
-Dielectric.prototype.setRoughness = function(roughness)
-{
-	this.roughness = roughness;
-}
 
 Dielectric.prototype.syncShader = function(shader)
 {

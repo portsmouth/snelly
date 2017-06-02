@@ -101,6 +101,7 @@ Scene.prototype.envMap = function()
 
 /**
 * Optional name (displayed in UI)
+* @returns
 */
 Scene.prototype.getName = function() { return "Complete API example"; }
 
@@ -153,6 +154,7 @@ Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snel
 		// space-varying multiplier to the UI-exposed constant (defaults to 1.0)
 		float DIELECTRIC_ROUGHNESS(in vec3 X);
 *```
+* @returns {String}.
 */
 Scene.prototype.shader = function()
 {
@@ -432,14 +434,14 @@ Scene.prototype.preframeCallback = function(snelly, gl)
 	controls.update();
 
 	// animate user scene parameters
-	//this.parameters.foo  = Math.abs(Math.cos(Math.exp(0.5+0.5*Math.sin(phase))));
-	//this.parameters.foo2 = Math.abs(Math.cos(Math.exp(0.5-0.5*Math.sin(7.0*phase))));
-	//this.parameters.bar = 3.0*Math.abs(0.333+Math.cos(Math.exp(0.5+0.5*Math.cos(3.0*phase))));
+	this.parameters.foo  = Math.abs(Math.cos(Math.exp(0.5+0.5*Math.sin(phase))));
+	this.parameters.foo2 = Math.abs(Math.cos(Math.exp(0.5-0.5*Math.sin(7.0*phase))));
+	this.parameters.bar = 3.0*Math.abs(0.333+Math.cos(Math.exp(0.5+0.5*Math.cos(3.0*phase))));
 
 	// animate materials
 	let surface = materials.getSurface();
-	//surface.roughness = 0.1; //*Math.pow(Math.abs(Math.sin(11.0*phase)), 3.0);
-	//surface.diffuseAlbedo = [phase, 0.1, 1.0-phase];
+	surface.roughness = Math.pow(Math.abs(Math.sin(11.0*phase)), 3.0);
+	surface.diffuseAlbedo = [phase, 0.1, 1.0-phase];
 
 	let dielectric = materials.getDielectric();
 	dielectric.roughness = 0.1*Math.pow(Math.abs(Math.sin(phase)), 5.0);
@@ -464,7 +466,7 @@ Scene.prototype.preframeCallback = function(snelly, gl)
  */
 Scene.prototype.postframeCallback = function(snelly, gl)
 {
-	return;
+	// The code here posts the framebuffer pixels to a local server, for sequence rendering.
 	let renderer  = snelly.getRenderer();
 	let targetSPP = 250.0;
 

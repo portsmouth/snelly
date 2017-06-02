@@ -3,16 +3,29 @@
   - name: Scene description
     file: scene.md
   - Scene
-  - Materials
+
+  - name: Snelly global object
+    description: 
+      Snelly is the global object providing access to all functionality in the system.
   - Snelly
 
+  - name: Materials
+    description: 
+      The API for specifying material properties.
+  - Materials
+  - Surface
+  - Dielectric
+  - Metal
+
   - name: Rendering
-    file: renderer.md
+    description: 
+       The renderer itself is a uni-directional pathtracer (with adjunct modes for ambient occlusion and normals rendering).
   - Renderer
 
   - name: Utilities
-    file: utilities.md
-  - Gui
+    description:
+       These utilities provide for more easily setting up GUI control of the GLSL-defined scene.
+  - GUI
   - GLU
 
   

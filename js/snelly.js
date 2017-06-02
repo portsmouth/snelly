@@ -1,6 +1,5 @@
 
 /** @constructor 
-*  Snelly is the global object providing access to all functionality in the system.
 * @param {Scene} sceneObj - The user-defined scene
 */
 var Snelly = function(sceneObj)

@@ -1,5 +1,10 @@
 
-
+/**
+ * Namespace for webGL utility wrappers.
+ * Functions for loading uniform variables is exposed to the user
+ * for convenience.
+ * @namespace
+ */
 var GLU = {};
 
 (function() {
