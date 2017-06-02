@@ -26,12 +26,12 @@
     -   [getMaterials](#getmaterials)
     -   [getSurface](#getsurface)
 -   [Materials](#materials)
--   [Materials](#materials-1)
     -   [loadDielectric](#loaddielectric)
     -   [loadMetal](#loadmetal)
     -   [getDielectric](#getdielectric)
     -   [getMetal](#getmetal)
     -   [getSurface](#getsurface-1)
+-   [Materials](#materials-1)
 -   [Surface](#surface)
 -   [Dielectric](#dielectric)
 -   [Metal](#metal)
@@ -45,13 +45,13 @@
     -   [uniformI](#uniformi)
     -   [uniformF](#uniformf)
     -   [uniform2F](#uniform2f)
+    -   [uniform1Fv](#uniform1fv)
+    -   [uniform2Fv](#uniform2fv)
     -   [uniform3F](#uniform3f)
+    -   [uniform3Fv](#uniform3fv)
     -   [uniform4F](#uniform4f)
--   [uniform1Fv](#uniform1fv)
--   [uniform2Fv](#uniform2fv)
--   [uniform3Fv](#uniform3fv)
--   [uniform4Fv](#uniform4fv)
--   [uniformMatrix4fv](#uniformmatrix4fv)
+    -   [uniform4Fv](#uniform4fv)
+    -   [uniformMatrix4fv](#uniformmatrix4fv)
 -   [Material](#material)
 
 ## Introduction
@@ -223,11 +223,11 @@ For implementation of custom animation logic, we use the simple mechanism of pre
 
 ## Scene
 
-[js/sceneAPI.js:3-3](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/sceneAPI.js#L3-L3 "Source code on GitHub")
+[js/sceneAPI.js:3-3](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/sceneAPI.js#L3-L3 "Source code on GitHub")
 
 ### init
 
-[js/sceneAPI.js:13-70](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/sceneAPI.js#L13-L70 "Source code on GitHub")
+[js/sceneAPI.js:13-70](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/sceneAPI.js#L13-L70 "Source code on GitHub")
 
 Optionally (but usually), provide this function to set scene and renderer initial state.
 
@@ -237,7 +237,7 @@ Optionally (but usually), provide this function to set scene and renderer initia
 
 ### initGenerator
 
-[js/sceneAPI.js:78-86](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/sceneAPI.js#L78-L86 "Source code on GitHub")
+[js/sceneAPI.js:78-86](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/sceneAPI.js#L78-L86 "Source code on GitHub")
 
 Optionally, provide this function which generates the init code to re-generate 
 the current UI parameter settings. This will be dumped to the console (along with 
@@ -246,7 +246,7 @@ state to be tweaked in the UI then saved by copy-pasting code into the init func
 
 ### envMap
 
-[js/sceneAPI.js:93-100](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/sceneAPI.js#L93-L100 "Source code on GitHub")
+[js/sceneAPI.js:93-100](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/sceneAPI.js#L93-L100 "Source code on GitHub")
 
 Optionally, supply an env-map texture URL (must be a lat-long format image).
 (If this is function not implemented, or it returns the empty string, a uniform
@@ -254,19 +254,19 @@ temperature blackbody sky is used).
 
 ### getName
 
-[js/sceneAPI.js:106-106](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/sceneAPI.js#L106-L106 "Source code on GitHub")
+[js/sceneAPI.js:106-106](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/sceneAPI.js#L106-L106 "Source code on GitHub")
 
 Optional name (displayed in UI)
 
 ### getURL
 
-[js/sceneAPI.js:111-111](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/sceneAPI.js#L111-L111 "Source code on GitHub")
+[js/sceneAPI.js:111-111](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/sceneAPI.js#L111-L111 "Source code on GitHub")
 
 Optional clickable URL (displayed in UI)
 
 ### shader
 
-[js/sceneAPI.js:159-326](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/sceneAPI.js#L159-L326 "Source code on GitHub")
+[js/sceneAPI.js:159-326](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/sceneAPI.js#L159-L326 "Source code on GitHub")
 
 Return a chunk of GLSL code defining the SDFs which determine the geometry of uber-surface, metal and dielectric materials in the scene.
 Define also (optionally) functions giving the 3d spatial dependence of the material parameters.
@@ -314,7 +314,7 @@ Returns **[String](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Refer
 
 ### initGui
 
-[js/sceneAPI.js:332-337](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/sceneAPI.js#L332-L337 "Source code on GitHub")
+[js/sceneAPI.js:332-337](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/sceneAPI.js#L332-L337 "Source code on GitHub")
 
 /\* Optional. Set up gui and callbacks for this scene
 
@@ -325,7 +325,7 @@ Returns **[String](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Refer
 
 ### syncShader
 
-[js/sceneAPI.js:344-349](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/sceneAPI.js#L344-L349 "Source code on GitHub")
+[js/sceneAPI.js:344-349](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/sceneAPI.js#L344-L349 "Source code on GitHub")
 
 /_ Optional. Called whenever the UI is changed,
 /_ and must sync the params of the shader with the current UI settings
@@ -337,7 +337,7 @@ Returns **[String](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Refer
 
 ### getMinScale
 
-[js/sceneAPI.js:357-360](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/sceneAPI.js#L357-L360 "Source code on GitHub")
+[js/sceneAPI.js:357-360](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/sceneAPI.js#L357-L360 "Source code on GitHub")
 
 Optional. Gives the raytracer some indication of the (rough) minimum length scale, 
 so it can set tolerances appropriately. This sets the rough length scale of the smallest 
@@ -346,7 +346,7 @@ Defaults to 0.0001.
 
 ### getMaxScale
 
-[js/sceneAPI.js:370-373](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/sceneAPI.js#L370-L373 "Source code on GitHub")
+[js/sceneAPI.js:370-373](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/sceneAPI.js#L370-L373 "Source code on GitHub")
 
 Optional. Gives the raytracer some indication of the (rough) maximum length scale, 
 so it can set tolerances appropriately. The raymarcher will march no further
@@ -356,7 +356,7 @@ Defaults to 100.0.
 
 ### preframeCallback
 
-[js/sceneAPI.js:387-457](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/sceneAPI.js#L387-L457 "Source code on GitHub")
+[js/sceneAPI.js:387-457](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/sceneAPI.js#L387-L457 "Source code on GitHub")
 
 Optional callback before every frame.
 Animation rendering logic can be implemented here by updating the scene 
@@ -371,7 +371,7 @@ programmatically according to the global time since init
 
 ### postframeCallback
 
-[js/sceneAPI.js:467-493](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/sceneAPI.js#L467-L493 "Source code on GitHub")
+[js/sceneAPI.js:467-493](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/sceneAPI.js#L467-L493 "Source code on GitHub")
 
 Optional callback after every frame.
 Animation rendering logic can be implemented here by updating the scene 
@@ -386,7 +386,7 @@ programmatically according to the global time since init
 
 ## Snelly
 
-[js/snelly.js:6-80](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/snelly.js#L6-L80 "Source code on GitHub")
+[js/snelly.js:6-80](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/snelly.js#L6-L80 "Source code on GitHub")
 
 **Parameters**
 
@@ -394,7 +394,7 @@ programmatically according to the global time since init
 
 ### getVersion
 
-[js/snelly.js:86-89](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/snelly.js#L86-L89 "Source code on GitHub")
+[js/snelly.js:86-89](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/snelly.js#L86-L89 "Source code on GitHub")
 
 Returns the current version number of the snelly system, in the format [1, 2, 3]
 
@@ -402,7 +402,7 @@ Returns **[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Refere
 
 ### getRenderer
 
-[js/snelly.js:109-112](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/snelly.js#L109-L112 "Source code on GitHub")
+[js/snelly.js:109-112](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/snelly.js#L109-L112 "Source code on GitHub")
 
 Access to the Renderer object
 
@@ -410,7 +410,7 @@ Returns **[Renderer](#renderer)**
 
 ### getGUI
 
-[js/snelly.js:118-121](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/snelly.js#L118-L121 "Source code on GitHub")
+[js/snelly.js:118-121](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/snelly.js#L118-L121 "Source code on GitHub")
 
 Access to the GUI object
 
@@ -418,7 +418,7 @@ Returns **[Renderer](#renderer)**
 
 ### getCamera
 
-[js/snelly.js:127-130](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/snelly.js#L127-L130 "Source code on GitHub")
+[js/snelly.js:127-130](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/snelly.js#L127-L130 "Source code on GitHub")
 
 Access to the camera object
 
@@ -426,7 +426,7 @@ Returns **THREE.PerspectiveCamera** .
 
 ### getControls
 
-[js/snelly.js:136-139](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/snelly.js#L136-L139 "Source code on GitHub")
+[js/snelly.js:136-139](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/snelly.js#L136-L139 "Source code on GitHub")
 
 Access to the camera controller object
 
@@ -434,7 +434,7 @@ Returns **THREE.OrbitControls** .
 
 ### showGUI
 
-[js/snelly.js:145-148](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/snelly.js#L145-L148 "Source code on GitHub")
+[js/snelly.js:145-148](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/snelly.js#L145-L148 "Source code on GitHub")
 
 Programmatically show or hide the dat.GUI UI
 
@@ -445,7 +445,7 @@ Programmatically show or hide the dat.GUI UI
 
 ### getMaterials
 
-[js/snelly.js:334-337](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/snelly.js#L334-L337 "Source code on GitHub")
+[js/snelly.js:334-337](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/snelly.js#L334-L337 "Source code on GitHub")
 
 Get materials object
 
@@ -453,7 +453,7 @@ Returns **[Materials](#materials)** the Materials object.
 
 ### getSurface
 
-[js/snelly.js:375-378](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/snelly.js#L375-L378 "Source code on GitHub")
+[js/snelly.js:375-378](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/snelly.js#L375-L378 "Source code on GitHub")
 
 Get Surface object
 
@@ -461,16 +461,11 @@ Returns **[Surface](#surface)** the Surface object.
 
 ## Materials
 
-The API for specifying material properties.
-
-
-## Materials
-
-[js/materials.js:595-658](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/materials.js#L595-L658 "Source code on GitHub")
+[js/materials.js:595-658](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/materials.js#L595-L658 "Source code on GitHub")
 
 ### loadDielectric
 
-[js/materials.js:707-711](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/materials.js#L707-L711 "Source code on GitHub")
+[js/materials.js:707-711](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/materials.js#L707-L711 "Source code on GitHub")
 
 Load the desired Dielectric object by name. Supported dielectrics are:
 
@@ -505,7 +500,7 @@ Returns **[Dielectric](#dielectric)** the loaded dielectric
 
 ### loadMetal
 
-[js/materials.js:740-744](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/materials.js#L740-L744 "Source code on GitHub")
+[js/materials.js:740-744](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/materials.js#L740-L744 "Source code on GitHub")
 
 Load the desired Metal object by name. Supported metals are:
 
@@ -540,7 +535,7 @@ Returns **[Metal](#metal)** the loaded metal
 
 ### getDielectric
 
-[js/materials.js:755-758](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/materials.js#L755-L758 "Source code on GitHub")
+[js/materials.js:755-758](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/materials.js#L755-L758 "Source code on GitHub")
 
 Get the currently loaded Dielectric object.
 
@@ -548,7 +543,7 @@ Returns **[Dielectric](#dielectric)**
 
 ### getMetal
 
-[js/materials.js:769-772](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/materials.js#L769-L772 "Source code on GitHub")
+[js/materials.js:769-772](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/materials.js#L769-L772 "Source code on GitHub")
 
 Get the currently loaded Metal object.
 
@@ -556,15 +551,20 @@ Returns **[Metal](#metal)**
 
 ### getSurface
 
-[js/materials.js:784-787](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/materials.js#L784-L787 "Source code on GitHub")
+[js/materials.js:784-787](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/materials.js#L784-L787 "Source code on GitHub")
 
 Get the Surface object.
 
 Returns **[Surface](#surface)** 
 
+## Materials
+
+The API for specifying material properties.
+
+
 ## Surface
 
-[js/materials.js:43-51](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/materials.js#L43-L51 "Source code on GitHub")
+[js/materials.js:43-51](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/materials.js#L43-L51 "Source code on GitHub")
 
 **Parameters**
 
@@ -589,7 +589,7 @@ surface.specAlbedo = [0.0, 0.0, 0.0];
 
 ## Dielectric
 
-[js/materials.js:271-279](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/materials.js#L271-L279 "Source code on GitHub")
+[js/materials.js:271-279](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/materials.js#L271-L279 "Source code on GitHub")
 
 **Parameters**
 
@@ -611,7 +611,7 @@ dielectric.roughness = 0.030443974630021145;
 
 ## Metal
 
-[js/materials.js:78-82](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/materials.js#L78-L82 "Source code on GitHub")
+[js/materials.js:78-82](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/materials.js#L78-L82 "Source code on GitHub")
 
 **Parameters**
 
@@ -636,7 +636,7 @@ The renderer itself is a uni-directional pathtracer (with adjunct modes for ambi
 
 ## Renderer
 
-[js/renderer.js:71-142](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/renderer.js#L71-L142 "Source code on GitHub")
+[js/renderer.js:71-142](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/renderer.js#L71-L142 "Source code on GitHub")
 
 **Properties**
 
@@ -655,7 +655,7 @@ The renderer itself is a uni-directional pathtracer (with adjunct modes for ambi
 
 ### reset
 
-[js/renderer.js:163-171](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/renderer.js#L163-L171 "Source code on GitHub")
+[js/renderer.js:163-171](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/renderer.js#L163-L171 "Source code on GitHub")
 
 Restart accumulating samples.
 
@@ -670,7 +670,7 @@ These utilities provide for more easily setting up GUI control of the GLSL-defin
 
 ## GUI
 
-[js/gui.js:5-18](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/gui.js#L5-L18 "Source code on GitHub")
+[js/gui.js:5-18](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/gui.js#L5-L18 "Source code on GitHub")
 
 **Parameters**
 
@@ -678,14 +678,14 @@ These utilities provide for more easily setting up GUI control of the GLSL-defin
 
 ### sync
 
-[js/gui.js:34-37](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/gui.js#L34-L37 "Source code on GitHub")
+[js/gui.js:34-37](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/gui.js#L34-L37 "Source code on GitHub")
 
 Call to explicitly force the GUI to synchronize with the
 current parameter values, if they have been changed programmatically.
 
 ## GLU
 
-[js/gl.js:8-8](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/gl.js#L8-L8 "Source code on GitHub")
+[js/gl.js:8-8](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/gl.js#L8-L8 "Source code on GitHub")
 
 Namespace for webGL utility wrappers.
 Functions for loading uniform variables is exposed to the user
@@ -693,7 +693,7 @@ for convenience.
 
 ### uniformI
 
-[js/gl.js:180-185](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/gl.js#L180-L185 "Source code on GitHub")
+[js/gl.js:180-185](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/gl.js#L180-L185 "Source code on GitHub")
 
 Provide an integer (via uniform1i) to the currently bound shader
 
@@ -704,7 +704,7 @@ Provide an integer (via uniform1i) to the currently bound shader
 
 ### uniformF
 
-[js/gl.js:192-197](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/gl.js#L192-L197 "Source code on GitHub")
+[js/gl.js:192-197](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/gl.js#L192-L197 "Source code on GitHub")
 
 Provide a float (via uniform1f) to the currently bound shader
 
@@ -716,7 +716,7 @@ Provide a float (via uniform1f) to the currently bound shader
 
 ### uniform2F
 
-[js/gl.js:205-210](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/gl.js#L205-L210 "Source code on GitHub")
+[js/gl.js:205-210](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/gl.js#L205-L210 "Source code on GitHub")
 
 Provide a vec2 uniform (via uniform2f) to the currently bound shader
 
@@ -726,9 +726,33 @@ Provide a vec2 uniform (via uniform2f) to the currently bound shader
 -   `f1` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The first float value
 -   `f2` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The second float value
 
+### uniform1Fv
+
+[js/gl.js:218-223](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/gl.js#L218-L223 "Source code on GitHub")
+
+Provide an array of floats (via uniform1Fv) to the currently bound shader
+  i.e. the shader declares e.g. `uniform float values[19];`
+
+**Parameters**
+
+-   `name` **[string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** The name of the uniform variable
+-   `fvec` **[Float32Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array)** An array of floats
+
+### uniform2Fv
+
+[js/gl.js:231-236](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/gl.js#L231-L236 "Source code on GitHub")
+
+Provide an array of vec2 (via uniform2fv) to the currently bound shader
+  i.e. the shader declares e.g. `uniform vec2 vectors[19];`
+
+**Parameters**
+
+-   `name` **[string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** The name of the uniform variable
+-   `fvec2` **[Float32Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array)** An array of floats, 2 per vector
+
 ### uniform3F
 
-[js/gl.js:245-250](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/gl.js#L245-L250 "Source code on GitHub")
+[js/gl.js:245-250](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/gl.js#L245-L250 "Source code on GitHub")
 
 Provide a vec3 uniform (via uniform3f) to the currently bound shader
 
@@ -739,9 +763,21 @@ Provide a vec3 uniform (via uniform3f) to the currently bound shader
 -   `f2` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The second float value
 -   `f3` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The third float value
 
+### uniform3Fv
+
+[js/gl.js:258-263](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/gl.js#L258-L263 "Source code on GitHub")
+
+Provide an array of vec3 (via uniform3fv) to the currently bound shader
+  i.e. the shader declares e.g. `uniform vec3 vectors[19];`
+
+**Parameters**
+
+-   `name` **[string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** The name of the uniform variable
+-   `fvec3` **[Float32Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array)** An array of floats, 3 per vector
+
 ### uniform4F
 
-[js/gl.js:273-278](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/gl.js#L273-L278 "Source code on GitHub")
+[js/gl.js:273-278](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/gl.js#L273-L278 "Source code on GitHub")
 
 Provide a vec4 uniform (via uniform4F) to the currently bound shader
 
@@ -753,55 +789,24 @@ Provide a vec4 uniform (via uniform4F) to the currently bound shader
 -   `f3` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The fourth float value
 -   `f4`  
 
-## uniform1Fv
+### uniform4Fv
 
-[js/gl.js:218-223](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/gl.js#L218-L223 "Source code on GitHub")
-
-Provide an array of floats (via uniform1Fv) to the currently bound shader
-
-**Parameters**
-
--   `name` **[string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** The name of the uniform variable
--   `fvec` **[Float32Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array)** An array of floats
-
-## uniform2Fv
-
-[js/gl.js:231-236](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/gl.js#L231-L236 "Source code on GitHub")
-
-Provide an array of vec2 (via uniform2fv) to the currently bound shader
-
-**Parameters**
-
--   `name` **[string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** The name of the uniform variable
--   `fvec2` **[Float32Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array)** An array of floats, 2 per vector
-
-## uniform3Fv
-
-[js/gl.js:258-263](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/gl.js#L258-L263 "Source code on GitHub")
-
-Provide an array of vec3 (via uniform3fv) to the currently bound shader
-
-**Parameters**
-
--   `name` **[string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** The name of the uniform variable
--   `fvec3` **[Float32Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array)** An array of floats, 3 per vector
-
-## uniform4Fv
-
-[js/gl.js:286-291](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/gl.js#L286-L291 "Source code on GitHub")
+[js/gl.js:286-291](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/gl.js#L286-L291 "Source code on GitHub")
 
 Provide an array of vec4 (via uniform4fv) to the currently bound shader
+  i.e. the shader declares e.g. `uniform vec4 vectors[19];`
 
 **Parameters**
 
 -   `name` **[string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** The name of the uniform variable
 -   `fvec4` **[Float32Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array)** An array of floats, 4 per vector
 
-## uniformMatrix4fv
+### uniformMatrix4fv
 
-[js/gl.js:299-304](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/gl.js#L299-L304 "Source code on GitHub")
+[js/gl.js:299-304](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/gl.js#L299-L304 "Source code on GitHub")
 
 Provide a matrix (via uniformMatrix4fv) to the currently bound shader
+ i.e. the shader declares e.g. `uniform mat4 matrix;`
 
 **Parameters**
 
@@ -810,7 +815,7 @@ Provide a matrix (via uniformMatrix4fv) to the currently bound shader
 
 ## Material
 
-[js/materials.js:10-14](https://github.com/portsmouth/snellypt/blob/60fcf2afe80911c25796474f21d0dfadf3561248/js/materials.js#L10-L14 "Source code on GitHub")
+[js/materials.js:10-14](https://github.com/portsmouth/snellypt/blob/fefeca95382aa8ef52eaad82ace226f568edf702/js/materials.js#L10-L14 "Source code on GitHub")
 
 **Parameters**
 
