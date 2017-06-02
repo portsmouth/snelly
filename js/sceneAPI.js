@@ -93,10 +93,6 @@ this.frame = 0;
 Scene.prototype.envMap = function()
 {
   	return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_040_Field_Bg.jpg';
-  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_041_Path_Bg.jpg';
-  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg';
-  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_110_Tunnel_Bg.jpg';
-  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_Free_City_Night_Lights_Bg.jpg';
 }
 
 /**
@@ -326,7 +322,7 @@ Scene.prototype.shader = function()
 }
 
 /**
-/* Optional. Set up gui and callbacks for this scene
+* Optional. Set up gui and callbacks for this scene
 * @param {GUI} The GUI object
 */
 Scene.prototype.initGui = function(gui)            
@@ -337,7 +333,7 @@ Scene.prototype.initGui = function(gui)
 }
 
 /**
-/* Optional. Called whenever the UI is changed,
+* Optional. Called whenever the UI is changed,
 /* and must sync the params of the shader with the current UI settings
 * @param {Shader} The Shader object 
 */

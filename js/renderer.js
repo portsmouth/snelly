@@ -53,20 +53,21 @@ PathtracerState.prototype.clear = function(fbo)
 	fbo.unbind();
 }
 
+
 /** @constructor 
-* Interface to the pathtracer.
-* @property {number} [width]  - width (if not specified, fits to window) 
-* @property {number} [height] - height (if not specified, fits to window) 
-* @property {string} [renderMode=pt] - rendering mode (either 'pt', 'ao', or 'normals') 
-* @property {number} [maxMarchSteps=512] - maximum number of raymarching steps per path segment
-* @property {number} [radianceClamp] - clamp radiance to this max value, for firefly reduction
-* @property {number} [skyPower=4.0] - sky power (arbitrary units)
-* @property {number} [skyTemperature=6000] - sky temperature (in Kelvin)
-* @property {number} [exposure=4.5] - exposure, on a log scale
-* @property {number} [gamma=2.2] - display gamma correction
-* @property {number} [whitepoint=2.0] - tonemapping whitepoint
-* @property {number} [goalFPS=10.0] - sampling will adjust to try to match goal FPS
-* @property {number} [minsSPPToRedraw=0.0] - if >0.0, renderer will not redraw until the specified SPP have been accumulated
+* Interface to the pathtracer. The exposed properties and their defaults are:
+* @param {number} [width]               - (if not specified, fits to window) 
+* @param {number} [height]              - (if not specified, fits to window) 
+* @param {string} [renderMode="pt"]     - rendering mode (either 'pt', 'ao', or 'normals') 
+* @param {number} [maxMarchSteps=512]   - maximum number of raymarching steps per path segment
+* @param {number} [radianceClamp]       - clamp radiance to this max value, for firefly reduction
+* @param {number} [skyPower=4.0]        - sky power (arbitrary units)
+* @param {number} [skyTemperature=6000] - sky temperature (in Kelvin)
+* @param {number} [exposure=4.5]        - exposure, on a log scale
+* @param {number} [gamma=2.2]           - display gamma correction
+* @param {number} [whitepoint=2.0]      - tonemapping whitepoint
+* @param {number} [goalFPS=10.0]        - sampling will adjust to try to match goal FPS
+* @param {number} [minsSPPToRedraw=0.0] - if >0.0, renderer will not redraw until the specified SPP have been accumulated
 */
 var Renderer = function()
 {
@@ -170,7 +171,6 @@ Renderer.prototype.reset = function(no_recompile = false)
 	this.pathStates[this.currentState+1].clear(this.fbo);
 }
 
-
 Renderer.prototype.compileShaders = function()
 {
 	// Inject code for the current scene SDF:
@@ -234,7 +234,6 @@ Renderer.prototype.compileShaders = function()
 	// Tonemapping program
 	this.tonemapProgram = new GLU.Shader('tonemapper', this.shaderSources, null);
 }
-
 
 Renderer.prototype.enabled = function()
 {
@@ -418,7 +417,6 @@ Renderer.prototype.render = function()
 	}
 }
 
-
 Renderer.prototype.resize = function(width, height)
 {
 	this._width = width;
@@ -433,5 +431,4 @@ Renderer.prototype.resize = function(width, height)
 	this.fbo = new GLU.RenderTarget();
 	this.reset(true);
 }
-
 

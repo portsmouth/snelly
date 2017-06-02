@@ -55,7 +55,7 @@ The only mandatory function to implement in Scene is {@link Scene#shader}, the o
 
 ### Geometry
 
-A Snelly scene is assumed to consist of only (up to) three specified materials: a metal, a dielectric, and a plastic-like material ("uber" material). Each material has an associated surface which is defined by an SDF (signed distance function), i.e. where each function is negative corresponds to the interior of the body.
+A Snelly scene is assumed to consist of only (up to) three specified materials: a Metal, a Dielectric, and a plastic-like Surface ("uber" material). Each material has an associated surface which is defined by an SDF (signed distance function), i.e. where each function is negative corresponds to the interior of the body.
 
 Thus we define the rendered scene geometry by specifying, via the {@link Scene#shader} call, three GLSL functions:
 
@@ -84,7 +84,7 @@ to a lat-long map, via the {@link Scene#envMap} call:
 	*/
 	Scene.prototype.envMap = function()
 	{
-	  	return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_040_Field_Bg.jpg';Lights_Bg.jpg';
+	  	return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_040_Field_Bg.jpg';
 	}
 ```
 
@@ -170,8 +170,9 @@ Scene.prototype.initGenerator = function()
 	return `
 this.parameters = {};
 this.parameters.foo = ${this.parameters.foo};
+this.parameters.foo2 = ${this.parameters.foo2};
 this.parameters.bar = ${this.parameters.bar};
-this.frame = 0;
+this.frame = ${this.frame};
 	`; 
 }
 ```

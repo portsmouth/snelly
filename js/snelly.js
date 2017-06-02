@@ -277,6 +277,7 @@ renderer.exposure = ${renderer.exposure};
 renderer.gamma = ${renderer.gamma};
 renderer.whitepoint = ${renderer.whitepoint};
 renderer.goalFPS = ${renderer.goalFPS};
+renderer.minsSPPToRedraw = ${renderer.minsSPPToRedraw};
 
 /** Material settings **/
 let surface = materials.loadSurface();
