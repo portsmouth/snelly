@@ -187,7 +187,7 @@ var GLU = {};
 	/** Provide a float (via uniform1f) to the currently bound shader
 	* @memberof GLU
 	* @param {string} name - The name of the uniform variable
-	* @param {number} i - The float value
+	* @param {number} f - The float value
 	*/
 	this.Shader.prototype.uniformF = function(name, f) 
 	{
@@ -268,7 +268,7 @@ var GLU = {};
 	* @param {number} f1 - The first float value
 	* @param {number} f2 - The second float value
 	* @param {number} f3 - The third float value
-	* @param {number} f3 - The fourth float value
+	* @param {number} f4 - The fourth float value
 	*/
 	this.Shader.prototype.uniform4F = function(name, f1, f2, f3, f4) 
 	{

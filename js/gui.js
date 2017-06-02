@@ -101,14 +101,14 @@ GUI.prototype.createSceneSettings = function()
 /** 
  * Add a dat.GUI UI slider to control a float parameter.
  * The scene parameters need to be organized into an Object as
- * key-value pairs. The parame
- * @param {Object} parameters - the parameters object for the scene
+ * key-value pairs, for supply to this function.
+ * @param {Object} parameters - the parameters object for the scene, with key-value pairs for all parameters
  * @param {Object} param - the slider range for this parameter, in the form `{name: 'foo', min: 0.0, max: 100.0, step: 1.0}` (step is optional)
- * @example:
- *       Scene.prototype.initGui = function(gui)            
+ * @example
+ *		Scene.prototype.initGui = function(gui)            
  *		{
- * 			gui.addSlider(this.parameters, c);
- * 			gui.addSlider(this.parameters, {name: 'foo2', min: 0.0, max: 1.0});
+ *			gui.addSlider(this.parameters, c);
+ *			gui.addSlider(this.parameters, {name: 'foo2', min: 0.0, max: 1.0});
  *			gui.addSlider(this.parameters, {name: 'bar', min: 0.0, max: 3.0});
  *		}
  */
