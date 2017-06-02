@@ -27,7 +27,7 @@ function updateDisplay(gui)
     }
 }
 
-/** @constructor 
+/**
 * Call to explicitly force the GUI to synchronize with the
 * current parameter values, if they have been changed programmatically.
 */
