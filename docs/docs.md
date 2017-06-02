@@ -3,7 +3,7 @@
 ### Table of Contents
 
 -   [Scene description](#scene-description)
--   [Scene](#scene)
+-   [Scene](#scene-1)
     -   [init](#init)
     -   [initGenerator](#initgenerator)
     -   [envMap](#envmap)
@@ -16,12 +16,7 @@
     -   [getMaxScale](#getmaxscale)
     -   [preframeCallback](#preframecallback)
     -   [postframeCallback](#postframecallback)
--   [Materials](#materials)
-    -   [loadDielectric](#loaddielectric)
-    -   [loadMetal](#loadmetal)
-    -   [getDielectric](#getdielectric)
-    -   [getMetal](#getmetal)
-    -   [getSurface](#getsurface)
+-   [Snelly global object](#snelly-global-object)
 -   [Snelly](#snelly)
     -   [getVersion](#getversion)
     -   [getRenderer](#getrenderer)
@@ -30,10 +25,24 @@
     -   [getControls](#getcontrols)
     -   [showGUI](#showgui)
     -   [getMaterials](#getmaterials)
+    -   [getSurface](#getsurface)
+-   [Materials](#materials)
+-   [Materials](#materials-1)
+    -   [loadDielectric](#loaddielectric)
+    -   [loadMetal](#loadmetal)
+    -   [getDielectric](#getdielectric)
+    -   [getMetal](#getmetal)
     -   [getSurface](#getsurface-1)
+-   [Surface](#surface)
+-   [Dielectric](#dielectric)
+-   [Metal](#metal)
 -   [Rendering](#rendering)
 -   [Renderer](#renderer)
+    -   [reset](#reset)
 -   [Utilities](#utilities)
+-   [GUI](#gui)
+    -   [sync](#sync)
+-   [GLU](#glu)
 -   [uniformI](#uniformi)
 -   [uniformF](#uniformf)
 -   [uniform2F](#uniform2f)
@@ -44,16 +53,15 @@
 -   [uniform4F](#uniform4f)
 -   [uniform4Fv](#uniform4fv)
 -   [uniformMatrix4fv](#uniformmatrix4fv)
--   [GUI](#gui)
 -   [Material](#material)
--   [Surface](#surface)
-    -   [setRoughness](#setroughness)
--   [Metal](#metal)
--   [Dielectric](#dielectric)
 
 ## Scene description
 
-We define the rendered scene by specifying, via the [Scene#shader](#sceneshader), three GLSL functions:
+## Scene
+
+### Geometry
+
+We define the rendered scene geometry by specifying, via the [Scene#shader](#sceneshader), three GLSL functions:
 
     - `SDF_SURFACE(vec3 X)`: the SDF of the uber-surface material
     - `SDF_METAL(vec3 X)`: the SDF of the (selected) metal material
@@ -64,6 +72,124 @@ Thus there are at most only three types of material in the scene.
 
 The details of the properties of the three material types can be selected via the [Materials](#materials) object.
 In addition, spatial dependence of the material surface properties can be introduced by providing modulating GLSL functions.
+
+### Lighting
+
+For simplicity, the only light in the scene is a (non-HDRI) environment map. This can be specified via a URL to 
+to a lat-long map, via the [Scene#envMap](#sceneenvmap) call:
+
+```javascript
+	/**
+	* Optionally, supply an env-map texture URL (must be a lat-long format image).
+	* (If this is function not implemented, or it returns the empty string, a uniform
+	* temperature blackbody sky is used).
+	*/
+	Scene.prototype.envMap = function()
+	{
+	  	return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_040_Field_Bg.jpg';
+	  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_041_Path_Bg.jpg';
+	  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg';
+	  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_110_Tunnel_Bg.jpg';
+	  	//return 'https://cdn.rawgit.com/portsmouth/envmaps/7405220b/HDR_Free_City_Night_Lights_Bg.jpg';
+	}
+```
+
+Or otherwise will be taken to be a constant intensity sky. 
+In both cases, the sky spectrum is modulated by a blackbody emission spectrum with adjustable temperature (Set via [Renderer#skyTemperature](Renderer#skyTemperature)).
+
+### Saving scene state
+
+Often we want to explore and fine-tune a scene by moving the camera around, tweaking the scene parameters and materials, and adjusting renderer settings. This work would be wasted without a way to save the resulting scene state. This is provided by the simple mechanism of pressing the 'O' key to dump to the console a Javascript code which can be inserted into the [Scene#init](#sceneinit) function, to replicate the scene state. An example of this output is:
+
+```javascript
+/******* copy-pasted console output on 'O', begin *******/
+
+let renderer  = snelly.getRenderer();
+let camera    = snelly.getCamera();
+let controls  = snelly.getControls();
+let materials = snelly.getMaterials();
+	
+snelly.showGUI(true);
+
+/** Camera settings:
+*		camera is a THREE.PerspectiveCamera object
+* 		controls is a THREE.OrbitControls object
+*/
+camera.fov = 45;
+camera.up.set(0, 1, 0);
+camera.position.set(10.32444633217751, -0.5153825294569127, -6.7722559545030085);
+controls.target.set(-0.5561757324087446, -0.6317558415254627, -1.159897890031697);
+controls.zoomSpeed = 2;
+controls.keyPanSpeed = 100;
+
+/** Renderer settings **/
+renderer.renderMode = 'pt';  // The other modes are: 'ao', 'normals'
+renderer.maxBounces = 5;
+renderer.maxMarchSteps = 256;
+renderer.radianceClamp = 3; // (log scale)
+renderer.skyPower = 1;
+renderer.skyTemperature = 6000;
+renderer.exposure = 3;
+renderer.gamma = 2.2;
+renderer.whitepoint = 2;
+renderer.goalFPS = 20;
+
+/** Material settings **/
+let surface = materials.loadSurface();
+surface.roughness = 0.1;
+surface.ior = 1.5;
+surface.diffuseAlbedo = [1, 1, 1];
+surface.specAlbedo = [1, 1, 1];
+
+let dielectric = materials.loadDielectric('Diamond');
+dielectric.absorptionColor = [0.5, 0.5, 0.5];
+dielectric.absorptionScale = 100; // mfp in multiples of scene scale
+dielectric.roughness = 0.007431448254773935;
+
+let metal = materials.loadMetal('Copper');
+metal.roughness = 0.006691306063588591;
+
+/******* copy-pasted console output on 'O', end *******/
+```
+
+In order for user-specified scene parameters to be saved this way, it is necessay to implement a function to output the appropriate regeneration code. For example if the scene uses parameters
+
+```javascript
+	this.parameters = {};
+	this.parameters.foo = 0.63143;
+	this.parameters.foo2 = 0.631;
+	this.parameters.bar = 0.586;
+	this.animFrame = 0;
+```
+
+the appropriate generation code would be:
+
+```javascript
+/**
+* Optionally, provide this function which generates the init code to re-generate 
+* the current UI parameter settings. This will be dumped to the console (along with 
+* the rest of the UI state) on pressing key 'O', allowing the scene and renderer
+* state to be tweaked in the UI then saved by copy-pasting code into the init function below.
+*/
+Scene.prototype.initGenerator = function()
+{
+	return `
+this.parameters = {};
+this.parameters.foo = ${this.parameters.foo};
+this.parameters.bar = ${this.parameters.bar};
+this.frame = 0;
+	`; 
+}
+```
+
+With this code in place, the output on pressing 'O' is then a faithful representation of the entire scene state.
+
+### Callbacks and animation
+
+For implementation of custom animation logic, we use the simple mechanism of pre- and post-frame user callbacks, wherein the user can implement whatever logic he needs. See the provided examples for details of how to use this implement animating scenes, and movie rendering.
+
+    Scene.prototype.preframeCallback = function(snelly, gl);
+    Scene.prototype.postframeCallback = function(snelly, gl);
 
 
 ## Scene
@@ -141,6 +267,8 @@ vec3 DIELECTRIC_SPECULAR_REFLECTANCE(in vec3 X);
 float DIELECTRIC_ROUGHNESS(in vec3 X);
 ```
 
+Returns **[String](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** .
+
 ### initGui
 
 /\* Optional. Set up gui and callbacks for this scene
@@ -200,6 +328,73 @@ programmatically according to the global time since init
 -   `gl`  
 -   `The` **[Snelly](#snelly)** snelly object
 -   `The` **[WebGLRenderingContext](https://developer.mozilla.org/en-US/docs/Web/API/WebGLRenderingContext)** webGL context
+
+## Snelly global object
+
+Snelly is the global object providing access to all functionality in the system.
+
+
+## Snelly
+
+**Parameters**
+
+-   `sceneObj` **[Scene](#scene)** The user-defined scene
+
+### getVersion
+
+Returns the current version number of the snelly system, in the format [1, 2, 3]
+
+Returns **[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)** 
+
+### getRenderer
+
+Access to the Renderer object
+
+Returns **[Renderer](#renderer)** 
+
+### getGUI
+
+Access to the GUI object
+
+Returns **[Renderer](#renderer)** 
+
+### getCamera
+
+Access to the camera object
+
+Returns **THREE.PerspectiveCamera** .
+
+### getControls
+
+Access to the camera controller object
+
+Returns **THREE.OrbitControls** .
+
+### showGUI
+
+Programmatically show or hide the dat.GUI UI
+
+**Parameters**
+
+-   `showGUI`  
+-   `snelly` **[Boolean](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean)** The snelly object
+
+### getMaterials
+
+Get materials object
+
+Returns **[Materials](#materials)** the Materials object.
+
+### getSurface
+
+Get Surface object
+
+Returns **[Surface](#surface)** the Surface object.
+
+## Materials
+
+The API for specifying material properties.
+
 
 ## Materials
 
@@ -287,95 +482,115 @@ Get the Surface object.
 
 Returns **[Surface](#surface)** 
 
-## Snelly
+## Surface
 
 **Parameters**
 
--   `sceneObj` **[Scene](#scene)** The user-defined scene
+-   `name`  
+-   `desc`  
 
-### getVersion
+**Properties**
 
-Returns the current version number of the snelly system, in the format [1, 2, 3]
+-   `roughness` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The surface roughness
+-   `ior` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The surface coating ior
+-   `diffuseAlbedo` **[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)** The surface diffuse (RGB) color
+-   `specAlbedo` **[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)** The surface spec (RGB) color
 
-Returns **[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)** 
+**Examples**
 
-### getRenderer
+```javascript
+surface.roughness = 0.05;
+surface.ior = 1.3530655391120507;
+surface.diffuseAlbedo = [0.5, 0.5, 0.5];
+surface.specAlbedo = [0.0, 0.0, 0.0];
+```
 
-Access to the Renderer object
-
-Returns **[Renderer](#renderer)** 
-
-### getGUI
-
-Access to the GUI object
-
-Returns **[Renderer](#renderer)** 
-
-### getCamera
-
-Access to the camera object
-
-Returns **THREE.PerspectiveCamera** .
-
-### getControls
-
-Access to the camera controller object
-
-Returns **THREE.OrbitControls** .
-
-### showGUI
-
-Programmatically show or hide the dat.GUI UI
+## Dielectric
 
 **Parameters**
 
--   `showGUI`  
--   `snelly` **[Boolean](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean)** The snelly object
+-   `name`  
+-   `desc`  
 
-### getMaterials
+**Properties**
 
-Get materials object
+-   `roughness` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The dielectric surface roughness
 
-Returns **[Materials](#materials)** the Materials object.
+**Examples**
 
-### getSurface
+```javascript
+let dielectric = materials.loadDielectric('Diamond');
+dielectric.absorptionColor = [1.0, 1.0, 1.0];
+dielectric.absorptionScale = 1.0; // mfp in multiples of scene scale
+dielectric.roughness = 0.030443974630021145;
+```
 
-Get Surface object
+## Metal
 
-Returns **[Surface](#surface)** the Surface object.
+**Parameters**
+
+-   `name`  
+-   `desc`  
+
+**Properties**
+
+-   `roughness` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The metal surface roughness
+
+**Examples**
+
+```javascript
+let metal = materials.loadMetal('Gold');
+ metal.roughness = 0.05;
+```
 
 ## Rendering
 
 The renderer itself is a uni-directional pathtracer (with adjunct modes for ambient occlusion and normals rendering).
 
-## Pathtracing
-
-Relevent parameters are
-
-      renderer.renderMode      (default 'pt')
-      renderer.maxBounces      (default 4)
-      renderer.maxMarchSteps 
-      renderer.radianceClamp   (log scale)
-      renderer.skyPower 
-      renderer.skyTemperature 
-      renderer.exposure 
-      renderer.gamma 
-      renderer.whitepoint 
-      renderer.goalFPS 
-
-### Lighting
-
-For simplicity, the only light in the scene is a (non-HDRI) environment map. This can be specified via a URL to 
-to a lat-long map, or otherwise will be taken to be a constant intensity sky. (See the envMap call).
-In both cases, the sky spectrum is modulated by a blackbody emission spectrum with adjustable temperature.
-
 
 ## Renderer
 
+**Properties**
+
+-   `width` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** width (if not specified, fits to window)
+-   `height` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** height (if not specified, fits to window)
+-   `renderMode` **[string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)?** rendering mode (either 'pt', 'ao', or 'normals')
+-   `maxMarchSteps` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** maximum number of raymarching steps per path segment
+-   `radianceClamp` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** clamp radiance to this max value, for firefly reduction
+-   `skyPower` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** sky power (arbitrary units)
+-   `skyTemperature` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** sky temperature (in Kelvin)
+-   `exposure` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** exposure, on a log scale
+-   `gamma` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** display gamma correction
+-   `whitepoint` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** tonemapping whitepoint
+-   `goalFPS` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** sampling will adjust to try to match goal FPS
+-   `minsSPPToRedraw` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)?** if >0.0, renderer will not redraw until the specified SPP have been accumulated
+
+### reset
+
+Restart accumulating samples.
+
+**Parameters**
+
+-   `no_recompile` **[Boolean](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean)** set to true if shaders need recompilation too (optional, default `false`)
+
 ## Utilities
 
-We provide some utilities for more easily setting up GUI control of the GLSL-defined scene.
+These utilities provide for more easily setting up GUI control of the GLSL-defined scene.
 
+
+## GUI
+
+**Parameters**
+
+-   `visible`   (optional, default `true`)
+
+### sync
+
+## GLU
+
+Namespace for webGL utility wrappers.
+Functions for loading uniform variables is exposed to the user
+for convenience.
 
 ## uniformI
 
@@ -479,77 +694,9 @@ Provide a matrix (via uniformMatrix4fv) to the currently bound shader
 -   `name` **[string](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String)** The name of the uniform variable
 -   `matrixArray16` **[Float32Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array)** An array of 16 floats
 
-## GUI
-
-**Parameters**
-
--   `visible`   (optional, default `true`)
-
 ## Material
 
 **Parameters**
 
 -   `name`  
 -   `desc`  
-
-## Surface
-
-**Parameters**
-
--   `name`  
--   `desc`  
-
-**Properties**
-
--   `roughness` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The surface roughness
--   `ior` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** The surface coating ior
--   `diffuseAlbedo` **[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)** The surface diffuse (RGB) color
--   `specAlbedo` **[Array](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)** The surface spec (RGB) color
-
-**Examples**
-
-```javascript
-surface.roughness = 0.05;
-surface.ior = 1.3530655391120507;
-surface.diffuseAlbedo = [0.5, 0.5, 0.5];
-surface.specAlbedo = [0.0, 0.0, 0.0];
-```
-
-### setRoughness
-
-Set surface roughness
-
-**Parameters**
-
--   `roughness`  
--   `the` **[number](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number)** surface roughness in [0,1].
-
-## Metal
-
-**Parameters**
-
--   `name`  
--   `desc`  
-
-**Examples**
-
-```javascript
-let metal = materials.loadMetal('Gold');
- metal.roughness = 0.05;
-```
-
-## Dielectric
-
-**Parameters**
-
--   `name`  
--   `desc`  
-
-**Examples**
-
-```javascript
-let dielectric = materials.loadDielectric('Diamond');
-dielectric.absorptionColor = [1.0, 1.0, 1.0];
-dielectric.absorptionScale = 1.0; // mfp in multiples of scene scale
-dielectric.roughness = 0.030443974630021145;
-```
