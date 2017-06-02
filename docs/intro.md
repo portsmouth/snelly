@@ -55,7 +55,7 @@ The only mandatory function to implement in Scene is {@link Scene#shader}, the o
 
 ### Geometry
 
-A Snelly scene is assume to consist of only (up to) three specified materials: a metal, a dielectric, and a plastic-like material ("uber" material). Each material has an associated surface which is defined by an SDF (signed distance function), i.e. where each function is negative corresponds to the interior of the body.
+A Snelly scene is assumed to consist of only (up to) three specified materials: a metal, a dielectric, and a plastic-like material ("uber" material). Each material has an associated surface which is defined by an SDF (signed distance function), i.e. where each function is negative corresponds to the interior of the body.
 
 Thus we define the rendered scene geometry by specifying, via the {@link Scene#shader} call, three GLSL functions:
 
