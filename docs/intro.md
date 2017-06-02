@@ -26,7 +26,7 @@ function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLo
 </body>
 ```
 
-The only mandatory function to implement in Scene is {@link Scene.shader}, the other are all optional. However the {@link Scene.init} function is almost always needed, to set the initial camera orientation at least.
+The only mandatory function to implement in Scene is Scene#shader, the other are all optional. However the {@link Scene.init} function is almost always needed, to set the initial camera orientation at least.
 
 ### Geometry
 

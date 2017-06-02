@@ -173,6 +173,8 @@ var GLU = {};
 	}
 
 	/** Provide an integer (via uniform1i) to the currently bound shader
+	* @alias message
+    * @memberof! GLU
 	* @param {string} name - The name of the uniform variable
 	* @param {number} i - The integer value
 	*/
