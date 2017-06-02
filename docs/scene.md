@@ -1,20 +1,49 @@
 
 ## Scene
 
+### HTML structure
+
+A Snelly scene is a single, standalone HTML file, which has the following overall structure:
+```
+<body onload="onLoad();">
+<script type="text/javascript" src="../js/compiled/snelly.min.js"></script>
+<script type="text/javascript">
+
+function Scene() {}
+Scene.prototype.shader = function() { return `<GLSL code>`; }
+
+Scene.prototype.init = function(snelly) { /* initial scene setup */ }
+Scene.prototype.getMinScale = function() { return 1.0e-4; /* raymarch tolerance */ }
+Scene.prototype.getMaxScale = function() { return 1.0e2; /* raymarch infinity */ }
+Scene.prototype.envMap = function()  { return '<env map url>'; }
+Scene.prototype.initGui = function(gui) { /* setup GUI */  }
+Scene.prototype.syncShader = function(shader) { /* sync shader with GUI */ }
+Scene.prototype.preframeCallback = function(snelly, gl) { /* custom logic */ }
+Scene.prototype.postframeCallback = function(snelly, gl) { /* custom logic */ }
+
+function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+
+</script>
+</body>
+```
+
+The only mandatory function to implement in Scene is {@link Scene.shader}, the other are all optional. However the {@link Scene.init} function is almost always needed, to set the initial camera orientation at least.
+
 ### Geometry
 
-We define the rendered scene geometry by specifying, via the {@link Scene#shader}, three GLSL functions:
+A Snelly scene is assume to consist of only (up to) three specified materials: a metal, a dielectric, and a plastic-like material ("uber" material). Each material has an associated surface which is defined by an SDF (signed distance function), i.e. where each function is negative corresponds to the interior of the body.
 
+Thus we define the rendered scene geometry by specifying, via the {@link Scene.shader}, three GLSL functions:
 	- `SDF_SURFACE(vec3 X)`: the SDF of the uber-surface material
 	- `SDF_METAL(vec3 X)`: the SDF of the (selected) metal material
 	- `SDF_DIELECTRIC(vec3 X)`: the SDF of the (selected) dielectric material
   
-These functions are assumed to be SDFs where the negative region corresponds to the interior of the body.
-Thus there are at most only three types of material in the scene.
+The details of the properties of the three material types can then be specified in {@link Scene.init} via the {@link Materials} object. Additional spatial dependence of the material surface properties can be introduced by providing modulating GLSL functions.
 
-The details of the properties of the three material types can be selected via the {@link Materials} object.
-In addition, spatial dependence of the material surface properties can be introduced by providing modulating GLSL functions.
+Procedural camera motion and scene animation can be authored (programmatically) via the pre- and post-frame callbacks.
 
+As a standalone web page, a Snelly scene can be easily shared, for example by keeping the HTML file in a GitHub repository and simply linking to the file via [RawGit](https://rawgit.com/). 
 
 ### Lighting
 
@@ -127,7 +156,7 @@ With this code in place, the output on pressing 'O' is then a faithful represent
 
 ### Callbacks and animation
 
-For implementation of custom animation logic, we use the simple mechanism of pre- and post-frame user callbacks, wherein the user can implement whatever logic he needs. See the provided examples for details of how to use this implement animating scenes, and movie rendering.
+For implementation of custom animation logic, we use the simple mechanism of pre- and post-frame user callbacks, wherein the user can implement whatever logic he needs to programmatically animate the scene, camera, and materials. See the provided examples for details of how to use this implement animating scenes, and movie rendering.
 
 ```
 Scene.prototype.preframeCallback = function(snelly, gl);

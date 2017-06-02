@@ -3,10 +3,6 @@
   - name: Scene description
     file: scene.md
   - Scene
-
-  - name: Snelly global object
-    description: 
-      Snelly is the global object providing access to all functionality in the system.
   - Snelly
 
   - name: Materials
