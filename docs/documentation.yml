@@ -4,23 +4,12 @@
     file: intro.md
   - Scene
   - Snelly
-
-  - name: Materials
-    description: 
-      The API for specifying material properties.
+  - Renderer
   - Materials
+  - Material
   - Surface
   - Dielectric
   - Metal
-
-  - name: Rendering
-    description: 
-       The renderer itself is a uni-directional pathtracer (with adjunct modes for ambient occlusion and normals rendering).
-  - Renderer
-
-  - name: Utilities
-    description:
-       These utilities provide for more easily setting up GUI control of the GLSL-defined scene.
   - GUI
   - GLU
 
