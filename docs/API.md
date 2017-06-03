@@ -375,7 +375,31 @@ surface.specAlbedo = [0.0, 0.0, 0.0];
 <a name="new_Metal_new"></a>
 
 ### new Metal()
-Generic metal material.
+Generic metal material. Supported physical metals are:
+```
+ "Aluminium"
+ "Brass",   
+ "Calcium", 
+ "Chromium",
+ "Cobalt",  
+ "Copper",  
+ "Gold",    
+ "Iridium", 
+ "Iron",    
+ "Lead",    
+ "Mercury", 
+ "Molybdenum
+ "Nickel",  
+ "Palladium"
+ "Platinum",
+ "Silicon", 
+ "Silver",  
+ "Titanium",
+ "Tungsten",
+ "Vanadium",
+ "Zinc",    
+ "Zirconium"
+```
 
 **Example**  
 ```js
@@ -398,7 +422,31 @@ metal.roughness = 0.05;
 <a name="new_Dielectric_new"></a>
 
 ### new Dielectric()
-Generic dielectric material.
+Generic dielectric material. Supported physical dielectrics are:
+```glsl
+ "Constant IOR dielectric"
+ "Glass (BK7)"
+ "Glass (K7)"
+ "Glass (F5)"
+ "Glass (LAFN7)"
+ "Glass (LASF35)"
+ "Glass (N-LAK33A)"
+ "Glass (N-FK51A)"
+ "Glass (SF4)"
+ "Glass (SF67)"
+ "Water"
+ "Polycarbonate"
+ "Glycerol"
+ "Liquid Crystal (E7)"
+ "Diamond"
+ "Quartz"
+ "Fused Silica"
+ "Sapphire"
+ "Sodium Chloride"
+ "Proustite"
+ "Rutile"
+ "Silver Chloride"
+```
 
 **Example**  
 ```js
