@@ -6,9 +6,9 @@ Snelly is system for physically-based SDF (signed distance field) pathtracing in
 - Hello world  [source](./exampleScenes/helloworld.html) [live](https://cdn.rawgit.com/portsmouth/snellypt/master/exampleScenes/helloworld.html)
 - Basic        [source](./exampleScenes/basic.html)      [live](https://cdn.rawgit.com/portsmouth/snellypt/master/exampleScenes/basic.html)
 
-## HTML structure
+## HTML structure   
 
-A Snelly scene is a single, standalone HTML file, which has the following overall structure:
+A Snelly scene is defined by a single, standalone HTML file, which has the following overall structure:
 ```html
 <body onload="onLoad();">
 <script type="text/javascript" src="../js/compiled/snelly.min.js"></script>
@@ -62,7 +62,7 @@ The only mandatory function to implement in Scene is {@link Scene#shader}, the o
 
 ## Geometry
 
-A Snelly scene is assumed to consist of only (up to) three specified materials: a Metal, a Dielectric, and a plastic-like Surface ("uber" material). Each material has an associated surface which is defined by an SDF (signed distance function), i.e. where each function is negative corresponds to the interior of the body.
+A Snelly scene consists of 3d objects defined by a mathematical signed distance function (SDF) written in GLSL code, i.e. where this function is zero corresponds to the surface of the object, and where it is negative is the interior. In each scene there can (currently) only exist three objects: a <a href="docs/API.md/#Metal">Metal</a> ⇐ <code><a href="docs/API.md/#Material">, a <a href="docs/API.md/#Dielectric">Dielectric</a>, and a plastic-like <a href="docs/API.md/#Surface">Surface</a> ("uber" material).
 
 Thus we define the rendered scene geometry by specifying, via the {@link Scene#shader} call, three GLSL functions:
 
