@@ -62,7 +62,7 @@ The only mandatory function to implement in Scene is {@link Scene#shader}, the o
 
 ## Geometry
 
-A Snelly scene consists of 3d objects defined by a mathematical signed distance function (SDF) written in GLSL code, i.e. where this function is zero corresponds to the surface of the object, and where it is negative is the interior. In each scene there can (currently) only exist three objects: a <a href="docs/API.md/#Metal">Metal</a> ⇐ <code><a href="docs/API.md/#Material">, a <a href="docs/API.md/#Dielectric">Dielectric</a>, and a plastic-like <a href="docs/API.md/#Surface">Surface</a> ("uber" material).
+A Snelly scene consists of 3d objects defined by a mathematical signed distance function (SDF) written in GLSL code, i.e. where this function is zero corresponds to the surface of the object, and where it is negative is the interior. In each scene there can (currently) only exist three objects: a <a href="docs/API.md/#Metal">Metal</a>, a <a href="docs/API.md/#Dielectric">Dielectric</a>, and a plastic-like <a href="docs/API.md/#Surface">Surface</a> ("uber" material).
 
 Thus we define the rendered scene geometry by specifying, via the {@link Scene#shader} call, three GLSL functions:
 
