@@ -294,7 +294,7 @@ programmatically according to the global time since init
 | --- | --- | --- | --- |
 | width | <code>number</code> |  | (if not specified, fits to window) |
 | height | <code>number</code> |  | (if not specified, fits to window) |
-| renderMode | <code>String</code> |  | rendering mode (either 'pt', 'ao', or 'normals') |
+| renderMode | <code>String</code> | <code>&#x27;pt]&#x27;</code> | rendering mode (either 'pt', 'ao', or 'normals') |
 | maxMarchSteps | <code>number</code> | <code>256</code> | maximum number of raymarching steps per path segment |
 | radianceClamp | <code>number</code> | <code>3.0</code> | clamp radiance to (10^) this max value, for firefly reduction |
 | skyPower | <code>number</code> | <code>4.0</code> | sky power (arbitrary units) |
@@ -309,17 +309,6 @@ programmatically according to the global time since init
 * [Renderer](#Renderer)
     * [new Renderer()](#new_Renderer_new)
     * [.numSamples](#Renderer+numSamples)
-    * [.renderMode](#Renderer+renderMode)
-    * [.maxBounces](#Renderer+maxBounces)
-    * [.maxMarchSteps](#Renderer+maxMarchSteps)
-    * [.radianceClamp](#Renderer+radianceClamp)
-    * [.skyPower](#Renderer+skyPower)
-    * [.skyTemperature](#Renderer+skyTemperature)
-    * [.exposure](#Renderer+exposure)
-    * [.gamma](#Renderer+gamma)
-    * [.whitepoint](#Renderer+whitepoint)
-    * [.goalFPS](#Renderer+goalFPS)
-    * [.minsSPPToRedraw](#Renderer+minsSPPToRedraw)
     * [.reset([no_recompile])](#Renderer+reset)
 
 <a name="new_Renderer_new"></a>
@@ -332,61 +321,6 @@ Interface to the pathtracer. The exposed properties and their defaults are:
 ### renderer.numSamples
 **Kind**: instance property of [<code>Renderer</code>](#Renderer)  
 **Default**: <code>0</code>  
-<a name="Renderer+renderMode"></a>
-
-### renderer.renderMode
-**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
-**Default**: <code>&#x27;pt&#x27;</code>  
-<a name="Renderer+maxBounces"></a>
-
-### renderer.maxBounces
-**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
-**Default**: <code>3</code>  
-<a name="Renderer+maxMarchSteps"></a>
-
-### renderer.maxMarchSteps
-**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
-**Default**: <code>512</code>  
-<a name="Renderer+radianceClamp"></a>
-
-### renderer.radianceClamp
-**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
-**Default**: <code>3.0</code>  
-<a name="Renderer+skyPower"></a>
-
-### renderer.skyPower
-**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
-**Default**: <code>1.0</code>  
-<a name="Renderer+skyTemperature"></a>
-
-### renderer.skyTemperature
-**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
-**Default**: <code>6000.0</code>  
-<a name="Renderer+exposure"></a>
-
-### renderer.exposure
-**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
-**Default**: <code>3.0</code>  
-<a name="Renderer+gamma"></a>
-
-### renderer.gamma
-**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
-**Default**: <code>2.2</code>  
-<a name="Renderer+whitepoint"></a>
-
-### renderer.whitepoint
-**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
-**Default**: <code>2.0</code>  
-<a name="Renderer+goalFPS"></a>
-
-### renderer.goalFPS
-**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
-**Default**: <code>20.0</code>  
-<a name="Renderer+minsSPPToRedraw"></a>
-
-### renderer.minsSPPToRedraw
-**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
-**Default**: <code>0.0</code>  
 <a name="Renderer+reset"></a>
 
 ### renderer.reset([no_recompile])
