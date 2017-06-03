@@ -1,5 +1,7 @@
 
-/** @constructor */
+/** 
+* @constructor 
+*/
 function Scene() {}
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -8,6 +10,7 @@ function Scene() {}
 
 /**
 * Optionally (but usually), provide this function to set scene and renderer initial state.
+* This is called only once during execution, on loading the scene HTML page (or on global reset via 'R' key).
 * @param {Snelly} snelly - The snelly object
 */
 Scene.prototype.init = function(snelly)
@@ -89,6 +92,7 @@ this.frame = 0;
 * Optionally, supply an env-map texture URL (must be a lat-long format image).
 * (If this is function not implemented, or it returns the empty string, a uniform
 * temperature blackbody sky is used).
+* @returns {String}
 */
 Scene.prototype.envMap = function()
 {
@@ -97,12 +101,13 @@ Scene.prototype.envMap = function()
 
 /**
 * Optional name (displayed in UI)
-* @returns
+* @returns {String}
 */
 Scene.prototype.getName = function() { return "Complete API example"; }
 
 /**
 * Optional clickable URL (displayed in UI)
+* @returns {String}
 */
 Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly"; }
 
@@ -111,7 +116,7 @@ Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snel
 /////////////////////////////////////////////////////////////////////////////////////
 
 /**
-* Return a chunk of GLSL code defining the SDFs which determine the geometry of uber-surface, metal and dielectric materials in the scene.
+* Returns a chunk of GLSL code defining the SDFs which determine the geometry of uber-surface, metal and dielectric materials in the scene.
 * Define also (optionally) functions giving the 3d spatial dependence of the material parameters.
 * This function is mandatory!
 
@@ -150,7 +155,7 @@ Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snel
 		// space-varying multiplier to the UI-exposed constant (defaults to 1.0)
 		float DIELECTRIC_ROUGHNESS(in vec3 X);
 *```
-* @returns {String}.
+* @returns {String}
 */
 Scene.prototype.shader = function()
 {
@@ -323,7 +328,7 @@ Scene.prototype.shader = function()
 
 /**
 * Optional. Set up gui and callbacks for this scene
-* @param {GUI} The GUI object
+* @param {GUI} gui - wrapper for dat.GUI object
 */
 Scene.prototype.initGui = function(gui)            
 {
@@ -335,7 +340,7 @@ Scene.prototype.initGui = function(gui)
 /**
 * Optional. Called whenever the UI is changed,
 /* and must sync the params of the shader with the current UI settings
-* @param {Shader} The Shader object 
+* @param {Shader} shader - wrapper of webGL fragment shader
 */
 Scene.prototype.syncShader = function(shader)
 {
@@ -349,6 +354,7 @@ Scene.prototype.syncShader = function(shader)
 * so it can set tolerances appropriately. This sets the rough length scale of the smallest 
 * resolvable structure. (Note that decreasing this will usually lead to longer render times).
 * Defaults to 0.0001.
+* @returns {number}
 */
 Scene.prototype.getMinScale = function()
 {
@@ -362,6 +368,7 @@ Scene.prototype.getMinScale = function()
 * from the camera than this scale, thus it acts as the "far plane" distance.
 * (Note that increasing this will usually lead to longer render times).
 * Defaults to 100.0.
+* @returns {number}
 */
 Scene.prototype.getMaxScale = function()
 {
@@ -376,9 +383,9 @@ Scene.prototype.getMaxScale = function()
 /** 
  * Optional callback before every frame.
  * Animation rendering logic can be implemented here by updating the scene 
- * programmatically according to the global time since init
- * @param {Snelly} The snelly object
- * @param {WebGLRenderingContext} The webGL context
+ * programmatically according to the global time since init.
+ * @param {Snelly} snelly - The Snelly object
+ * @param {WebGLRenderingContext} gl - The webGL context
  */
 Scene.prototype.preframeCallback = function(snelly, gl)
 {
@@ -456,9 +463,9 @@ Scene.prototype.preframeCallback = function(snelly, gl)
 /** 
  * Optional callback after every frame.
  * Animation rendering logic can be implemented here by updating the scene 
- * programmatically according to the global time since init
- * @param {Snelly} The snelly object
- * @param {WebGLRenderingContext} The webGL context
+ * programmatically according to the global time since init.
+ * @param {Snelly} snelly - The Snelly object
+ * @param {WebGLRenderingContext} gl - The webGL context
  */
 Scene.prototype.postframeCallback = function(snelly, gl)
 {

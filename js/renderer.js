@@ -1,5 +1,4 @@
 
-
 var PathtracerState = function(width, height)
 {
 	var radianceData = new Float32Array(width*height*4); // Path radiance, and sample count 
@@ -54,20 +53,21 @@ PathtracerState.prototype.clear = function(fbo)
 }
 
 
-/** @constructor 
+/** 
 * Interface to the pathtracer. The exposed properties and their defaults are:
-* @param {number} [width]               - (if not specified, fits to window) 
-* @param {number} [height]              - (if not specified, fits to window) 
-* @param {string} [renderMode="pt"]     - rendering mode (either 'pt', 'ao', or 'normals') 
-* @param {number} [maxMarchSteps=512]   - maximum number of raymarching steps per path segment
-* @param {number} [radianceClamp]       - clamp radiance to this max value, for firefly reduction
-* @param {number} [skyPower=4.0]        - sky power (arbitrary units)
-* @param {number} [skyTemperature=6000] - sky temperature (in Kelvin)
-* @param {number} [exposure=4.5]        - exposure, on a log scale
-* @param {number} [gamma=2.2]           - display gamma correction
-* @param {number} [whitepoint=2.0]      - tonemapping whitepoint
-* @param {number} [goalFPS=10.0]        - sampling will adjust to try to match goal FPS
-* @param {number} [minsSPPToRedraw=0.0] - if >0.0, renderer will not redraw until the specified SPP have been accumulated
+* @constructor 
+* @property {number} width                 - (if not specified, fits to window) 
+* @property {number} height                - (if not specified, fits to window) 
+* @property {String} [renderMode='pt']     - rendering mode (either 'pt', 'ao', or 'normals') 
+* @property {number} [maxMarchSteps=256]   - maximum number of raymarching steps per path segment
+* @property {number} [radianceClamp=3.0]   - clamp radiance to (10^) this max value, for firefly reduction
+* @property {number} [skyPower=4.0]        - sky power (arbitrary units)
+* @property {number} [skyTemperature=6000] - sky temperature (in Kelvin)
+* @property {number} [exposure=4.5]        - exposure, on a log scale
+* @property {number} [gamma=2.2]           - display gamma correction
+* @property {number} [whitepoint=2.0]      - tonemapping whitepoint
+* @property {number} [goalFPS=10.0]        - sampling will adjust to try to match goal FPS
+* @property {number} [minsSPPToRedraw=0.0] - if >0.0, renderer will not redraw until the specified SPP have been accumulated
 */
 var Renderer = function()
 {
@@ -94,7 +94,7 @@ var Renderer = function()
 	this.frametime_measure_ms = 0.0;
 	this.spp = 0.0;
 
-	// Default user-adjustable properties 
+	// Default user-adjustable properties
 	this.renderMode = 'pt';
 	this.maxBounces = 3;
 	this.maxMarchSteps = 256;

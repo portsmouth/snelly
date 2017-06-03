@@ -4,13 +4,13 @@
 // Material
 ////////////////////////////////////////////////////////
 
-/** @constructor 
+/** 
 * Generic material.
+* @constructor 
 */
-function Material(name, desc)
+function Material(name)
 {
 	this._name = name;
-	this._desc = desc;
 }
 
 Material.prototype.getName = function()
@@ -18,32 +18,27 @@ Material.prototype.getName = function()
 	return this._name;
 }
 
-Material.prototype.getDesc = function()
-{
-	return this._desc;
-}
-
-
 ////////////////////////////////////////////////////////
 // Surface ('uber' material)
 ////////////////////////////////////////////////////////
 
-/** @constructor 
-  * @extends Material
+/** 
 * Generic uber-surface material. Control via properties:
+* @constructor 
+* @extends Material
 * @property {number}  roughness    - The surface roughness
 * @property {number}  ior          - The surface coating ior
 * @property {Array}  diffuseAlbedo - The surface diffuse (RGB) color
 * @property {Array}  specAlbedo    - The surface spec (RGB) color
 * @example
-*   surface.roughness = 0.05;
-*	surface.ior = 1.3530655391120507;
-*	surface.diffuseAlbedo = [0.5, 0.5, 0.5];
-*	surface.specAlbedo = [0.0, 0.0, 0.0];
+* surface.roughness = 0.05;
+* surface.ior = 1.3530655391120507;
+* surface.diffuseAlbedo = [0.5, 0.5, 0.5];
+* surface.specAlbedo = [0.0, 0.0, 0.0];
 */
-function Surface(name, desc)
+function Surface(name)
 {
-	Material.call(this, name, desc);
+	Material.call(this, name);
 
 	this.diffuseAlbedo = [1.0, 1.0, 1.0];
 	this.specAlbedo = [1.0, 1.0, 1.0];
@@ -69,17 +64,42 @@ Surface.prototype.syncShader = function(shader)
 // Metals
 ////////////////////////////////////////////////////////
 
-/** @constructor 
+/** 
+* Generic metal material. Supported physical metals are:
+*```
+*  "Aluminium"
+*  "Brass",   
+*  "Calcium", 
+*  "Chromium",
+*  "Cobalt",  
+*  "Copper",  
+*  "Gold",    
+*  "Iridium", 
+*  "Iron",    
+*  "Lead",    
+*  "Mercury", 
+*  "Molybdenum
+*  "Nickel",  
+*  "Palladium"
+*  "Platinum",
+*  "Silicon", 
+*  "Silver",  
+*  "Titanium",
+*  "Tungsten",
+*  "Vanadium",
+*  "Zinc",    
+*  "Zirconium"
+*```
+* @constructor 
 * @extends Material
-* Generic metal material.
 * @property {number}  roughness  - The metal surface roughness
 * @example
-*  let metal = materials.loadMetal('Gold');
-*  metal.roughness = 0.05;
+* let metal = materials.loadMetal('Gold');
+* metal.roughness = 0.05;
 */
-function Metal(name, desc)
+function Metal(name)
 {
-	Material.call(this, name, desc);
+	Material.call(this, name);
 	this.roughness = 0.02;
 }
 
@@ -202,9 +222,9 @@ function tabulated_zirconium() { // 64 samples of n, k between 390.000000nm and 
 
 
 
-function TabulatedMetal(name, desc, nk)
+function TabulatedMetal(name, nk)
 {
-	Metal.call(this, name, desc);
+	Metal.call(this, name);
 	this.ior_tex  = new GLU.Texture(64, 1, 1, true, true, true, nk.n);
 	this.k_tex    = new GLU.Texture(64, 1, 1, true, true, true, nk.k);
 }
@@ -261,19 +281,46 @@ TabulatedMetal.prototype.eraseGui = function(parentFolder) { Metal.prototype.era
 // Dielectrics
 ////////////////////////////////////////////////////////
 
-/** @constructor 
+/** 
+* Generic dielectric material. Supported physical dielectrics are:
+*```glsl
+*  "Constant IOR dielectric"
+*  "Glass (BK7)"
+*  "Glass (K7)"
+*  "Glass (F5)"
+*  "Glass (LAFN7)"
+*  "Glass (LASF35)"
+*  "Glass (N-LAK33A)"
+*  "Glass (N-FK51A)"
+*  "Glass (SF4)"
+*  "Glass (SF67)"
+*  "Water"
+*  "Polycarbonate"
+*  "Glycerol"
+*  "Liquid Crystal (E7)"
+*  "Diamond"
+*  "Quartz"
+*  "Fused Silica"
+*  "Sapphire"
+*  "Sodium Chloride"
+*  "Proustite"
+*  "Rutile"
+*  "Silver Chloride"
+*```
+* @constructor 
 * @extends Material
-* Generic dielectric material.
-* @property {number}  roughness  - The dielectric surface roughness
+* @property {number} roughness        - The dielectric surface roughness
+* @property {array} absorptionColor   - The dielectric surface absorption color
+* @property {number} absorptionScale  - The dielectric surface absorption scale (m.f.p in multiples of scene max scale)
 * @example
-* 	let dielectric = materials.loadDielectric('Diamond');
-*	dielectric.absorptionColor = [1.0, 1.0, 1.0];
-*	dielectric.absorptionScale = 1.0; // mfp in multiples of scene scale
-*	dielectric.roughness = 0.030443974630021145;
+* let dielectric = materials.loadDielectric('Diamond');
+* dielectric.absorptionColor = [1.0, 1.0, 1.0];
+* dielectric.absorptionScale = 1.0; // mfp in multiples of scene scale
+* dielectric.roughness = 0.030443974630021145;
 */
-function Dielectric(name, desc)
+function Dielectric(name)
 {
-	Material.call(this, name, desc);
+	Material.call(this, name);
 	this.roughness = 0.005;
 	this.absorptionScale = -1.0; // set later based on scene maxScale
 	this.absorptionColor  = [0.5, 0.5, 0.5];
@@ -339,9 +386,9 @@ Dielectric.prototype.eraseGui = function(parentFolder)
 //
 // Simplest (but unphysical) model with no wavelength dependence
 //
-function ConstantDielectric(name, desc, iorVal) 
+function ConstantDielectric(name, iorVal) 
 {
-	Dielectric.call(this, name, desc);
+	Dielectric.call(this, name);
 	this.iorVal = iorVal;
 }
 
@@ -383,9 +430,9 @@ ConstantDielectric.prototype.eraseGui = function(parentFolder)
 
 
 // The standard Sellmeier model for dielectrics (model 1 at refractiveindex.info)
-function SellmeierDielectric(name, desc, coeffs) 
+function SellmeierDielectric(name, coeffs) 
 {
-	Dielectric.call(this, name, desc);
+	Dielectric.call(this, name);
 	this.coeffs = coeffs;
 }
 
@@ -434,9 +481,9 @@ SellmeierDielectric.prototype.eraseGui = function(parentFolder) { Dielectric.pro
 
 // The standard Sellmeier model for dielectrics (model 2 at refractiveindex.info)
 // coeffs array must have an odd number of elements (the constant, plus a pair per 'pole' term)
-function Sellmeier2Dielectric(name, desc, coeffs) 
+function Sellmeier2Dielectric(name, coeffs) 
 {
-	Dielectric.call(this, name, desc);
+	Dielectric.call(this, name);
 	this.coeffs = coeffs;
 }
 
@@ -485,9 +532,9 @@ Sellmeier2Dielectric.prototype.eraseGui = function(parentFolder) { Dielectric.pr
 
 
 // Model 4 at Polyanskiy's refractiveindex.info:
-function PolyanskiyDielectric(name, desc, coeffs) 
+function PolyanskiyDielectric(name, coeffs) 
 {
-	Dielectric.call(this, name, desc);
+	Dielectric.call(this, name);
 	this.C1 = coeffs[0];
 	this.C2 = coeffs[1];
 	this.C3 = coeffs[2];
@@ -535,9 +582,9 @@ PolyanskiyDielectric.prototype.eraseGui = function(parentFolder) { Dielectric.pr
 
 
 // Cauchy model for dielectrics (model 5 at refractiveindex.info)
-function CauchyDielectric(name, desc, coeffs) 
+function CauchyDielectric(name, coeffs) 
 {
-	Dielectric.call(this, name, desc);
+	Dielectric.call(this, name);
 	this.coeffs = coeffs;
 }
 
@@ -589,11 +636,12 @@ CauchyDielectric.prototype.eraseGui = function(parentFolder) { Dielectric.protot
 // Material manager
 ////////////////////////////////////////////////////
 
-/** @constructor 
+/** 
 * This object controls the properties of the three basic material types:
 *  - Dielectric (multiple different sub-types)
 *  - Metal (multiple different sub-types)
 *  - Surface (an uber-shader like materal)
+* @constructor 
 */
 var Materials = function()
 {
@@ -603,53 +651,53 @@ var Materials = function()
 	this.metalObj = null;
 	{
 		// Dielectrics
-		this.addDielectric( new ConstantDielectric("Constant IOR dielectric", "", 1.5) ); 
-		this.addDielectric( new SellmeierDielectric("Glass (BK7)", "",       [0.0, 1.03961212, 0.00600069867, 0.231792344, 0.0200179144, 1.01046945,  103.560653]) );
-		this.addDielectric( new Sellmeier2Dielectric("Glass (K7)", "",       [0.0, 1.1273555,  0.00720341707, 0.124412303, 0.0269835916, 0.827100531, 100.384588]) );
-		this.addDielectric( new Sellmeier2Dielectric("Glass (F5)", "",       [0.0, 1.3104463,  0.00958633048, 0.19603426,  0.0457627627, 0.96612977,  115.011883]) );
-		this.addDielectric( new Sellmeier2Dielectric("Glass (LAFN7)", "",    [0.0, 1.66842615, 0.0103159999,  0.298512803, 0.0469216348, 1.0774376,   82.5078509]) );
-		this.addDielectric( new Sellmeier2Dielectric("Glass (LASF35)", "",   [0.0, 2.45505861, 0.0135670404,  0.453006077, 0.054580302,  2.3851308,   167.904715]) );
-		this.addDielectric( new Sellmeier2Dielectric("Glass (N-LAK33A)", "", [0.0, 1.44116999, 0.00680933877, 0.571749501, 0.0222291824, 1.16605226,  80.9379555]) );
-		this.addDielectric( new SellmeierDielectric("Glass (N-FK51A)", "",   [0.0, 0.97124781, 0.00472301995, 0.216901417, 0.0153575612, 0.90465166,  168.68133]) );
-		this.addDielectric( new Sellmeier2Dielectric("Glass (SF4)", "",      [0.0, 1.61957826, 0.0125502104,  0.339493189, 0.0544559822, 1.02566931,  117.652222]) );
-		this.addDielectric( new Sellmeier2Dielectric("Glass (SF67)", "",     [0.0, 1.97464225, 0.0145772324,  0.467095921, 0.0669790359, 2.43154209,  157.444895]) );
-		this.addDielectric( new Sellmeier2Dielectric("Water", "",            [0.0,        5.67252e-1, 5.08555046e-3, 1.736581e-1, 1.8149386e-2, 2.12153e-2, 2.61726e-2, 1.1384932e-1, 1.073888e1]) );
-		this.addDielectric( new Sellmeier2Dielectric("Ethanol", "",          [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
-		this.addDielectric( new Sellmeier2Dielectric("Polycarbonate", "",    [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
-		this.addDielectric( new CauchyDielectric("Glycerol", "",             [1.45797, 0.00598, -2, -0.00036, -4]) );
-		this.addDielectric( new CauchyDielectric("Liquid Crystal (E7)", "",  [1.4990,  0.0072,  -2,  0.0003,  -4]) );
-		this.addDielectric( new SellmeierDielectric("Diamond", "",           [0.0,        0.3306,     0.175,         4.3356,      0.1060]) );
-		this.addDielectric( new SellmeierDielectric("Quartz", "",            [0.0, 0.6961663, 0.0684043, 0.4079426, 0.1162414, 0.8974794, 9.896161]) );
-		this.addDielectric( new SellmeierDielectric("Fused Silica", "",      [0.0,        0.6961663,  0.0684043,     0.4079426,  0.1162414, 0.8974794, 9.896161]) );
-		this.addDielectric( new SellmeierDielectric("Sapphire", "",          [0.0,        1.5039759,  0.0740288,     0.55069141, 0.1216529, 6.5927379, 20.072248]) );
-		this.addDielectric( new SellmeierDielectric("Sodium Chloride", "",   [0.00055,    0.19800,    0.050,         0.48398,     0.100,        0.38696,   0.128]) );
-		this.addDielectric( new PolyanskiyDielectric("Proustite", "",        [7.483, 0.474, 0.0, 0.09, 1.0]) );
-		this.addDielectric( new PolyanskiyDielectric("Rutile (Titanium Dioxide)", "", [5.913, 0.2441, 0.0, 0.0803, 1.0]) );
-		this.addDielectric( new PolyanskiyDielectric("Silver Chloride", "", [4.00804, 0.079086, 0.0, 0.04584, 1.0]) );
+		this.addDielectric( new ConstantDielectric("Constant IOR dielectric", 1.5) ); 
+		this.addDielectric( new SellmeierDielectric("Glass (BK7)",       [0.0, 1.03961212, 0.00600069867, 0.231792344, 0.0200179144, 1.01046945,  103.560653]) );
+		this.addDielectric( new Sellmeier2Dielectric("Glass (K7)",       [0.0, 1.1273555,  0.00720341707, 0.124412303, 0.0269835916, 0.827100531, 100.384588]) );
+		this.addDielectric( new Sellmeier2Dielectric("Glass (F5)",       [0.0, 1.3104463,  0.00958633048, 0.19603426,  0.0457627627, 0.96612977,  115.011883]) );
+		this.addDielectric( new Sellmeier2Dielectric("Glass (LAFN7)",    [0.0, 1.66842615, 0.0103159999,  0.298512803, 0.0469216348, 1.0774376,   82.5078509]) );
+		this.addDielectric( new Sellmeier2Dielectric("Glass (LASF35)",   [0.0, 2.45505861, 0.0135670404,  0.453006077, 0.054580302,  2.3851308,   167.904715]) );
+		this.addDielectric( new Sellmeier2Dielectric("Glass (N-LAK33A)", [0.0, 1.44116999, 0.00680933877, 0.571749501, 0.0222291824, 1.16605226,  80.9379555]) );
+		this.addDielectric( new SellmeierDielectric("Glass (N-FK51A)",   [0.0, 0.97124781, 0.00472301995, 0.216901417, 0.0153575612, 0.90465166,  168.68133]) );
+		this.addDielectric( new Sellmeier2Dielectric("Glass (SF4)",      [0.0, 1.61957826, 0.0125502104,  0.339493189, 0.0544559822, 1.02566931,  117.652222]) );
+		this.addDielectric( new Sellmeier2Dielectric("Glass (SF67)",     [0.0, 1.97464225, 0.0145772324,  0.467095921, 0.0669790359, 2.43154209,  157.444895]) );
+		this.addDielectric( new Sellmeier2Dielectric("Water",            [0.0,        5.67252e-1, 5.08555046e-3, 1.736581e-1, 1.8149386e-2, 2.12153e-2, 2.61726e-2, 1.1384932e-1, 1.073888e1]) );
+		this.addDielectric( new Sellmeier2Dielectric("Ethanol",          [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
+		this.addDielectric( new Sellmeier2Dielectric("Polycarbonate",    [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
+		this.addDielectric( new CauchyDielectric("Glycerol",             [1.45797, 0.00598, -2, -0.00036, -4]) );
+		this.addDielectric( new CauchyDielectric("Liquid Crystal (E7)",  [1.4990,  0.0072,  -2,  0.0003,  -4]) );
+		this.addDielectric( new SellmeierDielectric("Diamond",           [0.0,        0.3306,     0.175,         4.3356,      0.1060]) );
+		this.addDielectric( new SellmeierDielectric("Quartz",            [0.0, 0.6961663, 0.0684043, 0.4079426, 0.1162414, 0.8974794, 9.896161]) );
+		this.addDielectric( new SellmeierDielectric("Fused Silica",      [0.0,        0.6961663,  0.0684043,     0.4079426,  0.1162414, 0.8974794, 9.896161]) );
+		this.addDielectric( new SellmeierDielectric("Sapphire",          [0.0,        1.5039759,  0.0740288,     0.55069141, 0.1216529, 6.5927379, 20.072248]) );
+		this.addDielectric( new SellmeierDielectric("Sodium Chloride",   [0.00055,    0.19800,    0.050,         0.48398,     0.100,        0.38696,   0.128]) );
+		this.addDielectric( new PolyanskiyDielectric("Proustite",        [7.483, 0.474, 0.0, 0.09, 1.0]) );
+		this.addDielectric( new PolyanskiyDielectric("Rutile",           [5.913, 0.2441, 0.0, 0.0803, 1.0]) );
+		this.addDielectric( new PolyanskiyDielectric("Silver Chloride",  [4.00804, 0.079086, 0.0, 0.04584, 1.0]) );
 
 		// Metals
-		this.addMetal( new TabulatedMetal("Aluminium",  "", tabulated_aluminium() ));
-		this.addMetal( new TabulatedMetal("Brass",      "", tabulated_brass()     ));
-		this.addMetal( new TabulatedMetal("Calcium",     "", tabulated_calcium()  ));
-		this.addMetal( new TabulatedMetal("Chromium",     "", tabulated_chromium()));
-		this.addMetal( new TabulatedMetal("Cobalt",     "", tabulated_cobalt()    ));
-		this.addMetal( new TabulatedMetal("Copper",     "", tabulated_copper()    ));
-		this.addMetal( new TabulatedMetal("Gold",       "", tabulated_gold()      ));
-		this.addMetal( new TabulatedMetal("Iridium",   "", tabulated_iridium()    ));
-		this.addMetal( new TabulatedMetal("Iron",       "", tabulated_iron()      ));
-		this.addMetal( new TabulatedMetal("Lead",       "", tabulated_lead()      ));
-		this.addMetal( new TabulatedMetal("Mercury",    "", tabulated_mercury()   ));
-		this.addMetal( new TabulatedMetal("Molybdenum", "", tabulated_molybdenum()));
-		this.addMetal( new TabulatedMetal("Nickel",     "", tabulated_nickel()    ));
-		this.addMetal( new TabulatedMetal("Palladium",  "", tabulated_palladium() ));
-		this.addMetal( new TabulatedMetal("Platinum",   "", tabulated_platinum()  ));
-		this.addMetal( new TabulatedMetal("Silicon",    "", tabulated_silicon()   ));
-		this.addMetal( new TabulatedMetal("Silver",     "", tabulated_silver()    ));
-		this.addMetal( new TabulatedMetal("Titanium",   "", tabulated_titanium()  ));
-		this.addMetal( new TabulatedMetal("Tungsten",   "", tabulated_tungsten()  ));
-		this.addMetal( new TabulatedMetal("Vanadium",   "", tabulated_vanadium()  ));
-		this.addMetal( new TabulatedMetal("Zinc",       "", tabulated_zinc()      ));
-		this.addMetal( new TabulatedMetal("Zirconium",  "", tabulated_zirconium() ));
+		this.addMetal( new TabulatedMetal("Aluminium",  tabulated_aluminium() ));
+		this.addMetal( new TabulatedMetal("Brass",      tabulated_brass()     ));
+		this.addMetal( new TabulatedMetal("Calcium",    tabulated_calcium()   ));
+		this.addMetal( new TabulatedMetal("Chromium",   tabulated_chromium()  ));
+		this.addMetal( new TabulatedMetal("Cobalt",     tabulated_cobalt()    ));
+		this.addMetal( new TabulatedMetal("Copper",     tabulated_copper()    ));
+		this.addMetal( new TabulatedMetal("Gold",       tabulated_gold()      ));
+		this.addMetal( new TabulatedMetal("Iridium",    tabulated_iridium()   ));
+		this.addMetal( new TabulatedMetal("Iron",       tabulated_iron()      ));
+		this.addMetal( new TabulatedMetal("Lead",       tabulated_lead()      ));
+		this.addMetal( new TabulatedMetal("Mercury",    tabulated_mercury()   ));
+		this.addMetal( new TabulatedMetal("Molybdenum", tabulated_molybdenum()));
+		this.addMetal( new TabulatedMetal("Nickel",     tabulated_nickel()    ));
+		this.addMetal( new TabulatedMetal("Palladium",  tabulated_palladium() ));
+		this.addMetal( new TabulatedMetal("Platinum",   tabulated_platinum()  ));
+		this.addMetal( new TabulatedMetal("Silicon",    tabulated_silicon()   ));
+		this.addMetal( new TabulatedMetal("Silver",     tabulated_silver()    ));
+		this.addMetal( new TabulatedMetal("Titanium",   tabulated_titanium()  ));
+		this.addMetal( new TabulatedMetal("Tungsten",   tabulated_tungsten()  ));
+		this.addMetal( new TabulatedMetal("Vanadium",   tabulated_vanadium()  ));
+		this.addMetal( new TabulatedMetal("Zinc",       tabulated_zinc()      ));
+		this.addMetal( new TabulatedMetal("Zirconium",  tabulated_zirconium() ));
 
 		// Surface (uber)
 		this.surfaceObj = new Surface("Surface", "");
@@ -682,28 +730,30 @@ Materials.prototype.getMetals = function()
 
 /**
 * Load the desired Dielectric object by name. Supported dielectrics are:
-*	-  "Constant IOR dielectric"
-*	-  "Glass (BK7)"
-*	-  "Glass (K7)"
-*	-  "Glass (F5)"
-*	-  "Glass (LAFN7)"
-*	-  "Glass (LASF35)"
-*	-  "Glass (N-LAK33A)"
-*	-  "Glass (N-FK51A)"
-*	-  "Glass (SF4)"
-*	-  "Glass (SF67)"
-*	-  "Water"
-*	-  "Polycarbonate"
-*	-  "Glycerol"
-*	-  "Liquid Crystal (E7)"
-*	-  "Diamond"
-*	-  "Quartz"
-*	-  "Fused Silica"
-*	-  "Sapphire"
-*	-  "Sodium Chloride"
-*	-  "Proustite"
-*	-  "Rutile (Titanium Dioxide)"
-*	-  "Silver Chloride"
+*```glsl
+*  "Constant IOR dielectric"
+*  "Glass (BK7)"
+*  "Glass (K7)"
+*  "Glass (F5)"
+*  "Glass (LAFN7)"
+*  "Glass (LASF35)"
+*  "Glass (N-LAK33A)"
+*  "Glass (N-FK51A)"
+*  "Glass (SF4)"
+*  "Glass (SF67)"
+*  "Water"
+*  "Polycarbonate"
+*  "Glycerol"
+*  "Liquid Crystal (E7)"
+*  "Diamond"
+*  "Quartz"
+*  "Fused Silica"
+*  "Sapphire"
+*  "Sodium Chloride"
+*  "Proustite"
+*  "Rutile"
+*  "Silver Chloride"
+*```
 * @param {String} dielectricName - one of the names listed above
 * @returns {Dielectric} - the loaded dielectric
 */
@@ -715,28 +765,30 @@ Materials.prototype.loadDielectric = function(dielectricName)
 
 /**
 * Load the desired Metal object by name. Supported metals are:
-*	-  "Aluminium"
-*	-  "Brass",   
-*	-  "Calcium", 
-*	-  "Chromium",
-*	-  "Cobalt",  
-*	-  "Copper",  
-*	-  "Gold",    
-*	-  "Iridium", 
-*	-  "Iron",    
-*	-  "Lead",    
-*	-  "Mercury", 
-*	-  "Molybdenum
-*	-  "Nickel",  
-*	-  "Palladium"
-*	-  "Platinum",
-*	-  "Silicon", 
-*	-  "Silver",  
-*	-  "Titanium",
-*	-  "Tungsten",
-*	-  "Vanadium",
-*	-  "Zinc",    
-*	-  "Zirconium"
+*```
+*  "Aluminium"
+*  "Brass",   
+*  "Calcium", 
+*  "Chromium",
+*  "Cobalt",  
+*  "Copper",  
+*  "Gold",    
+*  "Iridium", 
+*  "Iron",    
+*  "Lead",    
+*  "Mercury", 
+*  "Molybdenum
+*  "Nickel",  
+*  "Palladium"
+*  "Platinum",
+*  "Silicon", 
+*  "Silver",  
+*  "Titanium",
+*  "Tungsten",
+*  "Vanadium",
+*  "Zinc",    
+*  "Zirconium"
+*```
 * @param {String} metalName - one of the names listed above
 * @returns {Metal} - the loaded metal
 */
