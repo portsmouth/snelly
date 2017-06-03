@@ -2,10 +2,9 @@
 
 Snelly is system for physically-based SDF (signed distance field) pathtracing in a web browser. 
 
-## Examples scenes
-
-    - Hello world  [source](./tree/master/exampleScenes/helloworld.html) [live](https://cdn.rawgit.com/portsmouth/snellypt/master/exampleScenes/helloworld.html)
-    - Basic        [source](./tree/master/exampleScenes/basic.html)      [live](https://cdn.rawgit.com/portsmouth/snellypt/master/exampleScenes/basic.html)
+## Example scenes
+- Hello world  [source](./tree/master/exampleScenes/helloworld.html) [live](https://cdn.rawgit.com/portsmouth/snellypt/master/exampleScenes/helloworld.html)
+- Basic        [source](./tree/master/exampleScenes/basic.html)      [live](https://cdn.rawgit.com/portsmouth/snellypt/master/exampleScenes/basic.html)
 
 ## HTML structure
 
