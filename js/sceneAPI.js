@@ -1,5 +1,7 @@
 
-/** @constructor */
+/** 
+* @constructor 
+*/
 function Scene() {}
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -89,6 +91,7 @@ this.frame = 0;
 * Optionally, supply an env-map texture URL (must be a lat-long format image).
 * (If this is function not implemented, or it returns the empty string, a uniform
 * temperature blackbody sky is used).
+* @returns {String}
 */
 Scene.prototype.envMap = function()
 {
@@ -97,12 +100,13 @@ Scene.prototype.envMap = function()
 
 /**
 * Optional name (displayed in UI)
-* @returns
+* @returns {String}
 */
 Scene.prototype.getName = function() { return "Complete API example"; }
 
 /**
 * Optional clickable URL (displayed in UI)
+* @returns {String}
 */
 Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly"; }
 
@@ -111,7 +115,7 @@ Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snel
 /////////////////////////////////////////////////////////////////////////////////////
 
 /**
-* Return a chunk of GLSL code defining the SDFs which determine the geometry of uber-surface, metal and dielectric materials in the scene.
+* Returns a chunk of GLSL code defining the SDFs which determine the geometry of uber-surface, metal and dielectric materials in the scene.
 * Define also (optionally) functions giving the 3d spatial dependence of the material parameters.
 * This function is mandatory!
 
@@ -349,6 +353,7 @@ Scene.prototype.syncShader = function(shader)
 * so it can set tolerances appropriately. This sets the rough length scale of the smallest 
 * resolvable structure. (Note that decreasing this will usually lead to longer render times).
 * Defaults to 0.0001.
+* @returns {number}
 */
 Scene.prototype.getMinScale = function()
 {
@@ -362,6 +367,7 @@ Scene.prototype.getMinScale = function()
 * from the camera than this scale, thus it acts as the "far plane" distance.
 * (Note that increasing this will usually lead to longer render times).
 * Defaults to 100.0.
+* @returns {number}
 */
 Scene.prototype.getMaxScale = function()
 {
