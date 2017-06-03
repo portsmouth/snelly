@@ -429,28 +429,30 @@ This object controls the properties of the three basic material types:
 
 ### materials.loadDielectric(dielectricName) ⇒ [<code>Dielectric</code>](#Dielectric)
 Load the desired Dielectric object by name. Supported dielectrics are:
-	-  "Constant IOR dielectric"
-	-  "Glass (BK7)"
-	-  "Glass (K7)"
-	-  "Glass (F5)"
-	-  "Glass (LAFN7)"
-	-  "Glass (LASF35)"
-	-  "Glass (N-LAK33A)"
-	-  "Glass (N-FK51A)"
-	-  "Glass (SF4)"
-	-  "Glass (SF67)"
-	-  "Water"
-	-  "Polycarbonate"
-	-  "Glycerol"
-	-  "Liquid Crystal (E7)"
-	-  "Diamond"
-	-  "Quartz"
-	-  "Fused Silica"
-	-  "Sapphire"
-	-  "Sodium Chloride"
-	-  "Proustite"
-	-  "Rutile"
-	-  "Silver Chloride"
+```glsl
+ "Constant IOR dielectric"
+ "Glass (BK7)"
+ "Glass (K7)"
+ "Glass (F5)"
+ "Glass (LAFN7)"
+ "Glass (LASF35)"
+ "Glass (N-LAK33A)"
+ "Glass (N-FK51A)"
+ "Glass (SF4)"
+ "Glass (SF67)"
+ "Water"
+ "Polycarbonate"
+ "Glycerol"
+ "Liquid Crystal (E7)"
+ "Diamond"
+ "Quartz"
+ "Fused Silica"
+ "Sapphire"
+ "Sodium Chloride"
+ "Proustite"
+ "Rutile"
+ "Silver Chloride"
+```
 
 **Kind**: instance method of [<code>Materials</code>](#Materials)  
 **Returns**: [<code>Dielectric</code>](#Dielectric) - - the loaded dielectric  
@@ -463,28 +465,30 @@ Load the desired Dielectric object by name. Supported dielectrics are:
 
 ### materials.loadMetal(metalName) ⇒ [<code>Metal</code>](#Metal)
 Load the desired Metal object by name. Supported metals are:
-	-  "Aluminium"
-	-  "Brass",   
-	-  "Calcium", 
-	-  "Chromium",
-	-  "Cobalt",  
-	-  "Copper",  
-	-  "Gold",    
-	-  "Iridium", 
-	-  "Iron",    
-	-  "Lead",    
-	-  "Mercury", 
-	-  "Molybdenum
-	-  "Nickel",  
-	-  "Palladium"
-	-  "Platinum",
-	-  "Silicon", 
-	-  "Silver",  
-	-  "Titanium",
-	-  "Tungsten",
-	-  "Vanadium",
-	-  "Zinc",    
-	-  "Zirconium"
+```
+ "Aluminium"
+ "Brass",   
+ "Calcium", 
+ "Chromium",
+ "Cobalt",  
+ "Copper",  
+ "Gold",    
+ "Iridium", 
+ "Iron",    
+ "Lead",    
+ "Mercury", 
+ "Molybdenum
+ "Nickel",  
+ "Palladium"
+ "Platinum",
+ "Silicon", 
+ "Silver",  
+ "Titanium",
+ "Tungsten",
+ "Vanadium",
+ "Zinc",    
+ "Zirconium"
+```
 
 **Kind**: instance method of [<code>Materials</code>](#Materials)  
 **Returns**: [<code>Metal</code>](#Metal) - - the loaded metal  
