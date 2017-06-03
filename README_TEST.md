@@ -16,11 +16,7 @@
 <dd></dd>
 <dt><a href="#Dielectric">Dielectric</a> ⇐ <code><a href="#Material">Material</a></code></dt>
 <dd></dd>
-<dt><a href="#- Dielectric (multiple different sub-types)
- - Metal (multiple different sub-types)
- - Surface (an uber-shader like materal)">- Dielectric (multiple different sub-types)
- - Metal (multiple different sub-types)
- - Surface (an uber-shader like materal)</a></dt>
+<dt><a href="#Materials">Materials</a></dt>
 <dd></dd>
 </dl>
 
@@ -47,7 +43,7 @@ for convenience.</p>
     * [.getCamera()](#Snelly+getCamera) ⇒ <code>THREE.PerspectiveCamera</code>
     * [.getControls()](#Snelly+getControls) ⇒ <code>THREE.OrbitControls</code>
     * [.showGUI(showGUI)](#Snelly+showGUI)
-    * [.getMaterials()](#Snelly+getMaterials) ⇒ <code>Materials</code>
+    * [.getMaterials()](#Snelly+getMaterials) ⇒ [<code>Materials</code>](#Materials)
     * [.getSurface()](#Snelly+getSurface) ⇒ [<code>Surface</code>](#Surface)
 
 <a name="new_Snelly_new"></a>
@@ -105,7 +101,7 @@ Programmatically show or hide the dat.GUI UI
 
 <a name="Snelly+getMaterials"></a>
 
-### snelly.getMaterials() ⇒ <code>Materials</code>
+### snelly.getMaterials() ⇒ [<code>Materials</code>](#Materials)
 Get materials object
 
 **Kind**: instance method of [<code>Snelly</code>](#Snelly)  
@@ -408,23 +404,113 @@ let dielectric = materials.loadDielectric('Diamond');
 	dielectric.absorptionScale = 1.0; // mfp in multiples of scene scale
 	dielectric.roughness = 0.030443974630021145;
 ```
-<a name="- Dielectric (multiple different sub-types)
- - Metal (multiple different sub-types)
- - Surface (an uber-shader like materal)"></a>
+<a name="Materials"></a>
 
-## - Dielectric (multiple different sub-types)
+## Materials
+**Kind**: global class  
+
+* [Materials](#Materials)
+    * [new Materials()](#new_Materials_new)
+    * [.loadDielectric(dielectricName)](#Materials+loadDielectric) ⇒ [<code>Dielectric</code>](#Dielectric)
+    * [.loadMetal(metalName)](#Materials+loadMetal) ⇒ [<code>Metal</code>](#Metal)
+    * [.getDielectric()](#Materials+getDielectric) ⇒ [<code>Dielectric</code>](#Dielectric)
+    * [.getMetal()](#Materials+getMetal) ⇒ [<code>Metal</code>](#Metal)
+    * [.getSurface()](#Materials+getSurface) ⇒ [<code>Surface</code>](#Surface)
+
+<a name="new_Materials_new"></a>
+
+### new Materials()
+This object controls the properties of the three basic material types:
+ - Dielectric (multiple different sub-types)
  - Metal (multiple different sub-types)
  - Surface (an uber-shader like materal)
-**Kind**: global class  
-<a name="new_- Dielectric (multiple different sub-types)
- - Metal (multiple different sub-types)
- - Surface (an uber-shader like materal)_new"></a>
 
-### new - Dielectric (multiple different sub-types)
- - Metal (multiple different sub-types)
- - Surface (an uber-shader like materal)()
-This object controls the properties of the three basic material types:
+<a name="Materials+loadDielectric"></a>
 
+### materials.loadDielectric(dielectricName) ⇒ [<code>Dielectric</code>](#Dielectric)
+Load the desired Dielectric object by name. Supported dielectrics are:
+	-  "Constant IOR dielectric"
+	-  "Glass (BK7)"
+	-  "Glass (K7)"
+	-  "Glass (F5)"
+	-  "Glass (LAFN7)"
+	-  "Glass (LASF35)"
+	-  "Glass (N-LAK33A)"
+	-  "Glass (N-FK51A)"
+	-  "Glass (SF4)"
+	-  "Glass (SF67)"
+	-  "Water"
+	-  "Polycarbonate"
+	-  "Glycerol"
+	-  "Liquid Crystal (E7)"
+	-  "Diamond"
+	-  "Quartz"
+	-  "Fused Silica"
+	-  "Sapphire"
+	-  "Sodium Chloride"
+	-  "Proustite"
+	-  "Rutile"
+	-  "Silver Chloride"
+
+**Kind**: instance method of [<code>Materials</code>](#Materials)  
+**Returns**: [<code>Dielectric</code>](#Dielectric) - - the loaded dielectric  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| dielectricName | <code>String</code> | one of the names listed above |
+
+<a name="Materials+loadMetal"></a>
+
+### materials.loadMetal(metalName) ⇒ [<code>Metal</code>](#Metal)
+Load the desired Metal object by name. Supported metals are:
+	-  "Aluminium"
+	-  "Brass",   
+	-  "Calcium", 
+	-  "Chromium",
+	-  "Cobalt",  
+	-  "Copper",  
+	-  "Gold",    
+	-  "Iridium", 
+	-  "Iron",    
+	-  "Lead",    
+	-  "Mercury", 
+	-  "Molybdenum
+	-  "Nickel",  
+	-  "Palladium"
+	-  "Platinum",
+	-  "Silicon", 
+	-  "Silver",  
+	-  "Titanium",
+	-  "Tungsten",
+	-  "Vanadium",
+	-  "Zinc",    
+	-  "Zirconium"
+
+**Kind**: instance method of [<code>Materials</code>](#Materials)  
+**Returns**: [<code>Metal</code>](#Metal) - - the loaded metal  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| metalName | <code>String</code> | one of the names listed above |
+
+<a name="Materials+getDielectric"></a>
+
+### materials.getDielectric() ⇒ [<code>Dielectric</code>](#Dielectric)
+Get the currently loaded Dielectric object.
+
+**Kind**: instance method of [<code>Materials</code>](#Materials)  
+<a name="Materials+getMetal"></a>
+
+### materials.getMetal() ⇒ [<code>Metal</code>](#Metal)
+Get the currently loaded Metal object.
+
+**Kind**: instance method of [<code>Materials</code>](#Materials)  
+<a name="Materials+getSurface"></a>
+
+### materials.getSurface() ⇒ [<code>Surface</code>](#Surface)
+Get the Surface object.
+
+**Kind**: instance method of [<code>Materials</code>](#Materials)  
 <a name="GLU"></a>
 
 ## GLU : <code>object</code>
