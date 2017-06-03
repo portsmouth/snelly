@@ -2,23 +2,23 @@
 ## Classes
 
 <dl>
-<dt><a href="#Snelly is the global object providing access to all functionality in the system.">Snelly is the global object providing access to all functionality in the system.</a></dt>
+<dt><a href="#Snelly">Snelly</a></dt>
 <dd></dd>
 <dt><a href="#Scene">Scene</a></dt>
 <dd></dd>
-<dt><a href="#Generic material.">Generic material.</a></dt>
+<dt><a href="#Renderer">Renderer</a></dt>
 <dd></dd>
-<dt><a href="#Surface">Surface</a> ⇐ <code>Material</code></dt>
+<dt><a href="#Material">Material</a></dt>
 <dd></dd>
-<dt><a href="#Metal">Metal</a> ⇐ <code>Material</code></dt>
+<dt><a href="#Surface">Surface</a> ⇐ <code><a href="#Material">Material</a></code></dt>
 <dd></dd>
-<dt><a href="#Dielectric">Dielectric</a> ⇐ <code>Material</code></dt>
+<dt><a href="#Metal">Metal</a> ⇐ <code><a href="#Material">Material</a></code></dt>
 <dd></dd>
-<dt><a href="#This object controls the properties of the three basic material types_
- - Dielectric (multiple different sub-types)
+<dt><a href="#Dielectric">Dielectric</a> ⇐ <code><a href="#Material">Material</a></code></dt>
+<dd></dd>
+<dt><a href="#- Dielectric (multiple different sub-types)
  - Metal (multiple different sub-types)
- - Surface (an uber-shader like materal)">This object controls the properties of the three basic material types:
- - Dielectric (multiple different sub-types)
+ - Surface (an uber-shader like materal)">- Dielectric (multiple different sub-types)
  - Metal (multiple different sub-types)
  - Surface (an uber-shader like materal)</a></dt>
 <dd></dd>
@@ -34,18 +34,87 @@ for convenience.</p>
 </dd>
 </dl>
 
-<a name="Snelly is the global object providing access to all functionality in the system."></a>
+<a name="Snelly"></a>
 
-## Snelly is the global object providing access to all functionality in the system.
+## Snelly
 **Kind**: global class  
-<a name="new_Snelly is the global object providing access to all functionality in the system._new"></a>
 
-### new Snelly is the global object providing access to all functionality in the system.(sceneObj)
+* [Snelly](#Snelly)
+    * [new Snelly(sceneObj)](#new_Snelly_new)
+    * [.getVersion()](#Snelly+getVersion) ⇒ <code>Array</code>
+    * [.getRenderer()](#Snelly+getRenderer) ⇒ [<code>Renderer</code>](#Renderer)
+    * [.getGUI()](#Snelly+getGUI) ⇒ <code>GUI</code>
+    * [.getCamera()](#Snelly+getCamera) ⇒ <code>THREE.PerspectiveCamera</code>
+    * [.getControls()](#Snelly+getControls) ⇒ <code>THREE.OrbitControls</code>
+    * [.showGUI(showGUI)](#Snelly+showGUI)
+    * [.getMaterials()](#Snelly+getMaterials) ⇒ <code>Materials</code>
+    * [.getSurface()](#Snelly+getSurface) ⇒ [<code>Surface</code>](#Surface)
+
+<a name="new_Snelly_new"></a>
+
+### new Snelly(sceneObj)
+Snelly is the global object providing access to all functionality in the system.
+
 
 | Param | Type | Description |
 | --- | --- | --- |
 | sceneObj | [<code>Scene</code>](#Scene) | The user-defined scene |
 
+<a name="Snelly+getVersion"></a>
+
+### snelly.getVersion() ⇒ <code>Array</code>
+Returns the current version number of the snelly system, in the format [1, 2, 3]
+
+**Kind**: instance method of [<code>Snelly</code>](#Snelly)  
+<a name="Snelly+getRenderer"></a>
+
+### snelly.getRenderer() ⇒ [<code>Renderer</code>](#Renderer)
+Access to the Renderer object
+
+**Kind**: instance method of [<code>Snelly</code>](#Snelly)  
+<a name="Snelly+getGUI"></a>
+
+### snelly.getGUI() ⇒ <code>GUI</code>
+Access to the GUI object
+
+**Kind**: instance method of [<code>Snelly</code>](#Snelly)  
+<a name="Snelly+getCamera"></a>
+
+### snelly.getCamera() ⇒ <code>THREE.PerspectiveCamera</code>
+Access to the camera object
+
+**Kind**: instance method of [<code>Snelly</code>](#Snelly)  
+**Returns**: <code>THREE.PerspectiveCamera</code> - .  
+<a name="Snelly+getControls"></a>
+
+### snelly.getControls() ⇒ <code>THREE.OrbitControls</code>
+Access to the camera controller object
+
+**Kind**: instance method of [<code>Snelly</code>](#Snelly)  
+**Returns**: <code>THREE.OrbitControls</code> - .  
+<a name="Snelly+showGUI"></a>
+
+### snelly.showGUI(showGUI)
+Programmatically show or hide the dat.GUI UI
+
+**Kind**: instance method of [<code>Snelly</code>](#Snelly)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| showGUI | <code>Boolean</code> | toggle |
+
+<a name="Snelly+getMaterials"></a>
+
+### snelly.getMaterials() ⇒ <code>Materials</code>
+Get materials object
+
+**Kind**: instance method of [<code>Snelly</code>](#Snelly)  
+<a name="Snelly+getSurface"></a>
+
+### snelly.getSurface() ⇒ [<code>Surface</code>](#Surface)
+Get Surface object
+
+**Kind**: instance method of [<code>Snelly</code>](#Snelly)  
 <a name="Scene"></a>
 
 ## Scene
@@ -54,14 +123,14 @@ for convenience.</p>
 * [Scene](#Scene)
     * [.init(snelly)](#Scene+init)
     * [.initGenerator()](#Scene+initGenerator)
-    * [.envMap()](#Scene+envMap)
+    * [.envMap()](#Scene+envMap) ⇒ <code>String</code>
     * [.getName()](#Scene+getName) ⇒ <code>String</code>
-    * [.getURL()](#Scene+getURL)
+    * [.getURL()](#Scene+getURL) ⇒ <code>String</code>
     * [.shader()](#Scene+shader) ⇒ <code>String</code>
     * [.initGui(The)](#Scene+initGui)
     * [.syncShader(The)](#Scene+syncShader)
-    * [.getMinScale()](#Scene+getMinScale)
-    * [.getMaxScale()](#Scene+getMaxScale)
+    * [.getMinScale()](#Scene+getMinScale) ⇒ <code>number</code>
+    * [.getMaxScale()](#Scene+getMaxScale) ⇒ <code>number</code>
     * [.preframeCallback(The, The)](#Scene+preframeCallback)
     * [.postframeCallback(The, The)](#Scene+postframeCallback)
 
@@ -74,7 +143,7 @@ Optionally (but usually), provide this function to set scene and renderer initia
 
 | Param | Type | Description |
 | --- | --- | --- |
-| snelly | <code>Snelly</code> | The snelly object |
+| snelly | [<code>Snelly</code>](#Snelly) | The snelly object |
 
 <a name="Scene+initGenerator"></a>
 
@@ -87,7 +156,7 @@ state to be tweaked in the UI then saved by copy-pasting code into the init func
 **Kind**: instance method of [<code>Scene</code>](#Scene)  
 <a name="Scene+envMap"></a>
 
-### scene.envMap()
+### scene.envMap() ⇒ <code>String</code>
 Optionally, supply an env-map texture URL (must be a lat-long format image).
 (If this is function not implemented, or it returns the empty string, a uniform
 temperature blackbody sky is used).
@@ -101,7 +170,7 @@ Optional name (displayed in UI)
 **Kind**: instance method of [<code>Scene</code>](#Scene)  
 <a name="Scene+getURL"></a>
 
-### scene.getURL()
+### scene.getURL() ⇒ <code>String</code>
 Optional clickable URL (displayed in UI)
 
 **Kind**: instance method of [<code>Scene</code>](#Scene)  
@@ -174,7 +243,7 @@ Optional. Called whenever the UI is changed,
 
 <a name="Scene+getMinScale"></a>
 
-### scene.getMinScale()
+### scene.getMinScale() ⇒ <code>number</code>
 Optional. Gives the raytracer some indication of the (rough) minimum length scale, 
 so it can set tolerances appropriately. This sets the rough length scale of the smallest 
 resolvable structure. (Note that decreasing this will usually lead to longer render times).
@@ -183,7 +252,7 @@ Defaults to 0.0001.
 **Kind**: instance method of [<code>Scene</code>](#Scene)  
 <a name="Scene+getMaxScale"></a>
 
-### scene.getMaxScale()
+### scene.getMaxScale() ⇒ <code>number</code>
 Optional. Gives the raytracer some indication of the (rough) maximum length scale, 
 so it can set tolerances appropriately. The raymarcher will march no further
 from the camera than this scale, thus it acts as the "far plane" distance.
@@ -202,7 +271,7 @@ programmatically according to the global time since init
 
 | Param | Type | Description |
 | --- | --- | --- |
-| The | <code>Snelly</code> | snelly object |
+| The | [<code>Snelly</code>](#Snelly) | snelly object |
 | The | <code>WebGLRenderingContext</code> | webGL context |
 
 <a name="Scene+postframeCallback"></a>
@@ -216,18 +285,64 @@ programmatically according to the global time since init
 
 | Param | Type | Description |
 | --- | --- | --- |
-| The | <code>Snelly</code> | snelly object |
+| The | [<code>Snelly</code>](#Snelly) | snelly object |
 | The | <code>WebGLRenderingContext</code> | webGL context |
 
-<a name="Generic material."></a>
+<a name="Renderer"></a>
 
-## Generic material.
+## Renderer
 **Kind**: global class  
+
+* [Renderer](#Renderer)
+    * [new Renderer([width], [height], [renderMode], [maxMarchSteps], [radianceClamp], [skyPower], [skyTemperature], [exposure], [gamma], [whitepoint], [goalFPS], [minsSPPToRedraw])](#new_Renderer_new)
+    * [.reset([no_recompile])](#Renderer+reset)
+
+<a name="new_Renderer_new"></a>
+
+### new Renderer([width], [height], [renderMode], [maxMarchSteps], [radianceClamp], [skyPower], [skyTemperature], [exposure], [gamma], [whitepoint], [goalFPS], [minsSPPToRedraw])
+Interface to the pathtracer. The exposed properties and their defaults are:
+
+
+| Param | Type | Default | Description |
+| --- | --- | --- | --- |
+| [width] | <code>Number</code> |  | (if not specified, fits to window) |
+| [height] | <code>Number</code> |  | (if not specified, fits to window) |
+| [renderMode] | <code>String</code> | <code>&#x27;pt&#x27;</code> | rendering mode (either 'pt', 'ao', or 'normals') |
+| [maxMarchSteps] | <code>number</code> | <code>512</code> | maximum number of raymarching steps per path segment |
+| [radianceClamp] | <code>number</code> | <code>3.0</code> | clamp radiance to (10^) this max value, for firefly reduction |
+| [skyPower] | <code>number</code> | <code>4.0</code> | sky power (arbitrary units) |
+| [skyTemperature] | <code>number</code> | <code>6000</code> | sky temperature (in Kelvin) |
+| [exposure] | <code>number</code> | <code>4.5</code> | exposure, on a log scale |
+| [gamma] | <code>number</code> | <code>2.2</code> | display gamma correction |
+| [whitepoint] | <code>number</code> | <code>2.0</code> | tonemapping whitepoint |
+| [goalFPS] | <code>number</code> | <code>10.0</code> | sampling will adjust to try to match goal FPS |
+| [minsSPPToRedraw] | <code>number</code> | <code>0.0</code> | if >0.0, renderer will not redraw until the specified SPP have been accumulated |
+
+<a name="Renderer+reset"></a>
+
+### renderer.reset([no_recompile])
+Restart accumulating samples.
+
+**Kind**: instance method of [<code>Renderer</code>](#Renderer)  
+
+| Param | Type | Default | Description |
+| --- | --- | --- | --- |
+| [no_recompile] | <code>Boolean</code> | <code>false</code> | set to true if shaders need recompilation too |
+
+<a name="Material"></a>
+
+## Material
+**Kind**: global class  
+<a name="new_Material_new"></a>
+
+### new Material()
+Generic material.
+
 <a name="Surface"></a>
 
-## Surface ⇐ <code>Material</code>
+## Surface ⇐ [<code>Material</code>](#Material)
 **Kind**: global class  
-**Extends**: <code>Material</code>  
+**Extends**: [<code>Material</code>](#Material)  
 **Properties**
 
 | Name | Type | Description |
@@ -237,38 +352,79 @@ programmatically according to the global time since init
 | diffuseAlbedo | <code>Array</code> | The surface diffuse (RGB) color |
 | specAlbedo | <code>Array</code> | The surface spec (RGB) color |
 
+<a name="new_Surface_new"></a>
+
+### new Surface()
+Generic uber-surface material. Control via properties:
+
+**Example**  
+```js
+surface.roughness = 0.05;
+	surface.ior = 1.3530655391120507;
+	surface.diffuseAlbedo = [0.5, 0.5, 0.5];
+	surface.specAlbedo = [0.0, 0.0, 0.0];
+```
 <a name="Metal"></a>
 
-## Metal ⇐ <code>Material</code>
+## Metal ⇐ [<code>Material</code>](#Material)
 **Kind**: global class  
-**Extends**: <code>Material</code>  
+**Extends**: [<code>Material</code>](#Material)  
 **Properties**
 
 | Name | Type | Description |
 | --- | --- | --- |
 | roughness | <code>number</code> | The metal surface roughness |
 
+<a name="new_Metal_new"></a>
+
+### new Metal()
+Generic metal material.
+
+**Example**  
+```js
+let metal = materials.loadMetal('Gold');
+ metal.roughness = 0.05;
+```
 <a name="Dielectric"></a>
 
-## Dielectric ⇐ <code>Material</code>
+## Dielectric ⇐ [<code>Material</code>](#Material)
 **Kind**: global class  
-**Extends**: <code>Material</code>  
+**Extends**: [<code>Material</code>](#Material)  
 **Properties**
 
 | Name | Type | Description |
 | --- | --- | --- |
 | roughness | <code>number</code> | The dielectric surface roughness |
 
-<a name="This object controls the properties of the three basic material types_
- - Dielectric (multiple different sub-types)
+<a name="new_Dielectric_new"></a>
+
+### new Dielectric()
+Generic dielectric material.
+
+**Example**  
+```js
+let dielectric = materials.loadDielectric('Diamond');
+	dielectric.absorptionColor = [1.0, 1.0, 1.0];
+	dielectric.absorptionScale = 1.0; // mfp in multiples of scene scale
+	dielectric.roughness = 0.030443974630021145;
+```
+<a name="- Dielectric (multiple different sub-types)
  - Metal (multiple different sub-types)
  - Surface (an uber-shader like materal)"></a>
 
-## This object controls the properties of the three basic material types:
- - Dielectric (multiple different sub-types)
+## - Dielectric (multiple different sub-types)
  - Metal (multiple different sub-types)
  - Surface (an uber-shader like materal)
 **Kind**: global class  
+<a name="new_- Dielectric (multiple different sub-types)
+ - Metal (multiple different sub-types)
+ - Surface (an uber-shader like materal)_new"></a>
+
+### new - Dielectric (multiple different sub-types)
+ - Metal (multiple different sub-types)
+ - Surface (an uber-shader like materal)()
+This object controls the properties of the three basic material types:
+
 <a name="GLU"></a>
 
 ## GLU : <code>object</code>
