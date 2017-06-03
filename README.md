@@ -62,18 +62,18 @@ The only mandatory function to implement in Scene is {@link Scene#shader}, the o
 
 ## Geometry
 
-A Snelly scene consists of 3d objects defined by a mathematical signed distance function (SDF) written in GLSL code, i.e. where this function is zero corresponds to the surface of the object, and where it is negative is the interior. In each scene there can (currently) only exist three objects: a <a href="docs/API.md/#Metal">Metal</a>, a <a href="docs/API.md/#Dielectric">Dielectric</a>, and a plastic-like <a href="docs/API.md/#Surface">Surface</a> ("uber" material).
+A Snelly scene consists of 3d objects defined by a mathematical signed distance function (SDF) written in GLSL code, i.e. where this function is zero corresponds to the surface of the object, and where it is negative is the interior. In each scene there can (currently) only exist three such objects: a <a href="docs/API.md/#Metal">Metal</a>, a <a href="docs/API.md/#Dielectric">Dielectric</a>, and a plastic-like <a href="docs/API.md/#Surface">Surface</a> ("uber" material). These three materials can freely intersect and embed one another.
 
-Thus we define the rendered scene geometry by specifying, via the {@link Scene#shader} call, three GLSL functions:
+We define the rendered scene geometry by specifying, via the <a href="docs/API.md/#Scene+shader">Scene.shader</a> call, three GLSL functions:
 
     - SDF_SURFACE(vec3 X): the SDF of the uber-surface material
     - SDF_METAL(vec3 X): the SDF of the (selected) metal material
     - SDF_DIELECTRIC(vec3 X): the SDF of the (selected) dielectric material
   
  We use [dat.GUI](https://workshop.chromeexperiments.com/examples/gui/#1--Basic-Usage) to provide a simple interactive UI for the scene and renderer state. Basic scene controls can be added via the 
- UI or animation control over the scene can be coded by adding uniform variables in the SDF functions, and setting them to the corresponding UI values in the {@link Scene#syncShader} function.
+ UI or animation control over the scene can be coded by adding uniform variables in the SDF functions, and setting them to the corresponding UI values in the <a href="docs/API.md/#Scene+syncShader">Scene.syncShader</a> function.
 
-The details of the properties of the three material types can then be specified in {@link Scene#init} via the {@link Materials} object. Additional spatial dependence of the material surface properties can be introduced by providing modulating GLSL functions.
+The details of the properties of the three material types can then be specified in <a href="docs/API.md/#Scene+init">Scene.init</a> via the {@link Materials} object. Additional spatial dependence of the material surface properties can be introduced by providing modulating GLSL functions.
 
 Procedural camera motion and scene animation can be authored (programmatically) via the pre- and post-frame callbacks.
 
@@ -103,7 +103,7 @@ In both cases, the sky spectrum is modulated by a blackbody emission spectrum wi
 
 ## Saving scene state
 
-Often we want to explore and fine-tune a scene by moving the camera around, tweaking the scene parameters and materials, and adjusting renderer settings. This work would be wasted without a way to save the resulting scene state. This is provided by the simple mechanism of pressing the 'O' key to dump to the console a Javascript code which can be inserted into the {@link Scene#init} function, to replicate the scene state. An example of this output is:
+Often we want to explore and fine-tune a scene by moving the camera around, tweaking the scene parameters and materials, and adjusting renderer settings. This work would be wasted without a way to save the resulting scene state. This is provided by the simple mechanism of pressing the 'O' key to dump to the console a Javascript code which can be inserted into the <a href="docs/API.md/#Scene+init">Scene.init</a> function, to replicate the scene state. An example of this output is:
 ```javascript
 /******* copy-pasted console output on 'O', begin *******/
 
@@ -187,12 +187,10 @@ With this code in place, the output on pressing 'O' is then a faithful represent
 
 ## Callbacks and animation
 
-For implementation of custom animation logic, we use the simple mechanism of pre- and post-frame user callbacks, wherein the user can implement whatever logic he needs to programmatically animate the scene, camera, and materials. See the provided examples for details of how to use this implement animating scenes, and movie rendering.
+For implementation of custom animation logic, we use the simple mechanism of pre- and post-frame user callbacks, wherein the user can implement whatever logic he needs to programmatically animate the scene, camera, and materials. See the provided examples for details of how to use this implement animating scenes, and movie rendering. See:
+    - <a href="docs/API.md/#Scene+preframeCallback">Scene.preframeCallback</a>
+    - <a href="docs/API.md/#Scene+postframeCallback">Scene.postframeCallback</a>
 
-```
-Scene.prototype.preframeCallback = function(snelly, gl);
-Scene.prototype.postframeCallback = function(snelly, gl);
-```
 
 # API Reference
 
