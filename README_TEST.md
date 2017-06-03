@@ -288,32 +288,99 @@ programmatically according to the global time since init
 
 ## Renderer
 **Kind**: global class  
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| width | <code>number</code> | (if not specified, fits to window) |
+| height | <code>number</code> | (if not specified, fits to window) |
+| renderMode | <code>String</code> | rendering mode (either 'pt', 'ao', or 'normals') |
+| maxMarchSteps | <code>number</code> | maximum number of raymarching steps per path segment |
+| radianceClamp | <code>number</code> | clamp radiance to (10^) this max value, for firefly reduction |
+| skyPower | <code>number</code> | sky power (arbitrary units) |
+| skyTemperature | <code>number</code> | sky temperature (in Kelvin) |
+| exposure | <code>number</code> | exposure, on a log scale |
+| gamma | <code>number</code> | display gamma correction |
+| whitepoint | <code>number</code> | tonemapping whitepoint |
+| goalFPS | <code>number</code> | sampling will adjust to try to match goal FPS |
+| minsSPPToRedraw | <code>number</code> | if >0.0, renderer will not redraw until the specified SPP have been accumulated |
+
 
 * [Renderer](#Renderer)
-    * [new Renderer([width], [height], [renderMode], [maxMarchSteps], [radianceClamp], [skyPower], [skyTemperature], [exposure], [gamma], [whitepoint], [goalFPS], [minsSPPToRedraw])](#new_Renderer_new)
+    * [new Renderer()](#new_Renderer_new)
+    * [.renderMode](#Renderer+renderMode)
+    * [.maxBounces](#Renderer+maxBounces)
+    * [.maxMarchSteps](#Renderer+maxMarchSteps)
+    * [.radianceClamp](#Renderer+radianceClamp)
+    * [.skyPower](#Renderer+skyPower)
+    * [.skyTemperature](#Renderer+skyTemperature)
+    * [.exposure](#Renderer+exposure)
+    * [.gamma](#Renderer+gamma)
+    * [.whitepoint](#Renderer+whitepoint)
+    * [.goalFPS](#Renderer+goalFPS)
+    * [.minsSPPToRedraw](#Renderer+minsSPPToRedraw)
     * [.reset([no_recompile])](#Renderer+reset)
 
 <a name="new_Renderer_new"></a>
 
-### new Renderer([width], [height], [renderMode], [maxMarchSteps], [radianceClamp], [skyPower], [skyTemperature], [exposure], [gamma], [whitepoint], [goalFPS], [minsSPPToRedraw])
+### new Renderer()
 Interface to the pathtracer. The exposed properties and their defaults are:
 
+<a name="Renderer+renderMode"></a>
 
-| Param | Type | Default | Description |
-| --- | --- | --- | --- |
-| [width] | <code>Number</code> |  | (if not specified, fits to window) |
-| [height] | <code>Number</code> |  | (if not specified, fits to window) |
-| [renderMode] | <code>String</code> | <code>&#x27;pt&#x27;</code> | rendering mode (either 'pt', 'ao', or 'normals') |
-| [maxMarchSteps] | <code>number</code> | <code>512</code> | maximum number of raymarching steps per path segment |
-| [radianceClamp] | <code>number</code> | <code>3.0</code> | clamp radiance to (10^) this max value, for firefly reduction |
-| [skyPower] | <code>number</code> | <code>4.0</code> | sky power (arbitrary units) |
-| [skyTemperature] | <code>number</code> | <code>6000</code> | sky temperature (in Kelvin) |
-| [exposure] | <code>number</code> | <code>4.5</code> | exposure, on a log scale |
-| [gamma] | <code>number</code> | <code>2.2</code> | display gamma correction |
-| [whitepoint] | <code>number</code> | <code>2.0</code> | tonemapping whitepoint |
-| [goalFPS] | <code>number</code> | <code>10.0</code> | sampling will adjust to try to match goal FPS |
-| [minsSPPToRedraw] | <code>number</code> | <code>0.0</code> | if >0.0, renderer will not redraw until the specified SPP have been accumulated |
+### renderer.renderMode
+**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
+**Default**: <code>&#x27;pt&#x27;</code>  
+<a name="Renderer+maxBounces"></a>
 
+### renderer.maxBounces
+**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
+**Default**: <code>3</code>  
+<a name="Renderer+maxMarchSteps"></a>
+
+### renderer.maxMarchSteps
+**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
+**Default**: <code>512</code>  
+<a name="Renderer+radianceClamp"></a>
+
+### renderer.radianceClamp
+**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
+**Default**: <code>3.0</code>  
+<a name="Renderer+skyPower"></a>
+
+### renderer.skyPower
+**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
+**Default**: <code>1.0</code>  
+<a name="Renderer+skyTemperature"></a>
+
+### renderer.skyTemperature
+**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
+**Default**: <code>6000.0</code>  
+<a name="Renderer+exposure"></a>
+
+### renderer.exposure
+**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
+**Default**: <code>3.0</code>  
+<a name="Renderer+gamma"></a>
+
+### renderer.gamma
+**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
+**Default**: <code>2.2</code>  
+<a name="Renderer+whitepoint"></a>
+
+### renderer.whitepoint
+**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
+**Default**: <code>2.0</code>  
+<a name="Renderer+goalFPS"></a>
+
+### renderer.goalFPS
+**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
+**Default**: <code>20.0</code>  
+<a name="Renderer+minsSPPToRedraw"></a>
+
+### renderer.minsSPPToRedraw
+**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
+**Default**: <code>0.0</code>  
 <a name="Renderer+reset"></a>
 
 ### renderer.reset([no_recompile])
@@ -356,9 +423,9 @@ Generic uber-surface material. Control via properties:
 **Example**  
 ```js
 surface.roughness = 0.05;
-	surface.ior = 1.3530655391120507;
-	surface.diffuseAlbedo = [0.5, 0.5, 0.5];
-	surface.specAlbedo = [0.0, 0.0, 0.0];
+surface.ior = 1.3530655391120507;
+surface.diffuseAlbedo = [0.5, 0.5, 0.5];
+surface.specAlbedo = [0.0, 0.0, 0.0];
 ```
 <a name="Metal"></a>
 
@@ -391,6 +458,8 @@ let metal = materials.loadMetal('Gold');
 | Name | Type | Description |
 | --- | --- | --- |
 | roughness | <code>number</code> | The dielectric surface roughness |
+| absorptionColor | <code>array</code> | The dielectric surface absorption color |
+| absorptionScale | <code>number</code> | The dielectric surface absorption scale (m.f.p in multiples of scene max scale) |
 
 <a name="new_Dielectric_new"></a>
 
@@ -400,9 +469,9 @@ Generic dielectric material.
 **Example**  
 ```js
 let dielectric = materials.loadDielectric('Diamond');
-	dielectric.absorptionColor = [1.0, 1.0, 1.0];
-	dielectric.absorptionScale = 1.0; // mfp in multiples of scene scale
-	dielectric.roughness = 0.030443974630021145;
+dielectric.absorptionColor = [1.0, 1.0, 1.0];
+dielectric.absorptionScale = 1.0; // mfp in multiples of scene scale
+dielectric.roughness = 0.030443974630021145;
 ```
 <a name="Materials"></a>
 
