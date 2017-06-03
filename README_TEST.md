@@ -290,24 +290,25 @@ programmatically according to the global time since init
 **Kind**: global class  
 **Properties**
 
-| Name | Type | Description |
-| --- | --- | --- |
-| width | <code>number</code> | (if not specified, fits to window) |
-| height | <code>number</code> | (if not specified, fits to window) |
-| renderMode | <code>String</code> | rendering mode (either 'pt', 'ao', or 'normals') |
-| maxMarchSteps | <code>number</code> | maximum number of raymarching steps per path segment |
-| radianceClamp | <code>number</code> | clamp radiance to (10^) this max value, for firefly reduction |
-| skyPower | <code>number</code> | sky power (arbitrary units) |
-| skyTemperature | <code>number</code> | sky temperature (in Kelvin) |
-| exposure | <code>number</code> | exposure, on a log scale |
-| gamma | <code>number</code> | display gamma correction |
-| whitepoint | <code>number</code> | tonemapping whitepoint |
-| goalFPS | <code>number</code> | sampling will adjust to try to match goal FPS |
-| minsSPPToRedraw | <code>number</code> | if >0.0, renderer will not redraw until the specified SPP have been accumulated |
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| width | <code>number</code> |  | (if not specified, fits to window) |
+| height | <code>number</code> |  | (if not specified, fits to window) |
+| renderMode | <code>String</code> |  | rendering mode (either 'pt', 'ao', or 'normals') |
+| maxMarchSteps | <code>number</code> | <code>256</code> | maximum number of raymarching steps per path segment |
+| radianceClamp | <code>number</code> | <code>3.0</code> | clamp radiance to (10^) this max value, for firefly reduction |
+| skyPower | <code>number</code> | <code>4.0</code> | sky power (arbitrary units) |
+| skyTemperature | <code>number</code> | <code>6000</code> | sky temperature (in Kelvin) |
+| exposure | <code>number</code> | <code>4.5</code> | exposure, on a log scale |
+| gamma | <code>number</code> | <code>2.2</code> | display gamma correction |
+| whitepoint | <code>number</code> | <code>2.0</code> | tonemapping whitepoint |
+| goalFPS | <code>number</code> | <code>10.0</code> | sampling will adjust to try to match goal FPS |
+| minsSPPToRedraw | <code>number</code> | <code>0.0</code> | if >0.0, renderer will not redraw until the specified SPP have been accumulated |
 
 
 * [Renderer](#Renderer)
     * [new Renderer()](#new_Renderer_new)
+    * [.numSamples](#Renderer+numSamples)
     * [.renderMode](#Renderer+renderMode)
     * [.maxBounces](#Renderer+maxBounces)
     * [.maxMarchSteps](#Renderer+maxMarchSteps)
@@ -326,6 +327,11 @@ programmatically according to the global time since init
 ### new Renderer()
 Interface to the pathtracer. The exposed properties and their defaults are:
 
+<a name="Renderer+numSamples"></a>
+
+### renderer.numSamples
+**Kind**: instance property of [<code>Renderer</code>](#Renderer)  
+**Default**: <code>0</code>  
 <a name="Renderer+renderMode"></a>
 
 ### renderer.renderMode
