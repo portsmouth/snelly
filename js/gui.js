@@ -128,10 +128,19 @@ GUI.prototype.addSlider = function(parameters, param)
 	item.onFinishChange( function(value) { snelly.camera.enabled = true; } );
 }
 
-// deprecate
+// (deprecated)
 GUI.prototype.addParameter = function(parameters, param)
 {
 	this.addSlider(parameters, param);
+}
+
+/**
+* Access to internal dat.GUI object
+* @returns {dat.GUI}
+*/
+GUI.prototype.getGUI = function()
+{
+	return this.gui;
 }
 
 GUI.prototype.getSceneFolder = function()

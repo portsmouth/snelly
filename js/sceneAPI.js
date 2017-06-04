@@ -327,7 +327,7 @@ Scene.prototype.shader = function()
 
 /**
 * Optional. Set up gui and callbacks for this scene
-* @param {GUI} The GUI object
+* @param {GUI} gui - wrapper for dat.GUI object
 */
 Scene.prototype.initGui = function(gui)            
 {
@@ -339,7 +339,7 @@ Scene.prototype.initGui = function(gui)
 /**
 * Optional. Called whenever the UI is changed,
 /* and must sync the params of the shader with the current UI settings
-* @param {Shader} The Shader object 
+* @param {Shader} shader - wrapper of webGL fragment shader
 */
 Scene.prototype.syncShader = function(shader)
 {
@@ -383,8 +383,8 @@ Scene.prototype.getMaxScale = function()
  * Optional callback before every frame.
  * Animation rendering logic can be implemented here by updating the scene 
  * programmatically according to the global time since init
- * @param {Snelly} The snelly object
- * @param {WebGLRenderingContext} The webGL context
+ * @param {Snelly} snelly - The Snelly object
+ * @param {WebGLRenderingContext} gl - The webGL context
  */
 Scene.prototype.preframeCallback = function(snelly, gl)
 {
@@ -463,8 +463,8 @@ Scene.prototype.preframeCallback = function(snelly, gl)
  * Optional callback after every frame.
  * Animation rendering logic can be implemented here by updating the scene 
  * programmatically according to the global time since init
- * @param {Snelly} The snelly object
- * @param {WebGLRenderingContext} The webGL context
+ * @param {Snelly} snelly - The Snelly object
+ * @param {WebGLRenderingContext} gl - The webGL context
  */
 Scene.prototype.postframeCallback = function(snelly, gl)
 {

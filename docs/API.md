@@ -123,12 +123,12 @@ Get Surface object
     * [.getName()](#Scene+getName) ⇒ <code>String</code>
     * [.getURL()](#Scene+getURL) ⇒ <code>String</code>
     * [.shader()](#Scene+shader) ⇒ <code>String</code>
-    * [.initGui(The)](#Scene+initGui)
-    * [.syncShader(The)](#Scene+syncShader)
+    * [.initGui(gui)](#Scene+initGui)
+    * [.syncShader(shader)](#Scene+syncShader)
     * [.getMinScale()](#Scene+getMinScale) ⇒ <code>number</code>
     * [.getMaxScale()](#Scene+getMaxScale) ⇒ <code>number</code>
-    * [.preframeCallback(The, The)](#Scene+preframeCallback)
-    * [.postframeCallback(The, The)](#Scene+postframeCallback)
+    * [.preframeCallback(snelly, gl)](#Scene+preframeCallback)
+    * [.postframeCallback(snelly, gl)](#Scene+postframeCallback)
 
 <a name="Scene+init"></a>
 
@@ -216,18 +216,18 @@ Optionally, any of the following functions defining the spatial *modulation* of 
 **Returns**: <code>String</code> - .  
 <a name="Scene+initGui"></a>
 
-### scene.initGui(The)
+### scene.initGui(gui)
 Optional. Set up gui and callbacks for this scene
 
 **Kind**: instance method of [<code>Scene</code>](#Scene)  
 
 | Param | Type | Description |
 | --- | --- | --- |
-| The | <code>GUI</code> | GUI object |
+| gui | <code>GUI</code> | wrapper for dat.GUI object |
 
 <a name="Scene+syncShader"></a>
 
-### scene.syncShader(The)
+### scene.syncShader(shader)
 Optional. Called whenever the UI is changed,
 /* and must sync the params of the shader with the current UI settings
 
@@ -235,7 +235,7 @@ Optional. Called whenever the UI is changed,
 
 | Param | Type | Description |
 | --- | --- | --- |
-| The | <code>Shader</code> | Shader object |
+| shader | <code>Shader</code> | wrapper of webGL fragment shader |
 
 <a name="Scene+getMinScale"></a>
 
@@ -258,7 +258,7 @@ Defaults to 100.0.
 **Kind**: instance method of [<code>Scene</code>](#Scene)  
 <a name="Scene+preframeCallback"></a>
 
-### scene.preframeCallback(The, The)
+### scene.preframeCallback(snelly, gl)
 Optional callback before every frame.
 Animation rendering logic can be implemented here by updating the scene 
 programmatically according to the global time since init
@@ -267,12 +267,12 @@ programmatically according to the global time since init
 
 | Param | Type | Description |
 | --- | --- | --- |
-| The | [<code>Snelly</code>](#Snelly) | snelly object |
-| The | <code>WebGLRenderingContext</code> | webGL context |
+| snelly | [<code>Snelly</code>](#Snelly) | The Snelly object |
+| gl | <code>WebGLRenderingContext</code> | The webGL context |
 
 <a name="Scene+postframeCallback"></a>
 
-### scene.postframeCallback(The, The)
+### scene.postframeCallback(snelly, gl)
 Optional callback after every frame.
 Animation rendering logic can be implemented here by updating the scene 
 programmatically according to the global time since init
@@ -281,8 +281,8 @@ programmatically according to the global time since init
 
 | Param | Type | Description |
 | --- | --- | --- |
-| The | [<code>Snelly</code>](#Snelly) | snelly object |
-| The | <code>WebGLRenderingContext</code> | webGL context |
+| snelly | [<code>Snelly</code>](#Snelly) | The Snelly object |
+| gl | <code>WebGLRenderingContext</code> | The webGL context |
 
 <a name="Renderer"></a>
 

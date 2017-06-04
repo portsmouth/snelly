@@ -65,7 +65,31 @@ Surface.prototype.syncShader = function(shader)
 ////////////////////////////////////////////////////////
 
 /** 
-* Generic metal material.
+* Generic metal material. Supported physical metals are:
+*```
+*  "Aluminium"
+*  "Brass",   
+*  "Calcium", 
+*  "Chromium",
+*  "Cobalt",  
+*  "Copper",  
+*  "Gold",    
+*  "Iridium", 
+*  "Iron",    
+*  "Lead",    
+*  "Mercury", 
+*  "Molybdenum
+*  "Nickel",  
+*  "Palladium"
+*  "Platinum",
+*  "Silicon", 
+*  "Silver",  
+*  "Titanium",
+*  "Tungsten",
+*  "Vanadium",
+*  "Zinc",    
+*  "Zirconium"
+*```
 * @constructor 
 * @extends Material
 * @property {number}  roughness  - The metal surface roughness
@@ -258,7 +282,31 @@ TabulatedMetal.prototype.eraseGui = function(parentFolder) { Metal.prototype.era
 ////////////////////////////////////////////////////////
 
 /** 
-* Generic dielectric material.
+* Generic dielectric material. Supported physical dielectrics are:
+*```glsl
+*  "Constant IOR dielectric"
+*  "Glass (BK7)"
+*  "Glass (K7)"
+*  "Glass (F5)"
+*  "Glass (LAFN7)"
+*  "Glass (LASF35)"
+*  "Glass (N-LAK33A)"
+*  "Glass (N-FK51A)"
+*  "Glass (SF4)"
+*  "Glass (SF67)"
+*  "Water"
+*  "Polycarbonate"
+*  "Glycerol"
+*  "Liquid Crystal (E7)"
+*  "Diamond"
+*  "Quartz"
+*  "Fused Silica"
+*  "Sapphire"
+*  "Sodium Chloride"
+*  "Proustite"
+*  "Rutile"
+*  "Silver Chloride"
+*```
 * @constructor 
 * @extends Material
 * @property {number} roughness        - The dielectric surface roughness
