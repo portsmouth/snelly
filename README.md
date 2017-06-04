@@ -60,7 +60,7 @@ function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLo
 ```
 The only mandatory function to implement in Scene is {@link Scene#shader}, the other are all optional. However the {@link Scene#init} function is almost always needed, to set the initial camera orientation at least.
 
-## Geometry
+## Scene description
 
 A Snelly scene consists of 3d objects defined by a mathematical signed distance function (SDF) written in GLSL code, i.e. where this function is zero corresponds to the surface of the object, and where it is negative is the interior. In each scene there can (currently) only exist three such objects: a <a href="docs/API.md/#Metal">Metal</a>, a <a href="docs/API.md/#Dielectric">Dielectric</a>, and a plastic-like <a href="docs/API.md/#Surface">Surface</a> ("uber" material). These three materials can freely intersect and embed one another.
 
@@ -79,9 +79,13 @@ Procedural camera motion and scene animation can be authored (programmatically) 
 
 As a standalone web page, a Snelly scene can be easily shared, for example by keeping the HTML file in a GitHub repository and simply linking to the file via [RawGit](https://rawgit.com/). 
 
-## Lighting
+## Rendering
 
-For simplicity, the only light in the scene is a (non-HDRI) environment map. This can be specified via a URL to 
+The renderer is currently a uni-directional pathtracer, with physically correct dispersion for dielectrics and metals.
+The refractive index data was derived from a combination of tabulated data and analytic models, obtained from refractiveindex.info.
+(Basic ambient occlusion and normals rendering modes are also provided).
+
+For simplicity, for now the only lighting in the scene is a (non-HDRI) environment map. This can be specified via a URL to 
 to a lat-long map, via the {@link Scene#envMap} call:
 ```javascript
     /**
@@ -97,8 +101,9 @@ to a lat-long map, via the {@link Scene#envMap} call:
 
 Other such env-maps are available from [here](https://github.com/portsmouth/envmaps) (convert to RawGit links first).
 
-Or otherwise will be taken to be a constant intensity sky. 
+Or if an env-map image is not supplied, then the lighting is taken to be a constant intensity sky. 
 In both cases, the sky spectrum is modulated by a blackbody emission spectrum with adjustable temperature (Set via {@link Renderer#skyTemperature}).
+
 
 
 ## Saving scene state
