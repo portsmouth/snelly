@@ -58,10 +58,16 @@ The only mandatory function to implement in Scene is {@link Scene#shader}, the o
 A Snelly scene is assumed to consist of only (up to) three specified materials: a Metal, a Dielectric, and a plastic-like Surface ("uber" material). Each material has an associated surface which is defined by an SDF (signed distance function), i.e. where each function is negative corresponds to the interior of the body.
 
 Thus we define the rendered scene geometry by specifying, via the {@link Scene#shader} call, three GLSL functions:
+```
+// the SDF of the uber-surface material
+float SDF_SURFACE(vec3 X)    { /* <code omitted> */ }
 
-	- SDF_SURFACE(vec3 X): the SDF of the uber-surface material
-	- SDF_METAL(vec3 X): the SDF of the (selected) metal material
-	- SDF_DIELECTRIC(vec3 X): the SDF of the (selected) dielectric material
+// the SDF of the (selected) physical metal material
+float SDF_METAL(vec3 X)      { /* <code omitted> */ }
+
+// the SDF of the (selected) physical dielectric material
+float SDF_DIELECTRIC(vec3 X) { /* <code omitted> */ }
+```
   
  We use [dat.GUI](https://workshop.chromeexperiments.com/examples/gui/#1--Basic-Usage) to provide a simple interactive UI for the scene and renderer state. Basic scene controls can be added via the 
  UI or animation control over the scene can be coded by adding uniform variables in the SDF functions, and setting them to the corresponding UI values in the {@link Scene#syncShader} function.
