@@ -6,6 +6,14 @@ Snelly is system for physically-based SDF (signed distance field) pathtracing in
 - Hello world  [source](./exampleScenes/helloworld.html) [live](https://cdn.rawgit.com/portsmouth/snellypt/master/exampleScenes/helloworld.html)
 - Basic        [source](./exampleScenes/basic.html)      [live](https://cdn.rawgit.com/portsmouth/snellypt/master/exampleScenes/basic.html)
 
+UI controls:
+
+    - left mouse to rotate, alt-mouse to pan
+    - F to frame camera on initial position and orientation
+    - R to reset scene to initial state
+    - O to serialize scene code to Javascript console
+    
+
 ## HTML structure   
 
 A Snelly scene is defined by a single, standalone HTML file, which has the following overall structure:
@@ -58,7 +66,8 @@ function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLo
 </script>
 </body>
 ```
-The only mandatory function to implement in Scene is {@link Scene#shader}, the other are all optional. However the {@link Scene#init} function is almost always needed, to set the initial camera orientation at least.
+The only mandatory function to implement in Scene is <a href="docs/API.md/#Scene+shader">Scene.shader</a>, the others are all optional. However the <a href="docs/API.md/#Scene+init">Scene.init</a>
+function is almost always needed, to set the initial camera orientation at least.
 
 ## Scene description
 
@@ -73,20 +82,18 @@ We define the rendered scene geometry by specifying, via the <a href="docs/API.m
  We use [dat.GUI](https://workshop.chromeexperiments.com/examples/gui/#1--Basic-Usage) to provide a simple interactive UI for the scene and renderer state. Basic scene controls can be added via the 
  UI or animation control over the scene can be coded by adding uniform variables in the SDF functions, and setting them to the corresponding UI values in the <a href="docs/API.md/#Scene+syncShader">Scene.syncShader</a> function.
 
-The details of the properties of the three material types can then be specified in <a href="docs/API.md/#Scene+init">Scene.init</a> via the {@link Materials} object. Additional spatial dependence of the material surface properties can be introduced by providing modulating GLSL functions.
+The details of the properties of the three material types can then be specified in <a href="docs/API.md/#Scene+init">Scene.init</a> via the <a href="docs/API.md/#Materials">Materials</a> object. Additional spatial dependence of the material surface properties can be introduced by providing modulating GLSL functions.
 
-Procedural camera motion and scene animation can be authored (programmatically) via the pre- and post-frame callbacks.
+Procedural camera motion and scene animation can be authored (programmatically) via the pre- and post-frame callbacks. 
 
 As a standalone web page, a Snelly scene can be easily shared, for example by keeping the HTML file in a GitHub repository and simply linking to the file via [RawGit](https://rawgit.com/). 
 
 ## Rendering
 
-The renderer is currently a uni-directional pathtracer, with physically correct dispersion for dielectrics and metals.
-The refractive index data was derived from a combination of tabulated data and analytic models, obtained from refractiveindex.info.
+The renderer is currently a uni-directional pathtracer, with physically correct dispersion for dielectrics and metals. The refractive index data was derived from a combination of tabulated data and analytic models, obtained from refractiveindex.info.
 (Basic ambient occlusion and normals rendering modes are also provided).
 
-For simplicity, for now the only lighting in the scene is a (non-HDRI) environment map. This can be specified via a URL to 
-to a lat-long map, via the {@link Scene#envMap} call:
+For simplicity, for now the only lighting in the scene is a (non-HDRI) environment map. This can be specified via a URL to a lat-long map, via the <a href="docs/API.md/#Scene+envMap">Scene.envMap</a> call:
 ```javascript
     /**
     * Optionally, supply an env-map texture URL (must be a lat-long format image).
@@ -101,14 +108,11 @@ to a lat-long map, via the {@link Scene#envMap} call:
 
 Other such env-maps are available from [here](https://github.com/portsmouth/envmaps) (convert to RawGit links first).
 
-Or if an env-map image is not supplied, then the lighting is taken to be a constant intensity sky. 
-In both cases, the sky spectrum is modulated by a blackbody emission spectrum with adjustable temperature (Set via {@link Renderer#skyTemperature}).
-
-
+Or if an env-map image is not supplied, then the lighting is taken to be a constant intensity sky. In both cases, the sky spectrum is modulated by a blackbody emission spectrum with adjustable temperature (Set via <a href="docs/API.md/#Renderer">Renderer.skyTemperature</a>.
 
 ## Saving scene state
 
-Often we want to explore and fine-tune a scene by moving the camera around, tweaking the scene parameters and materials, and adjusting renderer settings. This work would be wasted without a way to save the resulting scene state. This is provided by the simple mechanism of pressing the 'O' key to dump to the console a Javascript code which can be inserted into the <a href="docs/API.md/#Scene+init">Scene.init</a> function, to replicate the scene state. An example of this output is:
+It is useful to be able to explore and fine-tune a scene by moving the camera around, tweaking the scene parameters and materials, adjusting renderer settings etc., and then be able to save the resulting scene state. This is provided by the simple mechanism of pressing the 'O' key to dump to the console a Javascript code which can be inserted into the <a href="docs/API.md/#Scene+init">Scene.init</a> function, to replicate the entire scene state. An example of this output is:
 ```javascript
 /******* copy-pasted console output on 'O', begin *******/
 
@@ -160,7 +164,7 @@ metal.roughness = 0.006691306063588591;
 /******* copy-pasted console output on 'O', end *******/
 ```
 
-In order for user-specified scene parameters to be saved this way, it is necessay to implement a function to output the appropriate regeneration code. For example if the scene uses parameters
+In order for user-specified scene parameters to be saved this way, it is necessay to implement a function to output the appropriate regeneration code. For example if the scene init code defines parameters
 ```javascript
     this.parameters = {};
     this.parameters.foo = 0.63143;
@@ -193,6 +197,7 @@ With this code in place, the output on pressing 'O' is then a faithful represent
 ## Callbacks and animation
 
 For implementation of custom animation logic, we use the simple mechanism of pre- and post-frame user callbacks, wherein the user can implement whatever logic he needs to programmatically animate the scene, camera, and materials. See the provided examples for details of how to use this implement animating scenes, and movie rendering. See:
+
     - <a href="docs/API.md/#Scene+preframeCallback">Scene.preframeCallback</a>
     - <a href="docs/API.md/#Scene+postframeCallback">Scene.postframeCallback</a>
 
