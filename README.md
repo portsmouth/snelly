@@ -76,13 +76,13 @@ A Snelly scene consists of 3d objects defined by a mathematical signed distance 
 We define the rendered scene geometry by specifying, via the <a href="docs/API.md/#Scene+shader">Scene.shader</a> call, three GLSL functions:
 ```glsl
 // the SDF of the uber-surface material
-float SDF_SURFACE(vec3 X)    { /* <code omitted> */ }
+float SDF_SURFACE(vec3 X);
 
 // the SDF of the (selected) physical metal material
-float SDF_METAL(vec3 X)      { /* <code omitted> */ }
+float SDF_METAL(vec3 X);
 
 // the SDF of the (selected) physical dielectric material
-float SDF_DIELECTRIC(vec3 X) { /* <code omitted> */ }
+float SDF_DIELECTRIC(vec3 X);
 ```
   
 A simple, configurable interactive UI for the scene and renderer state is provided via [dat.GUI](https://workshop.chromeexperiments.com/examples/gui/#1--Basic-Usage). Basic control over the scene contents or animation can be coded by adding uniform variables in the SDF functions, and setting them to the corresponding UI values in the <a href="docs/API.md/#Scene+syncShader">Scene.syncShader</a> function.
