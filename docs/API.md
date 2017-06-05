@@ -584,9 +584,7 @@ for convenience.
         * [.uniform1Fv(name, fvec)](#GLU.this.Shader.uniform1Fv)
         * [.uniform2Fv(name, fvec2)](#GLU.this.Shader.uniform2Fv)
         * [.uniform3F(name, f1, f2, f3)](#GLU.this.Shader.uniform3F)
-        * [.uniform3Fv
-  i.e. the shader declares e.g. `uniform vec3 vectors[19];`(name, fvec3)](#GLU.this.Shader.uniform3Fv
-  i.e. the shader declares e.g. `uniform vec3 vectors[19];`)
+        * [.uniform3Fv(name, fvec3)](#GLU.this.Shader.uniform3Fv)
         * [.uniform4F(name, f1, f2, f3, f4)](#GLU.this.Shader.uniform4F)
         * [.uniform4Fv(name, fvec4)](#GLU.this.Shader.uniform4Fv)
         * [.uniformMatrix4fv(name, matrixArray16)](#GLU.this.Shader.uniformMatrix4fv)
@@ -604,9 +602,7 @@ for convenience.
     * [.uniform1Fv(name, fvec)](#GLU.this.Shader.uniform1Fv)
     * [.uniform2Fv(name, fvec2)](#GLU.this.Shader.uniform2Fv)
     * [.uniform3F(name, f1, f2, f3)](#GLU.this.Shader.uniform3F)
-    * [.uniform3Fv
-  i.e. the shader declares e.g. `uniform vec3 vectors[19];`(name, fvec3)](#GLU.this.Shader.uniform3Fv
-  i.e. the shader declares e.g. `uniform vec3 vectors[19];`)
+    * [.uniform3Fv(name, fvec3)](#GLU.this.Shader.uniform3Fv)
     * [.uniform4F(name, f1, f2, f3, f4)](#GLU.this.Shader.uniform4F)
     * [.uniform4Fv(name, fvec4)](#GLU.this.Shader.uniform4Fv)
     * [.uniformMatrix4fv(name, matrixArray16)](#GLU.this.Shader.uniformMatrix4fv)
@@ -693,12 +689,11 @@ Provide a vec3 uniform (via uniform3f) to the currently bound shader
 | f2 | <code>number</code> | The second float value |
 | f3 | <code>number</code> | The third float value |
 
-<a name="GLU.this.Shader.uniform3Fv
-  i.e. the shader declares e.g. `uniform vec3 vectors[19];`"></a>
+<a name="GLU.this.Shader.uniform3Fv"></a>
 
-#### this.Shader.uniform3Fv
-  i.e. the shader declares e.g. `uniform vec3 vectors[19];`(name, fvec3)
+#### this.Shader.uniform3Fv(name, fvec3)
 Provide an array of vec3 (via uniform3fv) to the currently bound shader
+  i.e. the shader declares e.g. `uniform vec3 vectors[19];`
 
 **Kind**: static method of [<code>this.Shader</code>](#GLU.this.Shader)  
 
