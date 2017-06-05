@@ -74,13 +74,18 @@ function is almost always needed, to set the initial camera orientation at least
 A Snelly scene consists of 3d objects defined by a mathematical signed distance function (SDF) written in GLSL code, i.e. where this function is zero corresponds to the surface of the object, and where it is negative is the interior. In each scene there can (currently) only exist three such objects: a <a href="docs/API.md/#Metal">Metal</a>, a <a href="docs/API.md/#Dielectric">Dielectric</a>, and a plastic-like <a href="docs/API.md/#Surface">Surface</a> ("uber" material). These three materials can freely intersect and embed one another.
 
 We define the rendered scene geometry by specifying, via the <a href="docs/API.md/#Scene+shader">Scene.shader</a> call, three GLSL functions:
+```
+// the SDF of the uber-surface material
+float SDF_SURFACE(vec3 X)    { /* <code omitted> */ }
 
-    - SDF_SURFACE(vec3 X): the SDF of the uber-surface material
-    - SDF_METAL(vec3 X): the SDF of the (selected) metal material
-    - SDF_DIELECTRIC(vec3 X): the SDF of the (selected) dielectric material
+// the SDF of the (selected) physical metal material
+float SDF_METAL(vec3 X)      { /* <code omitted> */ }
+
+// the SDF of the (selected) physical dielectric material
+float SDF_DIELECTRIC(vec3 X) { /* <code omitted> */ }
+```
   
- We use [dat.GUI](https://workshop.chromeexperiments.com/examples/gui/#1--Basic-Usage) to provide a simple interactive UI for the scene and renderer state. Basic scene controls can be added via the 
- UI or animation control over the scene can be coded by adding uniform variables in the SDF functions, and setting them to the corresponding UI values in the <a href="docs/API.md/#Scene+syncShader">Scene.syncShader</a> function.
+A simple, configurable interactive UI for the scene and renderer state is provided via [dat.GUI](https://workshop.chromeexperiments.com/examples/gui/#1--Basic-Usage). Basic control over the scene contents or animation can be coded by adding uniform variables in the SDF functions, and setting them to the corresponding UI values in the <a href="docs/API.md/#Scene+syncShader">Scene.syncShader</a> function.
 
 The details of the properties of the three material types can then be specified in <a href="docs/API.md/#Scene+init">Scene.init</a> via the <a href="docs/API.md/#Materials">Materials</a> object. Additional spatial dependence of the material surface properties can be introduced by providing modulating GLSL functions.
 
