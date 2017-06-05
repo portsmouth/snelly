@@ -141,11 +141,11 @@ Snelly.prototype.getControls = function()
 
 /**
 * Programmatically show or hide the dat.GUI UI
-* @param {Boolean} showGUI - toggle
+* @param {Boolean} show - toggle
 */
-Snelly.prototype.showGUI = function(showGUI)
+Snelly.prototype.showGUI = function(show)
 {
-	this.guiVisible = showGUI;
+	this.guiVisible = show;
 }
 
 

@@ -178,7 +178,8 @@ var GLU = {};
 	}
 
 	/** Provide an integer (via uniform1i) to the currently bound shader
-	* @memberof Shader
+	* @memberof GLU.this.Shader
+	* @method uniformI
 	* @param {string} name - The name of the uniform variable
 	* @param {number} i - The integer value
 	*/
@@ -190,7 +191,8 @@ var GLU = {};
 	}
 
 	/** Provide a float (via uniform1f) to the currently bound shader
-	* @memberof this.Shader
+	* @memberof GLU.this.Shader
+	* @method uniformF
 	* @param {string} name - The name of the uniform variable
 	* @param {number} f - The float value
 	*/
@@ -202,6 +204,7 @@ var GLU = {};
 	}
 
 	/** Provide a vec2 uniform (via uniform2f) to the currently bound shader
+	* @memberof GLU.this.Shader
 	* @param {string} name - The name of the uniform variable
 	* @param {number} f1 - The first float value
 	* @param {number} f2 - The second float value
@@ -215,7 +218,7 @@ var GLU = {};
 
 	/** Provide an array of floats (via uniform1Fv) to the currently bound shader
 	*   i.e. the shader declares e.g. `uniform float values[19];`
-	* @memberof GLU.Shader
+	* @memberof GLU.this.Shader
 	* @param {string} name - The name of the uniform variable
 	* @param {Float32Array} fvec - An array of floats
 	*/
@@ -228,6 +231,7 @@ var GLU = {};
 
 	/** Provide an array of vec2 (via uniform2fv) to the currently bound shader
 	*   i.e. the shader declares e.g. `uniform vec2 vectors[19];`
+	* @memberof GLU.this.Shader
 	* @param {string} name - The name of the uniform variable
 	* @param {Float32Array} fvec2 - An array of floats, 2 per vector
 	*/
@@ -239,6 +243,7 @@ var GLU = {};
 	}
 
 	/** Provide a vec3 uniform (via uniform3f) to the currently bound shader
+	* @memberof GLU.this.Shader
 	* @param {string} name - The name of the uniform variable
 	* @param {number} f1 - The first float value
 	* @param {number} f2 - The second float value
@@ -252,6 +257,7 @@ var GLU = {};
 	}
 
 	/** Provide an array of vec3 (via uniform3fv) to the currently bound shader
+	* @memberof GLU.this.Shader
 	*   i.e. the shader declares e.g. `uniform vec3 vectors[19];`
 	* @param {string} name - The name of the uniform variable
 	* @param {Float32Array} fvec3 - An array of floats, 3 per vector
@@ -264,6 +270,7 @@ var GLU = {};
 	}
 
 	/** Provide a vec4 uniform (via uniform4F) to the currently bound shader
+	* @memberof GLU.this.Shader
 	* @param {string} name - The name of the uniform variable
 	* @param {number} f1 - The first float value
 	* @param {number} f2 - The second float value
@@ -279,6 +286,7 @@ var GLU = {};
 
 	/** Provide an array of vec4 (via uniform4fv) to the currently bound shader
 	*   i.e. the shader declares e.g. `uniform vec4 vectors[19];`
+	* @memberof GLU.this.Shader
 	* @param {string} name - The name of the uniform variable
 	* @param {Float32Array} fvec4 - An array of floats, 4 per vector
 	*/
@@ -291,6 +299,7 @@ var GLU = {};
 
 	/** Provide a matrix (via uniformMatrix4fv) to the currently bound shader
 	*  i.e. the shader declares e.g. `uniform mat4 matrix;` 
+	* @memberof GLU.this.Shader
 	* @param {string} name - The name of the uniform variable
 	* @param {Float32Array} matrixArray16 - An array of 16 floats
 	*/

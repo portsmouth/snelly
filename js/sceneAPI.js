@@ -10,6 +10,7 @@ function Scene() {}
 
 /**
 * Optionally (but usually), provide this function to set scene and renderer initial state.
+* This is called only once during execution, on loading the scene HTML page (or on global reset via 'R' key).
 * @param {Snelly} snelly - The snelly object
 */
 Scene.prototype.init = function(snelly)
@@ -154,7 +155,7 @@ Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snel
 		// space-varying multiplier to the UI-exposed constant (defaults to 1.0)
 		float DIELECTRIC_ROUGHNESS(in vec3 X);
 *```
-* @returns {String}.
+* @returns {String}
 */
 Scene.prototype.shader = function()
 {
@@ -382,7 +383,7 @@ Scene.prototype.getMaxScale = function()
 /** 
  * Optional callback before every frame.
  * Animation rendering logic can be implemented here by updating the scene 
- * programmatically according to the global time since init
+ * programmatically according to the global time since init.
  * @param {Snelly} snelly - The Snelly object
  * @param {WebGLRenderingContext} gl - The webGL context
  */
@@ -462,7 +463,7 @@ Scene.prototype.preframeCallback = function(snelly, gl)
 /** 
  * Optional callback after every frame.
  * Animation rendering logic can be implemented here by updating the scene 
- * programmatically according to the global time since init
+ * programmatically according to the global time since init.
  * @param {Snelly} snelly - The Snelly object
  * @param {WebGLRenderingContext} gl - The webGL context
  */
