@@ -101,11 +101,6 @@ The renderer is currently a uni-directional pathtracer, with physically correct 
 
 For simplicity, for now the only lighting in the scene is a (non-HDRI) environment map. This can be specified via a URL to a lat-long map, via the <a href="docs/API.md/#Scene+envMap">Scene.envMap</a> call:
 ```javascript
-    /**
-    * Optionally, supply an env-map texture URL (must be a lat-long format image).
-    * (If this is function not implemented, or it returns the empty string, a uniform
-    * temperature blackbody sky is used).
-    */
     Scene.prototype.envMap = function()
     {
         return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_040_Field_Bg.jpg';
