@@ -202,6 +202,7 @@ With this code in place, the output on pressing 'O' is then a faithful represent
 ## Callbacks and animation
 
 For implementation of custom animation logic, we use the simple mechanism of pre- and post-frame user callbacks, wherein the user can implement whatever logic he needs to programmatically animate the scene, camera, and materials. See the provided examples for details of how to use this implement animating scenes, and movie rendering. See:
+
     - [Scene.preframeCallback](docs/API.md/#Scene+preframeCallback)
     - [Scene.postframeCallback](docs/API.md/#Scene+postframeCallback)
 
