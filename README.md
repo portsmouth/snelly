@@ -109,7 +109,7 @@ For simplicity, for now the only lighting in the scene is a (non-HDRI) environme
 
 Other such env-maps are available from [here](https://github.com/portsmouth/envmaps) (convert to RawGit links first).
 
-Or if an env-map image is not supplied, then the lighting is taken to be a constant intensity sky. In both cases, the sky spectrum is modulated by a blackbody emission spectrum with adjustable temperature (Set via the property <a href="docs/API.md/#Renderer">Renderer.skyTemperature</a>).
+Or if an env-map image is not supplied, then the lighting is taken to be a constant intensity sky. In both cases, the sky spectrum is modulated by a blackbody emission spectrum with adjustable temperature (via the property <a href="docs/API.md/#Renderer">Renderer.skyTemperature</a>).
 
 ## Saving scene state
 
