@@ -73,7 +73,7 @@ function is almost always needed, to set the initial camera orientation at least
 
 A Snelly scene consists of 3d objects defined by a mathematical signed distance function (SDF) written in GLSL code, i.e. where this function is zero corresponds to the surface of the object, and where it is negative is the interior. In each scene there can (currently) only exist three such objects: a <a href="docs/API.md/#Metal">Metal</a>, a <a href="docs/API.md/#Dielectric">Dielectric</a>, and a plastic-like <a href="docs/API.md/#Surface">Surface</a> ("uber" material). These three materials can freely intersect and embed one another.
 
-We define the rendered scene geometry by specifying, via the <a href="docs/API.md/#Scene+shader">Scene.shader</a> call, three GLSL functions:
+The rendered scene geometry is defined by specifying, via the <a href="docs/API.md/#Scene+shader">Scene.shader</a> call, three GLSL functions:
 ```glsl
 // the SDF of the uber-surface material
 float SDF_SURFACE(vec3 X);
@@ -202,10 +202,8 @@ With this code in place, the output on pressing 'O' is then a faithful represent
 ## Callbacks and animation
 
 For implementation of custom animation logic, we use the simple mechanism of pre- and post-frame user callbacks, wherein the user can implement whatever logic he needs to programmatically animate the scene, camera, and materials. See the provided examples for details of how to use this implement animating scenes, and movie rendering. See:
-
-    - <a href="docs/API.md/#Scene+preframeCallback">Scene.preframeCallback</a>
-    - <a href="docs/API.md/#Scene+postframeCallback">Scene.postframeCallback</a>
-
+    - [Scene.preframeCallback](docs/API.md/#Scene+preframeCallback)
+    - [Scene.postframeCallback](docs/API.md/#Scene+postframeCallback)
 
 # API Reference
 
