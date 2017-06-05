@@ -7,11 +7,12 @@ Snelly is system for physically-based SDF (signed distance field) pathtracing in
 - Basic        [source](./exampleScenes/basic.html)      [live](https://cdn.rawgit.com/portsmouth/snellypt/master/exampleScenes/basic.html)
 
 UI controls:
-
-    - left mouse to rotate, alt-mouse to pan
-    - F to frame camera on initial position and orientation
-    - R to reset scene to initial state
-    - O to serialize scene code to Javascript console
+ - left mouse to rotate, alt-mouse to pan
+ - F to frame camera on initial position and orientation
+ - R to reset scene to initial state
+ - O to serialize scene code to Javascript console
+ - H to hide/show the sidebar UI
+ - F11 to enter/exit fullscreen mode
     
 
 ## HTML structure   
