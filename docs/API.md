@@ -20,10 +20,10 @@
 <dd></dd>
 </dl>
 
-## Objects
+## Members
 
 <dl>
-<dt><a href="#GLU">GLU</a> : <code>object</code></dt>
+<dt><a href="#GLU">GLU</a></dt>
 <dd><p>Namespace for webGL utility wrappers.
 Functions for loading shader uniform variables are exposed to the user
 for convenience.</p>
@@ -568,14 +568,14 @@ Get the Surface object.
 **Kind**: instance method of [<code>Materials</code>](#Materials)  
 <a name="GLU"></a>
 
-## GLU : <code>object</code>
+## GLU
 Namespace for webGL utility wrappers.
 Functions for loading shader uniform variables are exposed to the user
 for convenience.
 
-**Kind**: global namespace  
+**Kind**: global variable  
 
-* [GLU](#GLU) : <code>object</code>
+* [GLU](#GLU)
     * [.this.Shader](#GLU.this.Shader)
         * [new this.Shader()](#new_GLU.this.Shader_new)
         * [.uniformI(name, i)](#GLU.this.Shader.uniformI)
