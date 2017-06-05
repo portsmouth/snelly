@@ -74,7 +74,7 @@ function is almost always needed, to set the initial camera orientation at least
 A Snelly scene consists of 3d objects defined by a mathematical signed distance function (SDF) written in GLSL code, i.e. where this function is zero corresponds to the surface of the object, and where it is negative is the interior. In each scene there can (currently) only exist three such objects: a <a href="docs/API.md/#Metal">Metal</a>, a <a href="docs/API.md/#Dielectric">Dielectric</a>, and a plastic-like <a href="docs/API.md/#Surface">Surface</a> ("uber" material). These three materials can freely intersect and embed one another.
 
 We define the rendered scene geometry by specifying, via the <a href="docs/API.md/#Scene+shader">Scene.shader</a> call, three GLSL functions:
-```
+```glsl
 // the SDF of the uber-surface material
 float SDF_SURFACE(vec3 X)    { /* <code omitted> */ }
 
