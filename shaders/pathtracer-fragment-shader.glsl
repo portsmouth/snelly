@@ -26,9 +26,12 @@ uniform float minScale;
 uniform float maxScale;
 uniform float skyPower;
 uniform bool haveEnvMap;
+uniform bool envMapVisible;
 uniform float gamma;
 uniform float radianceClamp;
 uniform float skipProbability;
+uniform float shadowStrength;
+uniform bool maxStepsIsMiss;
 
 uniform float metalRoughness;
 uniform float dieleRoughness;
@@ -87,31 +90,17 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
         iters++;
     }
     hit = start + t*dir;
-    if (t>=maxDist || iters>=MAX_MARCH_STEPS) return false;
+    if (t>=maxDist) return false;
+    if (maxStepsIsMiss && iters>=MAX_MARCH_STEPS) return false;
     return true;
 }
 
 // find first hit along infinite ray
 bool traceRay(in vec3 start, in vec3 dir, 
-              inout vec3 hit, inout int material)
+              inout vec3 hit, inout int material, float maxMarchDist)
 {
-    float maxMarchDist = maxScale;
     material = MAT_VACUU;
     return traceDistance(start, dir, maxMarchDist, hit, material);
-}
-
-
-// (whether not occluded along finite length segment)
-bool Visible(in vec3 start, in vec3 end)
-{
-    float eps = 3.0*minScale;
-    vec3 dir = normalize(end - start);
-    float maxDist = length(end - start);
-    vec3 delta = eps * dir;
-    vec3 hit;
-    int material;
-    bool occluded = traceDistance(start+delta, dir, maxDist, hit, material);
-    return !occluded;
 }
 
 // (whether occluded along infinite ray)
@@ -122,7 +111,7 @@ bool Occluded(in vec3 start, in vec3 dir)
     vec3 p;
     int material;
     vec3 hit;
-    bool occluded = traceRay(start+delta, dir, hit, material);
+    bool occluded = traceRay(start+delta, dir, hit, material, maxScale);
     return occluded;
 }
 
@@ -751,10 +740,10 @@ float directLighting(in vec3 pW, Basis basis, in vec3 woW, in int material,
         vec3 wiL = sampleHemisphere(rnd, hemispherePdf);
         lightPdf = hemispherePdf;
         wiW = localToWorld(wiL, basis);
+        Li = environmentRadiance(wiW, XYZ);
+
         bool occluded = Occluded(pW, wiW); 
-        if (occluded) return 0.0;
-        else 
-            Li = environmentRadiance(wiW, XYZ);
+        if (occluded) Li *= abs(1.0 - shadowStrength);
     }
 
     // Apply MIS weight with the BSDF pdf for the sampled direction
@@ -819,12 +808,19 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     vec3 woW = -primaryDir;
     int rayMaterial = MAT_VACUU;
     int hitMaterial;
-    bool hit = traceRay(camPos, primaryDir, pW, hitMaterial);
+    bool hit = traceRay(camPos, primaryDir, pW, hitMaterial, maxScale);
     
     vec3 colorXYZ; 
     if ( !hit )
     {
-        colorXYZ = environmentRadianceXYZ(primaryDir);
+        if (envMapVisible)
+        {
+            colorXYZ = environmentRadianceXYZ(primaryDir);
+        }
+        else
+        {
+            colorXYZ = vec3(0.0);
+        }
     }
     else
     {   
@@ -861,7 +857,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
             float wiWnW = dot(wiW, nW);
             pW += nW * sign(wiWnW) * displacement; // perturb vertex into half-space of scattered ray
             vec3 pW_next;
-            bool hit = traceRay(pW, wiW, pW_next, hitMaterial);
+            bool hit = traceRay(pW, wiW, pW_next, hitMaterial, maxScale);
 
             // If ray missed, add environment light term and terminate path
             if (!hit)
@@ -927,7 +923,7 @@ void ENTRY_NORMALS()
     vec3 woW = -primaryDir;
     int rayMaterial = MAT_VACUU;
     int hitMaterial;
-    bool hit = traceRay(camPos, primaryDir, pW, hitMaterial);
+    bool hit = traceRay(camPos, primaryDir, pW, hitMaterial, maxScale);
     vec3 color = vec3(0.0);
     if (hit)
     {
@@ -979,7 +975,7 @@ void ENTRY_AO()
     vec3 woW = -primaryDir;
     int rayMaterial = MAT_VACUU;
     int hitMaterial;
-    bool hit = traceRay(camPos, primaryDir, pW, hitMaterial);
+    bool hit = traceRay(camPos, primaryDir, pW, hitMaterial, maxScale);
 
     float L = 0.0;
     if (hit)

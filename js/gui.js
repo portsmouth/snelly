@@ -68,6 +68,9 @@ GUI.prototype.createRendererSettings = function()
 	this.rendererFolder.add(camera, 'fov', 5.0, 120.0).onChange( function(value) { pathtracer.reset(true); } );
 	this.rendererFolder.add(pathtracer, 'gamma', 0.0, 3.0);
 	this.rendererFolder.add(pathtracer, 'whitepoint', 0.0, 2.0);
+	this.rendererFolder.add(pathtracer, 'shadowStrength', 0.0, 1.0).onChange( function(value) { pathtracer.reset(true); } );
+	this.rendererFolder.add(pathtracer, 'maxStepsIsMiss').onChange( function(value) { pathtracer.reset(true); } );
+	this.rendererFolder.add(pathtracer, 'envMapVisible').onChange( function(value) { pathtracer.reset(true); } );
 
 	var skyPowerItem = this.rendererFolder.add(pathtracer, 'skyPower', 0.0, 10.0);
 	skyPowerItem.onChange( function(value) 

@@ -279,6 +279,9 @@ renderer.gamma = ${renderer.gamma};
 renderer.whitepoint = ${renderer.whitepoint};
 renderer.goalFPS = ${renderer.goalFPS};
 renderer.minsSPPToRedraw = ${renderer.minsSPPToRedraw};
+renderer.envMapVisible = ${renderer.envMapVisible};
+renderer.shadowStrength = ${renderer.shadowStrength};
+renderer.maxStepsIsMiss = ${renderer.maxStepsIsMiss};
 
 /** Material settings **/
 let surface = materials.loadSurface();

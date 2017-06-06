@@ -1,79 +1,5 @@
 var Shaders = {
 
-'filter-fragment-shader': `
-
-#extension GL_EXT_draw_buffers : require
-precision highp float;
-
-uniform sampler2D Radiance;      
-uniform vec2 resolution;
-
-#define RADIANCE_TOLERANCE 1.0e-6
-
-float filter(float r2)
-{
-    return max(0.0, 1.0-r2);
-}
-
-void main()
-{
-    vec2 pixel = gl_FragCoord.xy;
-
-    // Average current radiance over sample set within filter radius
-    float maxx = resolution.x-1.0;
-    float maxy = resolution.y-1.0;
-    vec2 invRes = 1.0/resolution.xy;
-    float invWidth = 0.5/float(DOWN_RES);
-
-    vec3 mean = vec3(0.0);
-    float norm = 0.0;
-    for (int i=-DOWN_RES; i<=DOWN_RES; ++i)
-    {
-        float _i = max(min(maxx, pixel.x+float(i)), 0.0);
-        float u = _i*invRes.x;
-        float dx = float(i)*invWidth;
-        float dx2 = dx*dx;
-
-        for (int j=-DOWN_RES; j<DOWN_RES; ++j)
-        {
-            float _j = max(min(maxy, pixel.y+float(j)), 0.0);
-            float v = _j*invRes.y;
-            float dy = float(j)*invWidth;
-            
-            float r2 = dx2 + dy*dy;
-            float f = filter(r2);
-            if (f>1.0e-3)
-            {
-                vec4 L = texture2D(Radiance, vec2(u,v));  
-                float weight = f * L.w;
-                mean += weight * L.xyz;
-                norm += weight;
-            }
-        }
-    }
-
-    mean /= max(norm, RADIANCE_TOLERANCE);
-    gl_FragData[0] = vec4(mean, 1.0);
-}
-`,
-
-'filter-vertex-shader': `
-
-#extension GL_EXT_draw_buffers : require
-precision highp float;
-
-attribute vec3 Position;
-attribute vec2 TexCoord;
-
-varying vec2 vTexCoord;
-
-void main() 
-{
-	gl_Position = vec4(Position, 1.0);
-	vTexCoord = TexCoord;
-}
-`,
-
 'pathtracer-fragment-shader': `
 
 #extension GL_EXT_draw_buffers : require
@@ -103,9 +29,12 @@ uniform float minScale;
 uniform float maxScale;
 uniform float skyPower;
 uniform bool haveEnvMap;
+uniform bool envMapVisible;
 uniform float gamma;
 uniform float radianceClamp;
 uniform float skipProbability;
+uniform float shadowStrength;
+uniform bool maxStepsIsMiss;
 
 uniform float metalRoughness;
 uniform float dieleRoughness;
@@ -164,31 +93,17 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
         iters++;
     }
     hit = start + t*dir;
-    if (t>=maxDist || iters>=MAX_MARCH_STEPS) return false;
+    if (t>=maxDist) return false;
+    if (maxStepsIsMiss && iters>=MAX_MARCH_STEPS) return false;
     return true;
 }
 
 // find first hit along infinite ray
 bool traceRay(in vec3 start, in vec3 dir, 
-              inout vec3 hit, inout int material)
+              inout vec3 hit, inout int material, float maxMarchDist)
 {
-    float maxMarchDist = maxScale;
     material = MAT_VACUU;
     return traceDistance(start, dir, maxMarchDist, hit, material);
-}
-
-
-// (whether not occluded along finite length segment)
-bool Visible(in vec3 start, in vec3 end)
-{
-    float eps = 3.0*minScale;
-    vec3 dir = normalize(end - start);
-    float maxDist = length(end - start);
-    vec3 delta = eps * dir;
-    vec3 hit;
-    int material;
-    bool occluded = traceDistance(start+delta, dir, maxDist, hit, material);
-    return !occluded;
 }
 
 // (whether occluded along infinite ray)
@@ -199,7 +114,7 @@ bool Occluded(in vec3 start, in vec3 dir)
     vec3 p;
     int material;
     vec3 hit;
-    bool occluded = traceRay(start+delta, dir, hit, material);
+    bool occluded = traceRay(start+delta, dir, hit, material, maxScale);
     return occluded;
 }
 
@@ -828,10 +743,10 @@ float directLighting(in vec3 pW, Basis basis, in vec3 woW, in int material,
         vec3 wiL = sampleHemisphere(rnd, hemispherePdf);
         lightPdf = hemispherePdf;
         wiW = localToWorld(wiL, basis);
+        Li = environmentRadiance(wiW, XYZ);
+
         bool occluded = Occluded(pW, wiW); 
-        if (occluded) return 0.0;
-        else 
-            Li = environmentRadiance(wiW, XYZ);
+        if (occluded) Li *= abs(1.0 - shadowStrength);
     }
 
     // Apply MIS weight with the BSDF pdf for the sampled direction
@@ -896,12 +811,19 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     vec3 woW = -primaryDir;
     int rayMaterial = MAT_VACUU;
     int hitMaterial;
-    bool hit = traceRay(camPos, primaryDir, pW, hitMaterial);
+    bool hit = traceRay(camPos, primaryDir, pW, hitMaterial, maxScale);
     
     vec3 colorXYZ; 
     if ( !hit )
     {
-        colorXYZ = environmentRadianceXYZ(primaryDir);
+        if (envMapVisible)
+        {
+            colorXYZ = environmentRadianceXYZ(primaryDir);
+        }
+        else
+        {
+            colorXYZ = vec3(0.0);
+        }
     }
     else
     {   
@@ -938,7 +860,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
             float wiWnW = dot(wiW, nW);
             pW += nW * sign(wiWnW) * displacement; // perturb vertex into half-space of scattered ray
             vec3 pW_next;
-            bool hit = traceRay(pW, wiW, pW_next, hitMaterial);
+            bool hit = traceRay(pW, wiW, pW_next, hitMaterial, maxScale);
 
             // If ray missed, add environment light term and terminate path
             if (!hit)
@@ -1004,7 +926,7 @@ void ENTRY_NORMALS()
     vec3 woW = -primaryDir;
     int rayMaterial = MAT_VACUU;
     int hitMaterial;
-    bool hit = traceRay(camPos, primaryDir, pW, hitMaterial);
+    bool hit = traceRay(camPos, primaryDir, pW, hitMaterial, maxScale);
     vec3 color = vec3(0.0);
     if (hit)
     {
@@ -1056,7 +978,7 @@ void ENTRY_AO()
     vec3 woW = -primaryDir;
     int rayMaterial = MAT_VACUU;
     int hitMaterial;
-    bool hit = traceRay(camPos, primaryDir, pW, hitMaterial);
+    bool hit = traceRay(camPos, primaryDir, pW, hitMaterial, maxScale);
 
     float L = 0.0;
     if (hit)

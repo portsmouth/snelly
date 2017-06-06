@@ -68,6 +68,9 @@ PathtracerState.prototype.clear = function(fbo)
 * @property {number} [whitepoint=2.0]      - tonemapping whitepoint
 * @property {number} [goalFPS=10.0]        - sampling will adjust to try to match goal FPS
 * @property {number} [minsSPPToRedraw=0.0] - if >0.0, renderer will not redraw until the specified SPP have been accumulated
+* @property {number} [envMapVisible=true]   - whether env map is visible to primary rays (otherwise black)
+* @property {number} [shadowStrength=1.0] - if <1.0, areas in shadow are not completely dark
+* @property {number} [maxStepsIsMiss=true] - whether rays which exceed max step count are considered hits or misses
 */
 var Renderer = function()
 {
@@ -106,6 +109,9 @@ var Renderer = function()
 	this.whitepoint = 2.0;
 	this.goalFPS = 20.0;
 	this.minsSPPToRedraw = 0.0;
+	this.envMapVisible = true;
+	this.shadowStrength = 1.0;
+	this.maxStepsIsMiss = false;
 
 	// Load shaders
 	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper", "filter"]);
@@ -328,6 +334,9 @@ Renderer.prototype.render = function()
 	INTEGRATOR_PROGRAM.uniformF("skipProbability", this.skipProbability);
 	INTEGRATOR_PROGRAM.uniformF("maxScale", snelly.maxScale);
 	INTEGRATOR_PROGRAM.uniformF("minScale", snelly.minScale);
+	INTEGRATOR_PROGRAM.uniformF("shadowStrength", this.shadowStrength);
+	INTEGRATOR_PROGRAM.uniformI("envMapVisible", Boolean(this.envMapVisible) ? 1 : 0);
+	INTEGRATOR_PROGRAM.uniformI("maxStepsIsMiss", Boolean(this.maxStepsIsMiss) ? 1 : 0);
 
 	// gamma correction of env map already done if sRGB ext was loaded
 	if (GLU.sRGBExt != null) INTEGRATOR_PROGRAM.uniformF("gamma", 1.0);

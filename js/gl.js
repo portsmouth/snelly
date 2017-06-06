@@ -532,6 +532,8 @@ var GLU = {};
 
 		document.getElementById("container").appendChild(failureDiv);
 		this.canvas.style.display = 'none';
+
+		window.stop()
 	}
 
 	// Create CSS rules for the document contents

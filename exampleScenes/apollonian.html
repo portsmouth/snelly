@@ -1,0 +1,134 @@
+
+<body onload="onLoad();">
+<script type="text/javascript" src="../js/compiled/snelly.min.js"></script>
+<script type="text/javascript">
+
+function Scene() {}
+Scene.prototype.init = function(snelly)
+{
+    this.par = {};
+    this.par.scale = 1.0;
+    this.par.time = 30.0;
+
+	/******* copy-pasted console output on 'O', begin *******/
+
+	let renderer  = snelly.getRenderer();
+	let camera    = snelly.getCamera();
+	let controls  = snelly.getControls();
+	let materials = snelly.getMaterials();
+		
+	snelly.showGUI(true);
+
+	/** Camera settings:
+	*		camera is a THREE.PerspectiveCamera object
+	* 		controls is a THREE.OrbitControls object
+	*/
+	camera.fov = 45;
+	camera.up.set(0, 1, 0);
+	camera.position.set(-26.748820978720406, 29.517588859785434, 17.73707014540241);
+	controls.target.set(0, 0, 0);
+	controls.zoomSpeed = 2;
+	controls.keyPanSpeed = 100;
+
+	/** Renderer settings **/
+	renderer.renderMode = 'pt';  // The other modes are: 'ao', 'normals'
+	renderer.maxBounces = 1;
+	renderer.maxMarchSteps = 50;
+	renderer.radianceClamp = 3; // (log scale)
+	renderer.skyPower = 1;
+	renderer.skyTemperature = 6000;
+	renderer.exposure = 24.8062015503876;
+	renderer.gamma = 2.2;
+	renderer.whitepoint = 2;
+	renderer.goalFPS = 10;
+	renderer.minsSPPToRedraw = 0;
+	renderer.envMapVisible = false;
+	renderer.maxStepsIsMiss = false;
+	renderer.shadowStrength = 0.5;
+
+	/** Material settings **/
+	let surface = materials.loadSurface();
+	surface.roughness = 0.024806201550387597;
+	surface.ior = 1.5;
+	surface.diffuseAlbedo = [1, 0, 0];
+	surface.specAlbedo = [0.06862745098039214, 0.06862745098039214, 0.06862745098039214];
+
+	let dielectric = materials.loadDielectric('Glass (BK7)');
+	dielectric.absorptionColor = [0.5, 0.5, 0.5];
+	dielectric.absorptionScale = -1; // mfp in multiples of scene scale
+	dielectric.roughness = 0.005;
+
+	let metal = materials.loadMetal('Aluminium');
+	metal.roughness = 0.02;
+
+	/******* copy-pasted console output on 'O', end *******/
+}
+
+Scene.prototype.initGenerator = function()
+{
+	return `
+this.par = {};
+this.par.scale = ${this.par.scale};
+this.par.time = ${this.par.time};
+this.frame = 0;
+	`; 
+}
+
+
+Scene.prototype.shader = function()
+{
+    return `
+    uniform float scale;
+   	uniform float time;
+   	vec4 orb;
+ 
+	float apollonian(vec3 X, float t)
+	{
+		float s = 1.0;
+		orb = vec4(1000.0); 	
+		for (int i=0; i<7; i++)
+		{
+			X = -1.0 + 2.0*fract(0.5*X + 0.5);
+			float r2 = dot(X,X);
+	        orb = min(orb, vec4(abs(X),r2));
+			float k = t/r2;
+			X *= k;
+			s *= k;
+		}
+		return 0.25*abs(X.y)/(s*scale);
+	}
+
+    float SDF_SURFACE(vec3 X)
+    {           
+    	float anim = 1.1 + 0.5*smoothstep(-0.3, 0.3, cos(0.1*time)); 
+        return apollonian(X, anim);
+    }
+
+    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X)
+    {
+    	// @todo: pass basis, for normal. Do fake directional lighting
+    	return orb.rgb;
+    }
+    `;
+}
+
+Scene.prototype.envMap = function() 
+{ return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg'; }
+
+Scene.prototype.initGui = function(gui) 
+{ 
+	gui.addSlider(this.par, {name: 'scale', min: 0.0, max: 10.0}); 
+	gui.addSlider(this.par, {name: 'time', min: 0.0, max: 100.0}); 
+}
+
+Scene.prototype.syncShader = function(shader) 
+{ 
+	shader.uniformF("scale", this.par.scale);
+	shader.uniformF("time", this.par.time);
+}
+
+function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+
+</script>
+</body>
