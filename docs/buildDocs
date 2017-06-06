@@ -1,6 +1,0 @@
- #!/bin/bash
-jsdoc2md --template API.hbs --files ../js/snelly.js ../js/sceneAPI.js ../js/renderer.js ../js/materials.js ../js/gui.js ../js/gl.js ../js/gui.js > API.md
-
-
-
-

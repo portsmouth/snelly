@@ -1,4 +1,4 @@
-
+#!/usr/bin/python
 import csv
 from decimal import Decimal
 import numpy

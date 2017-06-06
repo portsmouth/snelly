@@ -304,6 +304,9 @@ programmatically according to the global time since init.
 | whitepoint | <code>number</code> | <code>2.0</code> | tonemapping whitepoint |
 | goalFPS | <code>number</code> | <code>10.0</code> | sampling will adjust to try to match goal FPS |
 | minsSPPToRedraw | <code>number</code> | <code>0.0</code> | if >0.0, renderer will not redraw until the specified SPP have been accumulated |
+| envMapVisible | <code>number</code> | <code>true</code> | whether env map is visible to primary rays (otherwise black) |
+| shadowStrength | <code>number</code> | <code>1.0</code> | if <1.0, areas in shadow are not completely dark |
+| maxStepsIsMiss | <code>number</code> | <code>true</code> | whether rays which exceed max step count are considered hits or misses |
 
 
 * [Renderer](#Renderer)
