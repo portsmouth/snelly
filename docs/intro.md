@@ -13,11 +13,16 @@ Scene.prototype.shader = function()
   /* GLSL code */ 
   return `
     uniform float foo; 
-    float SDF_SURFACE(vec3 X)    { /* <code omitted> */ }
-    float SDF_METAL(vec3 X)      { /* <code omitted> */ }
-    float SDF_DIELECTRIC(vec3 X) { /* <code omitted> */ }
-    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X) { /* <code omitted> */ }
-    // etc.
+
+    float SDF_SURFACE(in vec3 X)                 { /* <code omitted> */ }
+    float SDF_METAL(in vec3 X)                   { /* <code omitted> */ }
+    float SDF_DIELECTRIC(in vec3 X)              { /* <code omitted> */ }
+
+    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X)  { /* <code omitted> */ }
+    vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 X) { /* <code omitted> */ }
+    float SURFACE_ROUGHNESS(in vec3 X)           { /* <code omitted> */ }
+    float METAL_ROUGHNESS(in vec3 X)             { /* <code omitted> */ }
+    float DIELECTRIC_ROUGHNESS(in vec3 X)        { /* <code omitted> */ }
   `; 
 }
 
@@ -183,7 +188,6 @@ this.frame = ${this.frame};
 }
 ```
 With this code in place, the output on pressing 'O' is then a faithful representation of the entire scene state.
-
 
 
 ### Callbacks and animation

@@ -138,22 +138,19 @@ Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snel
 		vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 X);
 
 		// space-varying multiplier to the UI-exposed constant (defaults to 1.0)
-		float SURFACE_IOR(in vec3 X);
-
-		// space-varying multiplier to the UI-exposed constant (defaults to 1.0)
 		float SURFACE_ROUGHNESS(in vec3 X);
-
-		// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
-		vec3 METAL_SPECULAR_REFLECTANCE(in vec3 X);
 
 		// space-varying multiplier to the UI-exposed constant (defaults to 1.0)
 		float METAL_ROUGHNESS(in vec3 X);
 
-		// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
-		vec3 DIELECTRIC_SPECULAR_REFLECTANCE(in vec3 X);
+		// space-varying multiplier to physical Fresnel reflectance (defaults to 1.0)
+		float METAL_FRESNEL(in vec3 X);
 
 		// space-varying multiplier to the UI-exposed constant (defaults to 1.0)
 		float DIELECTRIC_ROUGHNESS(in vec3 X);
+
+		// space-varying multiplier to physical Fresnel reflectance (defaults to 1.0)
+		float DIELECTRIC_FRESNEL(in vec3 X);
 *```
 * @returns {String}
 */
