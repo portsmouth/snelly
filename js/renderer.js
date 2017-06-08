@@ -187,17 +187,17 @@ Renderer.prototype.compileShaders = function()
 
 	// Insert default functions for those not implemented 
 	if (shader.indexOf("SDF_SURFACE(")                     == -1) { shader += `\n float SDF_SURFACE(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
- 	if (shader.indexOf("SURFACE_DIFFUSE_REFLECTANCE(")     == -1) { shader += `\n vec3 SURFACE_DIFFUSE_REFLECTANCE(vec3 X) { return vec3(1.0); }\n`; }
- 	if (shader.indexOf("SURFACE_SPECULAR_REFLECTANCE(")    == -1) { shader += `\n vec3 SURFACE_SPECULAR_REFLECTANCE(vec3 X) { return vec3(1.0); }\n`; }
- 	if (shader.indexOf("SURFACE_ROUGHNESS(")               == -1) { shader += `\n float SURFACE_ROUGHNESS(vec3 X) { return 1.0; }\n`; }
+ 	if (shader.indexOf("SURFACE_DIFFUSE_REFLECTANCE(")     == -1) { shader += `\n vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X, in vec3 N) { return vec3(1.0); }\n`; }
+ 	if (shader.indexOf("SURFACE_SPECULAR_REFLECTANCE(")    == -1) { shader += `\n vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 X, in vec3 N) { return vec3(1.0); }\n`; }
+ 	if (shader.indexOf("SURFACE_ROUGHNESS(")               == -1) { shader += `\n float SURFACE_ROUGHNESS(in vec3 X, in vec3 N) { return 1.0; }\n`; }
  	
  	if (shader.indexOf("SDF_METAL(")                       == -1) { shader += `\n float SDF_METAL(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
- 	if (shader.indexOf("METAL_FRESNEL(")                   == -1) { shader += `\n float METAL_FRESNEL(vec3 X) { return 1.0; }\n`; }
- 	if (shader.indexOf("METAL_ROUGHNESS(")                 == -1) { shader += `\n float METAL_ROUGHNESS(vec3 X) { return 1.0; }\n`; }
+ 	if (shader.indexOf("METAL_FRESNEL(")                   == -1) { shader += `\n float METAL_FRESNEL(in vec3 X, in vec3 N) { return 1.0; }\n`; }
+ 	if (shader.indexOf("METAL_ROUGHNESS(")                 == -1) { shader += `\n float METAL_ROUGHNESS(in vec3 X, in vec3 N) { return 1.0; }\n`; }
  	
  	if (shader.indexOf("SDF_DIELECTRIC(")                  == -1) { shader += `\n float SDF_DIELECTRIC(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
- 	if (shader.indexOf("DIELECTRIC_FRESNEL(")              == -1) { shader += `\n float DIELECTRIC_FRESNEL(vec3 X) { return 1.0; }\n`; }
- 	if (shader.indexOf("DIELECTRIC_ROUGHNESS(")            == -1) { shader += `\n float DIELECTRIC_ROUGHNESS(vec3 X) { return 1.0; }\n`; }
+ 	if (shader.indexOf("DIELECTRIC_FRESNEL(")              == -1) { shader += `\n float DIELECTRIC_FRESNEL(in vec3 X, in vec3 N) { return 1.0; }\n`; }
+ 	if (shader.indexOf("DIELECTRIC_ROUGHNESS(")            == -1) { shader += `\n float DIELECTRIC_ROUGHNESS(in vec3 X, in vec3 N) { return 1.0; }\n`; }
 
 	// @todo: insert material GLSL code
 	var dielectricObj = snelly.getLoadedDielectric(); if (dielectricObj == null) return;

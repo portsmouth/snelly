@@ -128,29 +128,30 @@ Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snel
 *```
 * (If only one or two of these are present, the others will not be rendered).
 * Optionally, any of the following functions defining the spatial *modulation* of material parameters can be defined.
+* The world space normal of the surface is also supplied, to allow for non-physical lighting effects.
 * (Any of the user-defined functions below can be omitted, in which case they will be replaced with the default indicated).
 *```glsl
 
 		// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
-		vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X);
+		vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X, in vec3 N);
 
 		// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
-		vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 X);
+		vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 X, in vec3 N);
 
 		// space-varying multiplier to the UI-exposed constant (defaults to 1.0)
-		float SURFACE_ROUGHNESS(in vec3 X);
+		float SURFACE_ROUGHNESS(in vec3 X, in vec3 N);
 
 		// space-varying multiplier to the UI-exposed constant (defaults to 1.0)
-		float METAL_ROUGHNESS(in vec3 X);
+		float METAL_ROUGHNESS(in vec3 X, in vec3 N);
 
 		// space-varying multiplier to physical Fresnel reflectance (defaults to 1.0)
-		float METAL_FRESNEL(in vec3 X);
+		float METAL_FRESNEL(in vec3 X, in vec3 N);
 
 		// space-varying multiplier to the UI-exposed constant (defaults to 1.0)
-		float DIELECTRIC_ROUGHNESS(in vec3 X);
+		float DIELECTRIC_ROUGHNESS(in vec3 X, in vec3 N);
 
 		// space-varying multiplier to physical Fresnel reflectance (defaults to 1.0)
-		float DIELECTRIC_FRESNEL(in vec3 X);
+		float DIELECTRIC_FRESNEL(in vec3 X, in vec3 N);
 *```
 * @returns {String}
 */
