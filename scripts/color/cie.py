@@ -7,6 +7,20 @@ import numpy
 # Script to generate wavelengthToXYZ.js
 #############################################################################
 
+def rgbToXyz(RGB):
+	XYZ = [0, 0, 0]
+	XYZ[0] = 0.4124564*RGB[0] + 0.3575761*RGB[1] + 0.1804375*RGB[2]
+	XYZ[1] = 0.2126729*RGB[0] + 0.7151522*RGB[1] + 0.0721750*RGB[2]
+	XYZ[2] = 0.0193339*RGB[0] + 0.1191920*RGB[1] + 0.9503041*RGB[2]
+	return XYZ
+
+def xyz_to_spectrum(XYZ):
+	c = [0, 0, 0]
+	c[0] =  3.38214566*XYZ[0] - 2.58540997*XYZ[1] - 0.40649004*XYZ[2]
+	c[1] = -2.58540997*XYZ[0] + 3.20943158*XYZ[1] + 0.22767094*XYZ[2]
+	c[2] = -0.40649004*XYZ[0] + 0.22767094*XYZ[1] + 0.70334476*XYZ[2]
+	return c
+
 # 2-deg XYZ tristimulus CMFs transformed from the CIE (2006) 2-deg LMS cone fundamentals
 # (from http://www.cvrl.org/cmfs.htm)
 csvfile = open("lin2012xyz2e_fine_7sf.csv", 'rb')
@@ -87,3 +101,4 @@ print '\nXYZ correlation matrix inverse: \n', M.I
 
 # scale by an ad-hoc factor to make max RGB component about 1
 print 100.0 * M.I
+

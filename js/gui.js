@@ -71,6 +71,7 @@ GUI.prototype.createRendererSettings = function()
 	this.rendererFolder.add(pathtracer, 'shadowStrength', 0.0, 1.0).onChange( function(value) { pathtracer.reset(true); } );
 	this.rendererFolder.add(pathtracer, 'maxStepsIsMiss').onChange( function(value) { pathtracer.reset(true); } );
 	this.rendererFolder.add(pathtracer, 'envMapVisible').onChange( function(value) { pathtracer.reset(true); } );
+	this.rendererFolder.add(pathtracer, 'envMapRotation', 0.0, 360.0).onChange( function(value) { pathtracer.reset(true); } );
 	this.rendererFolder.add(pathtracer, 'AA').onChange( function(value) { pathtracer.reset(true); } );
 
 	var skyPowerItem = this.rendererFolder.add(pathtracer, 'skyPower', 0.0, 10.0);
@@ -107,14 +108,14 @@ GUI.prototype.createSceneSettings = function()
  * The scene parameters need to be organized into an Object as
  * key-value pairs, for supply to this function.
  * @param {Object} parameters - the parameters object for the scene, with key-value pairs for all parameters
- * @param {Object} param - the slider range for this parameter, in the form `{name: 'foo', min: 0.0, max: 100.0, step: 1.0}` (step is optional)
+ * @param {Object} param - the slider range for this parameter, in the form `{name: 'foo', min: 0.0, max: 100.0, step: 1.0, recompile: true}` (step is optional, recompile is optional [default is false])
  * @param {Object} param - optionally, pass the dat.GUI folder to add the parameter to (defaults to the main scene folder)
  * @example
  *		Scene.prototype.initGui = function(gui)            
  *		{
  *			gui.addSlider(this.parameters, c);
  *			gui.addSlider(this.parameters, {name: 'foo2', min: 0.0, max: 1.0});
- *			gui.addSlider(this.parameters, {name: 'bar', min: 0.0, max: 3.0});
+ *			gui.addSlider(this.parameters, {name: 'bar', min: 0.0, max: 3.0, recompile: true});
  *		}
  */
 GUI.prototype.addSlider = function(parameters, param, folder=undefined)

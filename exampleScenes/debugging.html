@@ -55,7 +55,7 @@ Scene.prototype.shader = function()
 		uniform float radius;
 		uniform float size;
 		uniform mat4 transform;
-		
+
 		float sdSphere(vec3 X, float r) { return length(X) - r; }   
 		float sdBox(vec3 X, vec3 b) { vec3 d = abs(X)-b; return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0)); } 
 		float sdTorus( vec3 X, vec2 t ) { vec2 q = vec2(length(X.xz)-t.x, X.y); return length(q)-t.y; }

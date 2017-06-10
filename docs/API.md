@@ -168,7 +168,7 @@ Optional clickable URL (displayed in UI)
 <a name="Scene+shader"></a>
 
 ### scene.shader() ⇒ <code>String</code>
-Returns a chunk of GLSL code defining the SDFs which determine the geometry of uber-surface, metal and dielectric materials in the scene.Define also (optionally) functions giving the 3d spatial dependence of the material parameters.This function is mandatory!The code *must* define at least one of the three functions:```glsl     float SDF_METAL(vec3 X);     float SDF_DIELECTRIC(vec3 X);     float SDF_DIFFUSE(vec3 X);```(If only one or two of these are present, the others will not be rendered).Optionally, any of the following functions defining the spatial *modulation* of material parameters can be defined.The world space normal of the surface is also supplied, to allow for non-physical lighting effects.(Any of the user-defined functions below can be omitted, in which case they will be replaced with the default indicated).```glsl
+Returns a chunk of GLSL code defining the SDFs which determine the geometry of uber-surface, metal and dielectric materials in the scene.Define also (optionally) functions giving the 3d spatial dependence of the material parameters.This function is mandatory!The code *must* define at least one of the three functions:```glsl     float SDF_METAL(vec3 X);     float SDF_DIELECTRIC(vec3 X);     float SDF_DIFFUSE(vec3 X);```If only one or two of these are present, the others will not be rendered.Optionally, any of the following functions defining the spatial *modulation* of material parameters can be defined.The world space normal of the surface is supplied, to allow for non-physical lighting effects.Note that the color modulation applies to RGB values in sRGB color space.(Any of the user-defined functions below can be omitted, in which case they will be replaced with the default indicated).```glsl
 
 		// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
 		vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X, in vec3 N);
@@ -272,6 +272,7 @@ Optional callback after every frame.Animation rendering logic can be implemente
 | goalFPS | <code>number</code> | <code>10.0</code> | sampling will adjust to try to match goal FPS |
 | minsSPPToRedraw | <code>number</code> | <code>0.0</code> | if >0.0, renderer will not redraw until the specified SPP have been accumulated |
 | envMapVisible | <code>number</code> | <code>true</code> | whether env map is visible to primary rays (otherwise black) |
+| envMapRotation | <code>number</code> | <code>0.0</code> | env map rotation about pole in degrees (0 to 360) |
 | shadowStrength | <code>number</code> | <code>1.0</code> | if <1.0, areas in shadow are not completely dark |
 | maxStepsIsMiss | <code>number</code> | <code>true</code> | whether rays which exceed max step count are considered hits or misses |
 | AA | <code>number</code> | <code>true</code> | whether to jitter primary ray within pixel for AA |
@@ -351,7 +352,7 @@ surface.roughness = 0.05;surface.ior = 1.3530655391120507;surface.diffuseAlbed
 <a name="new_Metal_new"></a>
 
 ### new Metal()
-Generic metal material. Supported physical metals are:``` "Aluminium" "Brass",    "Calcium",  "Chromium", "Cobalt",   "Copper",   "Gold",     "Iridium",  "Iron",     "Lead",     "Mercury",  "Molybdenum "Nickel",   "Palladium" "Platinum", "Silicon",  "Silver",   "Titanium", "Tungsten", "Vanadium", "Zinc",     "Zirconium"```
+Generic metal material. Supported physical metals are:``` "Aluminium" "Brass" "Calcium" "Chromium" "Cobalt" "Copper"  "Gold"    "Iridium" "Iron"  "Lead"    "Mercury" "Molybdenum" "Nickel" "Palladium" "Platinum" "Silicon" "Silver" "Titanium" "Tungsten" "Vanadium" "Zinc" "Zirconium"```
 
 **Example**  
 ```js
@@ -412,7 +413,7 @@ Load the desired Dielectric object by name. Supported dielectrics are:```glsl 
 <a name="Materials+loadMetal"></a>
 
 ### materials.loadMetal(metalName) ⇒ [<code>Metal</code>](#Metal)
-Load the desired Metal object by name. Supported metals are:``` "Aluminium" "Brass",    "Calcium",  "Chromium", "Cobalt",   "Copper",   "Gold",     "Iridium",  "Iron",     "Lead",     "Mercury",  "Molybdenum "Nickel",   "Palladium" "Platinum", "Silicon",  "Silver",   "Titanium", "Tungsten", "Vanadium", "Zinc",     "Zirconium"```
+Load the desired Metal object by name. Supported metals are:``` "Aluminium" "Brass" "Calcium" "Chromium" "Cobalt"   "Copper"   "Gold"     "Iridium" "Iron"     "Lead"     "Mercury"  "Molybdenum" "Nickel" "Palladium" "Platinum" "Silicon" "Silver"  "Titanium" "Tungsten" "Vanadium" "Zinc"  "Zirconium"```
 
 **Kind**: instance method of [<code>Materials</code>](#Materials)  
 **Returns**: [<code>Metal</code>](#Metal) - - the loaded metal  

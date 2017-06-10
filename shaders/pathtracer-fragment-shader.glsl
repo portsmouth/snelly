@@ -27,6 +27,7 @@ uniform float maxScale;
 uniform float skyPower;
 uniform bool haveEnvMap;
 uniform bool envMapVisible;
+uniform float envMapRotation;
 uniform float gamma;
 uniform float radianceClamp;
 uniform float skipProbability;
@@ -203,9 +204,9 @@ vec3 rgbToXyz(in vec3 RGB)
 
 vec3 xyz_to_spectrum(vec3 XYZ)
 {
-    // Given a color in XYZ coordinates, return the coefficients in spectrum:
-    //      L(l) = cx X(l) + cy Y(l) + cz Z(l)
-    // such that this spectrum reproduces the given XYZ.
+    // Given a color in XYZ tristimulus coordinates, return the coefficients in spectrum:
+    //      L(l) = cx x(l) + cy y(l) + cz z(l)
+    // (where x, y, z are the tristimulus CMFs) such that this spectrum reproduces the given XYZ tristimulus.
     // (NB, these coefficients differ from XYZ, because the XYZ color matching functions are not orthogonal)
     vec3 c;
     c.x =  3.38214566*XYZ.x - 2.58540997*XYZ.y - 0.40649004*XYZ.z;
@@ -549,10 +550,10 @@ float sampleMetal( in vec3 X, in vec3 nW, in vec3 woL, in float wavelength_nm, i
     float ior = IOR_METAL(wavelength_nm);
     float k = K_METAL(wavelength_nm);
     float Fr = METAL_FRESNEL(X, nW) * fresnelMetalReflectance(woL.z, ior, k);
-    vec3 m = microfacetSample(rnd, metalRoughness); // Sample microfacet normal m
+    float roughness = metalRoughness * METAL_ROUGHNESS(X, nW);
+    vec3 m = microfacetSample(rnd, roughness); // Sample microfacet normal m
     wiL = -woL + 2.0*dot(woL, m)*m; // Compute wiL by reflecting woL about m
     if (wiL.z<DENOM_TOLERANCE) wiL.z *= -1.0; // Reflect into positive hemisphere if necessary (ad hoc)
-    float roughness = metalRoughness * METAL_ROUGHNESS(X, nW);
     float D = microfacetEval(m, roughness);
     float G = smithG2(woL, wiL, m, roughness); // Shadow-masking function
     float f = Fr * D * G / max(4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
@@ -567,12 +568,16 @@ float sampleMetal( in vec3 X, in vec3 nW, in vec3 woL, in float wavelength_nm, i
 
 vec3 SURFACE_DIFFUSE_REFL_XYZ(in vec3 X, in vec3 nW)
 {
-    return xyz_to_spectrum(surfaceDiffuseAlbedoXYZ) * rgbToXyz(SURFACE_DIFFUSE_REFLECTANCE(X, nW));
+    vec3 reflRGB = xyzToRgb(surfaceDiffuseAlbedoXYZ) * SURFACE_DIFFUSE_REFLECTANCE(X, nW);
+    vec3 reflXYZ = rgbToXyz(reflRGB);
+    return xyz_to_spectrum(reflXYZ);
 }
 
 vec3 SURFACE_SPEC_REFL_XYZ(in vec3 X, in vec3 nW)
 {
-    return xyz_to_spectrum(surfaceSpecAlbedoXYZ) * rgbToXyz(SURFACE_SPECULAR_REFLECTANCE(X, nW));
+    vec3 reflRGB = xyzToRgb(surfaceSpecAlbedoXYZ) * SURFACE_SPECULAR_REFLECTANCE(X, nW);
+    vec3 reflXYZ = rgbToXyz(reflRGB);
+    return xyz_to_spectrum(reflXYZ);
 }
 
 // Fast path for non-transmissive surface
@@ -591,7 +596,6 @@ float fresnelDielectricReflectanceFast(in float cosi, in float ior)
 float evaluateSurface(in vec3 X, in vec3 nW, in vec3 woL, in vec3 wiL, in vec3 XYZ)
 {
     float diffuseAlbedo = clamp(dot(XYZ, SURFACE_DIFFUSE_REFL_XYZ(X, nW)), 0.0, 1.0);
-    return diffuseAlbedo/M_PI;
     float    specAlbedo = clamp(dot(XYZ, SURFACE_SPEC_REFL_XYZ(X, nW)),    0.0, 1.0);
     float ior = surfaceIor;
     float roughness = surfaceRoughness * SURFACE_ROUGHNESS(X, nW);
@@ -689,8 +693,9 @@ float pdfBsdf( in vec3 X, in vec3 nW, in vec3 woL, in vec3 wiL, in int material,
 
 vec3 environmentRadianceXYZ(in vec3 dir)
 {
-    float phi = atan(dir.x, dir.z) + M_PI; // [0, 2*pi]
-    float theta = acos(dir.y);             // [0, pi]
+    float phi = atan(dir.x, dir.z) + M_PI + M_PI*envMapRotation/180.0;
+    phi -= 2.0*M_PI*floor(phi/(2.0*M_PI)); // wrap phi to [0, 2*pi]
+    float theta = acos(dir.y);           // theta in [0, pi]
     float u = phi/(2.0*M_PI);
     float v = theta/M_PI;
     vec3 XYZ;

@@ -74,6 +74,7 @@ PathtracerState.prototype.clear = function(fbo)
 * @property {number} [goalFPS=10.0]        - sampling will adjust to try to match goal FPS
 * @property {number} [minsSPPToRedraw=0.0] - if >0.0, renderer will not redraw until the specified SPP have been accumulated
 * @property {number} [envMapVisible=true]  - whether env map is visible to primary rays (otherwise black)
+* @property {number} [envMapRotation=0.0]  - env map rotation about pole in degrees (0 to 360)
 * @property {number} [shadowStrength=1.0]  - if <1.0, areas in shadow are not completely dark
 * @property {number} [maxStepsIsMiss=true] - whether rays which exceed max step count are considered hits or misses
 * @property {number} [AA=true]             - whether to jitter primary ray within pixel for AA
@@ -116,6 +117,7 @@ var Renderer = function()
 	this.goalFPS = 20.0;
 	this.minsSPPToRedraw = 0.0;
 	this.envMapVisible = true;
+	this.envMapRotation = 0.0;
 	this.shadowStrength = 1.0;
 	this.maxStepsIsMiss = true;
 	this.AA = true;
@@ -350,6 +352,7 @@ Renderer.prototype.render = function()
 	INTEGRATOR_PROGRAM.uniformF("minScale", snelly.minScale);
 	INTEGRATOR_PROGRAM.uniformF("shadowStrength", this.shadowStrength);
 	INTEGRATOR_PROGRAM.uniformI("envMapVisible", Boolean(this.envMapVisible) ? 1 : 0);
+	INTEGRATOR_PROGRAM.uniformF("envMapRotation", Math.min(Math.max(this.envMapRotation, 0.0), 360.0));
 	INTEGRATOR_PROGRAM.uniformI("maxStepsIsMiss", Boolean(this.maxStepsIsMiss) ? 1 : 0);
 	INTEGRATOR_PROGRAM.uniformF("jitter", Boolean(this.AA) ? 1 : 0);
 

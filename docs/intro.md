@@ -65,7 +65,7 @@ An example which shows the complete {@link Scene} API is [here](./js/sceneAPI.js
 A Snelly scene is assumed to consist of only (up to) three specified materials: a Metal, a Dielectric, and a plastic-like Surface ("uber" material). Each material has an associated surface which is defined by an SDF (signed distance function), i.e. where each function is negative corresponds to the interior of the body.
 
 Thus we define the rendered scene geometry by specifying, via the {@link Scene#shader} call, three GLSL functions:
-```
+```glsl
 // the SDF of the uber-surface material
 float SDF_SURFACE(vec3 X)    { /* <code omitted> */ }
 
@@ -76,6 +76,30 @@ float SDF_METAL(vec3 X)      { /* <code omitted> */ }
 float SDF_DIELECTRIC(vec3 X) { /* <code omitted> */ }
 ```
   
+Additional space-varying modulation of the materials can be optionally specified via the GLSL functions:
+```glsl
+    // space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
+    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X, in vec3 N);
+
+    // space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
+    vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 X, in vec3 N);
+
+    // space-varying multiplier to the UI-exposed surface roughness constant (defaults to 1.0)
+    float SURFACE_ROUGHNESS(in vec3 X, in vec3 N);
+
+    // space-varying multiplier to the UI-exposed metal roughness constant (defaults to 1.0)
+    float METAL_ROUGHNESS(in vec3 X, in vec3 N);
+
+    // space-varying multiplier to the physical metal Fresnel reflectance (defaults to 1.0)
+    float METAL_FRESNEL(in vec3 X, in vec3 N);
+
+    // space-varying multiplier to the UI-exposed dielectric roughness constant (defaults to 1.0)
+    float DIELECTRIC_ROUGHNESS(in vec3 X, in vec3 N);
+
+    // space-varying multiplier to the physical dielectric Fresnel reflectance (defaults to 1.0)
+    float DIELECTRIC_FRESNEL(in vec3 X, in vec3 N);
+```
+
  We use [dat.GUI](https://workshop.chromeexperiments.com/examples/gui/#1--Basic-Usage) to provide a simple interactive UI for the scene and renderer state. Basic scene controls can be added via the 
  UI or animation control over the scene can be coded by adding uniform variables in the SDF functions, and setting them to the corresponding UI values in the {@link Scene#syncShader} function.
 

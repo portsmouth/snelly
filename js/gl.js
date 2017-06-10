@@ -19,7 +19,7 @@ var GLU = {};
 		{
 			var gl = this.canvas.getContext("webgl") || this.canvas.getContext("experimental-webgl");
 		} catch (e) {}
-		if (!gl) throw new Error("Could not initialise WebGL");
+		if (!gl) this.fail("Could not initialise WebGL");
 		this.gl = gl;
 
 		//console.log('Supported webGL extensions: ' + gl.getSupportedExtensions());
@@ -31,11 +31,11 @@ var GLU = {};
 		this.blendMinMaxExt = gl.getExtension("EXT_blend_minmax");
 		this.sRGBExt        = gl.getExtension('EXT_sRGB');
 
-		if (!this.floatExt || !this.floatLinExt) throw new Error("Your platform does not support float textures");
-		if (!this.multiBufExt)                   throw new Error("Your platform does not support the draw buffers extension");
+		if (!this.floatExt || !this.floatLinExt) this.fail("Your platform does not support float textures");
+		if (!this.multiBufExt)                   this.fail("Your platform does not support the draw buffers extension");
 		if (gl.getParameter(this.multiBufExt.MAX_DRAW_BUFFERS_WEBGL) < 4)
 		{
-			throw new Error("Your platform does not support 4 draw buffers");
+			this.fail("Your platform does not support 4 draw buffers");
 		}
 	}
 
@@ -90,7 +90,7 @@ var GLU = {};
 		if (!success) 
 		{
 			// something went wrong with the link
-			throw ("Program failed to link, error: " + gl.getProgramInfoLog (program));
+			this.fail("Program failed to link, error: " + gl.getProgramInfoLog (program));
 		}
 
 		return program;
@@ -106,7 +106,7 @@ var GLU = {};
 		{
 			// Something went wrong during compilation; get the error
 			var shaderTypeStr = (shaderType==gl.VERTEX_SHADER) ? 'vertex' : 'fragment';
-			throw ("Could not compile " + shaderName + " " + shaderTypeStr + " shader: " + gl.getShaderInfoLog(shader));
+			this.fail("Could not compile " + shaderName + " " + shaderTypeStr + " shader: " + gl.getShaderInfoLog(shader));
 		}
 		return shader;
 	}
@@ -533,7 +533,8 @@ var GLU = {};
 		document.getElementById("container").appendChild(failureDiv);
 		this.canvas.style.display = 'none';
 
-		window.stop()
+		snelly.terminated = true;
+		throw new Error("Terminating Snelly");
 	}
 
 	// Create CSS rules for the document contents
@@ -592,8 +593,6 @@ var GLU = {};
 	}
 	catch (e) 
 	{
-		/* GL errors at this stage are to be expected to some degree,
-		   so display a nice error message and call it quits */
 		this.fail(e.message + ". This can't run in your browser.");
 		return;
 	}

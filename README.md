@@ -1,6 +1,6 @@
 # Snelly
 
-Snelly is system for physically-based SDF (signed distance field) pathtracing in a web browser. 
+Snelly is a system for physically-based SDF (signed distance field) pathtracing in a web browser. 
 
 ## Example scenes
 - Hello world  [source](./exampleScenes/helloworld.html) [live](https://cdn.rawgit.com/portsmouth/snellypt/master/exampleScenes/helloworld.html)

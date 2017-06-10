@@ -126,9 +126,11 @@ Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snel
 *      float SDF_DIELECTRIC(vec3 X);
 *      float SDF_DIFFUSE(vec3 X);
 *```
-* (If only one or two of these are present, the others will not be rendered).
+* If only one or two of these are present, the others will not be rendered.
+*
 * Optionally, any of the following functions defining the spatial *modulation* of material parameters can be defined.
-* The world space normal of the surface is also supplied, to allow for non-physical lighting effects.
+* The world space normal of the surface is supplied, to allow for non-physical lighting effects.
+* Note that the color modulation applies to RGB values in sRGB color space.
 * (Any of the user-defined functions below can be omitted, in which case they will be replaced with the default indicated).
 *```glsl
 
@@ -231,7 +233,7 @@ Scene.prototype.shader = function()
 
 		// Any of the user-defined functions below can be omitted, in which case they will be
 		// replaced with the default indicated.
-		// Note that the reflectances can be treated as [0,1] RGB values in sRGB color space.
+		// Note that the color modulation applies to RGB values in sRGB color space.
 
 		//////////////////////////////////////////////////////
 		// Surface

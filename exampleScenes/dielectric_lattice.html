@@ -10,14 +10,6 @@ Scene.prototype.init = function(snelly)
 	// initial scene parameters
 	this.parameters = {}
 	this.parameters.shapes = ['Sphere', 'Cube', 'Octahedron', 'Dodecahedron', 'Icosahedron', 'TruncatedOctahedron', 'TruncatedIcosahedron'];
-	this.parameters.shape = 'TruncatedIcosahedron';
-	this.parameters.size = 4.0;
-	this.parameters.spacing = 10.0;
-	this.parameters.width = 5.0;
-	this.parameters.height = 5.0;
-	this.parameters.depth = 5.0;
-	this.parameters.offset = 0.0;
-	this.parameters.bulge = 0.25;
 
 	var PHI = Math.sqrt(5.0)*0.5 + 0.5;
 
@@ -56,7 +48,6 @@ Scene.prototype.init = function(snelly)
 	let controls  = snelly.getControls();
 	let materials = snelly.getMaterials();
 		
-	this.parameters = {};
 	this.parameters.shape = 'Octahedron';
 	this.parameters.size = 2.4806201550387597;
 	this.parameters.spacing = 10.14799154334038;
@@ -111,7 +102,6 @@ Scene.prototype.init = function(snelly)
 Scene.prototype.initGenerator = function()
 {
 	return `
-this.parameters = {};
 this.parameters.shape = '${this.parameters.shape}';
 this.parameters.size = ${this.parameters.size};
 this.parameters.spacing = ${this.parameters.spacing};

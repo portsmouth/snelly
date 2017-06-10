@@ -7,6 +7,7 @@
 var Snelly = function(sceneObj)
 {
 	this.initialized = false;
+	this.terminated = false;
 	this.rendering = false;
 	this.sceneObj = sceneObj;
 	snelly = this;
@@ -383,7 +384,7 @@ Snelly.prototype.getSurface = function()
 // Renderer reset on camera update
 Snelly.prototype.reset = function(no_recompile = false)
 {	
-	if (!this.initialized) return;
+	if (!this.initialized || this.terminated) return;
 	this.pathtracer.reset(no_recompile);
 	this.gui.sync();
 	this.render();
@@ -392,10 +393,9 @@ Snelly.prototype.reset = function(no_recompile = false)
 // Render all 
 Snelly.prototype.render = function()
 {
-	this.rendering = true;
-
-	if (!this.initialized) return;
+	if (!this.initialized || this.terminated) return;
 	if (this.sceneObj == null) return;
+	this.rendering = true;
 
 	// Render distance field surface via pathtracing
 	this.pathtracer.render();
@@ -459,6 +459,7 @@ Snelly.prototype._resize = function(width, height)
 
 Snelly.prototype.resize = function()
 {
+	if (this.terminated) return;
 	if (this.auto_resize)
 	{
 		let width = window.innerWidth;
@@ -475,7 +476,11 @@ Snelly.prototype.onClick = function(event)
 {
 	if (this.onSnellyLink) 
 	{
-    	window.location = "https://github.com/portsmouth/snelly";
+    	window.location = "https://github.com/portsmouth/snellypt";
+    }
+    if (this.onUserLink) 
+	{
+    	window.location = this.sceneURL;
     }
 	event.preventDefault();
 }

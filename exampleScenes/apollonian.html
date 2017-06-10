@@ -42,7 +42,7 @@ Scene.prototype.init = function(snelly)
 	renderer.radianceClamp = 3; // (log scale)
 	renderer.skyPower = 1;
 	renderer.skyTemperature = 6000;
-	renderer.exposure = 21.987315010570825;
+	renderer.exposure = 10.0;
 	renderer.gamma = 2.5369978858350954;
 	renderer.whitepoint = 1.9168428470754053;
 	renderer.goalFPS = 10;
@@ -56,7 +56,7 @@ Scene.prototype.init = function(snelly)
 	let surface = materials.loadSurface();
 	surface.roughness = 0.005637773079633545;
 	surface.ior = 2.818886539816772;
-	surface.diffuseAlbedo = [0.256010131849741, 0.2229911572472127, 0.7843137254901961];
+	surface.diffuseAlbedo = [0.6, 0.6, 0.6];
 	surface.specAlbedo = [0.0980392156862745, 0.0980392156862745, 0.0980392156862745];
 
 	let dielectric = materials.loadDielectric('Glass (BK7)');
@@ -82,7 +82,6 @@ this.par.time = ${this.par.time};
 this.frame = 0;
 	`; 
 }
-
 
 Scene.prototype.shader = function()
 {
