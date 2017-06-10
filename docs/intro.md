@@ -58,6 +58,8 @@ function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLo
 ```
 The only mandatory function to implement in Scene is {@link Scene#shader}, the other are all optional. However the {@link Scene#init} function is almost always needed, to set the initial camera orientation at least.
 
+An example which shows the complete {@link Scene} API is [here](./js/sceneAPI.js).
+
 ### Geometry
 
 A Snelly scene is assumed to consist of only (up to) three specified materials: a Metal, a Dielectric, and a plastic-like Surface ("uber" material). Each material has an associated surface which is defined by an SDF (signed distance function), i.e. where each function is negative corresponds to the interior of the body.

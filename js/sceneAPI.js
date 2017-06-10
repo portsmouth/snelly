@@ -138,19 +138,19 @@ Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snel
 		// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
 		vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 X, in vec3 N);
 
-		// space-varying multiplier to the UI-exposed constant (defaults to 1.0)
+		// space-varying multiplier to the UI-exposed surface roughness constant (defaults to 1.0)
 		float SURFACE_ROUGHNESS(in vec3 X, in vec3 N);
 
-		// space-varying multiplier to the UI-exposed constant (defaults to 1.0)
+		// space-varying multiplier to the UI-exposed metal roughness constant (defaults to 1.0)
 		float METAL_ROUGHNESS(in vec3 X, in vec3 N);
 
-		// space-varying multiplier to physical Fresnel reflectance (defaults to 1.0)
+		// space-varying multiplier to the physical metal Fresnel reflectance (defaults to 1.0)
 		float METAL_FRESNEL(in vec3 X, in vec3 N);
 
-		// space-varying multiplier to the UI-exposed constant (defaults to 1.0)
+		// space-varying multiplier to the UI-exposed dielectric roughness constant (defaults to 1.0)
 		float DIELECTRIC_ROUGHNESS(in vec3 X, in vec3 N);
 
-		// space-varying multiplier to physical Fresnel reflectance (defaults to 1.0)
+		// space-varying multiplier to the physical dielectric Fresnel reflectance (defaults to 1.0)
 		float DIELECTRIC_FRESNEL(in vec3 X, in vec3 N);
 *```
 * @returns {String}
@@ -246,7 +246,7 @@ Scene.prototype.shader = function()
 		}  
 
 		// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
-		vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X)
+		vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X, in vec3 N)
 		{
 			float albedo = 1.0;
 			if (X.y<=0.001)
@@ -259,19 +259,13 @@ Scene.prototype.shader = function()
 		}
 
 		// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
-		vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 X)
+		vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 X, in vec3 N)
 		{
 		    return vec3(1.0);
 		}
 
 		// space-varying multiplier to the UI-exposed constant (defaults to 1.0)
-		float SURFACE_IOR(in vec3 X)
-		{
-		    return 1.0;
-		}
-
-		// space-varying multiplier to the UI-exposed constant (defaults to 1.0)
-		float SURFACE_ROUGHNESS(in vec3 X)
+		float SURFACE_ROUGHNESS(in vec3 X, in vec3 N)
 		{
 		    return 1.0;
 		}
@@ -286,18 +280,17 @@ Scene.prototype.shader = function()
 			 return 1.0e6;//0.5*menger(X*0.5-vec3(1.0));
 		} 
 
-		// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
-		vec3 METAL_SPECULAR_REFLECTANCE(in vec3 X)
-		{
-		    return vec3(1.0, 1.0, 1.0);
-		}
-
 		// space-varying multiplier to the UI-exposed constant (defaults to 1.0)
-		float METAL_ROUGHNESS(in vec3 X)
+		float METAL_ROUGHNESS(in vec3 X, in vec3 N)
 		{
 		    return 1.0;
 		}
 
+		// space-varying multiplier to physical Fresnel reflectance (defaults to 1.0)
+		float METAL_FRESNEL(in vec3 X, in vec3 N)
+		{
+		    return 1.0;
+		}
 
 		//////////////////////////////////////////////////////
 		// Dielectric
@@ -308,17 +301,18 @@ Scene.prototype.shader = function()
 		    return sdSphere(X, _bar);
 		}  
 
-		// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
-		vec3 DIELECTRIC_SPECULAR_REFLECTANCE(in vec3 X)
-		{
-		    return vec3(1.0, 1.0, 1.0);
-		}
-
 		// space-varying multiplier to the UI-exposed constant (defaults to 1.0)
-		float DIELECTRIC_ROUGHNESS(in vec3 X)
+		float DIELECTRIC_ROUGHNESS(in vec3 X, in vec3 N)
 		{
 		    return 1.0;
 		}
+
+		// space-varying multiplier to physical Fresnel reflectance (defaults to 1.0)
+		float DIELECTRIC_FRESNEL(in vec3 X, in vec3 N)
+		{
+		    return 1.0;
+		}
+
 
 		////////////////////////////////////////////////////////////////////// end of shader code
 	`;
@@ -467,12 +461,15 @@ Scene.prototype.preframeCallback = function(snelly, gl)
  */
 Scene.prototype.postframeCallback = function(snelly, gl)
 {
+	return; 
+
+	/*
 	// The code here posts the framebuffer pixels to a local server, for sequence rendering.
 	let renderer  = snelly.getRenderer();
 	let targetSPP = 250.0;
 
 	// User code to post webGL framebuffer data to local server for processing
-	if (this.animFrame>=0 && renderer.spp>=targetSPP && this.animFrame<=this.endFrame)
+	if (this.animFrame>=0 && renderer.getSPP()>=targetSPP && this.animFrame<=this.endFrame)
 	{
 		console.log(this.animFrame);
 		let dataURI = gl.canvas.toDataURL();
@@ -491,4 +488,5 @@ Scene.prototype.postframeCallback = function(snelly, gl)
 		this.advanceFrame = true;
 		this.animFrame++;
 	}
+	*/
 }

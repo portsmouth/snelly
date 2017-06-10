@@ -1,0 +1,301 @@
+   
+<body onload="onLoad();">
+<script type="text/javascript" src="../js/compiled/snelly.min.js"></script>
+<script type="text/javascript">
+
+function Scene() {}
+
+Scene.prototype.init = function(snelly)
+{
+	// initial scene parameters
+	this.parameters = {}
+	this.parameters.shapes = ['Sphere', 'Cube', 'Octahedron', 'Dodecahedron', 'Icosahedron', 'TruncatedOctahedron', 'TruncatedIcosahedron'];
+	this.parameters.shape = 'TruncatedIcosahedron';
+	this.parameters.size = 4.0;
+	this.parameters.spacing = 10.0;
+	this.parameters.width = 5.0;
+	this.parameters.height = 5.0;
+	this.parameters.depth = 5.0;
+	this.parameters.offset = 0.0;
+	this.parameters.bulge = 0.25;
+
+	var PHI = Math.sqrt(5.0)*0.5 + 0.5;
+
+	var GDFVectors = [];
+	GDFVectors.push(new THREE.Vector3(1, 0, 0).normalize());
+	GDFVectors.push(new THREE.Vector3(0, 1, 0).normalize());
+	GDFVectors.push(new THREE.Vector3(0, 0, 1).normalize());
+	GDFVectors.push(new THREE.Vector3(1, 1, 1).normalize());
+	GDFVectors.push(new THREE.Vector3(-1, 1, 1).normalize());
+	GDFVectors.push(new THREE.Vector3(1, -1, 1).normalize());
+	GDFVectors.push(new THREE.Vector3(1, 1, -1).normalize());
+	GDFVectors.push(new THREE.Vector3(0, 1, PHI+1.0).normalize());
+	GDFVectors.push(new THREE.Vector3(0, -1, PHI+1.0).normalize());
+	GDFVectors.push(new THREE.Vector3(PHI+1.0, 0, 1).normalize());
+	GDFVectors.push(new THREE.Vector3(-PHI-1.0, 0, 1).normalize());
+	GDFVectors.push(new THREE.Vector3(1, PHI+1.0, 0).normalize());
+	GDFVectors.push(new THREE.Vector3(-1, PHI+1.0, 0).normalize());
+	GDFVectors.push(new THREE.Vector3(0, PHI, 1).normalize());
+	GDFVectors.push(new THREE.Vector3(0, -PHI, 1).normalize());
+	GDFVectors.push(new THREE.Vector3(1, 0, PHI).normalize());
+	GDFVectors.push(new THREE.Vector3(-1, 0, PHI).normalize());
+	GDFVectors.push(new THREE.Vector3(PHI, 1, 0).normalize());
+	GDFVectors.push(new THREE.Vector3(-PHI, 1, 0).normalize());
+
+	this.GDFVectorsFlattened = [];
+	for (var n=0; n<GDFVectors.length; n++) 
+	{
+		var v = GDFVectors[n];
+		this.GDFVectorsFlattened.push(v.x);
+		this.GDFVectorsFlattened.push(v.y);
+		this.GDFVectorsFlattened.push(v.z);
+	}
+
+	let renderer  = snelly.getRenderer();
+	let camera    = snelly.getCamera();
+	let controls  = snelly.getControls();
+	let materials = snelly.getMaterials();
+		
+	this.parameters = {};
+	this.parameters.shape = 'Octahedron';
+	this.parameters.size = 2.4806201550387597;
+	this.parameters.spacing = 10.14799154334038;
+	this.parameters.width = 29;
+	this.parameters.height = 21.42353770260747;
+	this.parameters.depth = 21.42353770260747;
+	this.parameters.offset =0;
+	this.parameters.bulge = 0.1916842847075405;
+		
+	snelly.showGUI(true);
+
+	camera.fov = 45;
+	camera.up.set(0, 1, 0);
+	camera.position.set(44.35909135098177, 39.13376780848188, -54.46235384836437);
+	controls.target.set(-4.680653378528492, -2.735525838364142, 0.09836685837303788);
+	controls.zoomSpeed = 2;
+	controls.keyPanSpeed = 100;
+
+	/** Renderer settings **/
+	renderer.renderMode = 'pt';  // The other modes are: 'ao', 'normals'
+	renderer.maxBounces = 5;
+	renderer.maxMarchSteps = 256;
+	renderer.radianceClamp = 6; // (log scale)
+	renderer.skyPower = 1;
+	renderer.skyTemperature = 6000;
+	renderer.exposure = 3.0;
+	renderer.gamma = 2.2;
+	renderer.whitepoint = 0.4510218463706836;
+	renderer.goalFPS = 20;
+	renderer.minsSPPToRedraw = 0;
+	renderer.envMapVisible = false;
+	renderer.shadowStrength = 1;
+	renderer.maxStepsIsMiss = true;
+	renderer.AA = true;
+
+	/** Material settings **/
+	let surface = materials.loadSurface();
+	surface.roughness = 0.010147991543340382;
+	surface.ior = 5.525017618040874;
+	surface.diffuseAlbedo = [0.6274509803921569, 0.6274509803921569, 0.6274509803921569];
+	surface.specAlbedo = [0.08823529411764708, 0.08823529411764708, 0.08823529411764708];
+
+	let dielectric = materials.loadDielectric('Glass (BK7)');
+	dielectric.absorptionColor = [1, 1, 1];
+	dielectric.absorptionScale = -1; // mfp in multiples of scene scale
+	dielectric.roughness = 0.005;
+
+	let metal = materials.loadMetal('Silver');
+	metal.roughness = 0.02;
+}
+
+Scene.prototype.initGenerator = function()
+{
+	return `
+this.parameters = {};
+this.parameters.shape = '${this.parameters.shape}';
+this.parameters.size = ${this.parameters.size};
+this.parameters.spacing = ${this.parameters.spacing};
+this.parameters.width = ${this.parameters.width};
+this.parameters.height = ${this.parameters.height};
+this.parameters.depth = ${this.parameters.depth};
+this.parameters.offset =${this.parameters.offset};
+this.parameters.bulge = ${this.parameters.bulge};
+	`; 
+}
+
+Scene.prototype.getName = function() { return 'Metallic lattice'; }
+
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snellypt/blob/master/exampleScenes/metallic_lattice.html"; }
+
+Scene.prototype.shader = function()
+{
+	let func = `d += pow(abs(dot(p, GDFVectors[i])), 1.0/e)`;
+	let ret = `pow(d, e) - r`;
+
+	let func2 = `d = max(d, abs(dot(p, GDFVectors[i])));`;
+	let ret2 = `d - r`;
+	
+	return `
+		uniform float _size;
+		uniform float _spacing;
+		uniform float _width; 
+		uniform float _height;
+		uniform float _depth; 
+		uniform float _offset;
+		uniform float _bulge;        
+
+		#define MIN_E 0.025
+
+		// Uses code from HG_SDF library, http://mercury.sexy/hg_sdf/ 
+		uniform vec3 GDFVectors[19];
+
+		float sdOctahedron(vec3 p, float r, float e) {
+			float d = 0.0;
+			if (e>MIN_E) { for (int i = 3; i <= 6; ++i) ${func}; return ${ret}; }
+			else         { for (int i = 3; i <= 6; ++i) ${func2}; return ${ret2}; }
+		}
+
+		float sdDodecahedron(vec3 p, float r, float e) {
+			float d = 0.0;
+			if (e>MIN_E) { for (int i = 13; i <= 18; ++i) ${func}; return ${ret}; }
+			else         { for (int i = 13; i <= 18; ++i) ${func2}; return ${ret2}; }
+		}
+
+		float sdIcosahedron(vec3 p, float r, float e) {
+			float d = 0.0;
+			if (e>MIN_E) { for (int i = 3; i <= 12; ++i) ${func}; return ${ret}; }
+			else         { for (int i = 3; i <= 12; ++i) ${func2}; return ${ret2}; }
+		}
+
+		float sdTruncatedOctahedron(vec3 p, float r, float e) {
+			float d = 0.0;
+			if (e>MIN_E) { for (int i = 0; i <= 6; ++i) ${func}; return ${ret}; }
+			else         { for (int i = 0; i <= 6; ++i) ${func2}; return ${ret2}; }
+		}
+
+		float sdTruncatedIcosahedron(vec3 p, float r, float e) {
+			float d = 0.0;
+			if (e>MIN_E) { for (int i = 3; i <= 18; ++i) ${func}; return ${ret}; }
+			else         { for (int i = 3; i <= 18; ++i) ${func2}; return ${ret2}; }
+		}
+
+		float sdSphere(vec3 X, float r, float e)                  
+		{                                     
+			return length(X) - r;       
+		}      
+
+		float sdCube(vec3 X, float r, float e)               
+		{                                   
+			vec3 d = abs(X) - vec3(r,r,r);
+			return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));           
+		}  
+
+		float sdBox(vec3 X, vec3 bounds)                     
+		{                                     
+		    vec3 d = abs(X) - bounds;
+		    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+		} 
+
+		float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+		{                            
+			vec3 center = 0.5*(bmin + bmax);
+			vec3 halfExtents = 0.5*(bmax - bmin);         
+			vec3 d = abs(X-center) - halfExtents;
+			return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+		} 
+
+		float lattice(vec3 X, float c)
+		{
+			vec3 r = 0.5*vec3(c,c,c);
+			vec3 q = mod(X-(1.0-_offset)*r, c) - r;
+			return sd${this.parameters.shape}(q, _size, _bulge/5.0);
+		}
+
+		float opI( float d1, float d2 ) { return max(d1,d2); }
+
+		float SDF_METAL(vec3 X)                     
+		{
+			return opI( sdBox(X, vec3(_width, _height, _depth)), 
+						lattice(X, _spacing) );
+		}     
+
+		float SDF_SURFACE(vec3 X)
+	    {            
+	        float L = 1.0e4;
+	        return sdBox(X, vec3(-L,-0.1,-L), vec3(L, 0.0,L));
+	    }
+
+		vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X, in vec3 N)
+		{
+			float albedo = 1.0;
+			if (X.y<=0.001)
+			{
+				float ax = 1.0 - pow(0.5*(1.0 + cos(5.0*X.x)), 100.0);
+				float ay = 1.0 - pow(0.5*(1.0 + cos(5.0*X.z)), 100.0);
+				albedo = ax*ay;
+			}
+		    return vec3(albedo);
+		}
+	`;
+}
+
+Scene.prototype.getMinScale = function() { return 1.0e-4; }
+Scene.prototype.getMaxScale = function() { return 1.0e3; }
+
+Scene.prototype.syncShader = function(shader)
+{
+	shader.uniform3Fv("GDFVectors", this.GDFVectorsFlattened);
+
+	shader.uniformF("_size",    this.parameters.size);
+	shader.uniformF("_bulge",   Math.max(this.parameters.bulge, 1.0e-5));
+	shader.uniformF("_spacing", this.parameters.spacing);
+	shader.uniformF("_width",   this.parameters.width);
+	shader.uniformF("_height",  this.parameters.height);
+	shader.uniformF("_depth",   this.parameters.depth);
+	shader.uniformF("_offset",  this.parameters.offset);
+}
+
+  // set up gui and callbacks for this scene
+  Scene.prototype.initGui = function(gui)            
+  {
+	  	this.typeItem = gui.getSceneFolder().add(this.parameters, 'shape', this.parameters.shapes);
+		this.typeItem.onChange( function(value) { snelly.reset(); } );
+
+	  	gui.addSlider(this.parameters, {name: 'size', min: 0.0, max: 10.0});
+		gui.addSlider(this.parameters, {name: 'bulge', min: 0.0, max: 1.0});
+		gui.addSlider(this.parameters, {name: 'spacing', min: 0.0, max: 50.0});
+		gui.addSlider(this.parameters, {name: 'width', min: 0.0, max: 100.0});
+		gui.addSlider(this.parameters, {name: 'height', min: 0.0, max: 100.0});
+		gui.addSlider(this.parameters, {name: 'depth', min: 0.0, max: 100.0});
+		gui.addSlider(this.parameters, {name: 'offset', min: 0.0, max: 1.0});
+  }
+
+// optionally supply an env-map texture URL (should be lat-long)
+Scene.prototype.envMap = function()
+{
+  	return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg';
+}
+
+</script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                            main loop                              */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+
+var snelly;
+function onLoad()
+{
+	snelly = new Snelly(new Scene());
+	animateLoop();
+}
+function animateLoop() 
+{
+	snelly.render();
+	window.requestAnimationFrame(animateLoop);
+}
+
+</script>
+
+</body>

@@ -323,7 +323,7 @@ function Dielectric(name)
 	Material.call(this, name);
 	this.roughness = 0.005;
 	this.absorptionScale = -1.0; // set later based on scene maxScale
-	this.absorptionColor  = [0.5, 0.5, 0.5];
+	this.absorptionColor  = [1.0, 1.0, 1.0];
 	this.absorptionColorF = [0.0, 0.0, 0.0];
 	this.absorptionRGB    = [0.0, 0.0, 0.0];
 }

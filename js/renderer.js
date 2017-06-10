@@ -54,11 +54,16 @@ PathtracerState.prototype.clear = function(fbo)
 
 
 /** 
-* Interface to the pathtracer. The exposed properties and their defaults are:
+* Interface to the renderer. The rendering modes available are:
+*	- 'pt': pathtracer (uni-directional)
+* 	- 'ao': ambient occlusion, colored via {@link Surface} material diffuse albedo modulated by the `SURFACE_DIFFUSE_REFLECTANCE` shader function
+*   - 'normals': view normal at first hit as a color
+* 	- 'brdf':    view spectral brdf at first hit
+*   - 'diffuse': view first hit {@link Surface} material diffuse albedo, modulated by the `SURFACE_DIFFUSE_REFLECTANCE` shader function
 * @constructor 
 * @property {number} width                 - (if not specified, fits to window) 
 * @property {number} height                - (if not specified, fits to window) 
-* @property {String} [renderMode='pt']     - rendering mode (either 'pt', 'ao', or 'normals') 
+* @property {String} [renderMode='pt']     - rendering mode (either 'pt', 'ao', 'normals', 'brdf', 'diffuse') 
 * @property {number} [maxMarchSteps=256]   - maximum number of raymarching steps per path segment
 * @property {number} [radianceClamp=3.0]   - clamp radiance to (10^) this max value, for firefly reduction
 * @property {number} [skyPower=4.0]        - sky power (arbitrary units)
@@ -68,9 +73,10 @@ PathtracerState.prototype.clear = function(fbo)
 * @property {number} [whitepoint=2.0]      - tonemapping whitepoint
 * @property {number} [goalFPS=10.0]        - sampling will adjust to try to match goal FPS
 * @property {number} [minsSPPToRedraw=0.0] - if >0.0, renderer will not redraw until the specified SPP have been accumulated
-* @property {number} [envMapVisible=true]   - whether env map is visible to primary rays (otherwise black)
-* @property {number} [shadowStrength=1.0] - if <1.0, areas in shadow are not completely dark
+* @property {number} [envMapVisible=true]  - whether env map is visible to primary rays (otherwise black)
+* @property {number} [shadowStrength=1.0]  - if <1.0, areas in shadow are not completely dark
 * @property {number} [maxStepsIsMiss=true] - whether rays which exceed max step count are considered hits or misses
+* @property {number} [AA=true]             - whether to jitter primary ray within pixel for AA
 */
 var Renderer = function()
 {
@@ -111,7 +117,8 @@ var Renderer = function()
 	this.minsSPPToRedraw = 0.0;
 	this.envMapVisible = true;
 	this.shadowStrength = 1.0;
-	this.maxStepsIsMiss = false;
+	this.maxStepsIsMiss = true;
+	this.AA = true;
 
 	// Load shaders
 	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper", "filter"]);
@@ -177,6 +184,15 @@ Renderer.prototype.reset = function(no_recompile = false)
 	this.pathStates[this.currentState+1].clear(this.fbo);
 }
 
+/**
+* Read access to the current per-pixel sample count average.
+* @returns {number} - the current sample count average
+*/
+Renderer.prototype.getSPP = function()
+{
+	return this.spp;
+}
+
 Renderer.prototype.compileShaders = function()
 {
 	// Inject code for the current scene SDF:
@@ -216,19 +232,24 @@ Renderer.prototype.compileShaders = function()
 	// Compile pathtracer with different entry point according to mode.
 	// Here shaderSources is a dict from name (e.g. "trace")
 	// to a dict {v:vertexShaderSource, f:fragmentShaderSource}
-
 	switch (this.renderMode)
 	{
 		case 'ao':
 			replacements.ENTRY_AO = 'main';
 			this.aoProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
 			break;
-
 		case 'normals':
 			replacements.ENTRY_NORMALS = 'main';
 			this.normalsProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
 			break;
-
+		case 'brdf':
+			replacements.ENTRY_BRDF = 'main';
+			this.brdfProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
+			break;
+		case 'diffuse':
+			replacements.ENTRY_SURFACE_DIFFUSE = 'main';
+			this.diffuseProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
+			break;
 		case 'pt':
 		default:
 			replacements.ENTRY_PATHTRACE_ALL = 'main';
@@ -285,18 +306,12 @@ Renderer.prototype.render = function()
 	var INTEGRATOR_PROGRAM = null;
 	switch (this.renderMode)
 	{
-		case 'ao':
-			INTEGRATOR_PROGRAM = this.aoProgram;
-			break;
-
-		case 'normals':
-			INTEGRATOR_PROGRAM = this.normalsProgram;
-			break;
-
+		case 'ao':      INTEGRATOR_PROGRAM = this.aoProgram;           break;
+		case 'normals': INTEGRATOR_PROGRAM = this.normalsProgram;      break;
+		case 'brdf':    INTEGRATOR_PROGRAM = this.brdfProgram;         break;
+		case 'diffuse': INTEGRATOR_PROGRAM = this.diffuseProgram;      break;
 		case 'pt':
-		default:
-			INTEGRATOR_PROGRAM = this.pathtraceAllProgram;
-			break;
+		default:        INTEGRATOR_PROGRAM = this.pathtraceAllProgram; break;
 	}
 
 	INTEGRATOR_PROGRAM.bind();
@@ -336,6 +351,7 @@ Renderer.prototype.render = function()
 	INTEGRATOR_PROGRAM.uniformF("shadowStrength", this.shadowStrength);
 	INTEGRATOR_PROGRAM.uniformI("envMapVisible", Boolean(this.envMapVisible) ? 1 : 0);
 	INTEGRATOR_PROGRAM.uniformI("maxStepsIsMiss", Boolean(this.maxStepsIsMiss) ? 1 : 0);
+	INTEGRATOR_PROGRAM.uniformF("jitter", Boolean(this.AA) ? 1 : 0);
 
 	// gamma correction of env map already done if sRGB ext was loaded
 	if (GLU.sRGBExt != null) INTEGRATOR_PROGRAM.uniformF("gamma", 1.0);

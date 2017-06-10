@@ -59,7 +59,7 @@ GUI.prototype.createRendererSettings = function()
 	var camera = snelly.getCamera();
 
 	// @todo: add a basic AO and normals mode as well, useful for scene debugging.
-	var renderModes = ['pt', 'ao', 'normals'];
+	var renderModes = ['pt', 'ao', 'normals', 'brdf', 'diffuse'];
 	this.rendererFolder.add(pathtracer, 'renderMode', renderModes).onChange( function(renderMode) { pathtracer.renderMode = renderMode; pathtracer.reset(); });
 	this.rendererFolder.add(pathtracer, 'maxBounces', 1, 10).onChange( function(value) { pathtracer.maxBounces = Math.floor(value); pathtracer.reset(); });
 	this.rendererFolder.add(pathtracer, 'maxMarchSteps', 1, 1024).onChange( function(value) { pathtracer.maxMarchSteps = Math.floor(value); pathtracer.reset(); } );
@@ -71,6 +71,7 @@ GUI.prototype.createRendererSettings = function()
 	this.rendererFolder.add(pathtracer, 'shadowStrength', 0.0, 1.0).onChange( function(value) { pathtracer.reset(true); } );
 	this.rendererFolder.add(pathtracer, 'maxStepsIsMiss').onChange( function(value) { pathtracer.reset(true); } );
 	this.rendererFolder.add(pathtracer, 'envMapVisible').onChange( function(value) { pathtracer.reset(true); } );
+	this.rendererFolder.add(pathtracer, 'AA').onChange( function(value) { pathtracer.reset(true); } );
 
 	var skyPowerItem = this.rendererFolder.add(pathtracer, 'skyPower', 0.0, 10.0);
 	skyPowerItem.onChange( function(value) 
@@ -107,6 +108,7 @@ GUI.prototype.createSceneSettings = function()
  * key-value pairs, for supply to this function.
  * @param {Object} parameters - the parameters object for the scene, with key-value pairs for all parameters
  * @param {Object} param - the slider range for this parameter, in the form `{name: 'foo', min: 0.0, max: 100.0, step: 1.0}` (step is optional)
+ * @param {Object} param - optionally, pass the dat.GUI folder to add the parameter to (defaults to the main scene folder)
  * @example
  *		Scene.prototype.initGui = function(gui)            
  *		{
@@ -115,8 +117,10 @@ GUI.prototype.createSceneSettings = function()
  *			gui.addSlider(this.parameters, {name: 'bar', min: 0.0, max: 3.0});
  *		}
  */
-GUI.prototype.addSlider = function(parameters, param)
+GUI.prototype.addSlider = function(parameters, param, folder=undefined)
 {
+	let _f = this.sceneFolder;
+	if (typeof folder !== 'undefined') _f = folder;
 	var name = param.name;
 	var min  = param.min;
 	var max  = param.max;
@@ -125,8 +129,8 @@ GUI.prototype.addSlider = function(parameters, param)
 	var no_recompile = true;
 	if (!(recompile==null || recompile==undefined)) no_recompile = !recompile;
 	var item;
-	if (step==null || step==undefined) { item = this.sceneFolder.add(parameters, name, min, max, step); }
-	else                               { item = this.sceneFolder.add(parameters, name, min, max);       }
+	if (step==null || step==undefined) { item = _f.add(parameters, name, min, max, step); }
+	else                               { item = _f.add(parameters, name, min, max);       }
 	item.onChange( function(value) { snelly.reset(no_recompile); snelly.camera.enabled = false; } );
 	item.onFinishChange( function(value) { snelly.camera.enabled = true; } );
 }

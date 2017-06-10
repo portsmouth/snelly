@@ -256,10 +256,6 @@ let materials = snelly.getMaterials();
 	code += this.guiVisible ? `\nsnelly.showGUI(true);\n` : `\nsnelly.showGUI(false);\n`;
 
 	code += `
-/** Camera settings:
-*		camera is a THREE.PerspectiveCamera object
-* 		controls is a THREE.OrbitControls object
-*/
 camera.fov = ${camera.fov};
 camera.up.set(${camera.up.x}, ${camera.up.y}, ${camera.up.z});
 camera.position.set(${camera.position.x}, ${camera.position.y}, ${camera.position.z});
@@ -282,6 +278,7 @@ renderer.minsSPPToRedraw = ${renderer.minsSPPToRedraw};
 renderer.envMapVisible = ${renderer.envMapVisible};
 renderer.shadowStrength = ${renderer.shadowStrength};
 renderer.maxStepsIsMiss = ${renderer.maxStepsIsMiss};
+renderer.AA = ${renderer.AA};
 
 /** Material settings **/
 let surface = materials.loadSurface();
@@ -409,23 +406,30 @@ Snelly.prototype.render = function()
 	this.textCtx.font = '12px monospace';	// This determines the size of the text and the font family used
 	this.textCtx.clearRect(0, 0, this.textCtx.canvas.width, this.textCtx.canvas.height);
 	this.textCtx.globalAlpha = 0.95;
+	this.textCtx.strokeStyle = 'black';
+	this.textCtx.lineWidth  = 2;
 	if (this.guiVisible)
 	{
 	  	if (this.onSnellyLink) this.textCtx.fillStyle = "#ff5500";
 	  	else                   this.textCtx.fillStyle = "#ffff00";
 	  	let ver = this.getVersion();
+	  	this.textCtx.strokeText('Snelly renderer v'+ver[0]+'.'+ver[1]+'.'+ver[2], 14, 20);
 	  	this.textCtx.fillText('Snelly renderer v'+ver[0]+'.'+ver[1]+'.'+ver[2], 14, 20);
+	  	
 	  	this.textCtx.fillStyle = "#ffccaa";
+	  	this.textCtx.strokeText('spp: ' + (this.pathtracer.spp).toPrecision(3), 14, 35);
 	  	this.textCtx.fillText('spp: ' + (this.pathtracer.spp).toPrecision(3), 14, 35);
 	  	if (this.sceneName != '')
 	  	{
 	  		this.textCtx.fillStyle = "#ffaa22";
+	  		this.textCtx.strokeText(this.sceneName, 14, this.height-25);
 	  		this.textCtx.fillText(this.sceneName, 14, this.height-25);
 	  	}
 		if (this.sceneURL != '')
 		{
 			if (this.onUserLink) this.textCtx.fillStyle = "#aaccff";
 	  		else                 this.textCtx.fillStyle = "#55aaff";
+	  		this.textCtx.strokeText(this.sceneURL, 14, this.height-40);
 	  		this.textCtx.fillText(this.sceneURL, 14, this.height-40);
 		}
 	}

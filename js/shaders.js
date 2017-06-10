@@ -35,6 +35,7 @@ uniform float radianceClamp;
 uniform float skipProbability;
 uniform float shadowStrength;
 uniform bool maxStepsIsMiss;
+uniform bool jitter;
 
 uniform float metalRoughness;
 uniform float dieleRoughness;
@@ -789,7 +790,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     vec3 XYZ = texture2D(WavelengthToXYZ, vec2(w, 0.5)).rgb;
 
     // Jitter over pixel
-    pixel += -0.5 + vec2(rand(rnd), rand(rnd));
+    if (jitter) pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
 
     // Compute world ray direction for this fragment
     vec3 primaryDir = constuctPrimaryDir(pixel);
@@ -804,14 +805,8 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     vec3 colorXYZ; 
     if ( !hit )
     {
-        if (envMapVisible)
-        {
-            colorXYZ = environmentRadianceXYZ(primaryDir);
-        }
-        else
-        {
-            colorXYZ = vec3(0.0);
-        }
+        if (envMapVisible) colorXYZ = environmentRadianceXYZ(primaryDir);
+        else               colorXYZ = vec3(0.0);
     }
     else
     {   
@@ -912,11 +907,8 @@ void ENTRY_PATHTRACE_ALL()
 void ENTRY_NORMALS()
 {
     vec4 rnd = texture2D(RngData, vTexCoord);
-
-    // Jitter over pixel
     vec2 pixel = gl_FragCoord.xy;
-    pixel += -0.5 + vec2(rand(rnd), rand(rnd));
-
+    if (jitter) pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
     vec3 primaryDir = constuctPrimaryDir(pixel);
 
     // Raycast to first hit point
@@ -925,19 +917,25 @@ void ENTRY_NORMALS()
     int rayMaterial = MAT_VACUU;
     int hitMaterial;
     bool hit = traceRay(camPos, primaryDir, pW, hitMaterial, maxScale);
-    vec3 color = vec3(0.0);
+    vec3 colorXYZ;
     if (hit)
     {
         // Compute normal at hit point
         vec3 nW = normal(pW, hitMaterial);
-        color = rgbToXyz(0.5*(nW+vec3(1.0)));
+        colorXYZ = rgbToXyz(0.5*(nW+vec3(1.0)));
     }
+    else
+    {
+        if (envMapVisible) colorXYZ = environmentRadianceXYZ(primaryDir);
+        else               colorXYZ = vec3(0.0);
+    }
+
 
    // Write updated radiance and sample count
     vec4 oldL = texture2D(Radiance, vTexCoord);
     float oldN = oldL.w;
     float newN = oldN + 1.0;
-    vec3 newL = (oldN*oldL.rgb + color) / newN;
+    vec3 newL = (oldN*oldL.rgb + colorXYZ) / newN;
 
     gl_FragData[0] = vec4(newL, newN);
     gl_FragData[1] = rnd;
@@ -965,11 +963,8 @@ void ENTRY_AO()
 
     // Jitter over pixel
     vec2 pixel = gl_FragCoord.xy;
-    pixel += -0.5 + vec2(rand(rnd), rand(rnd));
+    if (jitter) pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
     vec3 primaryDir = constuctPrimaryDir(pixel);
-
-    float w = texture2D(ICDF, vec2(rand(rnd), 0.5)).r;
-    vec3 XYZ = texture2D(WavelengthToXYZ, vec2(w, 0.5)).rgb;
     
     // Raycast to first hit point
     vec3 pW;
@@ -978,7 +973,7 @@ void ENTRY_AO()
     int hitMaterial;
     bool hit = traceRay(camPos, primaryDir, pW, hitMaterial, maxScale);
 
-    float L = 0.0;
+    vec3 colorXYZ;
     if (hit)
     {
         // Compute normal at hit point
@@ -990,14 +985,145 @@ void ENTRY_AO()
         vec3 wiL = sampleHemisphere(rnd, hemispherePdf);
         vec3 wiW = localToWorld(wiL, basis);
 
+        // Compute diffuse albedo at sampled wavelength
+        float w = texture2D(ICDF, vec2(rand(rnd), 0.5)).r;
+        vec3 XYZ = texture2D(WavelengthToXYZ, vec2(w, 0.5)).rgb;
         float diffuseAlbedo = clamp(dot(XYZ, SURFACE_DIFFUSE_REFL_XYZ(pW, nW)), 0.0, 1.0);
 
-        // Set incident radiance to 0.0 or 1.0 according to whether the AO ray hit anything or missed.
+        // Set incident radiance to according to whether the AO ray hit anything or missed.
+        float L;
         if (!Occluded(pW, wiW)) L = diffuseAlbedo;
         else                    L = diffuseAlbedo * abs(1.0 - shadowStrength);
+        colorXYZ = XYZ * L;
+    }
+    else
+    {
+        if (envMapVisible) colorXYZ = environmentRadianceXYZ(primaryDir);
+        else               colorXYZ = vec3(0.0);
     }
 
-    vec3 colorXYZ = XYZ * L;
+    // Write updated radiance and sample count
+    vec4 oldL = texture2D(Radiance, vTexCoord);
+    float oldN = oldL.w;
+    float newN = oldN + 1.0;
+    vec3 newL = (oldN*oldL.rgb + colorXYZ) / newN;
+
+    gl_FragData[0] = vec4(newL, newN);
+    gl_FragData[1] = rnd;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// BRDF integrator
+////////////////////////////////////////////////////////////////////////////////
+
+void ENTRY_BRDF()
+{
+    vec4 rnd = texture2D(RngData, vTexCoord);
+    if (rand(rnd) < skipProbability)
+    {
+        vec4 oldL = texture2D(Radiance, vTexCoord);
+        float oldN = oldL.w;
+        float newN = oldN;
+        vec3 newL = oldL.rgb;
+
+        gl_FragData[0] = vec4(newL, newN);
+        gl_FragData[1] = rnd;
+        return;
+    } 
+
+    // Jitter over pixel
+    vec2 pixel = gl_FragCoord.xy;
+    if (jitter) pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
+    vec3 primaryDir = constuctPrimaryDir(pixel);
+
+    float w = texture2D(ICDF, vec2(rand(rnd), 0.5)).r;
+    float wavelength_nm = 390.0 + (750.0 - 390.0)*w;
+    vec3 XYZ = texture2D(WavelengthToXYZ, vec2(w, 0.5)).rgb;
+    
+    // Raycast to first hit point
+    vec3 pW;
+    vec3 woW = -primaryDir;
+    int rayMaterial = MAT_VACUU;
+    int hitMaterial;
+    bool hit = traceRay(camPos, primaryDir, pW, hitMaterial, maxScale);
+
+    vec3 colorXYZ;
+    if (hit)
+    {
+        // Compute normal at hit point
+        vec3 nW = normal(pW, hitMaterial);
+        Basis basis = makeBasis(nW);
+
+        vec3 woL = worldToLocal(woW, basis);
+        vec3 wiL;
+        float bsdfPdf;
+        float f = sampleBsdf(pW, nW, woL, hitMaterial, wavelength_nm, XYZ, wiL, bsdfPdf, rnd);
+        colorXYZ = XYZ * f;
+    }
+    else
+    {
+        if (envMapVisible) colorXYZ = environmentRadianceXYZ(primaryDir);
+        else               colorXYZ = vec3(0.0);
+    }
+
+    // Write updated radiance and sample count
+    vec4 oldL = texture2D(Radiance, vTexCoord);
+    float oldN = oldL.w;
+    float newN = oldN + 1.0;
+    vec3 newL = (oldN*oldL.rgb + colorXYZ) / newN;
+
+    gl_FragData[0] = vec4(newL, newN);
+    gl_FragData[1] = rnd;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Surface diffuse integrator
+////////////////////////////////////////////////////////////////////////////////
+
+void ENTRY_SURFACE_DIFFUSE()
+{
+    vec4 rnd = texture2D(RngData, vTexCoord);
+    if (rand(rnd) < skipProbability)
+    {
+        vec4 oldL = texture2D(Radiance, vTexCoord);
+        float oldN = oldL.w;
+        float newN = oldN;
+        vec3 newL = oldL.rgb;
+
+        gl_FragData[0] = vec4(newL, newN);
+        gl_FragData[1] = rnd;
+        return;
+    } 
+
+    // Jitter over pixel
+    vec2 pixel = gl_FragCoord.xy;
+    if (jitter) pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
+    vec3 primaryDir = constuctPrimaryDir(pixel);
+
+    float w = texture2D(ICDF, vec2(rand(rnd), 0.5)).r;
+    float wavelength_nm = 390.0 + (750.0 - 390.0)*w;
+    vec3 XYZ = texture2D(WavelengthToXYZ, vec2(w, 0.5)).rgb;
+    
+    // Raycast to first hit point
+    vec3 pW;
+    vec3 woW = -primaryDir;
+    int rayMaterial = MAT_VACUU;
+    int hitMaterial;
+    bool hit = traceRay(camPos, primaryDir, pW, hitMaterial, maxScale);
+
+    vec3 colorXYZ;
+    if (hit)
+    {
+        vec3 nW = normal(pW, hitMaterial);
+        colorXYZ = SURFACE_DIFFUSE_REFL_XYZ(pW, nW);
+    }
+    else
+    {
+        if (envMapVisible) colorXYZ = environmentRadianceXYZ(primaryDir);
+        else               colorXYZ = vec3(0.0);
+    }
 
     // Write updated radiance and sample count
     vec4 oldL = texture2D(Radiance, vTexCoord);

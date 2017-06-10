@@ -152,7 +152,7 @@ Scene.prototype.postframeCallback = function(snelly, gl)
 {
 	let renderer = snelly.getRenderer();
 	let targetSPP = 3.0;
-	if (this.animFrame>=0 && renderer.spp>=targetSPP && this.animFrame<=this.endFrame)
+	if (this.animFrame>=0 && renderer.getSPP()>=targetSPP && this.animFrame<=this.endFrame)
 	{
 		this.advanceFrame = true;
 		this.animFrame++;

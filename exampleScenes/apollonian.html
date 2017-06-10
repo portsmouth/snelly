@@ -6,12 +6,12 @@
 function Scene() {}
 Scene.prototype.init = function(snelly)
 {
-    this.par = {};
-    this.par.scale = 1.0;
-    this.par.time = 30.0;
-
-	/******* copy-pasted console output on 'O', begin *******/
-
+	this.FPS = 24.0;
+	this.targetSPP = 1;
+	this.period = 100.0;
+	this.animFrame = 0;
+	this.advanceFrame = false;
+		
 	let renderer  = snelly.getRenderer();
 	let camera    = snelly.getCamera();
 	let controls  = snelly.getControls();
@@ -19,7 +19,7 @@ Scene.prototype.init = function(snelly)
 		
 	this.par = {};
 	this.par.scale = 1;
-	this.par.time = 33.82663847780127;
+	this.par.time = 36.166666666666664;
 	this.frame = 0;
 		
 	snelly.showGUI(true);
@@ -30,32 +30,33 @@ Scene.prototype.init = function(snelly)
 	*/
 	camera.fov = 45;
 	camera.up.set(0, 1, 0);
-	camera.position.set(9.208243350012737, 21.522961142337905, 36.78806234721043);
-	controls.target.set(0, 0, 0);
+	camera.position.set(31.826673770468147, 16.886492333722373, 26.99192039487546);
+	controls.target.set(8.231096867851464, 2.314333077850181, -6.657627275844926);
 	controls.zoomSpeed = 2;
-	controls.keyPanSpeed = 100;
+	controls.keyPanSpeed = 0.1;
 
 	/** Renderer settings **/
-	renderer.renderMode = 'pt';  // The other modes are: 'ao', 'normals'
+	renderer.renderMode = 'diffuse';
 	renderer.maxBounces = 1;
-	renderer.maxMarchSteps = 50;
+	renderer.maxMarchSteps = 831;
 	renderer.radianceClamp = 3; // (log scale)
 	renderer.skyPower = 1;
 	renderer.skyTemperature = 6000;
-	renderer.exposure = 34.390415785764624;
-	renderer.gamma = 1.7251585623678647;
-	renderer.whitepoint = 2;
+	renderer.exposure = 21.987315010570825;
+	renderer.gamma = 2.5369978858350954;
+	renderer.whitepoint = 1.9168428470754053;
 	renderer.goalFPS = 10;
-	renderer.minsSPPToRedraw = 0;
-	renderer.envMapVisible = false;
+	renderer.minsSPPToRedraw = 1;
+	renderer.envMapVisible = true;
 	renderer.shadowStrength = 0.5;
 	renderer.maxStepsIsMiss = false;
+	renderer.AA = false;
 
 	/** Material settings **/
 	let surface = materials.loadSurface();
 	surface.roughness = 0.005637773079633545;
 	surface.ior = 2.818886539816772;
-	surface.diffuseAlbedo = [1, 0.4117647058823528, 0];
+	surface.diffuseAlbedo = [0.256010131849741, 0.2229911572472127, 0.7843137254901961];
 	surface.specAlbedo = [0.0980392156862745, 0.0980392156862745, 0.0980392156862745];
 
 	let dielectric = materials.loadDielectric('Glass (BK7)');
@@ -65,9 +66,12 @@ Scene.prototype.init = function(snelly)
 
 	let metal = materials.loadMetal('Aluminium');
 	metal.roughness = 0.02;
-
-	/******* copy-pasted console output on 'O', end *******/
 }
+
+
+Scene.prototype.getName = function() { return 'Apollonian sphere packing'; }
+
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snellypt/blob/master/exampleScenes/apollonian.html"; }
 
 Scene.prototype.initGenerator = function()
 {
@@ -91,7 +95,7 @@ Scene.prototype.shader = function()
 	{
 		float s = 1.0;
 		orb = vec4(1000.0); 	
-		for (int i=0; i<8; i++)
+		for (int i=0; i<10; i++)
 		{
 			X = -1.0 + 2.0*fract(0.5*X + 0.5);
 			float r2 = dot(X,X);
@@ -105,19 +109,13 @@ Scene.prototype.shader = function()
 
     float SDF_SURFACE(vec3 X)
     {           
-    	float anim = 1.1 + 0.5*smoothstep(-0.3, 0.3, cos(0.1*time)); 
-        return apollonian(X, anim);
-    }
-
-    float SDF__METAL(vec3 X)
-    {           
-    	float anim = 1.1 + 0.5*smoothstep(-0.3, 0.3, cos(0.1*time)); 
-        return apollonian(X, anim);
+    	const float PI = 3.1415926;
+    	float anim = 1.0 + 0.25*cos(0.02*PI*time*(X.z-X.x)/scale);
+        return 1.5*apollonian(X, anim);
     }
 
     vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X, in vec3 N)
     {
-    	//vec3 color = 0.5*(N + vec3(1.0));
     	vec4 tra = orb;
 
         // lighting
@@ -143,8 +141,65 @@ Scene.prototype.shader = function()
     `;
 }
 
+Scene.prototype.getMinScale = function() { return 1.0e-5; }
+Scene.prototype.getMaxScale = function() { return 1.0e2; }
+
+Scene.prototype.preframeCallback = function(snelly, gl)
+{
+	let renderer  = snelly.getRenderer();
+	let camera    = snelly.getCamera();
+	let controls  = snelly.getControls();
+	let materials = snelly.getMaterials();
+	let gui       = snelly.getGUI();
+
+	let time = this.animFrame/this.FPS;
+	this.endFrame = this.period * this.FPS;
+	if (this.animFrame > this.endFrame) this.animFrame = 0;
+
+	// Advance scene state to next anim frame, if we have reached the spp count for the previous frame
+	if (this.advanceFrame || this.animFrame == 0)
+	{
+		// animate scene
+		this.par.time = time;
+	}
+
+	if (this.advanceFrame)
+	{
+		gui.sync(); 
+
+		// Tell renderer to restart sampling
+		let no_recompile = true;
+		renderer.reset(no_recompile);
+		this.advanceFrame = false;
+	}
+
+	this.timer_start = performance.now();
+}
+
+Scene.prototype.postframeCallback = function(snelly, gl)
+{
+	// pause if FPS exceeded our goal
+	var timer_end = performance.now();
+	var frame_time_ms = (timer_end - this.timer_start);
+	let goal_ms = Math.min(1.0e3, Math.max(1.0, 1.0e3/this.FPS));
+	if (frame_time_ms<goal_ms)
+	{
+		(function pause(ms) {
+		    var t0 = performance.now(); var t1 = null;
+		    do { t1 = performance.now(); } while (t1-t0 < ms);
+		}(goal_ms-frame_time_ms));
+	}
+
+	let renderer = snelly.getRenderer();
+	if (this.animFrame>=0 && renderer.getSPP()>=this.targetSPP && this.animFrame<=this.endFrame)
+	{
+		this.advanceFrame = true;
+		this.animFrame++;
+	}
+}
+
 Scene.prototype.envMap = function() 
-{ return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg'; }
+{ return ''; } //https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg'; }
 
 Scene.prototype.initGui = function(gui) 
 { 
