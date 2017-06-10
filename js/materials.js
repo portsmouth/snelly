@@ -68,26 +68,26 @@ Surface.prototype.syncShader = function(shader)
 * Generic metal material. Supported physical metals are:
 *```
 *  "Aluminium"
-*  "Brass",   
-*  "Calcium", 
-*  "Chromium",
-*  "Cobalt",  
-*  "Copper",  
-*  "Gold",    
-*  "Iridium", 
-*  "Iron",    
-*  "Lead",    
-*  "Mercury", 
-*  "Molybdenum
-*  "Nickel",  
+*  "Brass"
+*  "Calcium"
+*  "Chromium"
+*  "Cobalt"
+*  "Copper" 
+*  "Gold"   
+*  "Iridium"
+*  "Iron" 
+*  "Lead"   
+*  "Mercury"
+*  "Molybdenum"
+*  "Nickel"
 *  "Palladium"
-*  "Platinum",
-*  "Silicon", 
-*  "Silver",  
-*  "Titanium",
-*  "Tungsten",
-*  "Vanadium",
-*  "Zinc",    
+*  "Platinum"
+*  "Silicon"
+*  "Silver"
+*  "Titanium"
+*  "Tungsten"
+*  "Vanadium"
+*  "Zinc"
 *  "Zirconium"
 *```
 * @constructor 
@@ -767,26 +767,26 @@ Materials.prototype.loadDielectric = function(dielectricName)
 * Load the desired Metal object by name. Supported metals are:
 *```
 *  "Aluminium"
-*  "Brass",   
-*  "Calcium", 
-*  "Chromium",
-*  "Cobalt",  
-*  "Copper",  
-*  "Gold",    
-*  "Iridium", 
-*  "Iron",    
-*  "Lead",    
-*  "Mercury", 
-*  "Molybdenum
-*  "Nickel",  
+*  "Brass"
+*  "Calcium"
+*  "Chromium"
+*  "Cobalt"  
+*  "Copper"  
+*  "Gold"    
+*  "Iridium"
+*  "Iron"    
+*  "Lead"    
+*  "Mercury" 
+*  "Molybdenum"
+*  "Nickel"
 *  "Palladium"
-*  "Platinum",
-*  "Silicon", 
-*  "Silver",  
-*  "Titanium",
-*  "Tungsten",
-*  "Vanadium",
-*  "Zinc",    
+*  "Platinum"
+*  "Silicon"
+*  "Silver" 
+*  "Titanium"
+*  "Tungsten"
+*  "Vanadium"
+*  "Zinc" 
 *  "Zirconium"
 *```
 * @param {String} metalName - one of the names listed above
