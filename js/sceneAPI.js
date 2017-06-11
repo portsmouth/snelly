@@ -128,32 +128,42 @@ Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snel
 *```
 * If only one or two of these are present, the others will not be rendered.
 *
-* Optionally, any of the following functions defining the spatial *modulation* of material parameters can be defined.
-* The world space normal of the surface is supplied, to allow for non-physical lighting effects.
-* Note that the color modulation applies to RGB values in sRGB color space.
-* (Any of the user-defined functions below can be omitted, in which case they will be replaced with the default indicated).
+* Optionally, any of the following functions defining the spatial dependence of material reflectances and roughnesses can be defined.
+* The UI-exposed reflectance or roughness is supplied, and can be modified arbitrarily based on the supplied data of the primary ray hit point
+* (and/or any other computed shader variables). The arguments to these functions are as follows:
+*   - *C*: The UI-exposed constant reflectance color ([0,1] floats in sRGB color space)
+*   - *roughness*: The UI-exposed constant roughness
+*   - *X*: world space hit point
+*   - *N*: world space normal at the hit point
+*   - *V*: world space view direction at the hit point
+* Note that the vec3 color returned is also in sRGB color space.
+* (Any of these functions can be omitted, in which case they will be replaced with the default indicated).
 *```glsl
+		// return surface diffuse reflectance (defaults to just return the input UI constant C)
+		vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V);
 
-		// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
-		vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X, in vec3 N);
+		// return surface specular reflectance (defaults to just return the input UI constant C)
+		vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V);
 
-		// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
-		vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 X, in vec3 N);
+		// return surface roughness in [0,1] (defaults to just return the input roughness)
+		float SURFACE_ROUGHNESS(in float roughness, in vec3 X, in vec3 N);
 
-		// space-varying multiplier to the UI-exposed surface roughness constant (defaults to 1.0)
-		float SURFACE_ROUGHNESS(in vec3 X, in vec3 N);
+		// return metal roughness in [0,1] (defaults to just return the input UI constant roughness)
+		float METAL_ROUGHNESS(in float roughness, in vec3 X, in vec3 N);
 
-		// space-varying multiplier to the UI-exposed metal roughness constant (defaults to 1.0)
-		float METAL_ROUGHNESS(in vec3 X, in vec3 N);
+		// return metal specular reflectance (defaults to just return the input C)
+		vec3 METAL_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V);
 
-		// space-varying multiplier to the physical metal Fresnel reflectance (defaults to 1.0)
-		float METAL_FRESNEL(in vec3 X, in vec3 N);
+		// return dielectric roughness in [0,1] (defaults to just return the input UI constant roughness)
+		float DIELECTRIC_ROUGHNESS(in float roughness, in vec3 X, in vec3 N);
 
-		// space-varying multiplier to the UI-exposed dielectric roughness constant (defaults to 1.0)
-		float DIELECTRIC_ROUGHNESS(in vec3 X, in vec3 N);
+		// return dielectric specular reflectance (defaults to just return the input UI constant C)
+		vec3 DIELECTRIC_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V);
 
-		// space-varying multiplier to the physical dielectric Fresnel reflectance (defaults to 1.0)
-		float DIELECTRIC_FRESNEL(in vec3 X, in vec3 N);
+Optionally, an init function can be provided, which will be called first by each primary ray. 
+This is occasionally useful to prepare global variables for use during the succeeding computation for this pixel.
+*```glsl
+	void INIT();
 *```
 * @returns {String}
 */

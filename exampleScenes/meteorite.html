@@ -14,7 +14,7 @@ Scene.prototype.init = function(snelly)
     let materials = snelly.getMaterials();
         
     this.par = {};
-    this.par.radius = 1.0;
+    this.par.radius = 1;
     this.par.frequency = 3.608174770965469;
     this.par.amplitude = 0.48484848484848486;
     this.par.gain = 0.3044397463002114;
@@ -25,21 +25,21 @@ Scene.prototype.init = function(snelly)
 
     camera.fov = 42.60394644115575;
     camera.up.set(0, 1, 0);
-    camera.position.set(1.2122319264365153, 2.5720082137593394, 2.579425131966767);
-    controls.target.set(0.34644664879232306, 0.8475240637036475, -0.16535391789427442);
+    camera.position.set(-2.7783291369243672, 2.753429078306641, -1.3832397179811609);
+    controls.target.set(0.0018428614534252898, 0.8426433164720692, 0.17896421489442735);
     controls.zoomSpeed = 2;
     controls.keyPanSpeed = 100;
 
     /** Renderer settings **/
-    renderer.renderMode = 'pt';  // The other modes are: 'ao', 'normals'
-    renderer.maxBounces = 3;
-    renderer.maxMarchSteps = 256;
-    renderer.radianceClamp = 3; // (log scale)
-    renderer.skyPower = 1;
+    renderer.renderMode = 'pt';
+    renderer.maxBounces = 2;
+    renderer.maxMarchSteps = 128;
+    renderer.radianceClamp = 3;
+    renderer.skyPower = 2.9316420014094433;
     renderer.skyTemperature = 6000;
-    renderer.exposure = 17.477096546863987;
-    renderer.gamma = 2.1649048625792813;
-    renderer.whitepoint = 0.8343904157857647;
+    renderer.exposure = 2;
+    renderer.gamma = 2.0972515856236784;
+    renderer.whitepoint = 1.4207188160676534;
     renderer.goalFPS = 20;
     renderer.minsSPPToRedraw = 0;
     renderer.envMapVisible = false;
@@ -51,7 +51,7 @@ Scene.prototype.init = function(snelly)
     let surface = materials.loadSurface();
     surface.roughness = 0;
     surface.ior = 1.5;
-    surface.diffuseAlbedo = [0.4509803921568627, 0.4509803921568627, 0.4509803921568627];
+    surface.diffuseAlbedo = [1, 1, 1];
     surface.specAlbedo = [0, 0, 0];
 
     let dielectric = materials.loadDielectric('Glass (BK7)');
@@ -86,16 +86,9 @@ Scene.prototype.shader = function()
         return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
     } 
 
-    float hash11(float p) {
-        return fract(sin(p * 727.1)*435.545);
-    }
     float hash12(vec2 p) {
         float h = dot(p,vec2(127.1,311.7)); 
         return fract(sin(h)*437.545);
-    }
-    vec3 hash31(float p) {
-        vec3 h = vec3(127.231,491.7,718.423) * p;   
-        return fract(sin(h)*435.543);
     }
 
     float noise3d(in vec3 X) {
@@ -117,17 +110,17 @@ Scene.prototype.shader = function()
         return max(mix(v1,v2,u.z),0.0);
     }
 
-    float fbm3d(vec3 X) {
-        
+    float fbm3d(vec3 X, float _freq, float _amp, float _gain, float _lacunarity) 
+    {    
         float noise = 0.0;    
-        float a = amp;
+        float a = _amp;
         const int iter = int(${noiseIterations});
-        vec3 P = X * freq;
+        vec3 P = X * _freq;
         for(int i=0; i<iter; i++) 
         {
             noise += a * noise3d(P);
-            a *= gain;
-            P *= lacunarity;
+            a *= _gain;
+            P *= _lacunarity;
         }
         return noise;
     }
@@ -136,7 +129,7 @@ Scene.prototype.shader = function()
     {
         X -= vec3(0.0, R, 0.0);
         vec3 proj = R*normalize(X);
-        return 0.5*(length(X) + 0.5*fbm3d(proj) - R);
+        return 0.5*(length(X) + 0.5*fbm3d(proj, freq, amp, gain, lacunarity) - R);
     }
 
     float SDF_SURFACE(vec3 X)
@@ -145,7 +138,7 @@ Scene.prototype.shader = function()
         return sdBox(X, vec3(-L,-1.0,-L), vec3(L, 0.0,L));
     }
 
-    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X, in vec3 N)
+    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
     {
         float albedo = 1.0;
         const float gridSize = 0.1;
@@ -154,28 +147,14 @@ Scene.prototype.shader = function()
             float ax = 1.0 - pow(0.5*(1.0 + cos(X.x/gridSize)), 300.0);
             float ay = 1.0 - pow(0.5*(1.0 + cos(X.z/gridSize)), 300.0);
             albedo = ax*ay;
+            return vec3(albedo);
         }
-        return vec3(albedo);
+        return C;
     }
 
-    vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 X, in vec3 N)
+    float METAL_ROUGHNESS(in float roughness, in vec3 X, in vec3 N)
     {
-        return vec3(1.0);
-    }
-
-    float SURFACE_ROUGHNESS(in vec3 X, in vec3 N)
-    {
-        return 1.0;
-    }
-
-    float METAL_ROUGHNESS(in vec3 X, in vec3 N)
-    {
-        return clamp(fbm3d(X), 0.0, 1.0);
-    }
-
-    float METAL_FRESNEL(in vec3 X, in vec3 N)
-    {
-        return clamp(1.0-fbm3d(X), 0.0, 1.0);
+        return roughness * clamp(fbm3d(X, freq, amp, gain, lacunarity), 0.0, 1.0);
     }
 
     `;

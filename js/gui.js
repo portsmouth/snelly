@@ -59,7 +59,7 @@ GUI.prototype.createRendererSettings = function()
 	var camera = snelly.getCamera();
 
 	// @todo: add a basic AO and normals mode as well, useful for scene debugging.
-	var renderModes = ['pt', 'ao', 'normals', 'brdf', 'diffuse'];
+	var renderModes = ['pt', 'ao', 'normals', 'diffuse'];
 	this.rendererFolder.add(pathtracer, 'renderMode', renderModes).onChange( function(renderMode) { pathtracer.renderMode = renderMode; pathtracer.reset(); });
 	this.rendererFolder.add(pathtracer, 'maxBounces', 1, 10).onChange( function(value) { pathtracer.maxBounces = Math.floor(value); pathtracer.reset(); });
 	this.rendererFolder.add(pathtracer, 'maxMarchSteps', 1, 1024).onChange( function(value) { pathtracer.maxMarchSteps = Math.floor(value); pathtracer.reset(); } );
@@ -107,9 +107,9 @@ GUI.prototype.createSceneSettings = function()
  * Add a dat.GUI UI slider to control a float parameter.
  * The scene parameters need to be organized into an Object as
  * key-value pairs, for supply to this function.
- * @param {Object} parameters - the parameters object for the scene, with key-value pairs for all parameters
+ * @param {Object} parameters - the parameters object for the scene, with a key-value pair (where value is number) for the float parameter name
  * @param {Object} param - the slider range for this parameter, in the form `{name: 'foo', min: 0.0, max: 100.0, step: 1.0, recompile: true}` (step is optional, recompile is optional [default is false])
- * @param {Object} param - optionally, pass the dat.GUI folder to add the parameter to (defaults to the main scene folder)
+ * @param {Object} folder - optionally, pass the dat.GUI folder to add the parameter to (defaults to the main scene folder)
  * @example
  *		Scene.prototype.initGui = function(gui)            
  *		{
@@ -134,6 +134,36 @@ GUI.prototype.addSlider = function(parameters, param, folder=undefined)
 	else                               { item = _f.add(parameters, name, min, max);       }
 	item.onChange( function(value) { snelly.reset(no_recompile); snelly.camera.enabled = false; } );
 	item.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+}
+
+/** 
+ * Add a dat.GUI UI color picker to control a 3-element array parameter (where the RGB color channels are mapped into [0,1] float range)
+ * @param {Object} parameters - the parameters object for the scene, with a key-value pair (where value is a 3-element array) for the color parameter name
+ * @param {Object} name - the color parameter name
+ * @param {Object} folder - optionally, pass a scale factor to apply to the RGB color components to calculate the result (defaults to 1.0)
+ * @param {Object} folder - optionally, pass the dat.GUI folder to add the parameter to (defaults to the main scene folder)
+*/
+GUI.prototype.addColor = function(parameters, name, scale=1.0, folder=undefined)
+{
+	let _f = this.sceneFolder;
+	if (typeof folder !== 'undefined') _f = folder;
+	_f[name] = [parameters[name][0]*255.0, parameters[name][1]*255.0, parameters[name][2]*255.0];
+	_f.addColor(_f, name).onChange( function(color) {
+								if (typeof color==='string' || color instanceof String)
+								{
+									var C = hexToRgb(color);
+									parameters[name][0] = scale * C.r / 255.0;
+									parameters[name][1] = scale * C.g / 255.0;
+									parameters[name][2] = scale * C.b / 255.0;
+								}
+								else
+								{
+									parameters[name][0] = scale * color[0] / 255.0;
+									parameters[name][1] = scale * color[1] / 255.0;
+									parameters[name][2] = scale * color[2] / 255.0;
+								}
+								snelly.reset(true);
+							} );
 }
 
 // (deprecated)

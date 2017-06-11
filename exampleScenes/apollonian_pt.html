@@ -1,0 +1,134 @@
+
+<body onload="onLoad();">
+<script type="text/javascript" src="../js/compiled/snelly.min.js"></script>
+<script type="text/javascript">
+
+function Scene() {}
+Scene.prototype.init = function(snelly)
+{
+	this.FPS = 24.0;
+	this.targetSPP = 1;
+	this.period = 100.0;
+	this.animFrame = 0;
+	this.advanceFrame = false;
+		
+	let renderer  = snelly.getRenderer();
+	let camera    = snelly.getCamera();
+	let controls  = snelly.getControls();
+	let materials = snelly.getMaterials();
+		
+	this.par = {};
+	this.par.scale = 1.014799154334038;
+	this.par.time = 2.255109231853418;
+	this.frame = 0;
+		
+	snelly.showGUI(true);
+
+	camera.fov = 45;
+	camera.up.set(0, 1, 0);
+	camera.position.set(2.0898485265966222, 0.15104740885024814, -3.3049811713210895);
+	controls.target.set(1.2352263477824712, -0.8505369979388303, 1.1190063465362112);
+	controls.zoomSpeed = 0.1;
+	controls.keyPanSpeed = 0.1;
+
+	/** Renderer settings **/
+	renderer.renderMode = 'pt';  // The other modes are: 'ao', 'normals'
+	renderer.maxBounces = 1;
+	renderer.maxMarchSteps = 128;
+	renderer.radianceClamp = 3; // (log scale)
+	renderer.skyPower = 1;
+	renderer.skyTemperature = 6000;
+	renderer.exposure = 9.584214235377026;
+	renderer.gamma = 1.014799154334038;
+	renderer.whitepoint = 2;
+	renderer.goalFPS = 10;
+	renderer.minsSPPToRedraw = 0;
+	renderer.envMapVisible = true;
+	renderer.shadowStrength = 0;
+	renderer.maxStepsIsMiss = false;
+	renderer.AA = true;
+
+	/** Material settings **/
+	let surface = materials.loadSurface();
+	surface.roughness = 0;
+	surface.ior = 2.7061310782241015;
+	surface.diffuseAlbedo = [0.10899653979238752, 0.7941176470588236, 0.5120089558314675];
+	surface.specAlbedo = [1, 1, 1];
+
+	let dielectric = materials.loadDielectric('Glass (BK7)');
+	dielectric.absorptionColor = [0.5, 0.5, 0.5];
+	dielectric.absorptionScale = -1; // mfp in multiples of scene scale
+	dielectric.roughness = 0.005;
+
+	let metal = materials.loadMetal('Aluminium');
+	metal.roughness = 0.02;
+}
+
+
+Scene.prototype.getName = function() { return 'Apollonian sphere packing (pathtraced)'; }
+
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snellypt/blob/master/exampleScenes/apollonian_pt.html"; }
+
+Scene.prototype.initGenerator = function()
+{
+	return `
+this.par = {};
+this.par.scale = ${this.par.scale};
+this.par.time = ${this.par.time};
+this.frame = 0;
+	`; 
+}
+
+Scene.prototype.shader = function()
+{
+	// based on https://www.shadertoy.com/view/4ds3zn by iq
+    return `
+    uniform float scale;
+   	uniform float time;
+
+	float apollonian(vec3 X, float t)
+	{
+		float s = 1.0;
+		for (int i=0; i<10; i++)
+		{
+			X = -1.0 + 2.0*fract(0.5*X + 0.5);
+			float r2 = dot(X,X);
+			float k = t/r2;
+			X *= k;
+			s *= k;
+		}
+		return 0.25*abs(X.y)/(s*scale);
+	}
+
+    float SDF_SURFACE(vec3 X)
+    {           
+    	const float PI = 3.1415926;
+    	float anim = 1.0 + 0.25*cos(0.02*PI*time*(X.z-X.x)/scale);
+        return 1.5*apollonian(X, anim);
+    }
+    `;
+}
+
+Scene.prototype.getMinScale = function() { return 1.0e-5; }
+Scene.prototype.getMaxScale = function() { return 1.0e2; }
+
+Scene.prototype.envMap = function() 
+{ return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg'; }
+
+Scene.prototype.initGui = function(gui) 
+{ 
+	gui.addSlider(this.par, {name: 'scale', min: 0.0, max: 10.0}); 
+	gui.addSlider(this.par, {name: 'time', min: 0.0, max: 100.0}); 
+}
+
+Scene.prototype.syncShader = function(shader) 
+{ 
+	shader.uniformF("scale", this.par.scale);
+	shader.uniformF("time", this.par.time);
+}
+
+function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+
+</script>
+</body>

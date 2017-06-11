@@ -101,6 +101,7 @@ function Metal(name)
 {
 	Material.call(this, name);
 	this.roughness = 0.02;
+	this.specAlbedo = [1.0, 1.0, 1.0];
 }
 
 Metal.prototype = Object.create(Material.prototype);
@@ -108,6 +109,9 @@ Metal.prototype = Object.create(Material.prototype);
 Metal.prototype.syncShader = function(shader)
 {
 	shader.uniformF("metalRoughness", this.roughness);
+
+	this.specAlbedoXYZ = rgbToXyz(this.specAlbedo);
+	shader.uniform3Fv("metalSpecAlbedoXYZ", this.specAlbedoXYZ);
 }
 
 Metal.prototype.initGui  = function(parentFolder) 
@@ -115,16 +119,32 @@ Metal.prototype.initGui  = function(parentFolder)
 	this.roughnessItem = parentFolder.add(this, 'roughness', 0.0, 0.1);
 	this.roughnessItem.onChange( function(value) { snelly.camControls.enabled = false; snelly.reset(true); } );
 	this.roughnessItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
-}
 
-Metal.prototype.syncGui = function() 
-{
-
+	this.specular = [this.specAlbedo[0]*255.0, this.specAlbedo[1]*255.0, this.specAlbedo[2]*255.0];
+	this.specItem = parentFolder.addColor(this, 'specular');
+	var ME = this;
+	this.specItem.onChange( function(albedo) {
+								if (typeof albedo==='string' || albedo instanceof String)
+								{
+									var color = hexToRgb(albedo);
+									ME.specAlbedo[0] = color.r / 255.0;
+									ME.specAlbedo[1] = color.g / 255.0;
+									ME.specAlbedo[2] = color.b / 255.0;
+								}
+								else
+								{
+									ME.specAlbedo[0] = albedo[0] / 255.0;
+									ME.specAlbedo[1] = albedo[1] / 255.0;
+									ME.specAlbedo[2] = albedo[2] / 255.0;
+								}
+								snelly.reset(true);
+							} );
 }
 
 Metal.prototype.eraseGui = function(parentFolder) 
 { 
 	parentFolder.remove(this.roughnessItem);
+	parentFolder.remove(this.specItem);
 }
 
 function tabulated_aluminium() { // 64 samples of n, k between 390.000000nm and 750.000000nm
@@ -326,6 +346,7 @@ function Dielectric(name)
 	this.absorptionColor  = [1.0, 1.0, 1.0];
 	this.absorptionColorF = [0.0, 0.0, 0.0];
 	this.absorptionRGB    = [0.0, 0.0, 0.0];
+	this.specAlbedo = [1.0, 1.0, 1.0];
 }
 
 Dielectric.prototype = Object.create(Material.prototype);
@@ -333,6 +354,9 @@ Dielectric.prototype = Object.create(Material.prototype);
 Dielectric.prototype.syncShader = function(shader)
 {
 	shader.uniformF("dieleRoughness", this.roughness);
+
+	this.specAlbedoXYZ = rgbToXyz(this.specAlbedo);
+	shader.uniform3Fv("dieleSpecAlbedoXYZ", this.specAlbedoXYZ);
 
 	var sceneScale = snelly.maxScale;
 	this.absorptionRGB[0] = sceneScale/Math.max(this.absorptionScale, 1.0e-3) * Math.max(0.0, 1.0 - this.absorptionColor[0]);
@@ -373,11 +397,32 @@ Dielectric.prototype.initGui  = function(parentFolder)
 	this.absorptionScaleItem = parentFolder.add(this, 'absorptionScale', 0.0, snelly.maxScale);
 	this.absorptionScaleItem.onChange( function(value) { snelly.camera.enabled = false; snelly.reset(true); } );
 	this.absorptionScaleItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
+
+	this.specular = [this.specAlbedo[0]*255.0, this.specAlbedo[1]*255.0, this.specAlbedo[2]*255.0];
+	this.specItem = parentFolder.addColor(this, 'specular');
+	var ME = this;
+	this.specItem.onChange( function(albedo) {
+								if (typeof albedo==='string' || albedo instanceof String)
+								{
+									var color = hexToRgb(albedo);
+									ME.specAlbedo[0] = color.r / 255.0;
+									ME.specAlbedo[1] = color.g / 255.0;
+									ME.specAlbedo[2] = color.b / 255.0;
+								}
+								else
+								{
+									ME.specAlbedo[0] = albedo[0] / 255.0;
+									ME.specAlbedo[1] = albedo[1] / 255.0;
+									ME.specAlbedo[2] = albedo[2] / 255.0;
+								}
+								snelly.reset(true);
+							} );
 }
 
 Dielectric.prototype.eraseGui = function(parentFolder) 
 { 
 	parentFolder.remove(this.roughnessItem);
+	parentFolder.remove(this.specItem);
 	parentFolder.remove(this.absorptionColorItem);
 	parentFolder.remove(this.absorptionScaleItem);
 }

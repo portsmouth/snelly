@@ -6,8 +6,6 @@
 function Scene() {}
 Scene.prototype.init = function(snelly)
 {
-    /******* copy-pasted console output on 'O', begin *******/
-
     let renderer  = snelly.getRenderer();
     let camera    = snelly.getCamera();
     let controls  = snelly.getControls();
@@ -15,7 +13,7 @@ Scene.prototype.init = function(snelly)
         
     this.par = {};
     this.par.radius = 0.8682170542635659;
-    this.par.frequency = 4.397463002114165;
+    this.par.frequency = 5.07399577167019;
     this.par.amplitude = -0.23326286116983797;
     this.par.gain = 0.16913319238900634;
     this.par.lacunarity = 4;
@@ -25,13 +23,13 @@ Scene.prototype.init = function(snelly)
 
     camera.fov = 42.60394644115575;
     camera.up.set(0, 1, 0);
-    camera.position.set(-4.067837050355633, 2.5868371146771927, -0.8844275581524638);
-    controls.target.set(-0.15494639544004016, 0.6423867717101835, 0.43513738628183984);
+    camera.position.set(2.5670825070001833, 2.764551097837118, -1.0389272550047641);
+    controls.target.set(-0.308509531481717, 0.6099876931101093, -0.08511036517926573);
     controls.zoomSpeed = 2;
     controls.keyPanSpeed = 100;
 
     /** Renderer settings **/
-    renderer.renderMode = 'pt';  // The other modes are: 'ao', 'normals'
+    renderer.renderMode = 'pt';
     renderer.maxBounces = 3;
     renderer.maxMarchSteps = 256;
     renderer.radianceClamp = 3; // (log scale)
@@ -51,18 +49,8 @@ Scene.prototype.init = function(snelly)
     let surface = materials.loadSurface();
     surface.roughness = 0.016913319238900635;
     surface.ior = 2.142353770260747;
-    surface.diffuseAlbedo = [1, 1, 1];
-    surface.specAlbedo = [0.20588235294117652, 0.1643259379876518, 0.10495963091118803];
-
-    let dielectric = materials.loadDielectric('Glass (BK7)');
-    dielectric.absorptionColor = [1, 1, 1];
-    dielectric.absorptionScale = -1; // mfp in multiples of scene scale
-    dielectric.roughness = 0.005;
-
-    let metal = materials.loadMetal('Nickel');
-    metal.roughness = 0.02;
-
-    /******* copy-pasted console output on 'O', end *******/
+    surface.diffuseAlbedo = [0.9688581314878892, 1, 0.9117647058823529];
+    surface.specAlbedo = [0.12745098039215685, 0.06129995250695435, 0.03373702422145328];
 }
 
 Scene.prototype.getName = function() { return 'Rock'; }
@@ -86,16 +74,9 @@ Scene.prototype.shader = function()
         return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
     } 
 
-    float hash11(float p) {
-        return fract(sin(p * 727.1)*435.545);
-    }
     float hash12(vec2 p) {
         float h = dot(p,vec2(127.1,311.7)); 
         return fract(sin(h)*437.545);
-    }
-    vec3 hash31(float p) {
-        vec3 h = vec3(127.231,491.7,718.423) * p;   
-        return fract(sin(h)*435.543);
     }
 
     float noise3d(in vec3 X) {
@@ -147,7 +128,7 @@ Scene.prototype.shader = function()
         return opU(rock, floor);
     }
 
-    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X, in vec3 N)
+    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
     {
         if (X.y<=1.0e-3)
         {
@@ -158,12 +139,12 @@ Scene.prototype.shader = function()
         }
         else
         {
-            float noise = clamp(abs(20.0*fbm3d(X, 10.0*freq, 2.0*amp, gain, lacunarity)), 0.0, 1.0);
-            return vec3(0.1+0.5*noise, 0.05, 0.03);
+            float noise = 2.0 * smoothstep(0.0, 2.0*R, X.y) * clamp(abs(fbm3d(X, 10.0*freq, 2.0*amp, gain, lacunarity)), 0.0, 1.0);
+            return C * vec3(0.4*noise, 0.05+0.02*smoothstep(0.0, 2.0*R, X.y), 0.05*(1.0-noise));
         }
     }
 
-    vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 X, in vec3 N)
+    vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
     {
         if (X.y<=0.01)
         {
@@ -171,13 +152,8 @@ Scene.prototype.shader = function()
         }
         else
         {
-            return vec3(1.0);
+            return C;
         }
-    }
-
-    float SURFACE_ROUGHNESS(in vec3 X, in vec3 N)
-    {
-        return 1.0;
     }
 
     `;

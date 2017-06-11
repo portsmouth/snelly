@@ -265,10 +265,10 @@ controls.zoomSpeed = ${controls.zoomSpeed};
 controls.keyPanSpeed = ${controls.keyPanSpeed};
 
 /** Renderer settings **/
-renderer.renderMode = '${renderer.renderMode}';  // The other modes are: 'ao', 'normals'
+renderer.renderMode = '${renderer.renderMode}';
 renderer.maxBounces = ${renderer.maxBounces};
 renderer.maxMarchSteps = ${renderer.maxMarchSteps};
-renderer.radianceClamp = ${renderer.radianceClamp}; // (log scale)
+renderer.radianceClamp = ${renderer.radianceClamp};
 renderer.skyPower = ${renderer.skyPower};
 renderer.skyTemperature = ${renderer.skyTemperature};
 renderer.exposure = ${renderer.exposure};

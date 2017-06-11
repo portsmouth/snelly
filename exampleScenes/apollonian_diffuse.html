@@ -69,9 +69,9 @@ Scene.prototype.init = function(snelly)
 }
 
 
-Scene.prototype.getName = function() { return 'Apollonian sphere packing'; }
+Scene.prototype.getName = function() { return 'Apollonian sphere packing (fake diffuse)'; }
 
-Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snellypt/blob/master/exampleScenes/apollonian.html"; }
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snellypt/blob/master/exampleScenes/apollonian_diffuse.html"; }
 
 Scene.prototype.initGenerator = function()
 {
@@ -85,7 +85,8 @@ this.frame = 0;
 
 Scene.prototype.shader = function()
 {
-    return `
+	// based on https://www.shadertoy.com/view/4ds3zn by iq
+	return `
     uniform float scale;
    	uniform float time;
    	vec4 orb;
@@ -113,7 +114,7 @@ Scene.prototype.shader = function()
         return 1.5*apollonian(X, anim);
     }
 
-    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X, in vec3 N)
+    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
     {
     	vec4 tra = orb;
 
@@ -135,7 +136,7 @@ Scene.prototype.shader = function()
         rgb = mix(rgb, vec3(1.0,0.55,0.0), pow(clamp(1.0-2.0*tra.z,0.0,1.0), 8.0));
 
         // color
-        return rgb*brdf;
+        return C * rgb * brdf;
     }
     `;
 }
@@ -196,9 +197,6 @@ Scene.prototype.postframeCallback = function(snelly, gl)
 		this.animFrame++;
 	}
 }
-
-Scene.prototype.envMap = function() 
-{ return ''; } //https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg'; }
 
 Scene.prototype.initGui = function(gui) 
 { 

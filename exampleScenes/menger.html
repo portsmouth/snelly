@@ -1,0 +1,199 @@
+
+<body onload="onLoad();">
+<script type="text/javascript" src="../js/compiled/snelly.min.js"></script>
+<script type="text/javascript">
+
+function Scene() {}
+Scene.prototype.init = function(snelly)
+{
+	let renderer  = snelly.getRenderer();
+	let camera    = snelly.getCamera();
+	let controls  = snelly.getControls();
+	let materials = snelly.getMaterials();
+		
+	this.par = {};
+	this.par.scale = 0.4510218463706836;
+	this.par.rotation = [0,0,0];
+	this.par.numIterations = 6;
+	    
+	snelly.showGUI(true);
+
+	camera.fov = 45;
+	camera.up.set(0, 1, 0);
+	camera.position.set(-2.9520402657563745, 3.1391808649337656, -1.8001470342036083);
+	controls.target.set(0.34020701366979117, 0.20748564352678772, 0.6882820335375682);
+	controls.zoomSpeed = 1;
+	controls.keyPanSpeed = 0.1;
+
+	/** Renderer settings **/
+	renderer.renderMode = 'pt';
+	renderer.maxBounces = 3;
+	renderer.maxMarchSteps = 128;
+	renderer.radianceClamp = 3;
+	renderer.skyPower = 1;
+	renderer.skyTemperature = 6000;
+	renderer.exposure = 9.584214235377026;
+	renderer.gamma = 1.014799154334038;
+	renderer.whitepoint = 2;
+	renderer.goalFPS = 10;
+	renderer.minsSPPToRedraw = 0;
+	renderer.envMapVisible = false;
+	renderer.shadowStrength = 1;
+	renderer.maxStepsIsMiss = true;
+	renderer.AA = true;
+
+	/** Material settings **/
+	let surface = materials.loadSurface();
+	surface.roughness = 0.08;
+	surface.ior = 2.7061310782241015;
+	surface.diffuseAlbedo = [1, 1, 1];
+	surface.specAlbedo = [0.5294117647058824, 0.45247303073478523, 0.31141868512110726];
+
+	let dielectric = materials.loadDielectric('Glass (BK7)');
+	dielectric.absorptionColor = [0.5, 0.5, 0.5];
+	dielectric.absorptionScale = -1; // mfp in multiples of scene scale
+	dielectric.roughness = 0.005;
+
+	let metal = materials.loadMetal('Aluminium');
+	metal.roughness = 0.02;
+}
+
+
+Scene.prototype.getName = function() { return 'Menger sponge'; }
+
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snellypt/blob/master/exampleScenes/menger.html"; }
+
+Scene.prototype.initGenerator = function()
+{
+    return `
+this.par = {};
+this.par.scale = ${this.par.scale};
+this.par.rotation = [${this.par.rotation}];
+this.par.numIterations = ${this.par.numIterations};
+    `; 
+}
+
+Scene.prototype.shader = function()
+{
+	let numIterations = this.par.numIterations;
+
+    return `
+    uniform vec3 RotVector;
+    uniform float scale;
+
+	vec2 rotate2d(vec2 v, float a) 
+	{
+	 	return vec2(cos(a)*v.x + sin(a)*v.y, -sin(a)*v.x + cos(a)*v.y); 
+	}
+
+	float sdBox(vec3 X, vec3 bounds)                     
+	{                                     
+	    vec3 d = abs(X) - bounds;
+	    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+	} 
+
+	float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+    {                            
+        vec3 d = abs(X-0.5*(bmin+bmax)) - 0.5*(bmax-bmin);
+        return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+    } 
+
+	float sdCross( in vec3 p )
+	{
+		float inf = 1.0e6;
+		float da = sdBox(p.xyz, vec3(inf,1.0,1.0));
+		float db = sdBox(p.yzx, vec3(1.0,inf,1.0));
+		float dc = sdBox(p.zxy, vec3(1.0,1.0,inf));
+		return min(da,min(db,dc));
+	}
+
+	mat3 rotationMatrix3(vec3 v, float angle)
+	{
+		float c = cos(radians(angle));
+		float s = sin(radians(angle));
+		return mat3(c + (1.0-c)*v.x*v.x,             (1.0-c)*v.x*v.y - s*v.z,     (1.0-c)*v.x*v.z + s*v.y,
+			            (1.0-c)*v.x*v.y + s*v.z, c + (1.0-c)*v.y*v.y,             (1.0-c)*v.y*v.z - s*v.x,
+			            (1.0-c)*v.x*v.z - s*v.y,     (1.0-c)*v.y*v.z + s*v.x, c + (1.0-c)*v.z*v.z );
+	}
+
+	mat3 rot;
+
+	void INIT()
+	{
+		float angle = length(RotVector);
+		vec3 axis = vec3(0.0, 1.0, 0.0);
+		if (angle>0.0) axis = normalize(RotVector);
+		rot = rotationMatrix3(axis, angle);
+	}
+
+	float menger(vec3 X) 
+	{
+		float sd = sdBox(X, vec3(1.0));
+		float s = scale;
+		const int iter = int(${numIterations});
+		for (int i=0; i<iter; i++) 
+		{
+			X.xyz *= rot;
+			vec3 a = mod(X*s, 2.0)-1.0;
+			s *= 3.0;
+			vec3 r = abs(1.0 - 3.0*abs(a));
+			float da = max(r.x,r.y);
+			float db = max(r.y,r.z);
+			float dc = max(r.z,r.x);
+			float c = (min(da,min(db,dc))-1.0)/s;
+			sd = max(sd, c);
+		}
+		return sd;
+	}	
+
+	float opU(float d1, float d2) { return min(d1,d2); }
+
+    float SDF_SURFACE(in vec3 X)
+    {            
+        float L = 1.0e4;
+        float floor = sdBox(X, vec3(-L,-1.0,-L), vec3(L, 0.0,L));
+        float fractal = menger(X-vec3(0, 1.0, 0));;
+        return opU(fractal, floor);
+    }
+
+    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
+    {
+        if (X.y <= 1.0e-3)
+        {
+            const float gridSize = 0.1;
+            float ax = 1.0 - pow(0.5*(1.0 + cos(X.x/gridSize)), 300.0);
+            float ay = 1.0 - pow(0.5*(1.0 + cos(X.z/gridSize)), 300.0);
+            return vec3(ax*ay);
+        }
+        else
+        {
+            return C;
+        }
+    }
+    `;
+}
+
+Scene.prototype.getMinScale = function() { return 1.0e-5; }
+Scene.prototype.getMaxScale = function() { return 1.0e2; }
+
+Scene.prototype.envMap = function() 
+{ return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg'; }
+
+Scene.prototype.initGui = function(gui) 
+{ 
+    gui.addSlider(this.par, {name: 'scale', min: 0.0, max: 10.0});
+	gui.addColor(this.par, "rotation", 180.0);
+    gui.addSlider(this.par, {name: 'numIterations', min: 1, max: 10, step: 1, recompile: true}); 
+}
+
+Scene.prototype.syncShader = function(shader) 
+{ 
+	shader.uniformF("scale", this.par.scale);
+	shader.uniform3Fv("RotVector", this.par.rotation);
+}
+
+function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+
+</script>
+</body>

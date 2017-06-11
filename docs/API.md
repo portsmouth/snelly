@@ -168,28 +168,31 @@ Optional clickable URL (displayed in UI)
 <a name="Scene+shader"></a>
 
 ### scene.shader() ⇒ <code>String</code>
-Returns a chunk of GLSL code defining the SDFs which determine the geometry of uber-surface, metal and dielectric materials in the scene.Define also (optionally) functions giving the 3d spatial dependence of the material parameters.This function is mandatory!The code *must* define at least one of the three functions:```glsl     float SDF_METAL(vec3 X);     float SDF_DIELECTRIC(vec3 X);     float SDF_DIFFUSE(vec3 X);```If only one or two of these are present, the others will not be rendered.Optionally, any of the following functions defining the spatial *modulation* of material parameters can be defined.The world space normal of the surface is supplied, to allow for non-physical lighting effects.Note that the color modulation applies to RGB values in sRGB color space.(Any of the user-defined functions below can be omitted, in which case they will be replaced with the default indicated).```glsl
+Returns a chunk of GLSL code defining the SDFs which determine the geometry of uber-surface, metal and dielectric materials in the scene.Define also (optionally) functions giving the 3d spatial dependence of the material parameters.This function is mandatory!The code *must* define at least one of the three functions:```glsl     float SDF_METAL(vec3 X);     float SDF_DIELECTRIC(vec3 X);     float SDF_DIFFUSE(vec3 X);```If only one or two of these are present, the others will not be rendered.Optionally, any of the following functions defining the spatial dependence of material reflectances and roughnesses can be defined.The UI-exposed reflectance or roughness is supplied, and can be modified arbitrarily based on the supplied data of the primary ray hit point(and/or any other computed shader variables). The arguments to these functions are as follows:  - *C*: The UI-exposed constant reflectance color ([0,1] floats in sRGB color space)  - *roughness*: The UI-exposed constant roughness  - *X*: world space hit point  - *N*: world space normal at the hit point  - *V*: world space view direction at the hit pointNote that the vec3 color returned is also in sRGB color space.(Any of these functions can be omitted, in which case they will be replaced with the default indicated).```glsl
+		// return surface diffuse reflectance (defaults to just return the input UI constant C)
+		vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V);
 
-		// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
-		vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X, in vec3 N);
+		// return surface specular reflectance (defaults to just return the input UI constant C)
+		vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V);
 
-		// space-varying multiplier to the UI-exposed color (defaults to vec3(1.0))
-		vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 X, in vec3 N);
+		// return surface roughness in [0,1] (defaults to just return the input roughness)
+		float SURFACE_ROUGHNESS(in float roughness, in vec3 X, in vec3 N);
 
-		// space-varying multiplier to the UI-exposed surface roughness constant (defaults to 1.0)
-		float SURFACE_ROUGHNESS(in vec3 X, in vec3 N);
+		// return metal roughness in [0,1] (defaults to just return the input UI constant roughness)
+		float METAL_ROUGHNESS(in float roughness, in vec3 X, in vec3 N);
 
-		// space-varying multiplier to the UI-exposed metal roughness constant (defaults to 1.0)
-		float METAL_ROUGHNESS(in vec3 X, in vec3 N);
+		// return metal specular reflectance (defaults to just return the input C)
+		vec3 METAL_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V);
 
-		// space-varying multiplier to the physical metal Fresnel reflectance (defaults to 1.0)
-		float METAL_FRESNEL(in vec3 X, in vec3 N);
+		// return dielectric roughness in [0,1] (defaults to just return the input UI constant roughness)
+		float DIELECTRIC_ROUGHNESS(in float roughness, in vec3 X, in vec3 N);
 
-		// space-varying multiplier to the UI-exposed dielectric roughness constant (defaults to 1.0)
-		float DIELECTRIC_ROUGHNESS(in vec3 X, in vec3 N);
+		// return dielectric specular reflectance (defaults to just return the input UI constant C)
+		vec3 DIELECTRIC_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V);
 
-		// space-varying multiplier to the physical dielectric Fresnel reflectance (defaults to 1.0)
-		float DIELECTRIC_FRESNEL(in vec3 X, in vec3 N);```
+Optionally, an init function can be provided, which will be called first by each primary ray. 
+This is occasionally useful to prepare global variables for use during the succeeding computation for this pixel.```glsl
+	void INIT();```
 
 **Kind**: instance method of [<code>Scene</code>](#Scene)  
 <a name="Scene+initGui"></a>
@@ -261,7 +264,7 @@ Optional callback after every frame.Animation rendering logic can be implemente
 | --- | --- | --- | --- |
 | width | <code>number</code> |  | (if not specified, fits to window) |
 | height | <code>number</code> |  | (if not specified, fits to window) |
-| renderMode | <code>String</code> | <code>&#x27;pt&#x27;</code> | rendering mode (either 'pt', 'ao', 'normals', 'brdf', 'diffuse') |
+| renderMode | <code>String</code> | <code>&#x27;pt&#x27;</code> | rendering mode (either 'pt', 'ao', 'normals', 'diffuse') |
 | maxMarchSteps | <code>number</code> | <code>256</code> | maximum number of raymarching steps per path segment |
 | radianceClamp | <code>number</code> | <code>3.0</code> | clamp radiance to (10^) this max value, for firefly reduction |
 | skyPower | <code>number</code> | <code>4.0</code> | sky power (arbitrary units) |
@@ -273,7 +276,7 @@ Optional callback after every frame.Animation rendering logic can be implemente
 | minsSPPToRedraw | <code>number</code> | <code>0.0</code> | if >0.0, renderer will not redraw until the specified SPP have been accumulated |
 | envMapVisible | <code>number</code> | <code>true</code> | whether env map is visible to primary rays (otherwise black) |
 | envMapRotation | <code>number</code> | <code>0.0</code> | env map rotation about pole in degrees (0 to 360) |
-| shadowStrength | <code>number</code> | <code>1.0</code> | if <1.0, areas in shadow are not completely dark |
+| shadowStrength | <code>number</code> | <code>1.0</code> | if <1.0, areas in shadow are not completely dark (provided mostly to allow rendering of occluded areas, e.g. fractals) |
 | maxStepsIsMiss | <code>number</code> | <code>true</code> | whether rays which exceed max step count are considered hits or misses |
 | AA | <code>number</code> | <code>true</code> | whether to jitter primary ray within pixel for AA |
 
@@ -286,7 +289,7 @@ Optional callback after every frame.Animation rendering logic can be implemente
 <a name="new_Renderer_new"></a>
 
 ### new Renderer()
-Interface to the renderer. The rendering modes available are:	- 'pt': pathtracer (uni-directional)	- 'ao': ambient occlusion, colored via [Surface](#Surface) material diffuse albedo modulated by the `SURFACE_DIFFUSE_REFLECTANCE` shader function  - 'normals': view normal at first hit as a color	- 'brdf':    view spectral brdf at first hit  - 'diffuse': view first hit [Surface](#Surface) material diffuse albedo, modulated by the `SURFACE_DIFFUSE_REFLECTANCE` shader function
+Interface to the renderer. The rendering modes available are: - 'pt': pathtracer (uni-directional) - 'ao': ambient occlusion, colored via [Surface](#Surface) material diffuse albedo modulated by the `SURFACE_DIFFUSE_REFLECTANCE` shader function - 'normals': view normal at first hit as a color - 'diffuse': view first hit [Surface](#Surface) material diffuse albedo, modulated by the `SURFACE_DIFFUSE_REFLECTANCE` shader function
 
 <a name="Renderer+reset"></a>
 

@@ -36,8 +36,12 @@ uniform bool maxStepsIsMiss;
 uniform bool jitter;
 
 uniform float metalRoughness;
+uniform vec3 metalSpecAlbedoXYZ;
+
 uniform float dieleRoughness;
 uniform vec3 dieleAbsorptionRGB;
+uniform vec3 dieleSpecAlbedoXYZ;
+
 uniform vec3 surfaceDiffuseAlbedoXYZ;
 uniform vec3 surfaceSpecAlbedoXYZ;
 uniform float surfaceRoughness;
@@ -372,11 +376,21 @@ bool refraction(in vec3 n, in float eta, in vec3 wt, inout vec3 wi)
     return true;
 }
 
-float evaluateDielectric( in vec3 X, in vec3 nW, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 XYZ )
+vec3 DIELECTRIC_SPEC_REFL_XYZ(in vec3 X, in vec3 woL, in Basis basis)
+{
+    vec3 woW = localToWorld(woL, basis);
+    vec3 C = xyzToRgb(dieleSpecAlbedoXYZ);
+    vec3 reflRGB = DIELECTRIC_SPECULAR_REFLECTANCE(C, X, basis.nW, woW);
+    vec3 reflXYZ = rgbToXyz(reflRGB);
+    return xyz_to_spectrum(reflXYZ);
+}
+
+float evaluateDielectric( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 XYZ )
 {
     float ior = IOR_DIELE(wavelength_nm);
     bool reflected = cosTheta(wiL) * cosTheta(woL) > 0.0;
-    float Fr = DIELECTRIC_FRESNEL(X, nW) * fresnelDielectricReflectance(woL.z, ior, 1.0);
+    float dielectricAlbedo = clamp(dot(XYZ, DIELECTRIC_SPEC_REFL_XYZ(X, woL, basis)), 0.0, 1.0);
+    float Fr = dielectricAlbedo * fresnelDielectricReflectance(woL.z, ior, 1.0);
     vec3 h;
     float eta; // IOR ratio, et/ei
     if (reflected)
@@ -390,13 +404,13 @@ float evaluateDielectric( in vec3 X, in vec3 nW, in vec3 woL, in vec3 wiL, in fl
         h = normalize(wiL + eta*woL);
     }
     if (cosTheta(h)<0.0) h *= -1.0; // make sure half-vector points out
-    float roughness = dieleRoughness * DIELECTRIC_ROUGHNESS(X, nW);
+    float roughness = DIELECTRIC_ROUGHNESS(dieleRoughness, X, basis.nW);
     float D = microfacetEval(h, roughness);
     float G = smithG2(woL, wiL, h, roughness);
     float f;
     if (reflected)
     {
-        f = Fr * D * G / max(4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
+        f = dielectricAlbedo * Fr * D * G / max(4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
     }
     else
     {
@@ -409,11 +423,12 @@ float evaluateDielectric( in vec3 X, in vec3 nW, in vec3 woL, in vec3 wiL, in fl
     return f;
 }
 
-float pdfDielectric( in vec3 X, in vec3 nW, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 XYZ )
+float pdfDielectric( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 XYZ )
 {
     float ior = IOR_DIELE(wavelength_nm);
     bool reflected = cosTheta(wiL) * cosTheta(woL) > 0.0;
-    float Fr = DIELECTRIC_FRESNEL(X, nW) * fresnelDielectricReflectance(woL.z, ior, 1.0);
+    float dielectricAlbedo = clamp(dot(XYZ, DIELECTRIC_SPEC_REFL_XYZ(X, woL, basis)), 0.0, 1.0);
+    float Fr = dielectricAlbedo * fresnelDielectricReflectance(woL.z, ior, 1.0);
     vec3 h;
     float dwh_dwo;
     float pdf;
@@ -435,17 +450,18 @@ float pdfDielectric( in vec3 X, in vec3 nW, in vec3 woL, in vec3 wiL, in float w
         pdf = 1.0 - Fr;
     }
     if (cosTheta(h)<0.0) h *= -1.0; // make sure half-vector points out
-    float roughness = dieleRoughness * DIELECTRIC_ROUGHNESS(X, nW);
+    float roughness = DIELECTRIC_ROUGHNESS(dieleRoughness, X, basis.nW);
     pdf *= microfacetPDF(h, roughness);
     return abs(pdf * dwh_dwo);
 }
 
-float sampleDielectric( in vec3 X, in vec3 nW, in vec3 woL, in float wavelength_nm, in vec3 XYZ,
+float sampleDielectric( in vec3 X, in Basis basis, in vec3 woL, in float wavelength_nm, in vec3 XYZ,
                         inout vec3 wiL, inout float pdfOut, inout vec4 rnd )
 {
     float ior = IOR_DIELE(wavelength_nm);
-    float Fr = DIELECTRIC_FRESNEL(X, nW) * fresnelDielectricReflectance(woL.z, ior, 1.0);
-    float roughness = dieleRoughness * DIELECTRIC_ROUGHNESS(X, nW);
+    float dielectricAlbedo = clamp(dot(XYZ, DIELECTRIC_SPEC_REFL_XYZ(X, woL, basis)), 0.0, 1.0);
+    float Fr = dielectricAlbedo * fresnelDielectricReflectance(woL.z, ior, 1.0);
+    float roughness = DIELECTRIC_ROUGHNESS(dieleRoughness, X, basis.nW);
     vec3 m = microfacetSample(rnd, roughness); // Sample microfacet normal m
     float microPDF = microfacetPDF(m, roughness);
     float reflectProb = Fr;
@@ -503,7 +519,6 @@ float sampleDielectric( in vec3 X, in vec3 nW, in vec3 woL, in float wavelength_
     }
 }
 
-
 // ****************************        Metal        ****************************
 
 /// cosi is the cosine to the (outward) normal of the incident ray direction wi,
@@ -520,43 +535,54 @@ float fresnelMetalReflectance(in float cosi, in float ior, in float k)
     return 0.5*(Rparl2 + Rperp2);
 }
 
-float evaluateMetal( in vec3 X, in vec3 nW, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 XYZ )
+vec3 METAL_SPEC_REFL_XYZ(in vec3 X, in vec3 woL, in Basis basis)
+{
+    vec3 woW = localToWorld(woL, basis);
+    vec3 C = xyzToRgb(metalSpecAlbedoXYZ);
+    vec3 reflRGB = METAL_SPECULAR_REFLECTANCE(C, X, basis.nW, woW);
+    vec3 reflXYZ = rgbToXyz(reflRGB);
+    return xyz_to_spectrum(reflXYZ);
+}
+
+float evaluateMetal( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 XYZ )
 {
     float ior = IOR_METAL(wavelength_nm);
     float k = K_METAL(wavelength_nm);
-    float Fr = METAL_FRESNEL(X, nW) * fresnelMetalReflectance(woL.z, ior, k);
+    float Fr = fresnelMetalReflectance(woL.z, ior, k);
     vec3 h = normalize(wiL + woL); // Compute the reflection half-vector
-    float roughness = metalRoughness * METAL_ROUGHNESS(X, nW);
+    float roughness = METAL_ROUGHNESS(metalRoughness, X, basis.nW);
     float D = microfacetEval(h, roughness);
     float G = smithG2(woL, wiL, h, roughness);
-    float f = Fr * D * G / max(4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
+    float specAlbedo = clamp(dot(XYZ, METAL_SPEC_REFL_XYZ(X, woL, basis)), 0.0, 1.0);
+    float f = specAlbedo * Fr * D * G / max(4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
     return f;
 }
 
-float pdfMetal( in vec3 X, in vec3 nW, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 XYZ )
+float pdfMetal( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 XYZ )
 {
     float ior = IOR_DIELE(wavelength_nm);
     float k = K_METAL(wavelength_nm);
     vec3 h = normalize(wiL + woL); // reflection half-vector
     float dwh_dwo = 1.0 / max(abs(4.0*dot(woL, h)), DENOM_TOLERANCE); // Jacobian of the half-direction mapping
-    float roughness = metalRoughness * METAL_ROUGHNESS(X, nW);
+    float roughness = METAL_ROUGHNESS(metalRoughness, X, basis.nW);
     float pdf = microfacetPDF(h, roughness) * dwh_dwo;
     return pdf;
 }
 
-float sampleMetal( in vec3 X, in vec3 nW, in vec3 woL, in float wavelength_nm, in vec3 XYZ,
+float sampleMetal( in vec3 X, in Basis basis, in vec3 woL, in float wavelength_nm, in vec3 XYZ,
                    inout vec3 wiL, inout float pdfOut, inout vec4 rnd )
 {
     float ior = IOR_METAL(wavelength_nm);
     float k = K_METAL(wavelength_nm);
-    float Fr = METAL_FRESNEL(X, nW) * fresnelMetalReflectance(woL.z, ior, k);
-    float roughness = metalRoughness * METAL_ROUGHNESS(X, nW);
+    float Fr = fresnelMetalReflectance(woL.z, ior, k);
+    float roughness = METAL_ROUGHNESS(metalRoughness, X, basis.nW);
     vec3 m = microfacetSample(rnd, roughness); // Sample microfacet normal m
     wiL = -woL + 2.0*dot(woL, m)*m; // Compute wiL by reflecting woL about m
     if (wiL.z<DENOM_TOLERANCE) wiL.z *= -1.0; // Reflect into positive hemisphere if necessary (ad hoc)
     float D = microfacetEval(m, roughness);
     float G = smithG2(woL, wiL, m, roughness); // Shadow-masking function
-    float f = Fr * D * G / max(4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
+    float specAlbedo = clamp(dot(XYZ, METAL_SPEC_REFL_XYZ(X, woL, basis)), 0.0, 1.0);
+    float f = specAlbedo * Fr * D * G / max(4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
     float dwh_dwo; // Jacobian of the half-direction mapping
     dwh_dwo = 1.0 / max(abs(4.0*dot(woL, m)), DENOM_TOLERANCE);
     pdfOut = microfacetPDF(m, roughness) * dwh_dwo;
@@ -566,16 +592,18 @@ float sampleMetal( in vec3 X, in vec3 nW, in vec3 woL, in float wavelength_nm, i
 
 // ****************************        Surface        ****************************
 
-vec3 SURFACE_DIFFUSE_REFL_XYZ(in vec3 X, in vec3 nW)
+vec3 SURFACE_DIFFUSE_REFL_XYZ(in vec3 X, in vec3 nW, in vec3 woW)
 {
-    vec3 reflRGB = xyzToRgb(surfaceDiffuseAlbedoXYZ) * SURFACE_DIFFUSE_REFLECTANCE(X, nW);
+    vec3 C = xyzToRgb(surfaceDiffuseAlbedoXYZ);
+    vec3 reflRGB = SURFACE_DIFFUSE_REFLECTANCE(C, X, nW, woW);
     vec3 reflXYZ = rgbToXyz(reflRGB);
     return xyz_to_spectrum(reflXYZ);
 }
 
-vec3 SURFACE_SPEC_REFL_XYZ(in vec3 X, in vec3 nW)
+vec3 SURFACE_SPEC_REFL_XYZ(in vec3 X, in vec3 nW, in vec3 woW)
 {
-    vec3 reflRGB = xyzToRgb(surfaceSpecAlbedoXYZ) * SURFACE_SPECULAR_REFLECTANCE(X, nW);
+    vec3 C = xyzToRgb(surfaceSpecAlbedoXYZ);
+    vec3 reflRGB = SURFACE_SPECULAR_REFLECTANCE(C, X, nW, woW);
     vec3 reflXYZ = rgbToXyz(reflRGB);
     return xyz_to_spectrum(reflXYZ);
 }
@@ -593,12 +621,13 @@ float fresnelDielectricReflectanceFast(in float cosi, in float ior)
     return 0.5 * (rParallel*rParallel + rPerpendicular*rPerpendicular);
 }
 
-float evaluateSurface(in vec3 X, in vec3 nW, in vec3 woL, in vec3 wiL, in vec3 XYZ)
+float evaluateSurface(in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in vec3 XYZ)
 {
-    float diffuseAlbedo = clamp(dot(XYZ, SURFACE_DIFFUSE_REFL_XYZ(X, nW)), 0.0, 1.0);
-    float    specAlbedo = clamp(dot(XYZ, SURFACE_SPEC_REFL_XYZ(X, nW)),    0.0, 1.0);
+    vec3 woW = localToWorld(woL, basis);
+    float diffuseAlbedo = clamp(dot(XYZ, SURFACE_DIFFUSE_REFL_XYZ(X, basis.nW, woW)), 0.0, 1.0);
+    float    specAlbedo = clamp(dot(XYZ, SURFACE_SPEC_REFL_XYZ(X, basis.nW, woW)),    0.0, 1.0);
     float ior = surfaceIor;
-    float roughness = surfaceRoughness * SURFACE_ROUGHNESS(X, nW);
+    float roughness = SURFACE_ROUGHNESS(surfaceRoughness, X, basis.nW);
     float Fr = fresnelDielectricReflectanceFast(wiL.z, ior);
     vec3 h = normalize(wiL + woL); // Compute the reflection half-vector
     float D = microfacetEval(h, roughness);
@@ -610,12 +639,13 @@ float evaluateSurface(in vec3 X, in vec3 nW, in vec3 woL, in vec3 wiL, in vec3 X
     return f;
 }
 
-float pdfSurface(in vec3 X, in vec3 nW, in vec3 woL, in vec3 wiL, in vec3 XYZ)
+float pdfSurface(in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in vec3 XYZ)
 {
-    float diffuseAlbedo = clamp(dot(XYZ, SURFACE_DIFFUSE_REFL_XYZ(X, nW)), 0.0, 1.0);
-    float    specAlbedo = clamp(dot(XYZ, SURFACE_SPEC_REFL_XYZ(X, nW)),    0.0, 1.0);
+    vec3 woW = localToWorld(woL, basis);
+    float diffuseAlbedo = clamp(dot(XYZ, SURFACE_DIFFUSE_REFL_XYZ(X, basis.nW, woW)), 0.0, 1.0);
+    float    specAlbedo = clamp(dot(XYZ, SURFACE_SPEC_REFL_XYZ(X, basis.nW, woW)),    0.0, 1.0);
     float ior = surfaceIor;
-    float roughness = surfaceRoughness * SURFACE_ROUGHNESS(X, nW);
+    float roughness = SURFACE_ROUGHNESS(surfaceRoughness, X, basis.nW);
     float diffusePdf = pdfHemisphere(wiL);
     vec3 h = normalize(wiL + woL); // reflection half-vector
     float dwh_dwo = 1.0 / max(abs(4.0*dot(woL, h)), DENOM_TOLERANCE); // Jacobian of the half-direction mapping
@@ -628,13 +658,14 @@ float pdfSurface(in vec3 X, in vec3 nW, in vec3 woL, in vec3 wiL, in vec3 XYZ)
     return specProb*specularPdf + (1.0-specProb)*diffusePdf;
 }
 
-float sampleSurface(in vec3 X, in vec3 nW, in vec3 woL, in vec3 XYZ,
+float sampleSurface(in vec3 X, in Basis basis, in vec3 woL, in vec3 XYZ,
                     inout vec3 wiL, inout float pdfOut, inout vec4 rnd)
 {
-    float diffuseAlbedo = clamp(dot(XYZ, SURFACE_DIFFUSE_REFL_XYZ(X, nW)), 0.0, 1.0);
-    float    specAlbedo = clamp(dot(XYZ, SURFACE_SPEC_REFL_XYZ(X, nW)),    0.0, 1.0);
+    vec3 woW = localToWorld(woL, basis);
+    float diffuseAlbedo = clamp(dot(XYZ, SURFACE_DIFFUSE_REFL_XYZ(X, basis.nW, woW)), 0.0, 1.0);
+    float    specAlbedo = clamp(dot(XYZ, SURFACE_SPEC_REFL_XYZ(X, basis.nW, woW)),    0.0, 1.0);
     float ior = surfaceIor;
-    float roughness = surfaceRoughness * SURFACE_ROUGHNESS(X, nW);
+    float roughness = SURFACE_ROUGHNESS(surfaceRoughness, X, basis.nW);
     float Fr = fresnelDielectricReflectanceFast(wiL.z, ior);
     float specWeight = specAlbedo * Fr;
     float diffWeight = diffuseAlbedo * (1.0-specWeight);
@@ -663,27 +694,27 @@ float sampleSurface(in vec3 X, in vec3 nW, in vec3 woL, in vec3 XYZ,
 
 // ****************************        BSDF common interface        ****************************
 
-float evaluateBsdf( in vec3 X, in vec3 nW, in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm, in vec3 XYZ, 
+float evaluateBsdf( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm, in vec3 XYZ, 
                     inout vec4 rnd )
 {
-    if      (material==MAT_DIELE) { return evaluateDielectric(X, nW, woL, wiL, wavelength_nm, XYZ); }
-    else if (material==MAT_METAL) { return      evaluateMetal(X, nW, woL, wiL, wavelength_nm, XYZ); }
-    else                          { return    evaluateSurface(X, nW, woL, wiL,                XYZ); }
+    if      (material==MAT_DIELE) { return evaluateDielectric(X, basis, woL, wiL, wavelength_nm, XYZ); }
+    else if (material==MAT_METAL) { return      evaluateMetal(X, basis, woL, wiL, wavelength_nm, XYZ); }
+    else                          { return    evaluateSurface(X, basis, woL, wiL,                XYZ); }
 }
 
-float sampleBsdf( in vec3 X, in vec3 nW, in vec3 woL, in int material, in float wavelength_nm, in vec3 XYZ,
+float sampleBsdf( in vec3 X, in Basis basis, in vec3 woL, in int material, in float wavelength_nm, in vec3 XYZ,
                   inout vec3 wiL, inout float pdfOut, inout vec4 rnd ) 
 {
-    if      (material==MAT_DIELE) { return sampleDielectric(X, nW, woL, wavelength_nm, XYZ, wiL, pdfOut, rnd); }
-    else if (material==MAT_METAL) { return      sampleMetal(X, nW, woL, wavelength_nm, XYZ, wiL, pdfOut, rnd); }
-    else                          { return    sampleSurface(X, nW, woL,                XYZ, wiL, pdfOut, rnd); }
+    if      (material==MAT_DIELE) { return sampleDielectric(X, basis, woL, wavelength_nm, XYZ, wiL, pdfOut, rnd); }
+    else if (material==MAT_METAL) { return      sampleMetal(X, basis, woL, wavelength_nm, XYZ, wiL, pdfOut, rnd); }
+    else                          { return    sampleSurface(X, basis, woL,                XYZ, wiL, pdfOut, rnd); }
 }
 
-float pdfBsdf( in vec3 X, in vec3 nW, in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm, in vec3 XYZ )
+float pdfBsdf( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm, in vec3 XYZ )
 {
-    if      (material==MAT_DIELE) { return pdfDielectric(X, nW, woL, wiL, wavelength_nm, XYZ); }
-    else if (material==MAT_METAL) { return      pdfMetal(X, nW, woL, wiL, wavelength_nm, XYZ); }
-    else                          { return    pdfSurface(X, nW, woL, wiL,                XYZ); }
+    if      (material==MAT_DIELE) { return pdfDielectric(X, basis, woL, wiL, wavelength_nm, XYZ); }
+    else if (material==MAT_METAL) { return      pdfMetal(X, basis, woL, wiL, wavelength_nm, XYZ); }
+    else                          { return    pdfSurface(X, basis, woL, wiL,                XYZ); }
 }
 
 
@@ -745,10 +776,10 @@ float directLighting(in vec3 pW, Basis basis, in vec3 woW, in int material,
     // Apply MIS weight with the BSDF pdf for the sampled direction
     vec3 woL = worldToLocal(woW, basis);
     vec3 wiL = worldToLocal(wiW, basis);
-    float bsdfPdf = pdfBsdf(pW, basis.nW, woL, wiL, material, wavelength_nm, XYZ);
+    float bsdfPdf = pdfBsdf(pW, basis, woL, wiL, material, wavelength_nm, XYZ);
     if ( bsdfPdf<PDF_EPSILON ) return 0.0;
 
-    float f = evaluateBsdf(pW, basis.nW, woL, wiL, material, wavelength_nm, XYZ, rnd);
+    float f = evaluateBsdf(pW, basis, woL, wiL, material, wavelength_nm, XYZ, rnd);
     float misWeight = powerHeuristic(lightPdf, bsdfPdf);
     float fOverPdf = min(radianceClamp, f/max(PDF_EPSILON, lightPdf));
     return fOverPdf * Li * abs(dot(wiW, basis.nW)) * misWeight;
@@ -827,7 +858,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
             vec3 woL = worldToLocal(woW, basis);
             vec3 wiL;
             float bsdfPdf;
-            float f = sampleBsdf(pW, nW, woL, hitMaterial, wavelength_nm, XYZ, wiL, bsdfPdf, rnd);
+            float f = sampleBsdf(pW, basis, woL, hitMaterial, wavelength_nm, XYZ, wiL, bsdfPdf, rnd);
             vec3 wiW = localToWorld(wiL, basis);
 
             // material in which ray propagates changes (only) on transmission
@@ -897,6 +928,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
 
 void ENTRY_PATHTRACE_ALL()
 {
+    INIT();
     vec4 rnd = texture2D(RngData, vTexCoord);
     pathtrace(gl_FragCoord.xy, rnd);
 }
@@ -908,6 +940,8 @@ void ENTRY_PATHTRACE_ALL()
 
 void ENTRY_NORMALS()
 {
+    INIT();
+
     vec4 rnd = texture2D(RngData, vTexCoord);
     vec2 pixel = gl_FragCoord.xy;
     if (jitter) pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
@@ -950,6 +984,8 @@ void ENTRY_NORMALS()
 
 void ENTRY_AO()
 {
+    INIT();
+
     vec4 rnd = texture2D(RngData, vTexCoord);
     if (rand(rnd) < skipProbability)
     {
@@ -990,7 +1026,7 @@ void ENTRY_AO()
         // Compute diffuse albedo at sampled wavelength
         float w = texture2D(ICDF, vec2(rand(rnd), 0.5)).r;
         vec3 XYZ = texture2D(WavelengthToXYZ, vec2(w, 0.5)).rgb;
-        float diffuseAlbedo = clamp(dot(XYZ, SURFACE_DIFFUSE_REFL_XYZ(pW, nW)), 0.0, 1.0);
+        float diffuseAlbedo = clamp(dot(XYZ, SURFACE_DIFFUSE_REFL_XYZ(pW, basis.nW, woW)), 0.0, 1.0);
 
         // Set incident radiance to according to whether the AO ray hit anything or missed.
         float L;
@@ -1014,78 +1050,14 @@ void ENTRY_AO()
     gl_FragData[1] = rnd;
 }
 
-
-////////////////////////////////////////////////////////////////////////////////
-// BRDF integrator
-////////////////////////////////////////////////////////////////////////////////
-
-void ENTRY_BRDF()
-{
-    vec4 rnd = texture2D(RngData, vTexCoord);
-    if (rand(rnd) < skipProbability)
-    {
-        vec4 oldL = texture2D(Radiance, vTexCoord);
-        float oldN = oldL.w;
-        float newN = oldN;
-        vec3 newL = oldL.rgb;
-
-        gl_FragData[0] = vec4(newL, newN);
-        gl_FragData[1] = rnd;
-        return;
-    } 
-
-    // Jitter over pixel
-    vec2 pixel = gl_FragCoord.xy;
-    if (jitter) pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
-    vec3 primaryDir = constuctPrimaryDir(pixel);
-
-    float w = texture2D(ICDF, vec2(rand(rnd), 0.5)).r;
-    float wavelength_nm = 390.0 + (750.0 - 390.0)*w;
-    vec3 XYZ = texture2D(WavelengthToXYZ, vec2(w, 0.5)).rgb;
-    
-    // Raycast to first hit point
-    vec3 pW;
-    vec3 woW = -primaryDir;
-    int rayMaterial = MAT_VACUU;
-    int hitMaterial;
-    bool hit = traceRay(camPos, primaryDir, pW, hitMaterial, maxScale);
-
-    vec3 colorXYZ;
-    if (hit)
-    {
-        // Compute normal at hit point
-        vec3 nW = normal(pW, hitMaterial);
-        Basis basis = makeBasis(nW);
-
-        vec3 woL = worldToLocal(woW, basis);
-        vec3 wiL;
-        float bsdfPdf;
-        float f = sampleBsdf(pW, nW, woL, hitMaterial, wavelength_nm, XYZ, wiL, bsdfPdf, rnd);
-        colorXYZ = XYZ * f;
-    }
-    else
-    {
-        if (envMapVisible) colorXYZ = environmentRadianceXYZ(primaryDir);
-        else               colorXYZ = vec3(0.0);
-    }
-
-    // Write updated radiance and sample count
-    vec4 oldL = texture2D(Radiance, vTexCoord);
-    float oldN = oldL.w;
-    float newN = oldN + 1.0;
-    vec3 newL = (oldN*oldL.rgb + colorXYZ) / newN;
-
-    gl_FragData[0] = vec4(newL, newN);
-    gl_FragData[1] = rnd;
-}
-
-
 ////////////////////////////////////////////////////////////////////////////////
 // Surface diffuse integrator
 ////////////////////////////////////////////////////////////////////////////////
 
 void ENTRY_SURFACE_DIFFUSE()
 {
+    INIT();
+
     vec4 rnd = texture2D(RngData, vTexCoord);
     if (rand(rnd) < skipProbability)
     {
@@ -1119,7 +1091,9 @@ void ENTRY_SURFACE_DIFFUSE()
     if (hit)
     {
         vec3 nW = normal(pW, hitMaterial);
-        colorXYZ = SURFACE_DIFFUSE_REFL_XYZ(pW, nW);
+        vec3 C = xyzToRgb(surfaceDiffuseAlbedoXYZ);
+        vec3 reflRGB = SURFACE_DIFFUSE_REFLECTANCE(C, pW, nW, woW);
+        colorXYZ = rgbToXyz(reflRGB);
     }
     else
     {

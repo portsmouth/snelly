@@ -55,15 +55,14 @@ PathtracerState.prototype.clear = function(fbo)
 
 /** 
 * Interface to the renderer. The rendering modes available are:
-*	- 'pt': pathtracer (uni-directional)
-* 	- 'ao': ambient occlusion, colored via {@link Surface} material diffuse albedo modulated by the `SURFACE_DIFFUSE_REFLECTANCE` shader function
-*   - 'normals': view normal at first hit as a color
-* 	- 'brdf':    view spectral brdf at first hit
-*   - 'diffuse': view first hit {@link Surface} material diffuse albedo, modulated by the `SURFACE_DIFFUSE_REFLECTANCE` shader function
+*  - 'pt': pathtracer (uni-directional)
+*  - 'ao': ambient occlusion, colored via {@link Surface} material diffuse albedo modulated by the `SURFACE_DIFFUSE_REFLECTANCE` shader function
+*  - 'normals': view normal at first hit as a color
+*  - 'diffuse': view first hit {@link Surface} material diffuse albedo, modulated by the `SURFACE_DIFFUSE_REFLECTANCE` shader function
 * @constructor 
 * @property {number} width                 - (if not specified, fits to window) 
 * @property {number} height                - (if not specified, fits to window) 
-* @property {String} [renderMode='pt']     - rendering mode (either 'pt', 'ao', 'normals', 'brdf', 'diffuse') 
+* @property {String} [renderMode='pt']     - rendering mode (either 'pt', 'ao', 'normals', 'diffuse') 
 * @property {number} [maxMarchSteps=256]   - maximum number of raymarching steps per path segment
 * @property {number} [radianceClamp=3.0]   - clamp radiance to (10^) this max value, for firefly reduction
 * @property {number} [skyPower=4.0]        - sky power (arbitrary units)
@@ -75,7 +74,7 @@ PathtracerState.prototype.clear = function(fbo)
 * @property {number} [minsSPPToRedraw=0.0] - if >0.0, renderer will not redraw until the specified SPP have been accumulated
 * @property {number} [envMapVisible=true]  - whether env map is visible to primary rays (otherwise black)
 * @property {number} [envMapRotation=0.0]  - env map rotation about pole in degrees (0 to 360)
-* @property {number} [shadowStrength=1.0]  - if <1.0, areas in shadow are not completely dark
+* @property {number} [shadowStrength=1.0]  - if <1.0, areas in shadow are not completely dark (provided mostly to allow rendering of occluded areas, e.g. fractals)
 * @property {number} [maxStepsIsMiss=true] - whether rays which exceed max step count are considered hits or misses
 * @property {number} [AA=true]             - whether to jitter primary ray within pixel for AA
 */
@@ -204,18 +203,19 @@ Renderer.prototype.compileShaders = function()
 	var shader = sceneObj.shader();
 
 	// Insert default functions for those not implemented 
+	if (shader.indexOf("INIT(")                            == -1) { shader += `\n void INIT() {}\n`; }
 	if (shader.indexOf("SDF_SURFACE(")                     == -1) { shader += `\n float SDF_SURFACE(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
- 	if (shader.indexOf("SURFACE_DIFFUSE_REFLECTANCE(")     == -1) { shader += `\n vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X, in vec3 N) { return vec3(1.0); }\n`; }
- 	if (shader.indexOf("SURFACE_SPECULAR_REFLECTANCE(")    == -1) { shader += `\n vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 X, in vec3 N) { return vec3(1.0); }\n`; }
- 	if (shader.indexOf("SURFACE_ROUGHNESS(")               == -1) { shader += `\n float SURFACE_ROUGHNESS(in vec3 X, in vec3 N) { return 1.0; }\n`; }
+ 	if (shader.indexOf("SURFACE_DIFFUSE_REFLECTANCE(")     == -1) { shader += `\n vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
+ 	if (shader.indexOf("SURFACE_SPECULAR_REFLECTANCE(")    == -1) { shader += `\n vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
+ 	if (shader.indexOf("SURFACE_ROUGHNESS(")               == -1) { shader += `\n float SURFACE_ROUGHNESS(in float roughness, in vec3 X, in vec3 N) { return roughness; }\n`; }
  	
  	if (shader.indexOf("SDF_METAL(")                       == -1) { shader += `\n float SDF_METAL(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
- 	if (shader.indexOf("METAL_FRESNEL(")                   == -1) { shader += `\n float METAL_FRESNEL(in vec3 X, in vec3 N) { return 1.0; }\n`; }
- 	if (shader.indexOf("METAL_ROUGHNESS(")                 == -1) { shader += `\n float METAL_ROUGHNESS(in vec3 X, in vec3 N) { return 1.0; }\n`; }
+ 	if (shader.indexOf("METAL_SPECULAR_REFLECTANCE(")      == -1) { shader += `\n vec3 METAL_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
+ 	if (shader.indexOf("METAL_ROUGHNESS(")                 == -1) { shader += `\n float METAL_ROUGHNESS(in float roughness, in vec3 X, in vec3 N) { return roughness; }\n`; }
  	
  	if (shader.indexOf("SDF_DIELECTRIC(")                  == -1) { shader += `\n float SDF_DIELECTRIC(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
- 	if (shader.indexOf("DIELECTRIC_FRESNEL(")              == -1) { shader += `\n float DIELECTRIC_FRESNEL(in vec3 X, in vec3 N) { return 1.0; }\n`; }
- 	if (shader.indexOf("DIELECTRIC_ROUGHNESS(")            == -1) { shader += `\n float DIELECTRIC_ROUGHNESS(in vec3 X, in vec3 N) { return 1.0; }\n`; }
+ 	if (shader.indexOf("DIELECTRIC_SPECULAR_REFLECTANCE(") == -1) { shader += `\n vec3 DIELECTRIC_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
+ 	if (shader.indexOf("DIELECTRIC_ROUGHNESS(")            == -1) { shader += `\n float DIELECTRIC_ROUGHNESS(in float roughness, in vec3 X, in vec3 N) { return roughness; }\n`; }
 
 	// @todo: insert material GLSL code
 	var dielectricObj = snelly.getLoadedDielectric(); if (dielectricObj == null) return;
@@ -243,10 +243,6 @@ Renderer.prototype.compileShaders = function()
 		case 'normals':
 			replacements.ENTRY_NORMALS = 'main';
 			this.normalsProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
-			break;
-		case 'brdf':
-			replacements.ENTRY_BRDF = 'main';
-			this.brdfProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
 			break;
 		case 'diffuse':
 			replacements.ENTRY_SURFACE_DIFFUSE = 'main';
@@ -310,7 +306,6 @@ Renderer.prototype.render = function()
 	{
 		case 'ao':      INTEGRATOR_PROGRAM = this.aoProgram;           break;
 		case 'normals': INTEGRATOR_PROGRAM = this.normalsProgram;      break;
-		case 'brdf':    INTEGRATOR_PROGRAM = this.brdfProgram;         break;
 		case 'diffuse': INTEGRATOR_PROGRAM = this.diffuseProgram;      break;
 		case 'pt':
 		default:        INTEGRATOR_PROGRAM = this.pathtraceAllProgram; break;

@@ -85,7 +85,31 @@ float SDF_METAL(vec3 X);
 // the SDF of the (selected) physical dielectric material
 float SDF_DIELECTRIC(vec3 X);
 ```
-  
+
+Arbitrary spatial dependence of the materials can be optionally specified via GLSL functions:
+```glsl
+    // return surface diffuse reflectance (defaults to just return the input UI constant C)
+    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N);
+
+    // return surface specular reflectance (defaults to just return the input UI constant C)
+    vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N);
+
+    // return surface roughness in [0,1] (defaults to just return the input roughness)
+    float SURFACE_ROUGHNESS(in float roughness, in vec3 X, in vec3 N);
+
+    // return metal roughness in [0,1] (defaults to just return the input UI constant roughness)
+    float METAL_ROUGHNESS(in float roughness, in vec3 X, in vec3 N);
+
+    // return metal specular reflectance (defaults to just return the input C)
+    vec3 METAL_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N);
+
+    // return dielectric roughness in [0,1] (defaults to just return the input UI constant roughness)
+    float DIELECTRIC_ROUGHNESS(in float roughness, in vec3 X, in vec3 N);
+
+    // return dielectric specular reflectance (defaults to just return the input UI constant C)
+    vec3 DIELECTRIC_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N);
+```
+
 A simple, configurable interactive UI for the scene and renderer state is provided via [dat.GUI](https://workshop.chromeexperiments.com/examples/gui/#1--Basic-Usage). Basic control over the scene contents or animation can be coded by adding uniform variables in the SDF functions, and setting them to the corresponding UI values in the <a href="docs/API.md/#Scene+syncShader">Scene.syncShader</a> function.
 
 The details of the properties of the three material types can then be specified in <a href="docs/API.md/#Scene+init">Scene.init</a> via the <a href="docs/API.md/#Materials">Materials</a> object. Additional spatial dependence of the material surface properties can be introduced by providing modulating GLSL functions.
@@ -113,7 +137,8 @@ Or if an env-map image is not supplied, then the lighting is taken to be a const
 
 ## Saving scene state
 
-It is useful to be able to explore and fine-tune a scene by moving the camera around, tweaking the scene parameters and materials, adjusting renderer settings etc., and then be able to save the resulting scene state. This is provided by the simple mechanism of pressing the 'O' key to dump to the console a Javascript code which can be inserted into the <a href="docs/API.md/#Scene+init">Scene.init</a> function, to replicate the entire scene state. An example of this output is:
+Often we want to explore and fine-tune a scene by moving the camera around, tweaking the scene parameters and materials, and adjusting renderer settings. This work would be wasted without a way to save the resulting scene state.
+A mechanism for this is provided by pressing the 'O' key to dump to the console a Javascript code which can then be inserted into the <a href="docs/API.md/#Scene+init">Scene.init</a> function, to replicate the entire scene state. An example of this output is:
 ```javascript
 /******* copy-pasted console output on 'O', begin *******/
 
@@ -165,7 +190,7 @@ metal.roughness = 0.006691306063588591;
 /******* copy-pasted console output on 'O', end *******/
 ```
 
-In order for user-specified scene parameters to be saved this way, it is necessay to implement a function to output the appropriate regeneration code. For example if the scene init code defines parameters
+In order for user-specified scene parameters to be saved this way, it is necessary to implement a function to output the appropriate regeneration code. For example if the scene init code defines parameters
 ```javascript
     this.parameters = {};
     this.parameters.foo = 0.63143;
@@ -197,7 +222,7 @@ With this code in place, the output on pressing 'O' is then a faithful represent
 
 ## Callbacks and animation
 
-For implementation of custom animation logic, we use the simple mechanism of pre- and post-frame user callbacks, wherein the user can implement whatever logic he needs to programmatically animate the scene, camera, and materials. See the provided examples for details of how to use this implement animating scenes, and movie rendering. See:
+For implementation of custom animation logic we provide pre- and post-frame user callbacks, wherein the user can implement whatever logic he needs to programmatically animate the scene, camera, and materials. See the provided examples for details of how to use this to implement animating scenes, and movie rendering. See:
 - [Scene.preframeCallback](docs/API.md/#Scene+preframeCallback)
 - [Scene.postframeCallback](docs/API.md/#Scene+postframeCallback)
 

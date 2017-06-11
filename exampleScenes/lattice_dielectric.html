@@ -61,21 +61,21 @@ Scene.prototype.init = function(snelly)
 
 	camera.fov = 45;
 	camera.up.set(0, 1, 0);
-	camera.position.set(44.35909135098177, 39.13376780848188, -54.46235384836437);
-	controls.target.set(-4.680653378528492, -2.735525838364142, 0.09836685837303788);
+	camera.position.set(39.45147669460701, 42.503374179633376, 63.016390696888955);
+	controls.target.set(7.233045284603053, -1.3162757489461403, -1.6103647166050683);
 	controls.zoomSpeed = 2;
 	controls.keyPanSpeed = 100;
 
 	/** Renderer settings **/
-	renderer.renderMode = 'pt';  // The other modes are: 'ao', 'normals'
+	renderer.renderMode = 'pt';
 	renderer.maxBounces = 5;
 	renderer.maxMarchSteps = 256;
 	renderer.radianceClamp = 6; // (log scale)
 	renderer.skyPower = 1;
 	renderer.skyTemperature = 6000;
-	renderer.exposure = 3.0;
+	renderer.exposure = 3.9464411557434813;
 	renderer.gamma = 2.2;
-	renderer.whitepoint = 0.4510218463706836;
+	renderer.whitepoint = 0.9245947850599013;
 	renderer.goalFPS = 20;
 	renderer.minsSPPToRedraw = 0;
 	renderer.envMapVisible = false;
@@ -85,15 +85,15 @@ Scene.prototype.init = function(snelly)
 
 	/** Material settings **/
 	let surface = materials.loadSurface();
-	surface.roughness = 0.010147991543340382;
+	surface.roughness = 0.023678646934460888;
 	surface.ior = 5.525017618040874;
-	surface.diffuseAlbedo = [0.6274509803921569, 0.6274509803921569, 0.6274509803921569];
-	surface.specAlbedo = [0.08823529411764708, 0.08823529411764708, 0.08823529411764708];
+	surface.diffuseAlbedo = [1, 0, 0];
+	surface.specAlbedo = [0.32352941176470584, 0.32352941176470584, 0.32352941176470584];
 
-	let dielectric = materials.loadDielectric('Glass (BK7)');
+	let dielectric = materials.loadDielectric('Glass (SF67)');
 	dielectric.absorptionColor = [1, 1, 1];
-	dielectric.absorptionScale = -1; // mfp in multiples of scene scale
-	dielectric.roughness = 0.005;
+	dielectric.absorptionScale = 1000; // mfp in multiples of scene scale
+	dielectric.roughness = 0.002;
 
 	let metal = materials.loadMetal('Silver');
 	metal.roughness = 0.02;
@@ -113,9 +113,9 @@ this.parameters.bulge = ${this.parameters.bulge};
 	`; 
 }
 
-Scene.prototype.getName = function() { return 'Metallic lattice'; }
+Scene.prototype.getName = function() { return 'Dielectric lattice'; }
 
-Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snellypt/blob/master/exampleScenes/metallic_lattice.html"; }
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snellypt/blob/master/exampleScenes/lattice_dielectric.html"; }
 
 Scene.prototype.shader = function()
 {
@@ -203,7 +203,7 @@ Scene.prototype.shader = function()
 
 		float opI( float d1, float d2 ) { return max(d1,d2); }
 
-		float SDF_METAL(vec3 X)                     
+		float SDF_DIELECTRIC(vec3 X)                     
 		{
 			return opI( sdBox(X, vec3(_width, _height, _depth)), 
 						lattice(X, _spacing) );
@@ -215,7 +215,7 @@ Scene.prototype.shader = function()
 	        return sdBox(X, vec3(-L,-0.1,-L), vec3(L, 0.0,L));
 	    }
 
-		vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X, in vec3 N)
+		vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
 		{
 			float albedo = 1.0;
 			if (X.y<=0.001)
@@ -224,7 +224,7 @@ Scene.prototype.shader = function()
 				float ay = 1.0 - pow(0.5*(1.0 + cos(5.0*X.z)), 100.0);
 				albedo = ax*ay;
 			}
-		    return vec3(albedo);
+		    return C * vec3(albedo);
 		}
 	`;
 }

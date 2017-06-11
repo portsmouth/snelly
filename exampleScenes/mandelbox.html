@@ -1,0 +1,230 @@
+
+<body onload="onLoad();">
+<script type="text/javascript" src="../js/compiled/snelly.min.js"></script>
+<script type="text/javascript">
+
+function Scene() {}
+Scene.prototype.init = function(snelly)
+{
+	let renderer  = snelly.getRenderer();
+	let camera    = snelly.getCamera();
+	let controls  = snelly.getControls();
+	let materials = snelly.getMaterials();
+		
+	this.par = {};
+	this.par.Iterations = 9.0169133192389;
+	this.par.ColorIterations = 5.363636363636363;
+	this.par.rotation = [72,72,72];
+	this.par.Scale = 2.5933756166314303;
+	this.par.MinRad2 = 0.18040873854827344;
+	this.par.OrbitStrength = 0.13530655391120508;
+
+	this.par.ColorX = [0.2352941176470591,1,0];
+	this.par.ColorY = [0.11764705882352988,0,1];
+	this.par.ColorZ = [1,0,0];
+	this.par.ColorR = [0.0013456362937331744,0.009803921568627416,0.003335821064296526];
+	this.par.ColorCycles = 1.1;
+	    
+	snelly.showGUI(true);
+
+	camera.fov = 45;
+	camera.up.set(0, 1, 0);
+	camera.position.set(-0.9758763388462335, 1.3391545307282597, 3.6239397315028565);
+	controls.target.set(0.5209497324651604, 1.019545364708987, -0.9350989977262677);
+	controls.zoomSpeed = 1;
+	controls.keyPanSpeed = 0.1;
+
+	/** Renderer settings **/
+	renderer.renderMode = 'diffuse';
+	renderer.maxBounces = 1;
+	renderer.maxMarchSteps = 100;
+	renderer.radianceClamp = 3;
+	renderer.skyPower = 1;
+	renderer.skyTemperature = 6000;
+	renderer.exposure = 1.0;
+	renderer.gamma = 2.063424947145877;
+	renderer.whitepoint = 1.8266384778012685;
+	renderer.goalFPS = 10;
+	renderer.minsSPPToRedraw = 0;
+	renderer.envMapVisible = false;
+	renderer.shadowStrength = 1;
+	renderer.maxStepsIsMiss = false;
+	renderer.AA = true;
+
+	/** Material settings **/
+	let surface = materials.loadSurface();
+	surface.roughness = 0.013530655391120508;
+	surface.ior = 2.7061310782241015;
+	surface.diffuseAlbedo = [1, 0, 0];
+	surface.specAlbedo = [0.5686274509803921, 0.5686274509803921, 0.5686274509803921];
+
+	let dielectric = materials.loadDielectric('Glass (BK7)');
+	dielectric.absorptionColor = [0.5, 0.5, 0.5];
+	dielectric.absorptionScale = -1; // mfp in multiples of scene scale
+	dielectric.roughness = 0.005;
+
+	let metal = materials.loadMetal('Aluminium');
+	metal.roughness = 0.02;
+}
+
+
+Scene.prototype.getName = function() { return 'Mandelbox'; }
+
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snellypt/blob/master/exampleScenes/mandelbox.html"; }
+
+Scene.prototype.initGenerator = function()
+{
+    return `
+this.par = {};
+this.par.Iterations = ${this.par.Iterations};
+this.par.ColorIterations = ${this.par.ColorIterations};
+this.par.rotation = [${this.par.rotation}];
+this.par.Scale = ${this.par.Scale};
+this.par.MinRad2 = ${this.par.MinRad2};
+this.par.OrbitStrength = ${this.par.OrbitStrength};
+this.par.ColorX = [${this.par.ColorX}];
+this.par.ColorY = [${this.par.ColorY}];
+this.par.ColorZ = [${this.par.ColorZ}];
+this.par.ColorR = [${this.par.ColorR}];
+this.par.ColorCycles = ${this.par.ColorCycles};
+    `; 
+}
+
+Scene.prototype.shader = function()
+{
+	let Iterations = this.par.Iterations;
+	let ColorIterations = this.par.ColorIterations;
+
+    return `
+	uniform vec3 RotVector;
+	uniform float Scale;
+	uniform float MinRad2;
+	uniform float OrbitStrength;
+	uniform vec3 ColorX;
+	uniform vec3 ColorY;
+	uniform vec3 ColorZ;
+	uniform vec3 ColorR;
+	uniform float ColorCycles;
+
+	mat3 rot;
+	vec4 orbitTrap;
+	vec4 scale;
+	float absScalem1;
+	float AbsScaleRaisedTo1mIters;
+
+	mat3 rotationMatrix3(vec3 v, float angle)
+	{
+		float c = cos(radians(angle));
+		float s = sin(radians(angle));
+		return mat3(c + (1.0-c)*v.x*v.x,             (1.0-c)*v.x*v.y - s*v.z,     (1.0-c)*v.x*v.z + s*v.y,
+			            (1.0-c)*v.x*v.y + s*v.z, c + (1.0-c)*v.y*v.y,             (1.0-c)*v.y*v.z - s*v.x,
+			            (1.0-c)*v.x*v.z - s*v.y,     (1.0-c)*v.y*v.z + s*v.x, c + (1.0-c)*v.z*v.z );
+	}
+
+	void INIT()
+	{
+		float angle = length(RotVector);
+		vec3 axis = vec3(0.0, 1.0, 0.0);
+		if (angle>0.0) axis = normalize(RotVector);
+		rot = rotationMatrix3(axis, angle);
+		scale = vec4(Scale, Scale, Scale, abs(Scale)) / MinRad2;
+		orbitTrap = vec4(10000.0);
+		absScalem1 = abs(Scale - 1.0);
+		const int Iterations = int(${Iterations});
+		AbsScaleRaisedTo1mIters = pow(abs(Scale), float(1-Iterations));
+	}
+
+	float mandelbox(vec3 pos)
+	{
+		vec4 p = vec4(pos,1);
+		vec4 p0 = p;  // p.w is the distance estimate
+		const int Iterations = int(${Iterations});
+		const int ColorIterations = int(${ColorIterations});
+		for (int i=0; i<Iterations; i++) 
+		{
+			p.xyz *= rot;
+			p.xyz = clamp(p.xyz, -1.0, 1.0)*2.0 - p.xyz;
+			float r2 = dot(p.xyz, p.xyz);
+			if (i<ColorIterations) orbitTrap = min(orbitTrap, abs(vec4(p.xyz,r2)));
+			p *= clamp(max(MinRad2/r2, MinRad2), 0.0, 1.0);
+			p = p*scale + p0;
+	        if (r2>1000.0) break;
+		}
+		return ((length(p.xyz) - absScalem1) / p.w - AbsScaleRaisedTo1mIters);
+	}
+
+    float SDF_SURFACE(in vec3 X)
+    {            
+        return mandelbox(X);
+    }
+
+	vec3 cycle(vec3 c, float s) {
+		return c*s;
+		//return vec3(0.5)+0.5*vec3(cos(s*ColorCycles+c.x),cos(s*ColorCycles+c.y),cos(s*ColorCycles+c.z));
+	}
+
+	vec3 lighting(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
+	{
+		return vec3(1.0);
+	}
+
+    vec3 getColor(in vec3 baseColor)
+    {
+    	orbitTrap.w = sqrt(orbitTrap.w);
+    	vec3 orbitColor = cycle(ColorX,orbitTrap.x) + cycle(ColorY,orbitTrap.y) + cycle(ColorZ,orbitTrap.z) + cycle(ColorR,orbitTrap.w);
+
+    	vec3 color = mix(baseColor, 3.0*orbitColor, OrbitStrength);
+    	return color;
+    }
+
+    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
+	{
+		return lighting(C, X, N, V);
+	}
+
+	vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
+	{
+		return C;
+	}
+    `;
+}
+
+Scene.prototype.getMinScale = function() { return 1.0e-5; }
+Scene.prototype.getMaxScale = function() { return 1.0e2; }
+
+Scene.prototype.envMap = function() 
+{ return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg'; }
+
+Scene.prototype.initGui = function(gui) 
+{ 
+    gui.addSlider(this.par, {name: 'Iterations', min: 1, max: 10, step: 1, recompile: true});
+    gui.addSlider(this.par, {name: 'ColorIterations', min: 1, max: 10, step: 1, recompile: true}); 
+    gui.addSlider(this.par, {name: 'Scale', min: 0.0, max: 10.0});
+    gui.addSlider(this.par, {name: 'MinRad2', min: 0.0, max: 1.0});	
+    gui.addSlider(this.par, {name: 'OrbitStrength', min: 0.0, max: 1.0});	
+	gui.addColor(this.par, "rotation", 180.0);
+	gui.addColor(this.par, "ColorX");
+	gui.addColor(this.par, "ColorY");
+	gui.addColor(this.par, "ColorZ");
+	gui.addColor(this.par, "ColorR");
+	gui.addSlider(this.par, {name: 'ColorCycles', min: 0.0, max: 32.0});	
+}
+
+Scene.prototype.syncShader = function(shader) 
+{ 
+	shader.uniformF("Scale", this.par.Scale);
+	shader.uniformF("MinRad2", this.par.MinRad2);
+	shader.uniformF("OrbitStrength", this.par.OrbitStrength);
+	shader.uniform3Fv("RotVector", this.par.rotation);
+	shader.uniform3Fv("ColorX", this.par.ColorX);
+	shader.uniform3Fv("ColorY", this.par.ColorY);
+	shader.uniform3Fv("ColorZ", this.par.ColorZ);
+	shader.uniform3Fv("ColorR", this.par.ColorR);
+	shader.uniformF("ColorCycles", this.par.ColorCycles);
+}
+
+function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+
+</script>
+</body>

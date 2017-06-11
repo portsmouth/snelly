@@ -10,7 +10,7 @@ Scene.prototype.init = function(snelly)
 	// initial scene parameters
 	this.parameters = {}
 	this.parameters.shapes = ['Sphere', 'Cube', 'Octahedron', 'Dodecahedron', 'Icosahedron', 'TruncatedOctahedron', 'TruncatedIcosahedron'];
-	
+
 	var PHI = Math.sqrt(5.0)*0.5 + 0.5;
 
 	var GDFVectors = [];
@@ -78,7 +78,7 @@ Scene.prototype.init = function(snelly)
 	controls.keyPanSpeed = 100;
 
 	/** Renderer settings **/
-	renderer.renderMode = 'pt';  // The other modes are: 'ao', 'normals'
+	renderer.renderMode = 'pt';
 	renderer.maxBounces = 4;
 	renderer.maxMarchSteps = 485;
 	renderer.radianceClamp = 6; // (log scale)
@@ -137,7 +137,7 @@ this.parameters.bulge_d = ${this.parameters.bulge_d};
 
 Scene.prototype.getName = function() { return 'Metal/Dielectric lattice'; }
 
-Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snellypt/blob/master/exampleScenes/mixed_lattice.html"; }
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snellypt/blob/master/exampleScenes/lattice_mixed.html"; }
 
 Scene.prototype.shader = function()
 {
@@ -258,7 +258,7 @@ Scene.prototype.shader = function()
 	        return sdBox(X, vec3(-L,-0.1,-L), vec3(L, 0.0,L));
 	    }
 
-		vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X, in vec3 N)
+		vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
 		{
 			float albedo = 1.0;
 			if (X.y<=0.001)
@@ -267,7 +267,7 @@ Scene.prototype.shader = function()
 				float ay = 1.0 - pow(0.5*(1.0 + cos(5.0*X.z)), 100.0);
 				albedo = ax*ay;
 			}
-		    return vec3(albedo);
+		    return C * vec3(albedo);
 		}
 	`;
 }
