@@ -134,8 +134,8 @@ Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snel
 *   - *C*: The UI-exposed constant reflectance color ([0,1] floats in sRGB color space)
 *   - *roughness*: The UI-exposed constant roughness
 *   - *X*: world space hit point
-*   - *N*: world space normal at the hit point
-*   - *V*: world space view direction at the hit point
+*   - *N*: world space (outward) normal at the hit point
+*   - *V*: world space view direction at the hit point (i.e. direction from the hit point to the eye)
 * Note that the vec3 color returned is also in sRGB color space.
 * (Any of these functions can be omitted, in which case they will be replaced with the default indicated).
 *```glsl
@@ -502,3 +502,15 @@ Scene.prototype.postframeCallback = function(snelly, gl)
 	}
 	*/
 }
+
+/** 
+ * Optional callback on key down.
+ * @param {Event} Javascript keydown Event
+ * @param {Snelly} snelly - The Snelly object
+ * @param {WebGLRenderingContext} gl - The webGL context
+ */
+Scene.prototype.onkeydownCallback = function(event, snelly, gl)
+{
+	return;
+}
+

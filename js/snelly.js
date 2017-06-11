@@ -100,7 +100,7 @@ Snelly.prototype.handleEvent = function(event)
 		case 'mouseup':     this.onDocumentMouseUp(event);    break;
 		//case 'contextmenu': this.onDocumentRightClick(event); break;
 		case 'click':       this.onClick(event);  break;
-		case 'keydown':     this.onKeydown(event);  break;
+		case 'keydown':     this.onkeydown(event);  break;
 	}
 }
 
@@ -261,8 +261,6 @@ camera.fov = ${camera.fov};
 camera.up.set(${camera.up.x}, ${camera.up.y}, ${camera.up.z});
 camera.position.set(${camera.position.x}, ${camera.position.y}, ${camera.position.z});
 controls.target.set(${controls.target.x}, ${controls.target.y}, ${controls.target.z});
-controls.zoomSpeed = ${controls.zoomSpeed};
-controls.keyPanSpeed = ${controls.keyPanSpeed};
 
 /** Renderer settings **/
 renderer.renderMode = '${renderer.renderMode}';
@@ -274,8 +272,6 @@ renderer.skyTemperature = ${renderer.skyTemperature};
 renderer.exposure = ${renderer.exposure};
 renderer.gamma = ${renderer.gamma};
 renderer.whitepoint = ${renderer.whitepoint};
-renderer.goalFPS = ${renderer.goalFPS};
-renderer.minsSPPToRedraw = ${renderer.minsSPPToRedraw};
 renderer.envMapVisible = ${renderer.envMapVisible};
 renderer.shadowStrength = ${renderer.shadowStrength};
 renderer.maxStepsIsMiss = ${renderer.maxStepsIsMiss};
@@ -514,7 +510,7 @@ Snelly.prototype.onDocumentMouseUp = function(event)
 	this.camControls.update();
 }
 
-Snelly.prototype.onKeydown = function(event)
+Snelly.prototype.onkeydown = function(event)
 {
 	var charCode = (event.which) ? event.which : event.keyCode;
 	switch (charCode)
@@ -549,6 +545,12 @@ Snelly.prototype.onKeydown = function(event)
 		//case 65: console.log('a pressed'); break;
 		//case 83: console.log('s pressed'); break;
 		//case 68: console.log('d pressed'); break;
+	}
+
+	// Call user keydown callback
+	if (typeof this.sceneObj.onkeydownCallback !== "undefined") 
+	{
+		this.sceneObj.onkeydownCallback(event, snelly, GLU.gl);
 	}
 }
 

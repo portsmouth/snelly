@@ -1,6 +1,11 @@
 
 <body onload="onLoad();">
 <script type="text/javascript" src="../js/compiled/snelly.min.js"></script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                         scene definition                          */?>
+<?/* ------------------------------------------------------------------*/?>
+
 <script type="text/javascript">
 
 function Scene() {}
@@ -11,6 +16,7 @@ Scene.prototype.init = function(snelly)
 	this.period = 100.0;
 	this.animFrame = 0;
 	this.advanceFrame = false;
+	this.playing = true;
 		
 	let renderer  = snelly.getRenderer();
 	let camera    = snelly.getCamera();
@@ -30,13 +36,13 @@ Scene.prototype.init = function(snelly)
 	*/
 	camera.fov = 45;
 	camera.up.set(0, 1, 0);
-	camera.position.set(31.826673770468147, 16.886492333722373, 26.99192039487546);
-	controls.target.set(8.231096867851464, 2.314333077850181, -6.657627275844926);
-	controls.zoomSpeed = 2;
+	camera.position.set(2.0898485265966222, 0.15104740885024814, -3.3049811713210895);
+	controls.target.set(1.2352263477824712, -0.8505369979388303, 1.1190063465362112);
+	controls.zoomSpeed = 0.3;
 	controls.keyPanSpeed = 0.1;
 
 	/** Renderer settings **/
-	renderer.renderMode = 'diffuse';
+	renderer.renderMode = 'firsthit';
 	renderer.maxBounces = 1;
 	renderer.maxMarchSteps = 831;
 	renderer.radianceClamp = 3; // (log scale)
@@ -57,7 +63,7 @@ Scene.prototype.init = function(snelly)
 	surface.roughness = 0.005637773079633545;
 	surface.ior = 2.818886539816772;
 	surface.diffuseAlbedo = [0.6, 0.6, 0.6];
-	surface.specAlbedo = [0.0980392156862745, 0.0980392156862745, 0.0980392156862745];
+	surface.specAlbedo = [0,0,0];
 
 	let dielectric = materials.loadDielectric('Glass (BK7)');
 	dielectric.absorptionColor = [0.5, 0.5, 0.5];
@@ -191,10 +197,21 @@ Scene.prototype.postframeCallback = function(snelly, gl)
 	}
 
 	let renderer = snelly.getRenderer();
-	if (this.animFrame>=0 && renderer.getSPP()>=this.targetSPP && this.animFrame<=this.endFrame)
+	if (this.animFrame>=0 && renderer.getSPP()>=this.targetSPP && this.animFrame<=this.endFrame && this.playing)
 	{
 		this.advanceFrame = true;
 		this.animFrame++;
+	}
+}
+
+Scene.prototype.onkeydownCallback = function(event, snelly, gl)
+{
+	var charCode = (event.which) ? event.which : event.keyCode;
+	switch (charCode)
+	{
+		case 32: // toggle pause/play on spacebar
+			this.playing = !this.playing;
+			break;
 	}
 }
 
@@ -210,8 +227,15 @@ Scene.prototype.syncShader = function(shader)
 	shader.uniformF("time", this.par.time);
 }
 
+</script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                            main loop                              */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
 function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
 function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
-
 </script>
+
 </body>

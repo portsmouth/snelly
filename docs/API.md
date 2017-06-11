@@ -129,6 +129,7 @@ Get Surface object
     * [.getMaxScale()](#Scene+getMaxScale) ⇒ <code>number</code>
     * [.preframeCallback(snelly, gl)](#Scene+preframeCallback)
     * [.postframeCallback(snelly, gl)](#Scene+postframeCallback)
+    * [.onkeydownCallback(Javascript, snelly, gl)](#Scene+onkeydownCallback)
 
 <a name="Scene+init"></a>
 
@@ -168,7 +169,7 @@ Optional clickable URL (displayed in UI)
 <a name="Scene+shader"></a>
 
 ### scene.shader() ⇒ <code>String</code>
-Returns a chunk of GLSL code defining the SDFs which determine the geometry of uber-surface, metal and dielectric materials in the scene.Define also (optionally) functions giving the 3d spatial dependence of the material parameters.This function is mandatory!The code *must* define at least one of the three functions:```glsl     float SDF_METAL(vec3 X);     float SDF_DIELECTRIC(vec3 X);     float SDF_DIFFUSE(vec3 X);```If only one or two of these are present, the others will not be rendered.Optionally, any of the following functions defining the spatial dependence of material reflectances and roughnesses can be defined.The UI-exposed reflectance or roughness is supplied, and can be modified arbitrarily based on the supplied data of the primary ray hit point(and/or any other computed shader variables). The arguments to these functions are as follows:  - *C*: The UI-exposed constant reflectance color ([0,1] floats in sRGB color space)  - *roughness*: The UI-exposed constant roughness  - *X*: world space hit point  - *N*: world space normal at the hit point  - *V*: world space view direction at the hit pointNote that the vec3 color returned is also in sRGB color space.(Any of these functions can be omitted, in which case they will be replaced with the default indicated).```glsl
+Returns a chunk of GLSL code defining the SDFs which determine the geometry of uber-surface, metal and dielectric materials in the scene.Define also (optionally) functions giving the 3d spatial dependence of the material parameters.This function is mandatory!The code *must* define at least one of the three functions:```glsl     float SDF_METAL(vec3 X);     float SDF_DIELECTRIC(vec3 X);     float SDF_DIFFUSE(vec3 X);```If only one or two of these are present, the others will not be rendered.Optionally, any of the following functions defining the spatial dependence of material reflectances and roughnesses can be defined.The UI-exposed reflectance or roughness is supplied, and can be modified arbitrarily based on the supplied data of the primary ray hit point(and/or any other computed shader variables). The arguments to these functions are as follows:  - *C*: The UI-exposed constant reflectance color ([0,1] floats in sRGB color space)  - *roughness*: The UI-exposed constant roughness  - *X*: world space hit point  - *N*: world space (outward) normal at the hit point  - *V*: world space view direction at the hit point (i.e. direction from the hit point to the eye)Note that the vec3 color returned is also in sRGB color space.(Any of these functions can be omitted, in which case they will be replaced with the default indicated).```glsl
 		// return surface diffuse reflectance (defaults to just return the input UI constant C)
 		vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V);
 
@@ -254,6 +255,19 @@ Optional callback after every frame.Animation rendering logic can be implemente
 | snelly | [<code>Snelly</code>](#Snelly) | The Snelly object |
 | gl | <code>WebGLRenderingContext</code> | The webGL context |
 
+<a name="Scene+onkeydownCallback"></a>
+
+### scene.onkeydownCallback(Javascript, snelly, gl)
+Optional callback on key down.
+
+**Kind**: instance method of [<code>Scene</code>](#Scene)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| Javascript | <code>Event</code> | keydown Event |
+| snelly | [<code>Snelly</code>](#Snelly) | The Snelly object |
+| gl | <code>WebGLRenderingContext</code> | The webGL context |
+
 <a name="Renderer"></a>
 
 ## Renderer
@@ -264,7 +278,7 @@ Optional callback after every frame.Animation rendering logic can be implemente
 | --- | --- | --- | --- |
 | width | <code>number</code> |  | (if not specified, fits to window) |
 | height | <code>number</code> |  | (if not specified, fits to window) |
-| renderMode | <code>String</code> | <code>&#x27;pt&#x27;</code> | rendering mode (either 'pt', 'ao', 'normals', 'diffuse') |
+| renderMode | <code>String</code> | <code>&#x27;pt&#x27;</code> | rendering mode (either 'pt', 'ao', 'normals', 'firsthit') |
 | maxMarchSteps | <code>number</code> | <code>256</code> | maximum number of raymarching steps per path segment |
 | radianceClamp | <code>number</code> | <code>3.0</code> | clamp radiance to (10^) this max value, for firefly reduction |
 | skyPower | <code>number</code> | <code>4.0</code> | sky power (arbitrary units) |
@@ -289,7 +303,7 @@ Optional callback after every frame.Animation rendering logic can be implemente
 <a name="new_Renderer_new"></a>
 
 ### new Renderer()
-Interface to the renderer. The rendering modes available are: - 'pt': pathtracer (uni-directional) - 'ao': ambient occlusion, colored via [Surface](#Surface) material diffuse albedo modulated by the `SURFACE_DIFFUSE_REFLECTANCE` shader function - 'normals': view normal at first hit as a color - 'diffuse': view first hit [Surface](#Surface) material diffuse albedo, modulated by the `SURFACE_DIFFUSE_REFLECTANCE` shader function
+Interface to the renderer. The rendering modes available are: - 'pt': pathtracer (uni-directional) - 'ao': ambient occlusion, colored via [Surface](#Surface) material diffuse albedo modulated by the `SURFACE_DIFFUSE_REFLECTANCE` shader function - 'normals': view normal at first hit as a color - 'firsthit': view first hit [Surface](#Surface) material diffuse albedo, modulated by the sum of    `SURFACE_DIFFUSE_REFLECTANCE` and `SURFACE_SPECULAR_REFLECTANCE` shader functions
 
 <a name="Renderer+reset"></a>
 

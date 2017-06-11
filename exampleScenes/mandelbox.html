@@ -1,6 +1,11 @@
 
 <body onload="onLoad();">
 <script type="text/javascript" src="../js/compiled/snelly.min.js"></script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                         scene definition                          */?>
+<?/* ------------------------------------------------------------------*/?>
+
 <script type="text/javascript">
 
 function Scene() {}
@@ -13,37 +18,31 @@ Scene.prototype.init = function(snelly)
 		
 	this.par = {};
 	this.par.Iterations = 9.0169133192389;
-	this.par.ColorIterations = 5.363636363636363;
-	this.par.rotation = [72,72,72];
-	this.par.Scale = 2.5933756166314303;
-	this.par.MinRad2 = 0.18040873854827344;
-	this.par.OrbitStrength = 0.13530655391120508;
-
-	this.par.ColorX = [0.2352941176470591,1,0];
-	this.par.ColorY = [0.11764705882352988,0,1];
-	this.par.ColorZ = [1,0,0];
-	this.par.ColorR = [0.0013456362937331744,0.009803921568627416,0.003335821064296526];
-	this.par.ColorCycles = 1.1;
+	this.par.rotation = [71.72399755750051,74.11764705882354,69.03114186851211];
+	this.par.Scale = 2.818886539816772;
+	this.par.MinRad2 = 0.27061310782241016;
+	this.par.lightDir = [0,0.7058823529411762,1];
+	this.par.lightColor = [0.1470588235294118,0.1470588235294118,0.1470588235294118];
 	    
 	snelly.showGUI(true);
 
 	camera.fov = 45;
 	camera.up.set(0, 1, 0);
-	camera.position.set(-0.9758763388462335, 1.3391545307282597, 3.6239397315028565);
-	controls.target.set(0.5209497324651604, 1.019545364708987, -0.9350989977262677);
+	camera.position.set(-1.44961554087542, 0.9438892268882322, 2.8471225959549034);
+	controls.target.set(0.14675304486024776, -0.7036395156993038, -0.8372670727723985);
 	controls.zoomSpeed = 1;
 	controls.keyPanSpeed = 0.1;
 
 	/** Renderer settings **/
-	renderer.renderMode = 'diffuse';
+	renderer.renderMode = 'pt';
 	renderer.maxBounces = 1;
 	renderer.maxMarchSteps = 100;
 	renderer.radianceClamp = 3;
-	renderer.skyPower = 1;
+	renderer.skyPower = 10;
 	renderer.skyTemperature = 6000;
-	renderer.exposure = 1.0;
-	renderer.gamma = 2.063424947145877;
-	renderer.whitepoint = 1.8266384778012685;
+	renderer.exposure = 5.07399577167019;
+	renderer.gamma = 2.1649048625792813;
+	renderer.whitepoint = 0.7441860465116279;
 	renderer.goalFPS = 10;
 	renderer.minsSPPToRedraw = 0;
 	renderer.envMapVisible = false;
@@ -53,10 +52,10 @@ Scene.prototype.init = function(snelly)
 
 	/** Material settings **/
 	let surface = materials.loadSurface();
-	surface.roughness = 0.013530655391120508;
+	surface.roughness = 0.020295983086680763;
 	surface.ior = 2.7061310782241015;
-	surface.diffuseAlbedo = [1, 0, 0];
-	surface.specAlbedo = [0.5686274509803921, 0.5686274509803921, 0.5686274509803921];
+	surface.diffuseAlbedo = [1, 0.11764705882352944, 0.11764705882352944];
+	surface.specAlbedo = [0.06418345885066834, 0.07843137254901966, 0.029988465974625164];
 
 	let dielectric = materials.loadDielectric('Glass (BK7)');
 	dielectric.absorptionColor = [0.5, 0.5, 0.5];
@@ -77,16 +76,11 @@ Scene.prototype.initGenerator = function()
     return `
 this.par = {};
 this.par.Iterations = ${this.par.Iterations};
-this.par.ColorIterations = ${this.par.ColorIterations};
 this.par.rotation = [${this.par.rotation}];
 this.par.Scale = ${this.par.Scale};
 this.par.MinRad2 = ${this.par.MinRad2};
-this.par.OrbitStrength = ${this.par.OrbitStrength};
-this.par.ColorX = [${this.par.ColorX}];
-this.par.ColorY = [${this.par.ColorY}];
-this.par.ColorZ = [${this.par.ColorZ}];
-this.par.ColorR = [${this.par.ColorR}];
-this.par.ColorCycles = ${this.par.ColorCycles};
+this.par.lightDir = [${this.par.lightDir}];
+this.par.lightColor = [${this.par.lightColor}];
     `; 
 }
 
@@ -97,20 +91,16 @@ Scene.prototype.shader = function()
 
     return `
 	uniform vec3 RotVector;
+	uniform vec3 LightDir;
+	uniform vec3 LightColor;
 	uniform float Scale;
 	uniform float MinRad2;
-	uniform float OrbitStrength;
-	uniform vec3 ColorX;
-	uniform vec3 ColorY;
-	uniform vec3 ColorZ;
-	uniform vec3 ColorR;
-	uniform float ColorCycles;
 
 	mat3 rot;
-	vec4 orbitTrap;
 	vec4 scale;
 	float absScalem1;
 	float AbsScaleRaisedTo1mIters;
+	vec3 L;
 
 	mat3 rotationMatrix3(vec3 v, float angle)
 	{
@@ -128,10 +118,11 @@ Scene.prototype.shader = function()
 		if (angle>0.0) axis = normalize(RotVector);
 		rot = rotationMatrix3(axis, angle);
 		scale = vec4(Scale, Scale, Scale, abs(Scale)) / MinRad2;
-		orbitTrap = vec4(10000.0);
 		absScalem1 = abs(Scale - 1.0);
 		const int Iterations = int(${Iterations});
 		AbsScaleRaisedTo1mIters = pow(abs(Scale), float(1-Iterations));
+		if (length(LightDir)<1.0e-3) L = vec3(0,1,0);
+		else L = normalize(LightDir);
 	}
 
 	float mandelbox(vec3 pos)
@@ -139,13 +130,11 @@ Scene.prototype.shader = function()
 		vec4 p = vec4(pos,1);
 		vec4 p0 = p;  // p.w is the distance estimate
 		const int Iterations = int(${Iterations});
-		const int ColorIterations = int(${ColorIterations});
 		for (int i=0; i<Iterations; i++) 
 		{
 			p.xyz *= rot;
 			p.xyz = clamp(p.xyz, -1.0, 1.0)*2.0 - p.xyz;
 			float r2 = dot(p.xyz, p.xyz);
-			if (i<ColorIterations) orbitTrap = min(orbitTrap, abs(vec4(p.xyz,r2)));
 			p *= clamp(max(MinRad2/r2, MinRad2), 0.0, 1.0);
 			p = p*scale + p0;
 	        if (r2>1000.0) break;
@@ -158,33 +147,32 @@ Scene.prototype.shader = function()
         return mandelbox(X);
     }
 
-	vec3 cycle(vec3 c, float s) {
-		return c*s;
-		//return vec3(0.5)+0.5*vec3(cos(s*ColorCycles+c.x),cos(s*ColorCycles+c.y),cos(s*ColorCycles+c.z));
-	}
-
-	vec3 lighting(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
+    // Fake directional light (no shadows)
+	vec3 lightingDiffuse(in vec3 X, in vec3 N, in vec3 V)
 	{
-		return vec3(1.0);
+		float nDotL = max(0.0,dot(N,L));
+		float diffuse = nDotL;
+		return LightColor*diffuse;
 	}
 
-    vec3 getColor(in vec3 baseColor)
-    {
-    	orbitTrap.w = sqrt(orbitTrap.w);
-    	vec3 orbitColor = cycle(ColorX,orbitTrap.x) + cycle(ColorY,orbitTrap.y) + cycle(ColorZ,orbitTrap.z) + cycle(ColorR,orbitTrap.w);
-
-    	vec3 color = mix(baseColor, 3.0*orbitColor, OrbitStrength);
-    	return color;
-    }
+	vec3 lightingSpec(in vec3 X, in vec3 N, in vec3 V)
+	{
+		float nDotL = max(0.0,dot(N,L));
+		vec3 H = normalize(L+V);
+		float hDotN = max(0.,dot(N,H));
+		const float P = 10.0; // specular power
+		float specular = ((P+2.)/8.)*pow(hDotN,P)*(P + (1.-P)*pow(1.0-hDotN,5.0))*nDotL;
+		return LightColor*specular;
+	}
 
     vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
 	{
-		return lighting(C, X, N, V);
+		return C * lightingDiffuse(X, N, V);
 	}
 
 	vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
 	{
-		return C;
+		return C * lightingSpec(X, N, V);
 	}
     `;
 }
@@ -198,33 +186,31 @@ Scene.prototype.envMap = function()
 Scene.prototype.initGui = function(gui) 
 { 
     gui.addSlider(this.par, {name: 'Iterations', min: 1, max: 10, step: 1, recompile: true});
-    gui.addSlider(this.par, {name: 'ColorIterations', min: 1, max: 10, step: 1, recompile: true}); 
     gui.addSlider(this.par, {name: 'Scale', min: 0.0, max: 10.0});
     gui.addSlider(this.par, {name: 'MinRad2', min: 0.0, max: 1.0});	
-    gui.addSlider(this.par, {name: 'OrbitStrength', min: 0.0, max: 1.0});	
 	gui.addColor(this.par, "rotation", 180.0);
-	gui.addColor(this.par, "ColorX");
-	gui.addColor(this.par, "ColorY");
-	gui.addColor(this.par, "ColorZ");
-	gui.addColor(this.par, "ColorR");
-	gui.addSlider(this.par, {name: 'ColorCycles', min: 0.0, max: 32.0});	
+	gui.addColor(this.par, "lightDir");
+	gui.addColor(this.par, "lightColor");
 }
 
 Scene.prototype.syncShader = function(shader) 
 { 
 	shader.uniformF("Scale", this.par.Scale);
 	shader.uniformF("MinRad2", this.par.MinRad2);
-	shader.uniformF("OrbitStrength", this.par.OrbitStrength);
 	shader.uniform3Fv("RotVector", this.par.rotation);
-	shader.uniform3Fv("ColorX", this.par.ColorX);
-	shader.uniform3Fv("ColorY", this.par.ColorY);
-	shader.uniform3Fv("ColorZ", this.par.ColorZ);
-	shader.uniform3Fv("ColorR", this.par.ColorR);
-	shader.uniformF("ColorCycles", this.par.ColorCycles);
+	shader.uniform3Fv("LightDir", this.par.lightDir);
+	shader.uniform3Fv("LightColor", this.par.lightColor);
 }
 
+</script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                            main loop                              */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
 function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
 function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
-
 </script>
+
 </body>

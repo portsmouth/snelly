@@ -1054,10 +1054,10 @@ void ENTRY_AO()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Surface diffuse integrator
+// First hit integrator
 ////////////////////////////////////////////////////////////////////////////////
 
-void ENTRY_SURFACE_DIFFUSE()
+void ENTRY_FIRSTHIT()
 {
     INIT();
 
@@ -1094,8 +1094,9 @@ void ENTRY_SURFACE_DIFFUSE()
     if (hit)
     {
         vec3 nW = normal(pW, hitMaterial);
-        vec3 C = xyzToRgb(surfaceDiffuseAlbedoXYZ);
-        vec3 reflRGB = SURFACE_DIFFUSE_REFLECTANCE(C, pW, nW, woW);
+        vec3 Cd = xyzToRgb(surfaceDiffuseAlbedoXYZ);
+        vec3 Cs = xyzToRgb(surfaceSpecAlbedoXYZ);
+        vec3 reflRGB = SURFACE_DIFFUSE_REFLECTANCE(Cd, pW, nW, woW) + SURFACE_SPECULAR_REFLECTANCE(Cs, pW, nW, woW);
         colorXYZ = rgbToXyz(reflRGB);
     }
     else

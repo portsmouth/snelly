@@ -1,0 +1,294 @@
+
+<body onload="onLoad();">
+<script type="text/javascript" src="../js/compiled/snelly.min.js"></script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                         scene definition                          */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+
+function Scene() {}
+
+Scene.prototype.init = function(snelly)
+{
+	this.FPS = 24.0;
+	this.period = 5.0;
+	this.endFrame = this.period * this.FPS;
+	this.targetSPP = 0.0;
+	this.advanceFrame = false;
+
+	/******* copy-pasted console output on 'O', begin *******/
+
+	let renderer  = snelly.getRenderer();
+	let camera    = snelly.getCamera();
+	let controls  = snelly.getControls();
+	let materials = snelly.getMaterials();
+		
+	this.parameters = {};
+	this.parameters.sphereRadius = 1.63;
+	this.parameters.diskRadius = 0.507399577167019;
+	this.parameters.diskThickness = 0.04510218463706836;
+	this.parameters.torusBigRadius = 1.5785764622973923;
+	this.parameters.torusLittleRadius = 0.3269908386187456;
+	this.playing = true;
+	this.animFrame = 10;
+	    
+	snelly.showGUI(true);
+
+	camera.fov = 45;
+	camera.up.set(0, 1, 0);
+	camera.position.set(1.614396152547189, -2.6092488678120556, -4.041094985203925);
+	controls.target.set(-0.6503199189496807, 0.0795761398922718, 0.04285419525116046);
+
+	/** Renderer settings **/
+	renderer.renderMode = 'pt';
+	renderer.maxBounces = 3;
+	renderer.maxMarchSteps = 256;
+	renderer.radianceClamp = 3;
+	renderer.skyPower = 1.916842847075405;
+	renderer.skyTemperature = 6000;
+	renderer.exposure = 4.510218463706836;
+	renderer.gamma = 2.2;
+	renderer.whitepoint = 2;
+	renderer.envMapVisible = false;
+	renderer.shadowStrength = 1;
+	renderer.maxStepsIsMiss = true;
+	renderer.AA = true;
+
+	/** Material settings **/
+	let surface = materials.loadSurface();
+	surface.roughness = 0;
+	surface.ior = 1.5;
+	surface.diffuseAlbedo = [0.696078431372549, 0.696078431372549, 0.696078431372549];
+	surface.specAlbedo = [0.019607843137254943, 0.019607843137254943, 0.019607843137254943];
+
+	let dielectric = materials.loadDielectric('Glass (BK7)');
+	dielectric.absorptionColor = [1, 1, 1];
+	dielectric.absorptionScale = -1; // mfp in multiples of scene scale
+	dielectric.roughness = 0.005;
+
+	let metal = materials.loadMetal('Copper');
+	metal.roughness = 0.02;
+
+	/******* copy-pasted console output on 'O', end *******/
+
+	renderer.minsSPPToRedraw = this.targetSPP;
+
+	let time = this.animFrame/this.FPS;
+	this.phase = 2.0*Math.PI*time/this.period;
+}
+
+Scene.prototype.shader = function()
+{
+	return `
+		uniform float sphereRadius;
+		uniform float diskRadius;
+		uniform float diskThickness;
+		uniform float torusBigRadius;
+		uniform float torusLittleRadius;
+		uniform mat4 transformA;
+		uniform mat4 transformB;
+
+		float sdSphere(vec3 X, float r) { return length(X) - r; } 
+		float sdBox(vec3 X, vec3 b) { vec3 d = abs(X)-b; return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0)); } 
+		float sdTorus( vec3 X, vec2 t ) { vec2 q = vec2(length(X.xz)-t.x, X.y); return length(q)-t.y; }  
+		float opU( float d1, float d2 ) { return min(d1,d2); }
+		float opS(float A, float B) { return max(-B, A); }
+		float opI( float d1, float d2 ) { return max(d1,d2); }
+
+		float boxy(vec3 X)
+		{
+			float box    = sdBox(X, vec3(diskRadius, diskThickness, diskRadius));
+			float sphere = sdSphere(X, diskRadius);
+			return opI(box, sphere);
+		}
+
+		vec3 vertices[4];
+		void INIT()
+		{		
+			vertices[0] = vec3(1,1,1);
+			vertices[1] = vec3(-1,-1,1);
+			vertices[2] = vec3(1,-1,-1);
+			vertices[3] = vec3(-1,1,-1);
+		}
+
+		float SDF_METAL(in vec3 X)                  
+		{	
+			vec4 p; p.xyz = X; p.w = 1.0;
+			vec4 qA = transformA*p;
+			vec4 qB = transformB*p;
+			float sA = boxy(qA.xyz-vertices[0]);
+			float sB = boxy(qA.xyz-vertices[1]);
+			float sC = boxy(qB.xyz-vertices[2]);
+			float sD = boxy(qB.xyz-vertices[3]);
+			return opU(opU(opU(sA, sB), sC), sD);
+		} 
+
+		float SDF_SURFACE(in vec3 X)                     
+		{	
+			float sphere = sdSphere(X, sphereRadius);
+			vec4 p; p.xyz = X; p.w = 1.0;
+			vec4 qA = transformA*p;
+			vec4 qB = transformB*p;
+			float torusA = sdTorus(qA.xyz, vec2(torusBigRadius, torusLittleRadius));
+			float torusB = sdTorus(qB.xyz, vec2(torusBigRadius, torusLittleRadius));
+			return opS(opS(sphere, torusA), torusB);
+		} 
+
+		vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
+    	{
+			float ax = 1.0 - pow(0.5*(1.0 + cos(50.0*X.x)), 5000.0);
+			float ay = 1.0 - pow(0.5*(1.0 + cos(50.0*X.y)), 5000.0);
+			float az = 1.0 - pow(0.5*(1.0 + cos(50.0*X.z)), 5000.0);
+			float albedo = ax*ay*az;
+		    return C * albedo;
+    	}
+	`;
+}
+
+Scene.prototype.preframeCallback = function(snelly, gl)
+{
+	let renderer  = snelly.getRenderer();
+	let camera    = snelly.getCamera();
+	let controls  = snelly.getControls();
+	let materials = snelly.getMaterials();
+	let gui       = snelly.getGUI();
+
+	if (this.animFrame > this.endFrame) this.animFrame = 0;
+
+	// Advance scene state to next anim frame, if we have reached the spp count for the previous frame
+	if (this.advanceFrame || this.animFrame == 0)
+	{
+		// animate scene here based on time
+		let time = this.animFrame/this.FPS;
+		this.phase = 2.0*Math.PI*time/this.period;
+	}
+
+	if (this.advanceFrame)
+	{
+		gui.sync(); 
+
+		// Tell renderer to restart sampling
+		let no_recompile = true;
+		renderer.reset(no_recompile);
+		this.advanceFrame = false;
+	}
+
+	this.timer_start = performance.now();
+}
+
+Scene.prototype.postframeCallback = function(snelly, gl)
+{
+	// pause if FPS exceeded our goal
+	var timer_end = performance.now();
+	var frame_time_ms = (timer_end - this.timer_start);
+	let goal_ms = Math.min(1.0e3, Math.max(1.0, 1.0e3/this.FPS));
+	if (frame_time_ms<goal_ms)
+	{
+		(function pause(ms) {
+		    var t0 = performance.now(); var t1 = null;
+		    do { t1 = performance.now(); } while (t1-t0 < ms);
+		}(goal_ms-frame_time_ms));
+	}
+
+	let renderer = snelly.getRenderer();
+	if (this.animFrame>=0 && renderer.getSPP()>=this.targetSPP && this.animFrame<=this.endFrame && this.playing)
+	{
+		this.advanceFrame = true;
+		this.animFrame++;
+	}
+}
+
+Scene.prototype.onkeydownCallback = function(event, snelly, gl)
+{
+	var charCode = (event.which) ? event.which : event.keyCode;
+	switch (charCode)
+	{
+		case 32: // toggle pause/play on spacebar
+			this.playing = !this.playing;
+			break;
+	}
+}
+
+Scene.prototype.initGui = function(gui)            
+{
+	let ME = this;
+	gui.addSlider(this, {name: 'animFrame', min: 0, max: this.endFrame, step: 1}).onChange( function(value) 
+	{
+	 	ME.advanceFrame = true; 
+	 	snelly.reset(true); 
+	});
+  	gui.addSlider(this.parameters, {name: 'sphereRadius', min: 0.0, max: 5.0});
+  	gui.addSlider(this.parameters, {name: 'diskRadius', min: 0.0, max: 1.0});
+  	gui.addSlider(this.parameters, {name: 'diskThickness', min: 0.0, max: 1.0});
+  	gui.addSlider(this.parameters, {name: 'torusBigRadius', min: 0.0, max: 5.0});
+  	gui.addSlider(this.parameters, {name: 'torusLittleRadius', min: 0.0, max: 1.0});
+}
+
+Scene.prototype.initGenerator = function()
+{
+    return `
+this.parameters = {};
+this.parameters.sphereRadius = ${this.parameters.sphereRadius};
+this.parameters.diskRadius = ${this.parameters.diskRadius};
+this.parameters.diskThickness = ${this.parameters.diskThickness};
+this.parameters.torusBigRadius = ${this.parameters.torusBigRadius};
+this.parameters.torusLittleRadius = ${this.parameters.torusLittleRadius};
+this.playing = ${this.playing};
+this.animFrame = ${this.animFrame};
+    `; 
+}
+
+Scene.prototype.syncShader = function(shader)
+{
+	shader.uniformF("sphereRadius", this.parameters.sphereRadius);
+	shader.uniformF("diskRadius", this.parameters.diskRadius);
+	shader.uniformF("diskThickness", this.parameters.diskThickness);
+	shader.uniformF("torusBigRadius", this.parameters.torusBigRadius);
+	shader.uniformF("torusLittleRadius", this.parameters.torusLittleRadius);
+
+	let c = Math.cos(this.phase);
+	let s = Math.sin(this.phase);
+ 	let tA = [
+       c, s, 0, 0,
+      -s, c, 0, 0,
+       0, 0, 1, 0,
+       0, 0, 0, 1,
+    ];
+     let tB = [
+       1, 0, 0, 0,
+       0, c, s, 0,
+       0,-s, c, 0,
+       0, 0, 0, 1,
+    ];
+	shader.uniformMatrix4fv("transformA", tA);
+	shader.uniformMatrix4fv("transformB", tB);
+}
+
+Scene.prototype.envMap = function() { return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg'; }
+
+/**
+* Optional name (displayed in UI)
+*/
+Scene.prototype.getName = function() { return 'A basic animation'; }
+
+/**
+* Optional clickable URL (displayed in UI)
+*/
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snellypt/blob/master/exampleScenes/basicAnimation.html"; }
+
+</script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                            main loop                              */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+</script>
+
+</body>
+
+

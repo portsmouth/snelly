@@ -86,13 +86,13 @@ float SDF_METAL(vec3 X);
 float SDF_DIELECTRIC(vec3 X);
 ```
 
-Arbitrary spatial dependence of the materials can be optionally specified via GLSL functions:
+Arbitrary spatial dependence of the materials can be optionally specified via GLSL functions (given the surface hit point X, normal N, and view direction V):
 ```glsl
     // return surface diffuse reflectance (defaults to just return the input UI constant C)
-    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N);
+    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V);
 
     // return surface specular reflectance (defaults to just return the input UI constant C)
-    vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N);
+    vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V);
 
     // return surface roughness in [0,1] (defaults to just return the input roughness)
     float SURFACE_ROUGHNESS(in float roughness, in vec3 X, in vec3 N);
@@ -101,13 +101,13 @@ Arbitrary spatial dependence of the materials can be optionally specified via GL
     float METAL_ROUGHNESS(in float roughness, in vec3 X, in vec3 N);
 
     // return metal specular reflectance (defaults to just return the input C)
-    vec3 METAL_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N);
+    vec3 METAL_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V);
 
     // return dielectric roughness in [0,1] (defaults to just return the input UI constant roughness)
     float DIELECTRIC_ROUGHNESS(in float roughness, in vec3 X, in vec3 N);
 
     // return dielectric specular reflectance (defaults to just return the input UI constant C)
-    vec3 DIELECTRIC_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N);
+    vec3 DIELECTRIC_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V);
 ```
 
 A simple, configurable interactive UI for the scene and renderer state is provided via [dat.GUI](https://workshop.chromeexperiments.com/examples/gui/#1--Basic-Usage). Basic control over the scene contents or animation can be coded by adding uniform variables in the SDF functions, and setting them to the corresponding UI values in the <a href="docs/API.md/#Scene+syncShader">Scene.syncShader</a> function.

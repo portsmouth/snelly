@@ -58,11 +58,12 @@ PathtracerState.prototype.clear = function(fbo)
 *  - 'pt': pathtracer (uni-directional)
 *  - 'ao': ambient occlusion, colored via {@link Surface} material diffuse albedo modulated by the `SURFACE_DIFFUSE_REFLECTANCE` shader function
 *  - 'normals': view normal at first hit as a color
-*  - 'diffuse': view first hit {@link Surface} material diffuse albedo, modulated by the `SURFACE_DIFFUSE_REFLECTANCE` shader function
+*  - 'firsthit': view first hit {@link Surface} material diffuse albedo, modulated by the sum of 
+*    `SURFACE_DIFFUSE_REFLECTANCE` and `SURFACE_SPECULAR_REFLECTANCE` shader functions
 * @constructor 
 * @property {number} width                 - (if not specified, fits to window) 
 * @property {number} height                - (if not specified, fits to window) 
-* @property {String} [renderMode='pt']     - rendering mode (either 'pt', 'ao', 'normals', 'diffuse') 
+* @property {String} [renderMode='pt']     - rendering mode (either 'pt', 'ao', 'normals', 'firsthit') 
 * @property {number} [maxMarchSteps=256]   - maximum number of raymarching steps per path segment
 * @property {number} [radianceClamp=3.0]   - clamp radiance to (10^) this max value, for firefly reduction
 * @property {number} [skyPower=4.0]        - sky power (arbitrary units)
@@ -244,9 +245,9 @@ Renderer.prototype.compileShaders = function()
 			replacements.ENTRY_NORMALS = 'main';
 			this.normalsProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
 			break;
-		case 'diffuse':
-			replacements.ENTRY_SURFACE_DIFFUSE = 'main';
-			this.diffuseProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
+		case 'firsthit':
+			replacements.ENTRY_FIRSTHIT = 'main';
+			this.firsthitProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
 			break;
 		case 'pt':
 		default:
@@ -304,11 +305,11 @@ Renderer.prototype.render = function()
 	var INTEGRATOR_PROGRAM = null;
 	switch (this.renderMode)
 	{
-		case 'ao':      INTEGRATOR_PROGRAM = this.aoProgram;           break;
-		case 'normals': INTEGRATOR_PROGRAM = this.normalsProgram;      break;
-		case 'diffuse': INTEGRATOR_PROGRAM = this.diffuseProgram;      break;
+		case 'ao':       INTEGRATOR_PROGRAM = this.aoProgram;           break;
+		case 'normals':  INTEGRATOR_PROGRAM = this.normalsProgram;      break;
+		case 'firsthit': INTEGRATOR_PROGRAM = this.firsthitProgram;     break;
 		case 'pt':
-		default:        INTEGRATOR_PROGRAM = this.pathtraceAllProgram; break;
+		default:         INTEGRATOR_PROGRAM = this.pathtraceAllProgram; break;
 	}
 
 	INTEGRATOR_PROGRAM.bind();

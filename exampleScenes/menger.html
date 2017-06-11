@@ -1,6 +1,11 @@
 
 <body onload="onLoad();">
 <script type="text/javascript" src="../js/compiled/snelly.min.js"></script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                         scene definition                          */?>
+<?/* ------------------------------------------------------------------*/?>
+
 <script type="text/javascript">
 
 function Scene() {}
@@ -192,8 +197,15 @@ Scene.prototype.syncShader = function(shader)
 	shader.uniform3Fv("RotVector", this.par.rotation);
 }
 
+</script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                            main loop                              */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
 function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
 function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
-
 </script>
+
 </body>
