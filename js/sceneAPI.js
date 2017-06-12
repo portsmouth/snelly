@@ -136,7 +136,8 @@ Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snel
 *   - *roughness*: The UI-exposed constant roughness
 *   - *X*: world space hit point
 *   - *N*: world space (outward) normal at the hit point
-*   - *V*: world space view direction at the hit point (i.e. direction from the hit point to the eye)
+*   - *V*: world space view direction at the hit point (i.e. direction from the hit point to the eye).
+*
 * Note that the vec3 color returned is also in sRGB color space.
 * (Any of these functions can be omitted, in which case they will be replaced with the default indicated).
 *```glsl
