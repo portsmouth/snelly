@@ -145,7 +145,7 @@ Optionally (but usually), provide this function to set scene and renderer initia
 <a name="Scene+initGenerator"></a>
 
 ### scene.initGenerator()
-Optionally, provide this function which generates the init code to re-generate the current UI parameter settings. This will be dumped to the console (along with the rest of the UI state) on pressing key 'O', allowing the scene and rendererstate to be tweaked in the UI then saved by copy-pasting code into the init function below.
+Optionally, provide this function which generates the init code to re-generate the current UI parameter settings. This will be dumped to the console (along with the rest of the UI state) on pressing key 'O', allowing the scene and rendererstate to be tweaked in the UI then saved by copy-pasting code into the init function.
 
 **Kind**: instance method of [<code>Scene</code>](#Scene)  
 <a name="Scene+envMap"></a>
