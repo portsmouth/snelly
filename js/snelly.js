@@ -38,6 +38,7 @@ var Snelly = function(sceneObj)
 	this.camera.position.set(1.0, 1.0, 1.0);
 	this.camControls = new THREE.OrbitControls(this.camera, this.container);
 	this.camControls.zoomSpeed = 2.0;
+	this.camControls.flySpeed = 0.01;
 	this.camControls.addEventListener('change', camChanged);
 	this.camControls.keyPanSpeed = 100.0;
 
@@ -376,14 +377,11 @@ Snelly.prototype.getSurface = function()
 	return this.materials.loadSurface();
 }
 
-
-// Renderer reset on camera update
+// Renderer reset on camera or other parameters update
 Snelly.prototype.reset = function(no_recompile = false)
 {	
 	if (!this.initialized || this.terminated) return;
 	this.pathtracer.reset(no_recompile);
-	this.gui.sync();
-	this.render();
 }
    
 // Render all 
@@ -540,11 +538,73 @@ Snelly.prototype.onkeydown = function(event)
 		case 79: // O key: output scene settings code to console
 			let code = this.dumpScene();
 			console.log(code);
+			break;
 
-		//case 87: console.log('w pressed'); break;
-		//case 65: console.log('a pressed'); break;
-		//case 83: console.log('s pressed'); break;
-		//case 68: console.log('d pressed'); break;
+		case 87: // W key: cam forward
+		{
+			let toTarget = new THREE.Vector3();
+			toTarget.copy(this.camControls.target);
+			toTarget.sub(this.camera.position);
+			let distToTarget = toTarget.length();
+			toTarget.normalize();
+			var move = new THREE.Vector3();
+			move.copy(toTarget);
+			move.multiplyScalar(this.camControls.flySpeed*distToTarget);
+			this.camera.position.add(move);
+			this.camControls.target.add(move);
+			this.reset(true);
+			break;
+		}
+		
+		case 65: // A key: cam left 
+		{
+			let toTarget = new THREE.Vector3();
+			toTarget.copy(this.camControls.target);
+			toTarget.sub(this.camera.position);
+			let distToTarget = toTarget.length();
+			var localX = new THREE.Vector3(1.0, 0.0, 0.0);
+			var worldX = localX.transformDirection( this.camera.matrix );
+			var move = new THREE.Vector3();
+			move.copy(worldX);
+			move.multiplyScalar(-this.camControls.flySpeed*distToTarget);
+			this.camera.position.add(move);
+			this.camControls.target.add(move);
+			this.reset(true);
+			break;
+		}
+		
+		case 83: // S key: cam back
+		{
+			let toTarget = new THREE.Vector3();
+			toTarget.copy(this.camControls.target);
+			toTarget.sub(this.camera.position);
+			let distToTarget = toTarget.length();
+			toTarget.normalize();
+			var move = new THREE.Vector3();
+			move.copy(toTarget);
+			move.multiplyScalar(-this.camControls.flySpeed*distToTarget);
+			this.camera.position.add(move);
+			this.camControls.target.add(move);
+			this.reset(true);
+			break;
+		}
+		
+		case 68: // S key: cam right 
+		{
+			let toTarget = new THREE.Vector3();
+			toTarget.copy(this.camControls.target);
+			toTarget.sub(this.camera.position);
+			let distToTarget = toTarget.length();
+			var localX = new THREE.Vector3(1.0, 0.0, 0.0);
+			var worldX = localX.transformDirection( this.camera.matrix );
+			var move = new THREE.Vector3();
+			move.copy(worldX);
+			move.multiplyScalar(this.camControls.flySpeed*distToTarget);
+			this.camera.position.add(move);
+			this.camControls.target.add(move);
+			this.reset(true);
+			break;
+		}
 	}
 
 	// Call user keydown callback

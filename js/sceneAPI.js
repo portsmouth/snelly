@@ -38,7 +38,8 @@ Scene.prototype.init = function(snelly)
 	camera.position.set(-3.7987995289497105, 3.50565369210148, 3.9561774983519684);
 	controls.target.set(0.0371344633810977, -0.030567217009180497, 0.022022000504228156);
 	controls.zoomSpeed = 2;
-	controls.keyPanSpeed = 100;
+	controls.keyPanSpeed = 1;
+	controls.flySpeed = 0.01;
 
 	// Renderer settings
 	//renderer.width = 1280; // (if either width or height are not specified, render size will be taken from window

@@ -31,7 +31,8 @@ Scene.prototype.init = function(snelly)
 	camera.position.set(-1.44961554087542, 0.9438892268882322, 2.8471225959549034);
 	controls.target.set(0.14675304486024776, -0.7036395156993038, -0.8372670727723985);
 	controls.zoomSpeed = 1;
-	controls.keyPanSpeed = 0.1;
+	controls.keyPanSpeed = 1.0;
+	controls.flySpeed = 0.003;
 
 	/** Renderer settings **/
 	renderer.renderMode = 'pt';
