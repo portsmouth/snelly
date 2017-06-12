@@ -3,7 +3,7 @@
 Snelly is a system for physically-based SDF (signed distance field) pathtracing in a web browser. 
 
 ## Example scenes
-- Hello world  [source](./exampleScenes/helloworld.html) [live](https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/helloworld.html)
+- Hello world  [source](./exampleScenes/helloWorld.html) [live](https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/helloWorld.html)
 - Basic animation example  [source](./exampleScenes/basicAnimation.html) [live](https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/basicAnimation.html)
 - Gem stone  [source](./exampleScenes/gem.html) [live](https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/gem.html)
 - Metallic meteorite  [source](./exampleScenes/meteorite.html) [live](https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/meteorite.html)
@@ -24,6 +24,7 @@ UI controls:
  - O to serialize scene code to Javascript console
  - H to hide/show the sidebar UI
  - F11 to enter/exit fullscreen mode
+ - spacebar to pause/play animated scenes
     
 
 ## HTML structure   
