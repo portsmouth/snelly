@@ -173,7 +173,7 @@ metal.roughness = 0.006691306063588591;
 /******* copy-pasted console output on 'O', end *******/
 ```
 
-In order for user-specified scene parameters to be saved this way, it is necessary to implement a function to output the appropriate regeneration code. For example if the scene init code defines parameters
+In order for user-specified scene parameters to be saved this way, it is necessary to implement <a href="docs/API.md/#Scene+initGenerator ">Scene.initGenerator </a> to output the appropriate regeneration code. For example if the scene init code defines parameters
 ```javascript
     this.parameters = {};
     this.parameters.foo = 0.63143;
@@ -205,7 +205,7 @@ With this code in place, the output on pressing 'O' is then a faithful represent
 
 ## Callbacks and animation
 
-For implementation of custom animation logic we provide pre- and post-frame user callbacks, wherein the user can implement whatever logic he needs to programmatically animate the scene, camera, and materials. See the provided examples for details of how to use this to implement animating scenes, and movie rendering. See:
+For implementation of custom animation logic we provide pre- and post-frame user callbacks, wherein the user can implement whatever logic he needs to programmatically animate the scene, camera, and materials. See the provided examples for details of how to use this to implement animating scenes, and movie rendering.
 - [Scene.preframeCallback](docs/API.md/#Scene+preframeCallback)
 - [Scene.postframeCallback](docs/API.md/#Scene+postframeCallback)
 
