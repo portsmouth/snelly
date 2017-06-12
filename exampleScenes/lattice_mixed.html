@@ -330,7 +330,9 @@ Scene.prototype.initGui = function(gui)
 	dielectricFolder.add(this.parameters, 'offset_d', 0.0, 1.0).onChange( function(value) { snelly.reset(no_recompile); });
 }
 
-// optionally supply an env-map texture URL (should be lat-long)
+Scene.prototype.getName = function() { return 'Lattice of dielectric and metallic polyhedra'; }
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/lattice_mixed.html"; }
+
 Scene.prototype.envMap = function()
 {
   	return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg';

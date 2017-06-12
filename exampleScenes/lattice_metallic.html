@@ -265,7 +265,9 @@ Scene.prototype.syncShader = function(shader)
 		gui.addSlider(this.parameters, {name: 'offset', min: 0.0, max: 1.0});
   }
 
-// optionally supply an env-map texture URL (should be lat-long)
+Scene.prototype.getName = function() { return 'Lattice of metallic polyhedra'; }
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/lattice_metallic.html"; }
+
 Scene.prototype.envMap = function()
 {
   	return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg';
