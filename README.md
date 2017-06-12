@@ -13,15 +13,21 @@ UI controls:
  - AWSD to fly
  - F to frame camera on initial position and orientation
  - R to reset scene to initial state
- - O to serialize scene code to Javascript console
+ - O to serialize scene code to the JavaScript console
  - H to hide/show the sidebar UI
  - F11 to enter/exit fullscreen mode
  - spacebar to pause/play animated scenes
     
 
-## HTML structure   
+## Scene description  
 
-A Snelly scene is defined by a single, standalone HTML file, which has the following overall structure:
+A Snelly scene consists of 3d objects defined by a mathematical signed distance function (SDF) written in GLSL code.
+The SDF gives the distance to the surface from any given point in space, where the distance is positive in the exterior of the shape and negative in the interior (and of course zero on the surface).
+In each scene there can (currently) only exist three such specified objects, with different rendered material properties: a <a href="docs/API.md/#Metal">Metal</a>, a <a href="docs/API.md/#Dielectric">Dielectric</a>, and a general purpose plastic-like <a href="docs/API.md/#Surface">Surface</a> ("uber" material). These three materials can freely intersect and embed one another.
+
+It is generally quite challenging to find SDF functions which correspond to interesting shapes. We provide some example scenes (and this library of samples scenes will be added to over time). A lot of interesting examples and resources can be found on the web, at for example [shadertoy](https://www.shadertoy.com). Fractal surfaces in particular are quite easy to define as SDFs, as described for example [here](http://blog.hvidtfeldts.net/index.php/category/fragmentarium/). 
+
+In code, the Snelly scene is defined by a single, standalone HTML file making calls to a simple JavaScript API. The HTML has the following overall structure:
 ```html
 <body onload="onLoad();">
 <script type="text/javascript" src="../js/compiled/snelly.min.js"></script>
@@ -74,11 +80,7 @@ function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLo
 The only mandatory function to implement in Scene is <a href="docs/API.md/#Scene+shader">Scene.shader</a>, the others are all optional. However the <a href="docs/API.md/#Scene+init">Scene.init</a>
 function is almost always needed, to set the initial camera orientation at least.
 
-## Scene description
-
-A Snelly scene consists of 3d objects defined by a mathematical signed distance function (SDF) written in GLSL code, i.e. where this function is zero corresponds to the surface of the object, and where it is negative is the interior. In each scene there can (currently) only exist three such objects: a <a href="docs/API.md/#Metal">Metal</a>, a <a href="docs/API.md/#Dielectric">Dielectric</a>, and a plastic-like <a href="docs/API.md/#Surface">Surface</a> ("uber" material). These three materials can freely intersect and embed one another.
-
-The rendered scene geometry is defined by specifying, via the <a href="docs/API.md/#Scene+shader">Scene.shader</a> call, three GLSL functions:
+The rendered scene geometry is defined by specifying, via the <a href="docs/API.md/#Scene+shader">Scene.shader</a> call, the three GLSL functions:
 ```glsl
 // the SDF of the uber-surface material
 float SDF_SURFACE(vec3 X);
@@ -142,7 +144,7 @@ Or if an env-map image is not supplied, then the lighting is taken to be a const
 ## Saving scene state
 
 Often we want to explore and fine-tune a scene by moving the camera around, tweaking the scene parameters and materials, and adjusting renderer settings. This work would be wasted without a way to save the resulting scene state.
-A mechanism for this is provided by pressing the 'O' key to dump to the console a Javascript code which can then be inserted into the <a href="docs/API.md/#Scene+init">Scene.init</a> function, to replicate the entire scene state. An example of this output is:
+A mechanism for this is provided by pressing the 'O' key to dump to the console a JavaScript code which can then be inserted into the <a href="docs/API.md/#Scene+init">Scene.init</a> function, to replicate the entire scene state. An example of this output is:
 ```javascript
 /******* copy-pasted console output on 'O', begin *******/
 
