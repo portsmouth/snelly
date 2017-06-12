@@ -25,12 +25,14 @@ A Snelly scene consists of 3d objects defined by a mathematical signed distance 
 The SDF gives the distance to the surface from any given point in space, where the distance is positive in the exterior of the shape and negative in the interior (and of course zero on the surface).
 In each scene there can (currently) only exist three such specified objects, with different rendered material properties: a <a href="docs/API.md/#Metal">Metal</a>, a <a href="docs/API.md/#Dielectric">Dielectric</a>, and a general purpose plastic-like <a href="docs/API.md/#Surface">Surface</a> ("uber" material). These three materials can freely intersect and embed one another.
 
-It is generally quite challenging to find SDF functions which correspond to interesting shapes. We provide some example scenes (and this library of samples scenes will be added to over time). A lot of interesting examples and resources can be found on the web, at for example [shadertoy](https://www.shadertoy.com). Fractal surfaces in particular are quite easy to define as SDFs, as described for example [here](http://blog.hvidtfeldts.net/index.php/category/fragmentarium/). 
+It is generally quite challenging to find SDF functions which correspond to interesting shapes. We provide some example scenes (and this library of sample scenes will be added to over time). A lot of interesting examples and resources can be found on the web, at for example [shadertoy](https://www.shadertoy.com). Fractal surfaces in particular are quite easy to define as SDFs, as described for example [here](http://blog.hvidtfeldts.net/index.php/category/fragmentarium/). 
 
 In code, the Snelly scene is defined by a single, standalone HTML file making calls to a simple JavaScript API. The HTML has the following overall structure:
 ```html
 <body onload="onLoad();">
-<script type="text/javascript" src="../js/compiled/snelly.min.js"></script>
+<script type="text/javascript" 
+src="https://cdn.rawgit.com/portsmouth/snelly/e50325b/js/compiled/snelly.min.js">
+</script>
 <script type="text/javascript">
 
 function Scene() {}

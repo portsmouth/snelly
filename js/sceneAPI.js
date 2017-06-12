@@ -161,9 +161,9 @@ Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snel
 
 		// return dielectric specular reflectance (defaults to just return the input UI constant C)
 		vec3 DIELECTRIC_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V);
-
-Optionally, an init function can be provided, which will be called first by each primary ray. 
-This is occasionally useful to prepare global variables for use during the succeeding computation for this pixel.
+*```
+*Optionally, an init function can also be provided, which will be called first by each primary ray. 
+*This is occasionally useful to prepare global variables for use during the succeeding computation for this pixel.
 *```glsl
 	void INIT();
 *```
