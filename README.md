@@ -3,11 +3,22 @@
 Snelly is a system for physically-based SDF (signed distance field) pathtracing in a web browser. 
 
 ## Example scenes
-- Hello world  [source](./exampleScenes/helloworld.html) [live](https://cdn.rawgit.com/portsmouth/snellypt/master/exampleScenes/helloworld.html)
-- Basic        [source](./exampleScenes/basic.html)      [live](https://cdn.rawgit.com/portsmouth/snellypt/master/exampleScenes/basic.html)
+- Hello world  [source](./exampleScenes/helloworld.html) [live](https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/helloworld.html)
+- Basic animation example  [source](./exampleScenes/basicAnimation.html) [live](https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/basicAnimation.html)
+- Gem stone  [source](./exampleScenes/gem.html) [live](https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/gem.html)
+- Metallic meteorite  [source](./exampleScenes/meteorite.html) [live](https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/meteorite.html)
+- Rock form  [source](./exampleScenes/rock.html) [live](https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/rock.html)
+- Menger sponge fractal  [source](./exampleScenes/menger.html) [live](https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/menger.html)
+- Mandelbox fractal  [source](./exampleScenes/mandelbox.html) [live](https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/mandelbox.html)
+- Apollonian fractal, pathtraced  [source](./exampleScenes/apollonian_pt.html) [live](https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/apollonian_pt.html)
+- Apollonian fractal, first hit, animated  [source](./exampleScenes/apollonian_firsthit.html) [live](https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/apollonian_firsthit.html)
+- Lattice of metallic polyhedra  [source](./exampleScenes/lattice_metallic.html) [live](https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/lattice_metallic.html)
+- Lattice of dielectric polyhedra  [source](./exampleScenes/lattice_dielectric.html) [live](https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/lattice_dielectric.html)
+- Lattice of mixed polyhedra  [source](./exampleScenes/lattice_mixed.html) [live](https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/lattice_mixed.html)
 
 UI controls:
  - left mouse to rotate, alt-mouse to pan
+ - AWSD to fly
  - F to frame camera on initial position and orientation
  - R to reset scene to initial state
  - O to serialize scene code to Javascript console
