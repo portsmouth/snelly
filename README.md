@@ -16,6 +16,12 @@ Snelly is a system for physically-based SDF (signed distance field) pathtracing 
 - Lattice of dielectric polyhedra  [source](./exampleScenes/lattice_dielectric.html) [live](https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/lattice_dielectric.html)
 - Lattice of mixed polyhedra  [source](./exampleScenes/lattice_mixed.html) [live](https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/lattice_mixed.html)
 
+<a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/helloWorld.html"><img src="./docs/screenshots/helloWorld.png" width="100"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/basicAnimation.html"><img src="./docs/screenshots/basicAnimation.png" width="100"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/gem.html"><img src="./docs/screenshots/gem.png" width="100"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/meteorite.html"><img src="./docs/screenshots/meteorite.png" width="100"/></a>
+
+<a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/rock.html"><img src="./docs/screenshots/rock.png" width="100"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/menger.html"><img src="./docs/screenshots/menger.png" width="100"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/mandelbox.html"><img src="./docs/screenshots/mandelbox.png" width="100"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/apollonian_pt.html"><img src="./docs/screenshots/apollonian_pt.png" width="100"/></a>
+
+<a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/apollonian_firsthit.html"><img src="./docs/screenshots/apollonian_firsthit.png" width="100"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/lattice_metallic.html"><img src="./docs/screenshots/lattice_metallic.png" width="100"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/lattice_dielectric.html"><img src="./docs/screenshots/lattice_dielectric.png" width="100"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/lattice_mixed.html"><img src="./docs/screenshots/lattice_mixed.png" width="100"/></a>
+
 UI controls:
  - left mouse to rotate, alt-mouse to pan
  - AWSD to fly
