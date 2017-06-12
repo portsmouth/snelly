@@ -36,7 +36,7 @@ Scene.prototype.shader = function()
     float SDF_SURFACE(vec3 X)    { /* <code omitted> */ }
     float SDF_METAL(vec3 X)      { /* <code omitted> */ }
     float SDF_DIELECTRIC(vec3 X) { /* <code omitted> */ }
-    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 X) { /* <code omitted> */ }
+    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { /* <code omitted> */ }
     // etc.
   `; 
 }
