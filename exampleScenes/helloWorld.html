@@ -1,11 +1,6 @@
    
 <body onload="onLoad();">
 <script type="text/javascript" src="../js/compiled/snelly.min.js"></script>
-
-<?/* ------------------------------------------------------------------*/?>
-<?/*                         scene definition                          */?>
-<?/* ------------------------------------------------------------------*/?>
-
 <script type="text/javascript">
 
 function Scene() {}
@@ -55,15 +50,8 @@ Scene.prototype.envMap = function() { return 'https://cdn.rawgit.com/portsmouth/
 Scene.prototype.initGui = function(gui) { gui.addSlider(this.par, {name: 'R', min: 0.0, max: 1.0}); }
 Scene.prototype.syncShader = function(shader) { shader.uniformF("R", this.par.R); }
 
-</script>
-
-<?/* ------------------------------------------------------------------*/?>
-<?/*                            main loop                              */?>
-<?/* ------------------------------------------------------------------*/?>
-
-<script type="text/javascript">
 function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
 function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
-</script>
 
+</script>
 </body>
