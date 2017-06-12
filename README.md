@@ -25,15 +25,13 @@ A Snelly scene consists of 3d objects defined by a mathematical signed distance 
 The SDF gives the distance to the surface from any given point in space, where the distance is positive in the exterior of the shape and negative in the interior (and of course zero on the surface).
 In each scene there can (currently) only exist three such specified objects, with different rendered material properties: a <a href="docs/API.md/#Metal">Metal</a>, a <a href="docs/API.md/#Dielectric">Dielectric</a>, and a general purpose plastic-like <a href="docs/API.md/#Surface">Surface</a> ("uber" material). These three materials can freely intersect and embed one another.
 
-It is generally quite challenging to find SDF functions which correspond to interesting shapes. We provide some example scenes (and this library of sample scenes will be added to over time). A lot of interesting examples and resources can be found on the web, at for example [shadertoy](https://www.shadertoy.com). Fractal surfaces in particular are quite easy to define as SDFs, as described for example [here](http://blog.hvidtfeldts.net/index.php/category/fragmentarium/). 
+It is generally quite challenging to find SDF functions which correspond to interesting shapes. We provide some [example](./exampleScenes) scenes (and this library of sample scenes will be added to over time). A lot of interesting examples and resources can be found on the web, at for example [shadertoy](https://www.shadertoy.com). Fractal surfaces in particular are quite easy to define as SDFs, as described for example [here](http://blog.hvidtfeldts.net/index.php/category/fragmentarium/). 
 
-In code, the Snelly scene is defined by a single, standalone HTML file making calls to a simple JavaScript API. The HTML has the following overall structure:
+In code, the Snelly scene is defined by a single, standalone HTML file making calls to a simple JavaScript <a href="## Classes">API</a>. The HTML has the following basic structure:
 ```html
 <body onload="onLoad();">
-<script type="text/javascript" 
-src="https://cdn.rawgit.com/portsmouth/snelly/e50325b/js/compiled/snelly.min.js">
-</script>
-<script type="text/javascript">
+<script src="https://cdn.rawgit.com/portsmouth/snelly/e50325b/js/compiled/snelly.min.js"></script>
+<script>
 
 function Scene() {}
 Scene.prototype.shader = function() 
@@ -44,8 +42,6 @@ Scene.prototype.shader = function()
     float SDF_SURFACE(vec3 X)    { /* <code omitted> */ }
     float SDF_METAL(vec3 X)      { /* <code omitted> */ }
     float SDF_DIELECTRIC(vec3 X) { /* <code omitted> */ }
-    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { /* <code omitted> */ }
-    // etc.
   `; 
 }
 
@@ -56,7 +52,6 @@ Scene.prototype.init = function(snelly)
   let camera    = snelly.getCamera();
   let controls  = snelly.getControls();
   let materials = snelly.getMaterials();
-  
   camera.position.set(6.0, 3.0, -6.0);
   controls.target.set(0.0, 0.0, 0.0);
   renderer.maxBounces = 9;
