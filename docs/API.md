@@ -214,7 +214,7 @@ Optional. Called whenever the UI is changed,
 
 | Param | Type | Description |
 | --- | --- | --- |
-| shader | <code>Shader</code> | wrapper of webGL fragment shader |
+| shader | [<code>this.Shader</code>](#GLU.this.Shader) | wrapper of webGL fragment shader, see [this.Shader](#GLU.this.Shader) |
 
 <a name="Scene+getMinScale"></a>
 

@@ -153,6 +153,15 @@ var GLU = {};
 		gl.useProgram(this.program);
 	}
 
+	/** 
+	* Access the underlying webGL program object
+	* @returns {WebGLProgram} - the underlying webGL program object for this shader
+	*/
+	this.Shader.prototype.getProgram = function() 
+	{
+		return this.program;
+	}
+
 	this.Shader.prototype.getAttribLocation = function(attribName)
 	{
 		return gl.getAttribLocation(this.program, attribName);

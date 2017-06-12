@@ -346,7 +346,7 @@ Scene.prototype.initGui = function(gui)
 /**
 * Optional. Called whenever the UI is changed,
 /* and must sync the params of the shader with the current UI settings
-* @param {Shader} shader - wrapper of webGL fragment shader
+* @param {GLU.this.Shader} shader - wrapper of webGL fragment shader, see {@link GLU.this.Shader}
 */
 Scene.prototype.syncShader = function(shader)
 {
