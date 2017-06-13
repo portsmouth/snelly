@@ -28,7 +28,7 @@ In each scene there can (currently) only exist three such specified objects, wit
 
 It is generally quite challenging to find SDF functions which correspond to interesting shapes. We provide some [example](./exampleScenes) scenes (and this library of sample scenes will be added to over time). A lot of interesting examples and resources can be found on the web, at for example [shadertoy](https://www.shadertoy.com). Fractal surfaces in particular are quite easy to define as SDFs, as described for example [here](http://blog.hvidtfeldts.net/index.php/category/fragmentarium/). 
 
-In code, the Snelly scene is defined by a single, standalone HTML file making calls to a simple JavaScript <a href="## Classes">API</a>. As a standalone web page, a Snelly scene can be easily shared, for example by keeping the HTML file in a GitHub repository and simply linking to the file via [RawGit](https://rawgit.com/). The HTML has the following basic structure:
+In code, the Snelly scene is defined by a single, standalone HTML file making calls to a simple JavaScript <a href="#api-reference">API</a>. As a standalone web page, a Snelly scene can be easily shared, for example by keeping the HTML file in a GitHub repository and simply linking to the file via [RawGit](https://rawgit.com/). The HTML has the following basic structure:
 ```html
 <body onload="onLoad();">
 <script src="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/js/compiled/snelly.min.js"></script>
