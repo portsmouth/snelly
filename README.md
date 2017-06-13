@@ -2,11 +2,12 @@
 
 Snelly is a system for physically-based SDF (signed distance field) pathtracing in a web browser. 
 
-<a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/helloWorld.html"><img src="./docs/screenshots/helloWorld_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/basicAnimation.html"><img src="./docs/screenshots/basicAnimation_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/gem.html"><img src="./docs/screenshots/gem_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/meteorite.html"><img src="./docs/screenshots/meteorite_thumb.png" width="220"/></a>
 
-<a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/rock.html"><img src="./docs/screenshots/rock_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/menger.html"><img src="./docs/screenshots/menger_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/mandelbox.html"><img src="./docs/screenshots/mandelbox_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/apollonian_pt.html"><img src="./docs/screenshots/apollonian_pt_thumb.png" width="220"/></a>
+<a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/helloWorld.html"><img src="./docs/screenshots/helloWorld_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/basicAnimation.html"><img src="./docs/screenshots/basicAnimation_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/gem.html"><img src="./docs/screenshots/gem_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/meteorite.html"><img src="./docs/screenshots/meteorite_thumb.png" width="220"/></a>
 
-<a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/apollonian_firsthit.html"><img src="./docs/screenshots/apollonian_firsthit_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/lattice_metallic.html"><img src="./docs/screenshots/lattice_metallic_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/lattice_dielectric.html"><img src="./docs/screenshots/lattice_dielectric_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/master/exampleScenes/lattice_mixed.html"><img src="./docs/screenshots/lattice_mixed_thumb.png" width="220"/></a>
+<a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/rock.html"><img src="./docs/screenshots/rock_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/menger.html"><img src="./docs/screenshots/menger_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/mandelbox.html"><img src="./docs/screenshots/mandelbox_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/apollonian_pt.html"><img src="./docs/screenshots/apollonian_pt_thumb.png" width="220"/></a>
+
+<a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/apollonian_firsthit.html"><img src="./docs/screenshots/apollonian_firsthit_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/lattice_metallic.html"><img src="./docs/screenshots/lattice_metallic_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/lattice_dielectric.html"><img src="./docs/screenshots/lattice_dielectric_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/lattice_mixed.html"><img src="./docs/screenshots/lattice_mixed_thumb.png" width="220"/></a>
 
 UI controls:
  - left mouse to rotate, alt-mouse to pan
@@ -30,7 +31,7 @@ It is generally quite challenging to find SDF functions which correspond to inte
 In code, the Snelly scene is defined by a single, standalone HTML file making calls to a simple JavaScript <a href="## Classes">API</a>. As a standalone web page, a Snelly scene can be easily shared, for example by keeping the HTML file in a GitHub repository and simply linking to the file via [RawGit](https://rawgit.com/). The HTML has the following basic structure:
 ```html
 <body onload="onLoad();">
-<script src="https://cdn.rawgit.com/portsmouth/snelly/e50325b/js/compiled/snelly.min.js"></script>
+<script src="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/js/compiled/snelly.min.js"></script>
 <script>
 
 function Scene() {}
