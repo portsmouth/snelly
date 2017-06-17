@@ -90,11 +90,17 @@ var Renderer = function()
 	this._width = render_canvas.width;
 	this._height = render_canvas.height;
 
-	// Initialize pathtracing textures:
+	// Initialize pathtracing buffers and programs
 	this.currentState = 0;
 	this.pathStates = [new PathtracerState(this._width, this._height), 
 					   new PathtracerState(this._width, this._height)];
 	this.fbo == null;
+	this.aoProgram           = null;
+	this.normalsProgram      = null;
+	this.firsthitProgram     = null;
+	this.pathtraceAllProgram = null;
+	this.tonemapProgram      = null;
+	this.pickProgram         = null;
 
 	// Internal properties (@todo: use underscore to make this more explicit?)
 	this.numSamples = 0;
@@ -123,7 +129,7 @@ var Renderer = function()
 	this.AA = true;
 
 	// Load shaders
-	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "tonemapper", "filter"]);
+	this.shaderSources = GLU.resolveShaderSource(["pathtracer", "ao", "normals", "firsthit", "pick", "tonemapper"]);
 	this.filterPrograms = null;
 
 	// load env map
@@ -238,23 +244,21 @@ Renderer.prototype.compileShaders = function()
 	switch (this.renderMode)
 	{
 		case 'ao':
-			replacements.ENTRY_AO = 'main';
-			this.aoProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
+			this.aoProgram = new GLU.Shader('ao', this.shaderSources, replacements);
 			break;
 		case 'normals':
-			replacements.ENTRY_NORMALS = 'main';
-			this.normalsProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
+			this.normalsProgram = new GLU.Shader('normals', this.shaderSources, replacements);
 			break;
 		case 'firsthit':
-			replacements.ENTRY_FIRSTHIT = 'main';
-			this.firsthitProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
+			this.firsthitProgram = new GLU.Shader('firsthit', this.shaderSources, replacements);
 			break;
 		case 'pt':
 		default:
-			replacements.ENTRY_PATHTRACE_ALL = 'main';
 			this.pathtraceAllProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
 			break;
 	}
+
+	this.pickProgram = new GLU.Shader('pick', this.shaderSources, replacements);
 
 	// Tonemapping program
 	this.tonemapProgram = new GLU.Shader('tonemapper', this.shaderSources, null);
@@ -268,6 +272,72 @@ Renderer.prototype.enabled = function()
 Renderer.prototype.depthTestEnabled = function()
 {
 	return this.depthTest;
+}
+
+Renderer.prototype.pick = function(xPick, yPick)
+{
+	if (!this.loaded) return;
+	if (this.pickProgram==null) return;
+	var sceneObj = snelly.getScene(); if (sceneObj==null) return;
+
+	let gl = this.gl;
+	gl.viewport(0, 0, 1, 1);
+
+	let PROGRAM = this.pickProgram;
+	PROGRAM.bind();
+
+	// Upload current scene shader parameters
+	if (typeof sceneObj.syncShader !== "undefined") 
+	{
+		sceneObj.syncShader(this.pickProgram); 
+	}
+
+	// sync camera info to shader	 
+	var camera = snelly.getCamera();
+	var camPos = camera.position.clone();
+	var camDir = camera.getWorldDirection();
+	var camUp = camera.up.clone();
+	camUp.transformDirection( camera.matrixWorld );
+	var camX = new THREE.Vector3();
+	camX.crossVectors(camUp, camDir);
+	PROGRAM.uniform3Fv("camPos", [camPos.x, camPos.y, camPos.z]);
+	PROGRAM.uniform3Fv("camDir", [camDir.x, camDir.y, camDir.z]);
+	PROGRAM.uniform3Fv("camX", [camX.x, camX.y, camX.z]);
+	PROGRAM.uniform3Fv("camY", [camUp.x, camUp.y, camUp.z]);
+	PROGRAM.uniformF("camNear", camera.near);
+	PROGRAM.uniformF("camFar", camera.far);
+	PROGRAM.uniformF("camFovy", camera.fov);
+	PROGRAM.uniformF("camZoom", camera.zoom);
+	PROGRAM.uniformF("camAspect", camera.aspect);
+	PROGRAM.uniformF("camAperture", camera.aperture);
+	PROGRAM.uniformF("camFocalDistance", camera.focalDistance);
+	PROGRAM.uniform2Fv("resolution", [this._width, this._height]);
+	PROGRAM.uniformF("maxScale", snelly.maxScale);
+
+	PROGRAM.uniformF("minScale", snelly.minScale);
+	PROGRAM.uniformF("maxScale", snelly.maxScale);
+	PROGRAM.uniformI("maxStepsIsMiss", Boolean(this.maxStepsIsMiss) ? 1 : 0);
+	PROGRAM.uniform2Fv("mousePick", [xPick, yPick]); // picked pixel
+
+	let fbo = new GLU.RenderTarget();
+	fbo.bind();
+	fbo.drawBuffers(1);
+
+	let pickData = new Float32Array(4);
+	this.pickTex = new GLU.Texture(1, 1, 4, true, false, true, pickData);
+	fbo.attachTexture(this.pickTex, 0);
+
+	// Trace pick ray
+	this.quadVbo.bind();
+	this.quadVbo.draw(PROGRAM, gl.TRIANGLE_FAN);
+
+	// Read floating point hit distance output from pick fragment shader
+	var pixels = new Float32Array(4);
+	gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.FLOAT, pixels);
+	fbo.unbind();
+
+	return {distance: pixels[0], 
+		    material: pixels[1]};
 }
 
 Renderer.prototype.render = function()
@@ -302,7 +372,7 @@ Renderer.prototype.render = function()
 	/// Pathtracing
 	////////////////////////////////////////////////
 
-	var INTEGRATOR_PROGRAM = null;
+	let INTEGRATOR_PROGRAM = null;
 	switch (this.renderMode)
 	{
 		case 'ao':       INTEGRATOR_PROGRAM = this.aoProgram;           break;
@@ -331,14 +401,19 @@ Renderer.prototype.render = function()
 	INTEGRATOR_PROGRAM.uniformF("camFovy", camera.fov);
 	INTEGRATOR_PROGRAM.uniformF("camZoom", camera.zoom);
 	INTEGRATOR_PROGRAM.uniformF("camAspect", camera.aspect);
+	INTEGRATOR_PROGRAM.uniformF("camAperture", camera.aperture);
+	INTEGRATOR_PROGRAM.uniformF("camFocalDistance", camera.focalDistance);
 	INTEGRATOR_PROGRAM.uniform2Fv("resolution", [this._width, this._height]);
 
 	// Read wavelength -> XYZ table
-	snelly.wavelengthToXYZ.bind(2);
-	INTEGRATOR_PROGRAM.uniformTexture("WavelengthToXYZ", snelly.wavelengthToXYZ);
-	snelly.emissionIcdf.bind(3);
-	INTEGRATOR_PROGRAM.uniformTexture("ICDF", snelly.emissionIcdf);
-	
+	if (this.renderMode == 'pt')
+	{
+		snelly.wavelengthToXYZ.bind(2);
+		INTEGRATOR_PROGRAM.uniformTexture("WavelengthToXYZ", snelly.wavelengthToXYZ);
+		snelly.emissionIcdf.bind(3);
+		INTEGRATOR_PROGRAM.uniformTexture("ICDF", snelly.emissionIcdf);
+	}
+
 	// Pathtracing options
 	INTEGRATOR_PROGRAM.uniformI("maxBounces", this.maxBounces);
 	INTEGRATOR_PROGRAM.uniformF("skyPower", this.skyPower);
@@ -368,10 +443,10 @@ Renderer.prototype.render = function()
 	INTEGRATOR_PROGRAM.uniformI("haveEnvMap", Boolean(this.envMap) ? 1 : 0);
 	if (this.envMap != null)
 	{
-		gl.activeTexture(gl.TEXTURE0 + 7);
+		gl.activeTexture(gl.TEXTURE0 + 6);
 		gl.bindTexture(gl.TEXTURE_2D, this.envMap.tex);
 		var id = gl.getUniformLocation(INTEGRATOR_PROGRAM.program, "envMap");
-		gl.uniform1i(id, 7);
+		gl.uniform1i(id, 6);
 	}
 
 	// Upload current scene shader parameters
@@ -379,6 +454,7 @@ Renderer.prototype.render = function()
 	{
 		sceneObj.syncShader(INTEGRATOR_PROGRAM); 
 	}
+
 	snelly.materials.syncShader(INTEGRATOR_PROGRAM);
 
 	// Trace one path per pixel

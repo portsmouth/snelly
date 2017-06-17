@@ -9,7 +9,6 @@ uniform float exposure;
 uniform float invGamma;
 uniform float whitepoint;
 
-
 void constrain_rgb(inout vec3 RGB)
 {
 	float w;

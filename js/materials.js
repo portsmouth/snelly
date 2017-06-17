@@ -272,10 +272,10 @@ float K_METAL(float wavelength_nm)
 
 TabulatedMetal.prototype.syncShader = function(shader)
 {
-	this.ior_tex.bind(5);
+	this.ior_tex.bind(4);
     shader.uniformTexture("iorTex", this.ior_tex);
 
-    this.k_tex.bind(6);
+    this.k_tex.bind(5);
     shader.uniformTexture("k_tex", this.k_tex);
 
 	Metal.prototype.syncShader.call(this, shader);

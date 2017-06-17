@@ -66,6 +66,9 @@ GUI.prototype.createRendererSettings = function()
 	this.rendererFolder.add(pathtracer, 'radianceClamp', -2.0, 6.0).onChange( function(value) { pathtracer.reset(true); } );
 	this.rendererFolder.add(pathtracer, 'exposure', 0.0, 50.0);
 	this.rendererFolder.add(camera, 'fov', 5.0, 120.0).onChange( function(value) { pathtracer.reset(true); } );
+	this.rendererFolder.add(camera, 'aperture',      1.0e-6*snelly.maxScale, 1.0e-3*snelly.maxScale).onChange( function(value) { pathtracer.reset(true); } );
+	this.rendererFolder.add(camera, 'focalDistance', 1.0e-6*snelly.maxScale, 0.1*snelly.maxScale).onChange( function(value) { pathtracer.reset(true); } );
+
 	this.rendererFolder.add(pathtracer, 'gamma', 0.0, 3.0);
 	this.rendererFolder.add(pathtracer, 'whitepoint', 0.0, 2.0);
 	this.rendererFolder.add(pathtracer, 'shadowStrength', 0.0, 1.0).onChange( function(value) { pathtracer.reset(true); } );
@@ -289,7 +292,7 @@ GUI.prototype.createMaterialSettings = function()
 		this.roughnessItem.onChange( function(value) { surfaceObj.roughness = value; snelly.camera.enabled = false; snelly.reset(true); } );
 		this.roughnessItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
 
-		this.iorItem = this.surfaceFolder.add(surfaceObj, 'ior', 0.0, 10.0);
+		this.iorItem = this.surfaceFolder.add(surfaceObj, 'ior', 1.0, 3.0);
 		this.iorItem.onChange( function(value) { surfaceObj.ior = value; snelly.camera.enabled = false; snelly.reset(true); } );
 		this.iorItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
 

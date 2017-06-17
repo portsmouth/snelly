@@ -36,6 +36,7 @@ var Snelly = function(sceneObj)
 	this.camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
 	this.camera.lookAt(new THREE.Vector3(0.0, 0.0, 0.0));
 	this.camera.position.set(1.0, 1.0, 1.0);
+
 	this.camControls = new THREE.OrbitControls(this.camera, this.container);
 	this.camControls.zoomSpeed = 2.0;
 	this.camControls.flySpeed = 0.01;
@@ -83,12 +84,12 @@ var Snelly = function(sceneObj)
 }
 
 /**
-* Returns the current version number of the snelly system, in the format [1, 2, 3]
+* Returns the current version number of the snelly system, in the format [1, 2, 3] (i.e. major, minor, patch version)
 *  @returns {Array}
 */
 Snelly.prototype.getVersion = function()
 {
-	return [1, 0, 2];
+	return [1, 1, 0];
 }
 
 Snelly.prototype.handleEvent = function(event)
@@ -99,7 +100,7 @@ Snelly.prototype.handleEvent = function(event)
 		case 'mousemove':   this.onDocumentMouseMove(event);  break;
 		case 'mousedown':   this.onDocumentMouseDown(event);  break;
 		case 'mouseup':     this.onDocumentMouseUp(event);    break;
-		//case 'contextmenu': this.onDocumentRightClick(event); break;
+		case 'contextmenu': this.onDocumentRightClick(event); break;
 		case 'click':       this.onClick(event);  break;
 		case 'keydown':     this.onkeydown(event);  break;
 	}
@@ -183,9 +184,12 @@ Snelly.prototype.initScene = function()
 	this.maxScale = Math.min(1.0e6, this.maxScale); // sanity
 
 	// Set initial default camera position and target based on max scale
-	let po = 0.1*this.maxScale;
+	let po = 0.01*this.maxScale; // @todo: should be e.g. 10.0 * this.sceneScale
 	this.camera.position.set(po, po, po);
 	this.camControls.target.set(0.0, 0.0, 0.0);
+
+	this.camera.aperture      = 1.0e-4 * this.maxScale; // @todo: should be e.g. 0.001 * this.sceneScale
+	this.camera.focalDistance = 1.0e-2 * this.maxScale; // @todo: should be e.g.  10.0 * this.sceneScale
 
 	// Call user-defined init function	
 	if (typeof this.sceneObj.init !== "undefined") 
@@ -258,7 +262,10 @@ let materials = snelly.getMaterials();
 	code += this.guiVisible ? `\nsnelly.showGUI(true);\n` : `\nsnelly.showGUI(false);\n`;
 
 	code += `
+/** Camera settings **/
 camera.fov = ${camera.fov};
+camera.aperture = ${camera.aperture};
+camera.focalDistance = ${camera.focalDistance};
 camera.up.set(${camera.up.x}, ${camera.up.y}, ${camera.up.z});
 camera.position.set(${camera.position.x}, ${camera.position.y}, ${camera.position.z});
 controls.target.set(${controls.target.x}, ${controls.target.y}, ${controls.target.z});
@@ -506,6 +513,30 @@ Snelly.prototype.onDocumentMouseDown = function(event)
 Snelly.prototype.onDocumentMouseUp = function(event)
 {
 	this.camControls.update();
+}
+
+
+Snelly.prototype.onDocumentRightClick = function(event)
+{
+	if (event.altKey) return; // don't pick if alt-right-clicking (panning)
+
+	var xPick = event.clientX;
+	var yPick = this.height - event.clientY;
+	console.log('xPick, yPick: ', xPick, yPick)
+
+	var pickData = this.pathtracer.pick(xPick, yPick);
+	switch (pickData.material)
+	{
+		case -1: console.log('picked nothing'); break;
+		case  0: console.log('picked dielectric'); break;
+		case  1: console.log('picked metal'); break;
+		case  2: console.log('picked surface'); break;
+	}
+	console.log('pick distance: ', pickData.distance, '\n'); 
+	this.camera.focalDistance = pickData.distance;
+	this.gui.sync();
+	
+	this.reset(true);
 }
 
 Snelly.prototype.onkeydown = function(event)
