@@ -59,7 +59,7 @@ Snelly is the global object providing access to all functionality in the system.
 <a name="Snelly+getVersion"></a>
 
 ### snelly.getVersion() ⇒ <code>Array</code>
-Returns the current version number of the snelly system, in the format [1, 2, 3]
+Returns the current version number of the snelly system, in the format [1, 2, 3] (i.e. major, minor, patch version)
 
 **Kind**: instance method of [<code>Snelly</code>](#Snelly)  
 <a name="Snelly+getRenderer"></a>
