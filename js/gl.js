@@ -391,36 +391,35 @@ var GLU = {};
 
 	this.Texture = function(width, height, channels, isFloat, isLinear, isClamped, texels) 
 	{
-		var coordMode = isClamped ? gl.CLAMP_TO_EDGE : gl.REPEAT;
-		this.type     = isFloat   ? gl.FLOAT         : gl.UNSIGNED_BYTE;
+		this.width  = width;
+		this.height = height;
+		this.coordMode = isClamped ? gl.CLAMP_TO_EDGE : gl.REPEAT;
+		this.type      = isFloat   ? gl.FLOAT         : gl.UNSIGNED_BYTE;
 		this.internalformat   = [gl.R32F, gl.RG, gl.RGB, gl.RGBA32F][channels - 1];
 		this.format           = [gl.RED, gl.RG, gl.RGB, gl.RGBA][channels - 1];
 
-		this.width  = width;
-		this.height = height;
+		this.interpMode = isLinear ? gl.LINEAR : gl.NEAREST;
 
 		this.glName = gl.createTexture();
 		gl.bindTexture(gl.TEXTURE_2D, this.glName);
 		gl.texImage2D(gl.TEXTURE_2D, 0, this.internalformat, this.width, this.height, 0, this.format, this.type, texels);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, coordMode);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, coordMode);
-
-		this.setSmooth(false);
-		// this.setSmooth(isLinear); // fails in webGL 2.0!  @todo: fix
-
+		
+		if (texels != null) this.setFilter();
 		this.boundUnit = -1;
-	}
-
-	this.Texture.prototype.setSmooth = function(smooth) 
-	{
-		var interpMode = smooth ? gl.LINEAR : gl.NEAREST;
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, interpMode);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, interpMode);
 	}
 
 	this.Texture.prototype.copy = function(texels) 
 	{
 		gl.texImage2D(gl.TEXTURE_2D, 0, this.internalformat, this.width, this.height, 0, this.format, this.type, texels);
+		if (texels != null) this.setFilter();
+	}
+
+	this.Texture.prototype.setFilter = function() 
+	{
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, this.coordMode);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, this.coordMode);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, this.interpMode);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, this.interpMode);
 	}
 
 	this.Texture.prototype.bind = function(unit) 
@@ -439,9 +438,7 @@ var GLU = {};
 		var tex = gl.createTexture();
 		gl.bindTexture(gl.TEXTURE_2D, tex);
 		gl.texImage2D(gl.TEXTURE_2D, 0, gl.SRGB8, 1, 1, 0, gl.RGB, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 255, 255]));
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+
 		var imgInfo = {
 			width: 1,   // we don't know the size until it loads
 			height: 1,
@@ -456,6 +453,11 @@ var GLU = {};
 			imgInfo.tex = tex;
 			gl.bindTexture(gl.TEXTURE_2D, tex);
 			gl.texImage2D(gl.TEXTURE_2D, 0, gl.SRGB8, gl.RGB, gl.UNSIGNED_BYTE, img);
+
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+
 			callback(imgInfo);
 		});
 		//if ((new URL(url)).origin !== window.location.origin) 

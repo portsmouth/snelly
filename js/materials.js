@@ -245,8 +245,8 @@ function tabulated_zirconium() { // 64 samples of n, k between 390.000000nm and 
 function TabulatedMetal(name, nk)
 {
 	Metal.call(this, name);
-	this.ior_tex  = new GLU.Texture(64, 1, 1, true, true, true, nk.n);
-	this.k_tex    = new GLU.Texture(64, 1, 1, true, true, true, nk.k);
+	this.ior_tex  = new GLU.Texture(64, 1, 1, true, false, true, nk.n);
+	this.k_tex    = new GLU.Texture(64, 1, 1, true, false, true, nk.k);
 }
 
 TabulatedMetal.prototype = Object.create(Metal.prototype);

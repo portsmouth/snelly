@@ -60,8 +60,8 @@ var Snelly = function(sceneObj)
 	this.LAMBDA_MIN = 390.0;
     this.LAMBDA_MAX = 750.0;
 	var wToXYZ = wavelengthToXYZTable();
-	this.wavelengthToXYZ = new GLU.Texture(wToXYZ.length/4, 1, 4, true, true, true, wToXYZ);
-	this.emissionIcdf    = new GLU.Texture(4*this.SPECTRUM_SAMPLES, 1, 1, true, true, true, null);
+	this.wavelengthToXYZ = new GLU.Texture(wToXYZ.length/4, 1, 4, true, false, true, wToXYZ);
+	this.emissionIcdf    = new GLU.Texture(4*this.SPECTRUM_SAMPLES, 1, 1, true, false, true, null);
 
 	// Allow user to programmatically initialize the camera, materials, and renderer
 	this.initScene();
@@ -522,20 +522,9 @@ Snelly.prototype.onDocumentRightClick = function(event)
 
 	var xPick = event.clientX;
 	var yPick = this.height - event.clientY;
-	console.log('xPick, yPick: ', xPick, yPick)
-
 	var pickData = this.pathtracer.pick(xPick, yPick);
-	switch (pickData.material)
-	{
-		case -1: console.log('picked nothing'); break;
-		case  0: console.log('picked dielectric'); break;
-		case  1: console.log('picked metal'); break;
-		case  2: console.log('picked surface'); break;
-	}
-	console.log('pick distance: ', pickData.distance, '\n'); 
 	this.camera.focalDistance = pickData.distance;
 	this.gui.sync();
-	
 	this.reset(true);
 }
 

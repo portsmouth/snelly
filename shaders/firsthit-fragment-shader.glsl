@@ -32,7 +32,6 @@ uniform float skyPower;
 uniform bool haveEnvMap;
 uniform bool envMapVisible;
 uniform float envMapRotation;
-uniform float gamma;
 uniform float radianceClamp;
 uniform float skipProbability;
 uniform float shadowStrength;
