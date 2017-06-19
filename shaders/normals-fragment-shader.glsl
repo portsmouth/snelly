@@ -1,5 +1,3 @@
-
-#extension GL_EXT_draw_buffers : require
 precision highp float;
 
 uniform sampler2D Radiance;         // 0 (IO buffer)
@@ -10,7 +8,10 @@ uniform sampler2D RadianceBlocks;   // 4
 uniform sampler2D iorTex;           // 5 (for metals)
 uniform sampler2D kTex;             // 6 (for metals)
 uniform sampler2D envMap;           // 7
-varying vec2 vTexCoord;
+in vec2 vTexCoord;
+
+layout(location = 0) out vec4 gbuf_rad;
+layout(location = 1) out vec4 gbuf_rng;
 
 uniform vec2 resolution;
 uniform vec3 camPos;
@@ -225,7 +226,7 @@ vec3 environmentRadianceXYZ(in vec3 dir)
     vec3 XYZ;
     if (haveEnvMap)
     {
-        vec3 RGB = texture2D(envMap, vec2(u,v)).rgb;
+        vec3 RGB = texture(envMap, vec2(u,v)).rgb;
         RGB.r = pow(RGB.r, gamma);
         RGB.g = pow(RGB.g, gamma);
         RGB.b = pow(RGB.b, gamma);
@@ -247,7 +248,7 @@ void main()
 {
     INIT();
 
-    vec4 rnd = texture2D(RngData, vTexCoord);
+    vec4 rnd = texture(RngData, vTexCoord);
     vec2 pixel = gl_FragCoord.xy;
     if (jitter) pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
 
@@ -274,12 +275,12 @@ void main()
 
 
    // Write updated radiance and sample count
-    vec4 oldL = texture2D(Radiance, vTexCoord);
+    vec4 oldL = texture(Radiance, vTexCoord);
     float oldN = oldL.w;
     float newN = oldN + 1.0;
     vec3 newL = (oldN*oldL.rgb + colorXYZ) / newN;
 
-    gl_FragData[0] = vec4(newL, newN);
-    gl_FragData[1] = rnd;
+    gbuf_rad = vec4(newL, newN);
+    gbuf_rng = rnd;
 }
 

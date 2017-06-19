@@ -427,10 +427,6 @@ Renderer.prototype.render = function()
 	INTEGRATOR_PROGRAM.uniformI("maxStepsIsMiss", Boolean(this.maxStepsIsMiss) ? 1 : 0);
 	INTEGRATOR_PROGRAM.uniformF("jitter", Boolean(this.AA) ? 1 : 0);
 
-	// gamma correction of env map already done if sRGB ext was loaded
-	if (GLU.sRGBExt != null) INTEGRATOR_PROGRAM.uniformF("gamma", 1.0);
-	else                     INTEGRATOR_PROGRAM.uniformF("gamma", this.gamma);
-
 	// Attach radiance FBO
 	this.fbo.bind();
 	this.fbo.drawBuffers(2);

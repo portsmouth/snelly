@@ -260,12 +260,12 @@ return `
 float IOR_METAL(float wavelength_nm)
 {
 	float u = (wavelength_nm - 390.0) * ${delta};
-	return texture2D(iorTex, vec2(u, 0.5)).r;
+	return texture(iorTex, vec2(u, 0.5)).r;
 }                                                       
 float K_METAL(float wavelength_nm)                                      
 {
 	float u = (wavelength_nm - 390.0) * ${delta};
-	return texture2D(kTex, vec2(u, 0.5)).r;
+	return texture(kTex, vec2(u, 0.5)).r;
 }
 	`;
 }

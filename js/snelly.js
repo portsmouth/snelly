@@ -60,7 +60,7 @@ var Snelly = function(sceneObj)
 	this.LAMBDA_MIN = 390.0;
     this.LAMBDA_MAX = 750.0;
 	var wToXYZ = wavelengthToXYZTable();
-	this.wavelengthToXYZ = new GLU.Texture(wToXYZ.length/4, 1, 4, true,  true, true, wToXYZ);
+	this.wavelengthToXYZ = new GLU.Texture(wToXYZ.length/4, 1, 4, true, true, true, wToXYZ);
 	this.emissionIcdf    = new GLU.Texture(4*this.SPECTRUM_SAMPLES, 1, 1, true, true, true, null);
 
 	// Allow user to programmatically initialize the camera, materials, and renderer

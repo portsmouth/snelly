@@ -1,8 +1,6 @@
 var Shaders = {
 
-'ao-fragment-shader': `
-
-#extension GL_EXT_draw_buffers : require
+'ao-fragment-shader': `#version 300 es
 precision highp float;
 
 uniform sampler2D Radiance;         // 0 (IO buffer)
@@ -13,7 +11,10 @@ uniform sampler2D RadianceBlocks;   // 4
 uniform sampler2D iorTex;           // 5 (for metals)
 uniform sampler2D kTex;             // 6 (for metals)
 uniform sampler2D envMap;           // 7
-varying vec2 vTexCoord;
+in vec2 vTexCoord;
+
+layout(location = 0) out vec4 gbuf_rad;
+layout(location = 1) out vec4 gbuf_rng;
 
 uniform vec2 resolution;
 uniform vec3 camPos;
@@ -34,7 +35,6 @@ uniform float skyPower;
 uniform bool haveEnvMap;
 uniform bool envMapVisible;
 uniform float envMapRotation;
-uniform float gamma;
 uniform float radianceClamp;
 uniform float skipProbability;
 uniform float shadowStrength;
@@ -244,7 +244,7 @@ vec3 environmentRadianceXYZ(in vec3 dir)
     vec3 XYZ;
     if (haveEnvMap)
     {
-        vec3 RGB = texture2D(envMap, vec2(u,v)).rgb;
+        vec3 RGB = texture(envMap, vec2(u,v)).rgb;
         RGB.r = pow(RGB.r, gamma);
         RGB.g = pow(RGB.g, gamma);
         RGB.b = pow(RGB.b, gamma);
@@ -267,10 +267,10 @@ void main()
 {
     INIT();
 
-    vec4 rnd = texture2D(RngData, vTexCoord);
+    vec4 rnd = texture(RngData, vTexCoord);
     if (rand(rnd) < skipProbability)
     {
-        vec4 oldL = texture2D(Radiance, vTexCoord);
+        vec4 oldL = texture(Radiance, vTexCoord);
         float oldN = oldL.w;
         float newN = oldN;
         vec3 newL = oldL.rgb;
@@ -306,8 +306,8 @@ void main()
         vec3 wiW = localToWorld(wiL, basis);
 
         // Compute diffuse albedo at sampled wavelength
-        float w = texture2D(ICDF, vec2(rand(rnd), 0.5)).r;
-        vec3 XYZ = texture2D(WavelengthToXYZ, vec2(w, 0.5)).rgb;
+        float w = texture(ICDF, vec2(rand(rnd), 0.5)).r;
+        vec3 XYZ = texture(WavelengthToXYZ, vec2(w, 0.5)).rgb;
         float diffuseAlbedo = clamp(dot(XYZ, SURFACE_DIFFUSE_REFL_XYZ(pW, basis.nW, woW)), 0.0, 1.0);
 
         // Set incident radiance to according to whether the AO ray hit anything or missed.
@@ -323,25 +323,23 @@ void main()
     }
 
     // Write updated radiance and sample count
-    vec4 oldL = texture2D(Radiance, vTexCoord);
+    vec4 oldL = texture(Radiance, vTexCoord);
     float oldN = oldL.w;
     float newN = oldN + 1.0;
     vec3 newL = (oldN*oldL.rgb + colorXYZ) / newN;
 
-    gl_FragData[0] = vec4(newL, newN);
-    gl_FragData[1] = rnd;
+    gbuf_rad = vec4(newL, newN);
+    gbuf_rnd = rnd;
 }
 `,
 
-'ao-vertex-shader': `
-
-#extension GL_EXT_draw_buffers : require
+'ao-vertex-shader': `#version 300 es
 precision highp float;
 
-attribute vec3 Position;
-attribute vec2 TexCoord;
+in vec3 Position;
+in vec2 TexCoord;
 
-varying vec2 vTexCoord;
+out vec2 vTexCoord;
 
 void main() 
 {
@@ -350,9 +348,7 @@ void main()
 }
 `,
 
-'firsthit-fragment-shader': `
-
-#extension GL_EXT_draw_buffers : require
+'firsthit-fragment-shader': `#version 300 es
 precision highp float;
 
 uniform sampler2D Radiance;         // 0 (IO buffer)
@@ -363,7 +359,10 @@ uniform sampler2D RadianceBlocks;   // 4
 uniform sampler2D iorTex;           // 5 (for metals)
 uniform sampler2D kTex;             // 6 (for metals)
 uniform sampler2D envMap;           // 7
-varying vec2 vTexCoord;
+in vec2 vTexCoord;
+
+layout(location = 0) out vec4 gbuf_rad;
+layout(location = 1) out vec4 gbuf_rng;
 
 uniform vec2 resolution;
 uniform vec3 camPos;
@@ -591,7 +590,7 @@ vec3 environmentRadianceXYZ(in vec3 dir)
     vec3 XYZ;
     if (haveEnvMap)
     {
-        vec3 RGB = texture2D(envMap, vec2(u,v)).rgb;
+        vec3 RGB = texture(envMap, vec2(u,v)).rgb;
         RGB.r = pow(RGB.r, gamma);
         RGB.g = pow(RGB.g, gamma);
         RGB.b = pow(RGB.b, gamma);
@@ -614,10 +613,10 @@ void main()
 {
     INIT();
 
-    vec4 rnd = texture2D(RngData, vTexCoord);
+    vec4 rnd = texture(RngData, vTexCoord);
     if (rand(rnd) < skipProbability)
     {
-        vec4 oldL = texture2D(Radiance, vTexCoord);
+        vec4 oldL = texture(Radiance, vTexCoord);
         float oldN = oldL.w;
         float newN = oldN;
         vec3 newL = oldL.rgb;
@@ -634,9 +633,9 @@ void main()
     vec3 primaryStart, primaryDir;
     constructPrimaryRay(pixel, rnd, primaryStart, primaryDir);
 
-    float w = texture2D(ICDF, vec2(rand(rnd), 0.5)).r;
+    float w = texture(ICDF, vec2(rand(rnd), 0.5)).r;
     float wavelength_nm = 390.0 + (750.0 - 390.0)*w;
-    vec3 XYZ = texture2D(WavelengthToXYZ, vec2(w, 0.5)).rgb;
+    vec3 XYZ = texture(WavelengthToXYZ, vec2(w, 0.5)).rgb;
     
     // Raycast to first hit point
     vec3 pW;
@@ -660,25 +659,23 @@ void main()
     }
 
     // Write updated radiance and sample count
-    vec4 oldL = texture2D(Radiance, vTexCoord);
+    vec4 oldL = texture(Radiance, vTexCoord);
     float oldN = oldL.w;
     float newN = oldN + 1.0;
     vec3 newL = (oldN*oldL.rgb + colorXYZ) / newN;
 
-    gl_FragData[0] = vec4(newL, newN);
-    gl_FragData[1] = rnd;
+    gbuf_rad = vec4(newL, newN);
+    gbuf_rnd = rnd;
 }
 `,
 
-'firsthit-vertex-shader': `
-
-#extension GL_EXT_draw_buffers : require
+'firsthit-vertex-shader': `#version 300 es
 precision highp float;
 
-attribute vec3 Position;
-attribute vec2 TexCoord;
+in vec3 Position;
+in vec2 TexCoord;
 
-varying vec2 vTexCoord;
+out vec2 vTexCoord;
 
 void main() 
 {
@@ -687,9 +684,7 @@ void main()
 }
 `,
 
-'normals-fragment-shader': `
-
-#extension GL_EXT_draw_buffers : require
+'normals-fragment-shader': `#version 300 es
 precision highp float;
 
 uniform sampler2D Radiance;         // 0 (IO buffer)
@@ -700,7 +695,10 @@ uniform sampler2D RadianceBlocks;   // 4
 uniform sampler2D iorTex;           // 5 (for metals)
 uniform sampler2D kTex;             // 6 (for metals)
 uniform sampler2D envMap;           // 7
-varying vec2 vTexCoord;
+in vec2 vTexCoord;
+
+layout(location = 0) out vec4 gbuf_rad;
+layout(location = 1) out vec4 gbuf_rng;
 
 uniform vec2 resolution;
 uniform vec3 camPos;
@@ -915,7 +913,7 @@ vec3 environmentRadianceXYZ(in vec3 dir)
     vec3 XYZ;
     if (haveEnvMap)
     {
-        vec3 RGB = texture2D(envMap, vec2(u,v)).rgb;
+        vec3 RGB = texture(envMap, vec2(u,v)).rgb;
         RGB.r = pow(RGB.r, gamma);
         RGB.g = pow(RGB.g, gamma);
         RGB.b = pow(RGB.b, gamma);
@@ -937,7 +935,7 @@ void main()
 {
     INIT();
 
-    vec4 rnd = texture2D(RngData, vTexCoord);
+    vec4 rnd = texture(RngData, vTexCoord);
     vec2 pixel = gl_FragCoord.xy;
     if (jitter) pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
 
@@ -964,25 +962,23 @@ void main()
 
 
    // Write updated radiance and sample count
-    vec4 oldL = texture2D(Radiance, vTexCoord);
+    vec4 oldL = texture(Radiance, vTexCoord);
     float oldN = oldL.w;
     float newN = oldN + 1.0;
     vec3 newL = (oldN*oldL.rgb + colorXYZ) / newN;
 
-    gl_FragData[0] = vec4(newL, newN);
-    gl_FragData[1] = rnd;
+    gbuf_rad = vec4(newL, newN);
+    gbuf_rng = rnd;
 }
 `,
 
-'normals-vertex-shader': `
-
-#extension GL_EXT_draw_buffers : require
+'normals-vertex-shader': `#version 300 es
 precision highp float;
 
-attribute vec3 Position;
-attribute vec2 TexCoord;
+in vec3 Position;
+in vec2 TexCoord;
 
-varying vec2 vTexCoord;
+out vec2 vTexCoord;
 
 void main() 
 {
@@ -991,9 +987,7 @@ void main()
 }
 `,
 
-'pathtracer-fragment-shader': `
-
-#extension GL_EXT_draw_buffers : require
+'pathtracer-fragment-shader': `#version 300 es
 precision highp float;
 
 uniform sampler2D Radiance;         // 0 (IO buffer)
@@ -1003,7 +997,10 @@ uniform sampler2D ICDF;             // 3
 uniform sampler2D iorTex;           // 4
 uniform sampler2D kTex;             // 5 (for metals)
 uniform sampler2D envMap;           // 6
-varying vec2 vTexCoord;
+in vec2 vTexCoord;
+
+layout(location = 0) out vec4 gbuf_rad;
+layout(location = 1) out vec4 gbuf_rng;
 
 uniform vec2 resolution;
 uniform vec3 camPos;
@@ -1024,7 +1021,6 @@ uniform float skyPower;
 uniform bool haveEnvMap;
 uniform bool envMapVisible;
 uniform float envMapRotation;
-uniform float gamma;
 uniform float radianceClamp;
 uniform float skipProbability;
 uniform float shadowStrength;
@@ -1726,10 +1722,7 @@ vec3 environmentRadianceXYZ(in vec3 dir)
     vec3 XYZ;
     if (haveEnvMap)
     {
-        vec3 RGB = texture2D(envMap, vec2(u,v)).rgb;
-        RGB.r = pow(RGB.r, gamma);
-        RGB.g = pow(RGB.g, gamma);
-        RGB.b = pow(RGB.b, gamma);
+        vec3 RGB = texture(envMap, vec2(u,v)).rgb;
         RGB *= skyPower;
         XYZ = rgbToXyz(RGB);
     }
@@ -1809,24 +1802,24 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
 {
     if (rand(rnd) < skipProbability)
     {
-        vec4 oldL = texture2D(Radiance, vTexCoord);
+        vec4 oldL = texture(Radiance, vTexCoord);
         float oldN = oldL.w;
         float newN = oldN;
         vec3 newL = oldL.rgb;
 
-        gl_FragData[0] = vec4(newL, newN);
-        gl_FragData[1] = rnd;
+        gbuf_rad = vec4(newL, newN);
+        gbuf_rng = rnd;
         return;
     } 
 
     // Sample photon wavelength via the inverse CDF of the emission spectrum
     // (here w is spectral offset, i.e. wavelength = 360.0 + (750.0 - 360.0)*w)
     // (linear interpolation into the inverse CDF texture and XYZ table should ensure smooth sampling over the range)
-    float w = texture2D(ICDF, vec2(rand(rnd), 0.5)).r;
+    float w = texture(ICDF, vec2(rand(rnd), 0.5)).r;
     float wavelength_nm = 390.0 + (750.0 - 390.0)*w;
 
     // Convert wavelength to XYZ tristimulus
-    vec3 XYZ = texture2D(WavelengthToXYZ, vec2(w, 0.5)).rgb;
+    vec3 XYZ = texture(WavelengthToXYZ, vec2(w, 0.5)).rgb;
 
     // Jitter over pixel
     if (jitter) pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
@@ -1923,32 +1916,30 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     }
 
     // Write updated radiance and sample count
-    vec4 oldL = texture2D(Radiance, vTexCoord);
+    vec4 oldL = texture(Radiance, vTexCoord);
     float oldN = oldL.w;
     float newN = oldN + 1.0;
     vec3 newL = (oldN*oldL.rgb + colorXYZ) / newN;
 
-    gl_FragData[0] = vec4(newL, newN);
-    gl_FragData[1] = rnd;
+    gbuf_rad = vec4(newL, newN);
+    gbuf_rng = rnd;
 }
 
 void main()
 {
     INIT();
-    vec4 rnd = texture2D(RngData, vTexCoord);
+    vec4 rnd = texture(RngData, vTexCoord);
     pathtrace(gl_FragCoord.xy, rnd);
 }
 `,
 
-'pathtracer-vertex-shader': `
-
-#extension GL_EXT_draw_buffers : require
+'pathtracer-vertex-shader': `#version 300 es
 precision highp float;
 
-attribute vec3 Position;
-attribute vec2 TexCoord;
+in vec3 Position;
+in vec2 TexCoord;
 
-varying vec2 vTexCoord;
+out vec2 vTexCoord;
 
 void main() 
 {
@@ -1957,10 +1948,10 @@ void main()
 }
 `,
 
-'pick-fragment-shader': `
-
-#extension GL_EXT_draw_buffers : require
+'pick-fragment-shader': `#version 300 es
 precision highp float;
+
+layout(location = 0) out vec4 gbuf_pick;
 
 uniform vec2 resolution;
 uniform vec3 camPos;
@@ -2094,19 +2085,17 @@ void main()
         d = length(pW - primaryStart);
     }
 
-    gl_FragData[0] = vec4(d, hitMaterial, 0, 0);
+    gbuf_pick = vec4(d, hitMaterial, 0, 0);
 }
 `,
 
-'pick-vertex-shader': `
-
-#extension GL_EXT_draw_buffers : require
+'pick-vertex-shader': `#version 300 es
 precision highp float;
 
-attribute vec3 Position;
-attribute vec2 TexCoord;
+in vec3 Position;
+in vec2 TexCoord;
 
-varying vec2 vTexCoord;
+out vec2 vTexCoord;
 
 void main() 
 {
@@ -2115,17 +2104,18 @@ void main()
 }
 `,
 
-'tonemapper-fragment-shader': `
-
-#extension GL_EXT_draw_buffers : require
+'tonemapper-fragment-shader': `#version 300 es
 precision highp float;
 
 uniform sampler2D Radiance;
-varying vec2 vTexCoord;
+in vec2 vTexCoord;
 
 uniform float exposure;
 uniform float invGamma;
 uniform float whitepoint;
+
+out vec4 outputColor;
+
 
 void constrain_rgb(inout vec3 RGB)
 {
@@ -2142,7 +2132,7 @@ void constrain_rgb(inout vec3 RGB)
 
 void main()
 {
-	vec3 L = exposure * texture2D(Radiance, vTexCoord).rgb;
+	vec3 L = exposure * texture(Radiance, vTexCoord).rgb;
 	float X = L.x;
 	float Y = L.y;
 	float Z = L.z;
@@ -2168,18 +2158,16 @@ void main()
 	// apply gamma correction
 	vec3 S = pow(abs(RGB), vec3(invGamma));
 
-	gl_FragColor = vec4(S, 0.0);
+	outputColor = vec4(S, 0.0);
 }
 `,
 
-'tonemapper-vertex-shader': `
-
-#extension GL_EXT_draw_buffers : require
+'tonemapper-vertex-shader': `#version 300 es
 precision highp float;
 
-attribute vec3 Position;
-attribute vec2 TexCoord;
-varying vec2 vTexCoord;
+in vec3 Position;
+in vec2 TexCoord;
+out vec2 vTexCoord;
 
 void main() 
 {

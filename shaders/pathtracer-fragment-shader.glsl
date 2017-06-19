@@ -1,5 +1,3 @@
-
-#extension GL_EXT_draw_buffers : require
 precision highp float;
 
 uniform sampler2D Radiance;         // 0 (IO buffer)
@@ -9,7 +7,10 @@ uniform sampler2D ICDF;             // 3
 uniform sampler2D iorTex;           // 4
 uniform sampler2D kTex;             // 5 (for metals)
 uniform sampler2D envMap;           // 6
-varying vec2 vTexCoord;
+in vec2 vTexCoord;
+
+layout(location = 0) out vec4 gbuf_rad;
+layout(location = 1) out vec4 gbuf_rng;
 
 uniform vec2 resolution;
 uniform vec3 camPos;
@@ -30,7 +31,6 @@ uniform float skyPower;
 uniform bool haveEnvMap;
 uniform bool envMapVisible;
 uniform float envMapRotation;
-uniform float gamma;
 uniform float radianceClamp;
 uniform float skipProbability;
 uniform float shadowStrength;
@@ -732,10 +732,7 @@ vec3 environmentRadianceXYZ(in vec3 dir)
     vec3 XYZ;
     if (haveEnvMap)
     {
-        vec3 RGB = texture2D(envMap, vec2(u,v)).rgb;
-        RGB.r = pow(RGB.r, gamma);
-        RGB.g = pow(RGB.g, gamma);
-        RGB.b = pow(RGB.b, gamma);
+        vec3 RGB = texture(envMap, vec2(u,v)).rgb;
         RGB *= skyPower;
         XYZ = rgbToXyz(RGB);
     }
@@ -815,24 +812,24 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
 {
     if (rand(rnd) < skipProbability)
     {
-        vec4 oldL = texture2D(Radiance, vTexCoord);
+        vec4 oldL = texture(Radiance, vTexCoord);
         float oldN = oldL.w;
         float newN = oldN;
         vec3 newL = oldL.rgb;
 
-        gl_FragData[0] = vec4(newL, newN);
-        gl_FragData[1] = rnd;
+        gbuf_rad = vec4(newL, newN);
+        gbuf_rng = rnd;
         return;
     } 
 
     // Sample photon wavelength via the inverse CDF of the emission spectrum
     // (here w is spectral offset, i.e. wavelength = 360.0 + (750.0 - 360.0)*w)
     // (linear interpolation into the inverse CDF texture and XYZ table should ensure smooth sampling over the range)
-    float w = texture2D(ICDF, vec2(rand(rnd), 0.5)).r;
+    float w = texture(ICDF, vec2(rand(rnd), 0.5)).r;
     float wavelength_nm = 390.0 + (750.0 - 390.0)*w;
 
     // Convert wavelength to XYZ tristimulus
-    vec3 XYZ = texture2D(WavelengthToXYZ, vec2(w, 0.5)).rgb;
+    vec3 XYZ = texture(WavelengthToXYZ, vec2(w, 0.5)).rgb;
 
     // Jitter over pixel
     if (jitter) pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
@@ -929,19 +926,19 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     }
 
     // Write updated radiance and sample count
-    vec4 oldL = texture2D(Radiance, vTexCoord);
+    vec4 oldL = texture(Radiance, vTexCoord);
     float oldN = oldL.w;
     float newN = oldN + 1.0;
     vec3 newL = (oldN*oldL.rgb + colorXYZ) / newN;
 
-    gl_FragData[0] = vec4(newL, newN);
-    gl_FragData[1] = rnd;
+    gbuf_rad = vec4(newL, newN);
+    gbuf_rng = rnd;
 }
 
 void main()
 {
     INIT();
-    vec4 rnd = texture2D(RngData, vTexCoord);
+    vec4 rnd = texture(RngData, vTexCoord);
     pathtrace(gl_FragCoord.xy, rnd);
 }
 

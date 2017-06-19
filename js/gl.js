@@ -17,26 +17,13 @@ var GLU = {};
 	{
 		try 
 		{
-			var gl = this.canvas.getContext("webgl") || this.canvas.getContext("experimental-webgl");
+			var gl = this.canvas.getContext("webgl2") || this.canvas.getContext("experimental-webgl");
 		} catch (e) {}
 		if (!gl) this.fail("Could not initialise WebGL");
 		this.gl = gl;
 
 		//console.log('Supported webGL extensions: ' + gl.getSupportedExtensions());
-		this.floatExt       = gl.getExtension("OES_texture_float");
-		this.floatLinExt    = gl.getExtension("OES_texture_float_linear");
-		this.floatBufExt    = gl.getExtension("WEBGL_color_buffer_float");
-		this.multiBufExt    = gl.getExtension("WEBGL_draw_buffers");
-		this.depthTexExt    = gl.getExtension("WEBGL_depth_texture");
-		this.blendMinMaxExt = gl.getExtension("EXT_blend_minmax");
-		this.sRGBExt        = gl.getExtension('EXT_sRGB');
-
-		if (!this.floatExt || !this.floatLinExt) this.fail("Your platform does not support float textures");
-		if (!this.multiBufExt)                   this.fail("Your platform does not support the draw buffers extension");
-		if (gl.getParameter(this.multiBufExt.MAX_DRAW_BUFFERS_WEBGL) < 4)
-		{
-			this.fail("Your platform does not support 4 draw buffers");
-		}
+		this.floatBufExt    = gl.getExtension("EXT_color_buffer_float");
 	}
 
 	this.glTypeSize = function(type) 
@@ -406,17 +393,20 @@ var GLU = {};
 	{
 		var coordMode = isClamped ? gl.CLAMP_TO_EDGE : gl.REPEAT;
 		this.type     = isFloat   ? gl.FLOAT         : gl.UNSIGNED_BYTE;
-		this.format   = [gl.LUMINANCE, gl.RG, gl.RGB, gl.RGBA][channels - 1];
+		this.internalformat   = [gl.R32F, gl.RG, gl.RGB, gl.RGBA32F][channels - 1];
+		this.format           = [gl.RED, gl.RG, gl.RGB, gl.RGBA][channels - 1];
 
 		this.width  = width;
 		this.height = height;
 
 		this.glName = gl.createTexture();
 		gl.bindTexture(gl.TEXTURE_2D, this.glName);
-		gl.texImage2D(gl.TEXTURE_2D, 0, this.format, this.width, this.height, 0, this.format, this.type, texels);
+		gl.texImage2D(gl.TEXTURE_2D, 0, this.internalformat, this.width, this.height, 0, this.format, this.type, texels);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, coordMode);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, coordMode);
-		this.setSmooth(isLinear);
+
+		this.setSmooth(false);
+		// this.setSmooth(isLinear); // fails in webGL 2.0!  @todo: fix
 
 		this.boundUnit = -1;
 	}
@@ -430,7 +420,7 @@ var GLU = {};
 
 	this.Texture.prototype.copy = function(texels) 
 	{
-		gl.texImage2D(gl.TEXTURE_2D, 0, this.format, this.width, this.height, 0, this.format, this.type, texels);
+		gl.texImage2D(gl.TEXTURE_2D, 0, this.internalformat, this.width, this.height, 0, this.format, this.type, texels);
 	}
 
 	this.Texture.prototype.bind = function(unit) 
@@ -448,8 +438,7 @@ var GLU = {};
 	{
 		var tex = gl.createTexture();
 		gl.bindTexture(gl.TEXTURE_2D, tex);
-		if (GLU.sRGBExt != null) gl.texImage2D(gl.TEXTURE_2D, 0, GLU.sRGBExt.SRGB_EXT, 1, 1, 0, GLU.sRGBExt.SRGB_EXT, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 255, 255]));
-		else                     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 255, 255]));
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.SRGB8, 1, 1, 0, gl.RGB, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 255, 255]));
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -466,8 +455,7 @@ var GLU = {};
 			imgInfo.url = url;
 			imgInfo.tex = tex;
 			gl.bindTexture(gl.TEXTURE_2D, tex);
-			if (GLU.sRGBExt != null) gl.texImage2D(gl.TEXTURE_2D, 0, GLU.sRGBExt.SRGB_EXT, GLU.sRGBExt.SRGB_EXT, gl.UNSIGNED_BYTE, img);
-			else                     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.SRGB8, gl.RGB, gl.UNSIGNED_BYTE, img);
 			callback(imgInfo);
 		});
 		//if ((new URL(url)).origin !== window.location.origin) 
@@ -497,24 +485,22 @@ var GLU = {};
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 	}
 
-	this.thing = false
-
 	this.RenderTarget.prototype.attachTexture = function(texture, index) 
 	{
-		gl.framebufferTexture2D(gl.FRAMEBUFFER, GLU.multiBufExt.COLOR_ATTACHMENT0_WEBGL + index, gl.TEXTURE_2D, texture.glName, 0);
+		gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + index, gl.TEXTURE_2D, texture.glName, 0);
 	}
 
 	this.RenderTarget.prototype.detachTexture = function(index) 
 	{
-		gl.framebufferTexture2D(gl.FRAMEBUFFER, GLU.multiBufExt.COLOR_ATTACHMENT0_WEBGL + index, gl.TEXTURE_2D, null, 0);
+		gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + index, gl.TEXTURE_2D, null, 0);
 	}
 
 	this.RenderTarget.prototype.drawBuffers = function(numBufs) 
 	{
 		var buffers = [];
 		for (var i = 0; i<numBufs; ++i)
-		    buffers.push(GLU.multiBufExt.COLOR_ATTACHMENT0_WEBGL + i);
-		GLU.multiBufExt.drawBuffersWEBGL(buffers);
+		    buffers.push(gl.COLOR_ATTACHMENT0 + i);
+		gl.drawBuffers(buffers);
 	}
 
 

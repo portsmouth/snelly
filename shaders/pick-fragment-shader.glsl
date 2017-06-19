@@ -1,6 +1,6 @@
-
-#extension GL_EXT_draw_buffers : require
 precision highp float;
+
+layout(location = 0) out vec4 gbuf_pick;
 
 uniform vec2 resolution;
 uniform vec3 camPos;
@@ -134,7 +134,7 @@ void main()
         d = length(pW - primaryStart);
     }
 
-    gl_FragData[0] = vec4(d, hitMaterial, 0, 0);
+    gbuf_pick = vec4(d, hitMaterial, 0, 0);
 }
 
 

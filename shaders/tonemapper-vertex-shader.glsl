@@ -1,10 +1,8 @@
-
-#extension GL_EXT_draw_buffers : require
 precision highp float;
 
-attribute vec3 Position;
-attribute vec2 TexCoord;
-varying vec2 vTexCoord;
+in vec3 Position;
+in vec2 TexCoord;
+out vec2 vTexCoord;
 
 void main() 
 {
