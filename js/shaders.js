@@ -188,6 +188,16 @@ vec3 localToWorld(in vec3 vLocal, in Basis basis)
     return basis.tW*vLocal.x + basis.bW*vLocal.y + basis.nW*vLocal.z;
 }
 
+vec3 xyzToRgb(vec3 XYZ)
+{
+    // (Assuming RGB in sRGB color space)
+    vec3 RGB;
+    RGB.r =  3.2404542*XYZ.x - 1.5371385*XYZ.y - 0.4985314*XYZ.z;
+    RGB.g = -0.9692660*XYZ.x + 1.8760108*XYZ.y + 0.0415560*XYZ.z;
+    RGB.b =  0.0556434*XYZ.x - 0.2040259*XYZ.y + 1.0572252*XYZ.z;
+    return RGB;
+}
+
 vec3 rgbToXyz(in vec3 RGB)
 {
     // (Assuming RGB in sRGB color space)
@@ -196,6 +206,20 @@ vec3 rgbToXyz(in vec3 RGB)
     XYZ.y = 0.2126729*RGB.r + 0.7151522*RGB.g + 0.0721750*RGB.b;
     XYZ.z = 0.0193339*RGB.r + 0.1191920*RGB.g + 0.9503041*RGB.b;
     return XYZ;
+}
+
+vec3 xyz_to_spectrum(vec3 XYZ)
+{
+    // Given a color in XYZ tristimulus coordinates, return the coefficients in spectrum:
+    //      L(l) = cx x(l) + cy y(l) + cz z(l)
+    // (where x, y, z are the tristimulus CMFs) such that this spectrum reproduces the given XYZ tristimulus.
+    // (NB, these coefficients differ from XYZ, because the XYZ color matching functions are not orthogonal)
+    vec3 c;
+    c.x =  3.38214566*XYZ.x - 2.58540997*XYZ.y - 0.40649004*XYZ.z;
+    c.y = -2.58540997*XYZ.x + 3.20943158*XYZ.y + 0.22767094*XYZ.z;
+    c.z = -0.40649004*XYZ.x + 0.22767094*XYZ.y + 0.70334476*XYZ.z;
+
+    return c;
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -230,6 +254,14 @@ vec3 sampleHemisphere(inout vec4 rnd, inout float pdf)
     return vec3(x, y, z);
 }
 
+vec3 SURFACE_DIFFUSE_REFL_XYZ(in vec3 X, in vec3 nW, in vec3 woW)
+{
+    vec3 C = xyzToRgb(surfaceDiffuseAlbedoXYZ);
+    vec3 reflRGB = SURFACE_DIFFUSE_REFLECTANCE(C, X, nW, woW);
+    vec3 reflXYZ = rgbToXyz(reflRGB);
+    return xyz_to_spectrum(reflXYZ);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Light sampling
 ////////////////////////////////////////////////////////////////////////////////
@@ -245,9 +277,6 @@ vec3 environmentRadianceXYZ(in vec3 dir)
     if (haveEnvMap)
     {
         vec3 RGB = texture(envMap, vec2(u,v)).rgb;
-        RGB.r = pow(RGB.r, gamma);
-        RGB.g = pow(RGB.g, gamma);
-        RGB.b = pow(RGB.b, gamma);
         RGB *= skyPower;
         XYZ = rgbToXyz(RGB);
     }
@@ -263,6 +292,28 @@ vec3 environmentRadianceXYZ(in vec3 dir)
 // Ambient occlusion integrator
 ////////////////////////////////////////////////////////////////////////////////
 
+void constructPrimaryRay(in vec2 pixel, inout vec4 rnd, 
+                         inout vec3 primaryStart, inout vec3 primaryDir)
+{
+    // Compute world ray direction for given (possibly jittered) fragment
+    vec2 ndc = -1.0 + 2.0*(pixel/resolution.xy);
+    float fh = camNear*tan(0.5*radians(camFovy)) / camZoom; // frustum height
+    float fw = camAspect*fh;
+    vec3 s = -fw*ndc.x*camX + fh*ndc.y*camY;
+    primaryDir = normalize(camNear*camDir + s);
+    if (camAperture<=0.0) 
+    {
+        primaryStart = camPos;
+        return;
+    }
+    vec3 focalPlaneHit = camPos + camFocalDistance*primaryDir/dot(primaryDir, camDir);
+    float lensRadial = camAperture * sqrt(rand(rnd));
+    float theta = 2.0*M_PI * rand(rnd);
+    vec3 lensPos = camPos + lensRadial*(-camX*cos(theta) + camY*sin(theta));
+    primaryStart = lensPos;
+    primaryDir = normalize(focalPlaneHit - lensPos);
+}
+
 void main()
 {
     INIT();
@@ -275,8 +326,8 @@ void main()
         float newN = oldN;
         vec3 newL = oldL.rgb;
 
-        gl_FragData[0] = vec4(newL, newN);
-        gl_FragData[1] = rnd;
+        gbuf_rad = vec4(newL, newN);
+        gbuf_rng = rnd;
         return;
     } 
 
@@ -329,7 +380,7 @@ void main()
     vec3 newL = (oldN*oldL.rgb + colorXYZ) / newN;
 
     gbuf_rad = vec4(newL, newN);
-    gbuf_rnd = rnd;
+    gbuf_rng = rnd;
 }
 `,
 
@@ -383,7 +434,6 @@ uniform float skyPower;
 uniform bool haveEnvMap;
 uniform bool envMapVisible;
 uniform float envMapRotation;
-uniform float gamma;
 uniform float radianceClamp;
 uniform float skipProbability;
 uniform float shadowStrength;
@@ -399,9 +449,6 @@ uniform vec3 surfaceDiffuseAlbedoXYZ;
 uniform vec3 surfaceSpecAlbedoXYZ;
 uniform float surfaceRoughness;
 uniform float surfaceIor;
-
-uniform vec3 surfaceDiffuseAlbedoXYZ;
-uniform vec3 surfaceSpecAlbedoXYZ;
 
 #define DENOM_TOLERANCE 1.0e-7
 #define PDF_EPSILON 1.0e-6
@@ -591,9 +638,6 @@ vec3 environmentRadianceXYZ(in vec3 dir)
     if (haveEnvMap)
     {
         vec3 RGB = texture(envMap, vec2(u,v)).rgb;
-        RGB.r = pow(RGB.r, gamma);
-        RGB.g = pow(RGB.g, gamma);
-        RGB.b = pow(RGB.b, gamma);
         RGB *= skyPower;
         XYZ = rgbToXyz(RGB);
     }
@@ -609,6 +653,28 @@ vec3 environmentRadianceXYZ(in vec3 dir)
 // First hit integrator
 ////////////////////////////////////////////////////////////////////////////////
 
+void constructPrimaryRay(in vec2 pixel, inout vec4 rnd, 
+                         inout vec3 primaryStart, inout vec3 primaryDir)
+{
+    // Compute world ray direction for given (possibly jittered) fragment
+    vec2 ndc = -1.0 + 2.0*(pixel/resolution.xy);
+    float fh = camNear*tan(0.5*radians(camFovy)) / camZoom; // frustum height
+    float fw = camAspect*fh;
+    vec3 s = -fw*ndc.x*camX + fh*ndc.y*camY;
+    primaryDir = normalize(camNear*camDir + s);
+    if (camAperture<=0.0) 
+    {
+        primaryStart = camPos;
+        return;
+    }
+    vec3 focalPlaneHit = camPos + camFocalDistance*primaryDir/dot(primaryDir, camDir);
+    float lensRadial = camAperture * sqrt(rand(rnd));
+    float theta = 2.0*M_PI * rand(rnd);
+    vec3 lensPos = camPos + lensRadial*(-camX*cos(theta) + camY*sin(theta));
+    primaryStart = lensPos;
+    primaryDir = normalize(focalPlaneHit - lensPos);
+}
+
 void main()
 {
     INIT();
@@ -621,8 +687,8 @@ void main()
         float newN = oldN;
         vec3 newL = oldL.rgb;
 
-        gl_FragData[0] = vec4(newL, newN);
-        gl_FragData[1] = rnd;
+        gbuf_rad = vec4(newL, newN);
+        gbuf_rng = rnd;
         return;
     } 
 
@@ -665,7 +731,7 @@ void main()
     vec3 newL = (oldN*oldL.rgb + colorXYZ) / newN;
 
     gbuf_rad = vec4(newL, newN);
-    gbuf_rnd = rnd;
+    gbuf_rng = rnd;
 }
 `,
 
@@ -719,7 +785,6 @@ uniform float skyPower;
 uniform bool haveEnvMap;
 uniform bool envMapVisible;
 uniform float envMapRotation;
-uniform float gamma;
 uniform float radianceClamp;
 uniform float skipProbability;
 uniform float shadowStrength;
@@ -914,9 +979,6 @@ vec3 environmentRadianceXYZ(in vec3 dir)
     if (haveEnvMap)
     {
         vec3 RGB = texture(envMap, vec2(u,v)).rgb;
-        RGB.r = pow(RGB.r, gamma);
-        RGB.g = pow(RGB.g, gamma);
-        RGB.b = pow(RGB.b, gamma);
         RGB *= skyPower;
         XYZ = rgbToXyz(RGB);
     }
@@ -930,6 +992,28 @@ vec3 environmentRadianceXYZ(in vec3 dir)
 ////////////////////////////////////////////////////////////////////////////////
 // Normals integrator
 ////////////////////////////////////////////////////////////////////////////////
+
+void constructPrimaryRay(in vec2 pixel, inout vec4 rnd, 
+                         inout vec3 primaryStart, inout vec3 primaryDir)
+{
+    // Compute world ray direction for given (possibly jittered) fragment
+    vec2 ndc = -1.0 + 2.0*(pixel/resolution.xy);
+    float fh = camNear*tan(0.5*radians(camFovy)) / camZoom; // frustum height
+    float fw = camAspect*fh;
+    vec3 s = -fw*ndc.x*camX + fh*ndc.y*camY;
+    primaryDir = normalize(camNear*camDir + s);
+    if (camAperture<=0.0) 
+    {
+        primaryStart = camPos;
+        return;
+    }
+    vec3 focalPlaneHit = camPos + camFocalDistance*primaryDir/dot(primaryDir, camDir);
+    float lensRadial = camAperture * sqrt(rand(rnd));
+    float theta = 2.0*M_PI * rand(rnd);
+    vec3 lensPos = camPos + lensRadial*(-camX*cos(theta) + camY*sin(theta));
+    primaryStart = lensPos;
+    primaryDir = normalize(focalPlaneHit - lensPos);
+}
 
 void main()
 {
