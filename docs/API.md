@@ -43,8 +43,10 @@ for convenience.</p>
     * [.getCamera()](#Snelly+getCamera) ⇒ <code>THREE.PerspectiveCamera</code>
     * [.getControls()](#Snelly+getControls) ⇒ <code>THREE.OrbitControls</code>
     * [.showGUI(show)](#Snelly+showGUI)
+    * [.getGLContext()](#Snelly+getGLContext) ⇒ <code>WebGLRenderingContext</code>
     * [.getMaterials()](#Snelly+getMaterials) ⇒ [<code>Materials</code>](#Materials)
     * [.getSurface()](#Snelly+getSurface) ⇒ [<code>Surface</code>](#Surface)
+    * [.getUserTextureUnitStart()](#Snelly+getUserTextureUnitStart) ⇒ <code>number</code>
 
 <a name="new_Snelly_new"></a>
 
@@ -87,7 +89,6 @@ Access to the camera object
 Access to the camera controller object
 
 **Kind**: instance method of [<code>Snelly</code>](#Snelly)  
-**Returns**: <code>THREE.OrbitControls</code> - .  
 <a name="Snelly+showGUI"></a>
 
 ### snelly.showGUI(show)
@@ -99,6 +100,11 @@ Programmatically show or hide the dat.GUI UI
 | --- | --- | --- |
 | show | <code>Boolean</code> | toggle |
 
+<a name="Snelly+getGLContext"></a>
+
+### snelly.getGLContext() ⇒ <code>WebGLRenderingContext</code>
+**Kind**: instance method of [<code>Snelly</code>](#Snelly)  
+**Returns**: <code>WebGLRenderingContext</code> - The webGL context  
 <a name="Snelly+getMaterials"></a>
 
 ### snelly.getMaterials() ⇒ [<code>Materials</code>](#Materials)
@@ -111,6 +117,11 @@ Get materials object
 Get Surface object
 
 **Kind**: instance method of [<code>Snelly</code>](#Snelly)  
+<a name="Snelly+getUserTextureUnitStart"></a>
+
+### snelly.getUserTextureUnitStart() ⇒ <code>number</code>
+**Kind**: instance method of [<code>Snelly</code>](#Snelly)  
+**Returns**: <code>number</code> - - the minimum texture unit for user supplied textures in the shader  
 <a name="Scene"></a>
 
 ## Scene
@@ -124,7 +135,7 @@ Get Surface object
     * [.getURL()](#Scene+getURL) ⇒ <code>String</code>
     * [.shader()](#Scene+shader) ⇒ <code>String</code>
     * [.initGui(gui)](#Scene+initGui)
-    * [.syncShader(shader)](#Scene+syncShader)
+    * [.syncShader(snelly, shader)](#Scene+syncShader)
     * [.getMinScale()](#Scene+getMinScale) ⇒ <code>number</code>
     * [.getMaxScale()](#Scene+getMaxScale) ⇒ <code>number</code>
     * [.preframeCallback(snelly, gl)](#Scene+preframeCallback)
@@ -206,7 +217,7 @@ Optional. Set up gui and callbacks for this scene
 
 <a name="Scene+syncShader"></a>
 
-### scene.syncShader(shader)
+### scene.syncShader(snelly, shader)
 Optional. Called whenever the UI is changed,
 /* and must sync the params of the shader with the current UI settings
 
@@ -214,6 +225,7 @@ Optional. Called whenever the UI is changed,
 
 | Param | Type | Description |
 | --- | --- | --- |
+| snelly | [<code>Snelly</code>](#Snelly) | The snelly object |
 | shader | [<code>this.Shader</code>](#GLU.this.Shader) | wrapper of webGL fragment shader, see [this.Shader](#GLU.this.Shader) |
 
 <a name="Scene+getMinScale"></a>

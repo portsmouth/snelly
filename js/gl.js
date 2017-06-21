@@ -23,7 +23,9 @@ var GLU = {};
 		this.gl = gl;
 
 		//console.log('Supported webGL extensions: ' + gl.getSupportedExtensions());
-		this.floatBufExt    = gl.getExtension("EXT_color_buffer_float");
+		this.floatBufExt = gl.getExtension("EXT_color_buffer_float");
+		this.floatLinExt = gl.getExtension("OES_texture_float_linear");
+		if (!this.floatBufExt || !this.floatLinExt) this.fail("Your platform does not support float textures");
 	}
 
 	this.glTypeSize = function(type) 
@@ -77,7 +79,9 @@ var GLU = {};
 		if (!success) 
 		{
 			// something went wrong with the link
-			this.fail("Program failed to link, error: " + gl.getProgramInfoLog (program));
+			this.fail("Program failed to link: " + gl.getProgramInfoLog(program) + 
+				    "\n" + gl.getShaderInfoLog(fragmentShader) + 
+				    "\n" + gl.getShaderInfoLog(vertexShader));
 		}
 
 		return program;
@@ -404,14 +408,14 @@ var GLU = {};
 		gl.bindTexture(gl.TEXTURE_2D, this.glName);
 		gl.texImage2D(gl.TEXTURE_2D, 0, this.internalformat, this.width, this.height, 0, this.format, this.type, texels);
 		
-		if (texels != null) this.setFilter();
+		if (texels !== null) this.setFilter();
 		this.boundUnit = -1;
 	}
 
 	this.Texture.prototype.copy = function(texels) 
 	{
 		gl.texImage2D(gl.TEXTURE_2D, 0, this.internalformat, this.width, this.height, 0, this.format, this.type, texels);
-		if (texels != null) this.setFilter();
+		if (texels !== null) this.setFilter();
 	}
 
 	this.Texture.prototype.setFilter = function() 

@@ -289,7 +289,7 @@ Renderer.prototype.pick = function(xPick, yPick)
 	// Upload current scene shader parameters
 	if (typeof sceneObj.syncShader !== "undefined") 
 	{
-		sceneObj.syncShader(this.pickProgram); 
+		sceneObj.syncShader(snelly, this.pickProgram); 
 	}
 
 	// sync camera info to shader	 
@@ -448,7 +448,7 @@ Renderer.prototype.render = function()
 	// Upload current scene shader parameters
 	if (typeof sceneObj.syncShader !== "undefined") 
 	{
-		sceneObj.syncShader(INTEGRATOR_PROGRAM); 
+		sceneObj.syncShader(snelly, INTEGRATOR_PROGRAM); 
 	}
 
 	snelly.materials.syncShader(INTEGRATOR_PROGRAM);

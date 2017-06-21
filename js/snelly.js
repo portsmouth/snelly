@@ -60,8 +60,8 @@ var Snelly = function(sceneObj)
 	this.LAMBDA_MIN = 390.0;
     this.LAMBDA_MAX = 750.0;
 	var wToXYZ = wavelengthToXYZTable();
-	this.wavelengthToXYZ = new GLU.Texture(wToXYZ.length/4, 1, 4, true, false, true, wToXYZ);
-	this.emissionIcdf    = new GLU.Texture(4*this.SPECTRUM_SAMPLES, 1, 1, true, false, true, null);
+	this.wavelengthToXYZ = new GLU.Texture(wToXYZ.length/4, 1, 4, true, true, true, wToXYZ);
+	this.emissionIcdf    = new GLU.Texture(4*this.SPECTRUM_SAMPLES, 1, 1, true, true, true, null);
 
 	// Allow user to programmatically initialize the camera, materials, and renderer
 	this.initScene();
@@ -135,7 +135,7 @@ Snelly.prototype.getCamera = function()
 
 /**
 * Access to the camera controller object
-* @returns {THREE.OrbitControls}.
+* @returns {THREE.OrbitControls}
 */
 Snelly.prototype.getControls = function()
 {
@@ -160,6 +160,15 @@ Snelly.prototype.getScene = function()
 {
 	return this.sceneObj;
 }
+
+/** 
+ * @returns {WebGLRenderingContext} The webGL context
+ */
+Snelly.prototype.getGLContext = function()
+{
+	return GLU.gl;
+}
+
 
 Snelly.prototype.initScene = function()
 {
@@ -472,6 +481,15 @@ Snelly.prototype.resize = function()
 	}
 }
 
+
+/**
+* 
+* @returns {number} - the minimum texture unit for user supplied textures in the shader
+*/
+Snelly.prototype.getUserTextureUnitStart = function()
+{
+	return 7;
+}
 
 Snelly.prototype.onClick = function(event)
 {
