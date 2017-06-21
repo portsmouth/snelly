@@ -226,9 +226,6 @@ vec3 environmentRadianceXYZ(in vec3 dir)
     if (haveEnvMap)
     {
         vec3 RGB = texture(envMap, vec2(u,v)).rgb;
-        RGB.r = pow(RGB.r, gamma);
-        RGB.g = pow(RGB.g, gamma);
-        RGB.b = pow(RGB.b, gamma);
         RGB *= skyPower;
         XYZ = rgbToXyz(RGB);
     }
@@ -242,6 +239,28 @@ vec3 environmentRadianceXYZ(in vec3 dir)
 ////////////////////////////////////////////////////////////////////////////////
 // Normals integrator
 ////////////////////////////////////////////////////////////////////////////////
+
+void constructPrimaryRay(in vec2 pixel, inout vec4 rnd, 
+                         inout vec3 primaryStart, inout vec3 primaryDir)
+{
+    // Compute world ray direction for given (possibly jittered) fragment
+    vec2 ndc = -1.0 + 2.0*(pixel/resolution.xy);
+    float fh = camNear*tan(0.5*radians(camFovy)) / camZoom; // frustum height
+    float fw = camAspect*fh;
+    vec3 s = -fw*ndc.x*camX + fh*ndc.y*camY;
+    primaryDir = normalize(camNear*camDir + s);
+    if (camAperture<=0.0) 
+    {
+        primaryStart = camPos;
+        return;
+    }
+    vec3 focalPlaneHit = camPos + camFocalDistance*primaryDir/dot(primaryDir, camDir);
+    float lensRadial = camAperture * sqrt(rand(rnd));
+    float theta = 2.0*M_PI * rand(rnd);
+    vec3 lensPos = camPos + lensRadial*(-camX*cos(theta) + camY*sin(theta));
+    primaryStart = lensPos;
+    primaryDir = normalize(focalPlaneHit - lensPos);
+}
 
 void main()
 {
