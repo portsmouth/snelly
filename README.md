@@ -13,6 +13,7 @@ UI controls:
  - left mouse to rotate, alt-mouse to pan
  - AWSD to fly
  - F to frame camera on initial position and orientation
+ - P to capture a screenshot of the current render in a new browser window
  - R to reset scene to initial state
  - O to serialize scene code to the JavaScript console
  - H to hide/show the sidebar UI

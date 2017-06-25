@@ -17,7 +17,7 @@ var GLU = {};
 	{
 		try 
 		{
-			var gl = this.canvas.getContext("webgl2") || this.canvas.getContext("experimental-webgl");
+			var gl = this.canvas.getContext("webgl2", {preserveDrawingBuffer: true});
 		} catch (e) {}
 		if (!gl) this.fail("Could not initialise WebGL");
 		this.gl = gl;

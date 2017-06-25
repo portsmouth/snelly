@@ -19,6 +19,8 @@ var Snelly = function(sceneObj)
 	this.render_canvas = render_canvas;
 	this.width = render_canvas.width;
 	this.height = render_canvas.height;
+	render_canvas.style.width = render_canvas.width;
+	render_canvas.style.height = render_canvas.height;
 
 	var text_canvas = document.getElementById('text-canvas');
 	this.text_canvas = text_canvas;
@@ -432,15 +434,15 @@ Snelly.prototype.render = function()
 	  	if (this.sceneName != '')
 	  	{
 	  		this.textCtx.fillStyle = "#ffaa22";
-	  		this.textCtx.strokeText(this.sceneName, 14, this.height-25);
-	  		this.textCtx.fillText(this.sceneName, 14, this.height-25);
+	  		this.textCtx.strokeText(this.sceneName, 14, this.textCtx.canvas.height-25);
+	  		this.textCtx.fillText(this.sceneName, 14, this.textCtx.canvas.height-25);
 	  	}
 		if (this.sceneURL != '')
 		{
 			if (this.onUserLink) this.textCtx.fillStyle = "#aaccff";
 	  		else                 this.textCtx.fillStyle = "#55aaff";
-	  		this.textCtx.strokeText(this.sceneURL, 14, this.height-40);
-	  		this.textCtx.fillText(this.sceneURL, 14, this.height-40);
+	  		this.textCtx.strokeText(this.sceneURL, 14, this.textCtx.canvas.height-40);
+	  		this.textCtx.fillText(this.sceneURL, 14, this.textCtx.canvas.height-40);
 		}
 	}
 
@@ -452,9 +454,11 @@ Snelly.prototype._resize = function(width, height)
 	this.width = width;
 	this.height = height;
 
-	var render_canvas = this.render_canvas;
+	let render_canvas = this.render_canvas;
 	render_canvas.width  = width;
 	render_canvas.height = height;
+	render_canvas.style.width = width;
+	render_canvas.style.height = height;
 
 	var text_canvas = this.text_canvas;
 	text_canvas.width  = width;
@@ -472,12 +476,36 @@ Snelly.prototype.resize = function()
 	if (this.terminated) return;
 	if (this.auto_resize)
 	{
+		// If no explicit renderer size was set by user, resizing the browser window
+		// resizes the render itself to match.
 		let width = window.innerWidth;
 		let height = window.innerHeight;
 		this._resize(width, height);
-
 		if (this.initialized)
 			this.render();
+	}
+	else
+	{
+		// Otherwise if the user set a fixed renderer resolution, we scale the resultant render
+		// to fit into the current window with preserved aspect ratio:
+		let render_canvas = this.render_canvas;
+		let window_width = window.innerWidth;
+		let window_height = window.innerHeight;
+		let render_aspect = render_canvas.width / render_canvas.height;
+		let window_aspect = window_width / window_height;
+		if (render_aspect > window_aspect)
+		{
+			render_canvas.style.width = window_width;
+			render_canvas.style.height = window_width / render_aspect;
+		}
+		else
+		{
+			render_canvas.style.width = window_height * render_aspect;
+			render_canvas.style.height = window_height;
+		}
+		var text_canvas = this.text_canvas;
+		text_canvas.width = window_width;
+		text_canvas.height = window_height;
 	}
 }
 
@@ -495,7 +523,7 @@ Snelly.prototype.onClick = function(event)
 {
 	if (this.onSnellyLink) 
 	{
-    	window.location = "https://github.com/portsmouth/snellypt";
+    	window.location = "https://github.com/portsmouth/snelly";
     }
     if (this.onUserLink) 
 	{
@@ -533,14 +561,20 @@ Snelly.prototype.onDocumentMouseUp = function(event)
 	this.camControls.update();
 }
 
-
 Snelly.prototype.onDocumentRightClick = function(event)
 {
 	if (event.altKey) return; // don't pick if alt-right-clicking (panning)
+	let render_canvas = this.render_canvas;
 
-	var xPick = event.clientX;
-	var yPick = this.height - event.clientY;
-	var pickData = this.pathtracer.pick(xPick, yPick);
+	// map pixel picked on window to pixel of render buffer
+	let rsw = parseInt(render_canvas.style.width, 10);
+	let rsh = parseInt(render_canvas.style.height, 10);
+	let wxPick = Math.min(event.clientX, rsw);
+	let wyPick = Math.max(0, rsh - event.clientY);
+
+	let rxPick = (wxPick/rsw) * render_canvas.width;
+	let ryPick = (wyPick/rsh) * render_canvas.height;
+	var pickData = this.pathtracer.pick(rxPick, ryPick);
 	this.camera.focalDistance = pickData.distance;
 	this.gui.sync();
 	this.reset(true);
@@ -577,6 +611,14 @@ Snelly.prototype.onkeydown = function(event)
 			let code = this.dumpScene();
 			console.log(code);
 			break;
+
+		case 80: // P key: save current image to disk
+		{
+   			var w = window.open('about:blank', 'Snelly screenshot');
+   			let dataURL = this.render_canvas.toDataURL("image/png");
+   			w.document.write("<img src='"+dataURL+"' alt='from canvas'/>");
+			break;
+		}
 
 		case 87: // W key: cam forward
 		{
