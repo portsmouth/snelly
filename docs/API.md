@@ -136,8 +136,9 @@ Get Surface object
     * [.shader()](#Scene+shader) ⇒ <code>String</code>
     * [.initGui(gui)](#Scene+initGui)
     * [.syncShader(snelly, shader)](#Scene+syncShader)
-    * [.getMinScale()](#Scene+getMinScale) ⇒ <code>number</code>
-    * [.getMaxScale()](#Scene+getMaxScale) ⇒ <code>number</code>
+    * [.getLengthScale()](#Scene+getLengthScale) ⇒ <code>number</code>
+    * [.getMinLengthScale()](#Scene+getMinLengthScale) ⇒ <code>number</code>
+    * [.getMaxLengthScale()](#Scene+getMaxLengthScale) ⇒ <code>number</code>
     * [.preframeCallback(snelly, gl)](#Scene+preframeCallback)
     * [.postframeCallback(snelly, gl)](#Scene+postframeCallback)
     * [.onkeydownCallback(Javascript, snelly, gl)](#Scene+onkeydownCallback)
@@ -228,16 +229,22 @@ Optional. Called whenever the UI is changed,
 | snelly | [<code>Snelly</code>](#Snelly) | The snelly object |
 | shader | [<code>this.Shader</code>](#GLU.this.Shader) | wrapper of webGL fragment shader, see [this.Shader](#GLU.this.Shader) |
 
-<a name="Scene+getMinScale"></a>
+<a name="Scene+getLengthScale"></a>
 
-### scene.getMinScale() ⇒ <code>number</code>
-Optional. Gives the raytracer some indication of the (rough) minimum length scale, so it can set tolerances appropriately. This sets the rough length scale of the smallest resolvable structure. (Note that decreasing this will usually lead to longer render times).Defaults to 0.0001.
+### scene.getLengthScale() ⇒ <code>number</code>
+Optional. Gives the raytracer some indication of the (rough) typical length scale of this scene, so it can set tolerances and defaults appropriately. Defaults to 1.0.
 
 **Kind**: instance method of [<code>Scene</code>](#Scene)  
-<a name="Scene+getMaxScale"></a>
+<a name="Scene+getMinLengthScale"></a>
 
-### scene.getMaxScale() ⇒ <code>number</code>
-Optional. Gives the raytracer some indication of the (rough) maximum length scale, so it can set tolerances appropriately. The raymarcher will march no furtherfrom the camera than this scale, thus it acts as the "far plane" distance.(Note that increasing this will usually lead to longer render times).Defaults to 100.0.
+### scene.getMinLengthScale() ⇒ <code>number</code>
+Optional. Gives the raytracer some indication of the (rough) minimum length scale, so it can set tolerances appropriately. This sets the rough length scale of the smallest resolvable structure. (Note that decreasing this will usually lead to longer render times).Defaults to 0.0001 of the scene length scale.
+
+**Kind**: instance method of [<code>Scene</code>](#Scene)  
+<a name="Scene+getMaxLengthScale"></a>
+
+### scene.getMaxLengthScale() ⇒ <code>number</code>
+Optional. Gives the raytracer some indication of the (rough) maximum length scale, so it can set tolerances appropriately. The raymarcher will march no furtherfrom the camera than this scale, thus it acts as the "far plane" distance.(Note that increasing this will usually lead to longer render times).Defaults to 100.0 of the scene length scale;
 
 **Kind**: instance method of [<code>Scene</code>](#Scene)  
 <a name="Scene+preframeCallback"></a>
