@@ -1,6 +1,6 @@
    
 <body onload="onLoad();">
-<script src="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/js/compiled/snelly.min.js"></script>
+<script src="../js/compiled/snelly.min.js"></script>
 
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
@@ -107,8 +107,9 @@ Scene.prototype.shader = function()
     `;
 }
 
-Scene.prototype.getMinScale = function() { return 1.0e-3; }
-Scene.prototype.getMaxScale = function() { return 5.0e3; }
+Scene.prototype.getLengthScale = function()    { return 1.0; }
+Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
+Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
 
 Scene.prototype.envMap = function() 
 { return 'https://cdn.rawgit.com/portsmouth/envmaps/4e256a04/LA_Downtown_Helipad_GoldenHour_8k.jpg'; }
@@ -136,7 +137,7 @@ this.par.angularFacets = ${this.par.angularFacets};
     `; 
 }
 
-Scene.prototype.syncShader = function(shader) 
+Scene.prototype.syncShader = function(snelly, shader) 
 { 
     shader.uniformF("_a", this.par.a);
     shader.uniformF("_b", this.par.b);

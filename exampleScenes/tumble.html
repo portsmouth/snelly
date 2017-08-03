@@ -1,0 +1,255 @@
+   
+<body onload="onLoad();">
+<script src="../js/compiled/snelly.min.js"></script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                         scene definition                          */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script>
+
+
+window.Packer = function()
+{
+    this.VERSION_MAJOR = 1;
+    this.VERSION_MINOR = 0;
+}
+
+window.Packer.prototype = {
+
+    decode: function(image) {
+
+        let bitsPerColorComponent = 8;
+        let canvas = document.createElement('canvas');
+        let ctx = canvas.getContext('2d');
+        canvas.width = image.width;
+        canvas.height = image.height;
+        ctx.drawImage(image, 0, 0);
+        let img = ctx.getImageData(0, 0, image.width, image.height);
+
+        let imgData = img.data;
+        let length = imgData.length;
+        let buf = this.raw_decode = new Uint8Array(image.width * image.height * 3);
+
+        let i = 0;
+        let j = 0;
+        while(i < length) 
+        {
+            buf[j++] = imgData[i++];
+            buf[j++] = imgData[i++];
+            buf[j++] = imgData[i++];
+            i++;
+        }
+
+        if(buf[0] == 0xbe && buf[1] == 0xef) 
+        {
+            let mdSize   = buf[4] | buf[5] << 8 | buf[6] << 16 | buf[7] << 24;
+            let dataSize = buf[8] | buf[9] << 8 | buf[10] << 16 | buf[11] << 24;
+
+            console.log('mdSize: ', mdSize);
+            console.log('dataSize: ', dataSize);
+            console.log('data in buffer: ', buf.length - mdSize - 12);
+
+            let mdBuf = buf.subarray(12, 12 + mdSize);
+            let metaData = JSON.parse(this.utf8Decode(mdBuf));
+            console.log('loaded metadata: ', metaData)
+            let pos = 12 + mdSize;
+            var data = new Uint8Array(dataSize);
+            data.set(buf.subarray(pos, pos + dataSize));
+            let dataAsFloat32Array = new Float32Array(data.buffer);
+
+            let asset = {
+                me tadata: metaData,
+                data: dataAsFloat32Array };
+            return asset;
+        }
+        else
+        {
+            console.log('corrupt magic number in file!');
+        }
+    },
+
+    loadImage: function(url, callback) 
+    {
+        var imgInfo = {
+            width: 1,
+            height: 1,
+            url: url,
+        };
+        var img = new Image();
+        img.addEventListener('load', function() {
+            callback(img, url);
+        });
+        img.crossOrigin = "";
+        img.src = url;
+        return imgInfo;
+    },
+
+    utf8Decode: function(uint8array) {
+        var len = uint8array.byteLength;
+        var string = "";
+        var i = 0;
+        while (i < len) {
+            var c = uint8array[i];
+            if (c < 128) {
+                string += String.fromCharCode(c);
+                i++;
+            } else if((c > 191) && (c < 224) && (i + 1 < len)) {
+                string += String.fromCharCode(((c & 31) << 6) | (uint8array[i + 1] & 63));
+                i += 2;
+            } else if(i + 2 < len) {
+                string += String.fromCharCode(((c & 15) << 12) | ((uint8array[i + 1] & 63) << 6) | (uint8array[i + 2] & 63));
+                i += 3;
+            }
+        }
+        return string;
+    }
+}
+
+
+
+
+function Scene() {}
+Scene.prototype.init = function(snelly)
+{
+    this.par = {};
+    this.par.R = 0.3;
+
+    let materials = snelly.getMaterials();
+    let metal = materials.loadMetal('Iron');
+    metal.roughness = 3.0e-3;
+    
+    let surface = materials.loadSurface();
+    surface.roughness = 0.003;
+    surface.diffuseAlbedo = [1, 1, 1];
+    surface.specAlbedo = [0,0,0];
+
+    let renderer  = snelly.getRenderer();
+    //renderer.width = 3000;
+    //renderer.height = 2100;
+    renderer.minsSPPToRedraw = 1.0;
+
+    // Load SDF texture
+    let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/46aa39d6/assets/bunny.png';
+
+    let gl = snelly.getGLContext();
+    this.sdfTexture = gl.createTexture();
+
+    let texture_unit = snelly.getUserTextureUnitStart();
+    gl.activeTexture(gl.TEXTURE0 + texture_unit);
+    gl.bindTexture(gl.TEXTURE_3D, this.sdfTexture);
+
+    let type = gl.FLOAT;
+    let internalformat = gl.R32F;
+    let format = gl.RED;    
+    gl.texImage3D(gl.TEXTURE_3D, 0, internalformat, 1, 1, 1, 0, format, type, null);
+
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    this.ORIG = [0,0,0];
+    this.EDGE = [1,1,1];
+
+    var packer = new Packer();
+    let SCENE = this;
+    packer.loadImage(imageUrl, 
+                    function(img, url)
+                    {
+                        console.log('image loaded from: ', url);
+                        let asset = packer.decode(img);
+        
+                        let md = asset.metadata;
+                        SCENE.ORIG = md.ORIG;
+                        SCENE.EDGE = md.EDGE;
+                        let width  = md.GRES[0];
+                        let height = md.GRES[1];
+                        let depth  = md.GRES[2];
+
+                        // reset cam pos to put volume in view
+                        let orig = new THREE.Vector3(SCENE.ORIG[0], SCENE.ORIG[1], SCENE.ORIG[2]);
+                        let edge = new THREE.Vector3(SCENE.EDGE[0], SCENE.EDGE[1], SCENE.EDGE[2]);
+                        edge.multiplyScalar(0.5);
+                        let camera = snelly.getCamera();
+                        let controls  = snelly.getControls();
+                        controls.target.copy(orig);
+                        controls.target.add(edge);
+                        
+                        camera.position.copy(orig);
+                        edge.multiplyScalar(4.0);
+                        camera.position.add(edge);
+
+                        let texture_unit = snelly.getUserTextureUnitStart();
+                        gl.activeTexture(gl.TEXTURE0 + texture_unit);
+                        gl.bindTexture(gl.TEXTURE_3D, SCENE.sdfTexture);
+                        gl.texImage3D(gl.TEXTURE_3D, 0, internalformat, width, height, depth, 0, format, type, asset.data);
+
+                        snelly.reset();
+                    });
+}
+
+Scene.prototype.shader = function()
+{
+    return `
+    uniform float R;
+    float sdSphere(vec3 X, float r) { return length(X) - r; }   
+    float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+    {                            
+        vec3 d = abs(X-0.5*(bmin+bmax)) - 0.5*(bmax-bmin);
+        return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+    } 
+
+    float balls(vec3 X)
+    {
+        X.xz = mod((X.xz),1.0)-vec2(0.5);
+        return sdSphere(X-vec3(0,R,0), R);
+    }
+
+    float opU(float d1, float d2) { return min(d1,d2); }
+
+    float SDF_SURFACE(vec3 X)
+    {            
+        float L = 1.0e4;
+        float floor = sdBox(X, vec3(-L,-0.1,-L), vec3(L, 0.0,L));
+        return opU(balls(X), floor);
+    }
+
+    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
+    {
+        if (X.y <= 1.0e-3)
+        {
+            const float gridSize = 0.1;
+            float ax = 1.0 - pow(0.5*(1.0 + cos(X.x/gridSize)), 300.0);
+            float ay = 1.0 - pow(0.5*(1.0 + cos(X.z/gridSize)), 300.0);
+            return vec3(ax*ay);
+        }
+        else
+        {
+            return vec3(abs(cos(X.x)), abs(sin(X.y)), abs(cos(X.z)));
+        }
+    }
+    `;
+}
+
+Scene.prototype.getName = function() { return 'Hello World'; }
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/helloWorld.html"; }
+Scene.prototype.getLengthScale = function()    { return 1.0; }
+Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
+Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
+Scene.prototype.envMap = function() { return ''; }
+Scene.prototype.initGui = function(gui) { gui.addSlider(this.par, {name: 'R', min: 0.0, max: 1.0}); }
+Scene.prototype.syncShader = function(snelly, shader) { shader.uniformF("R", this.par.R); }
+
+</script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                            main loop                              */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+</script>
+
+</body>

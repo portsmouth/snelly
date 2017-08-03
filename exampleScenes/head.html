@@ -115,7 +115,6 @@ Scene.prototype.init = function(snelly)
     this.par.foo = 0.5;
     this.par.bar = 0.0;
     this.par.size = 1.0;
-    this.par.offset = 0.0;
     this.par.rotation = [0,0,0];
 
     /******* copy-pasted console output on 'O', begin *******/
@@ -191,13 +190,11 @@ Scene.prototype.init = function(snelly)
     this.EDGE = [1,1,1];
 
     // Load SDF texture
-    //let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/46aa39d6/assets/armadillo.png';
-    //let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/881a5024/assets/bunny_lo.png';
-    let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/46aa39d6/assets/bunny.png';
+    //let imageUrl = 'https://cdn.rawgit.com/portsmouth/sdfGen/cd3bc64a/assets/bunny_test.png';
     //let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/cf5a1f37/assets/hand_buddha.png';
     //let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/cf5a1f37/assets/lady_relief.png';
     //let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/cf5a1f37/assets/head_242.png';
-    //let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/12a8c8cd/assets/eminem.png';
+    let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/12a8c8cd/assets/eminem.png';
 
     var packer = new Packer();
     let SCENE = this;
@@ -238,7 +235,7 @@ Scene.prototype.init = function(snelly)
 
 }
 
-Scene.prototype.getLengthScale = function()    { return 100.0; }
+Scene.prototype.getLengthScale = function()    { return 1.0; }
 Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
 Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
 
@@ -257,7 +254,6 @@ Scene.prototype.syncShader = function(snelly, shader)
     shader.uniformF("foo", this.par.foo);
     shader.uniformF("bar", this.par.bar);
     shader.uniformF("size", this.par.size);
-    shader.uniformF("offset", this.par.offset);
     shader.uniform3Fv("RotVector", this.par.rotation);
 
     shader.uniform3Fv("O", this.ORIG);
@@ -270,7 +266,6 @@ Scene.prototype.shader = function()
     uniform float foo;
     uniform float bar;
     uniform float size;
-    uniform float offset;
     uniform vec3 O;
     uniform vec3 E;
 
@@ -328,12 +323,11 @@ Scene.prototype.shader = function()
         rot = rotationMatrix3(axis, angle);
     }
 
-    float menger(vec3 X, float m) 
+    float menger(vec3 X) 
     {
         float sd = sdBox(X-O, E);
-        X -= offset*E;
-        float s = size / m;
-        const int iter = 5;
+        float s = size;
+        const int iter = 4;
         for (int i=0; i<iter; i++) 
         {
             X.xyz *= rot;
@@ -349,27 +343,26 @@ Scene.prototype.shader = function()
         return sd;
     }   
 
-    float MESH(in vec3 X, float m)
+    float MESH(in vec3 X, float expand)
     {        
         // if X is outside grid, return distance to a slightly embedded grid
         if ( sdBox(X, O, O+E) > 0.0 )
         {
-            return sdBox(X, O+0.05*E, O+0.95*E);
+            return sdBox(X, O+0.01*E, O+0.99*E);
         }
 
         vec3 D = X - O;
         vec3 uvw = vec3(D.x/E.x, D.y/E.y, D.z/E.z);
         float sdf = texture(sdfTex, uvw).r;
-        return opI(sdf, menger(X, m));
+        return opS(sdf, menger(X));
     }
 
    
-    float SDF_SURFACE(vec3 X)
+    float SDF_DIELECTRIC(vec3 X)
     {         
-        float L = max(max(E.x, E.y), E.z);
-        float expand = 0.01 * L;
-        //X.xz = mod((X.xz),size*L)-vec2(0.5)*size*L;   
-        return foo*MESH(X, L) - expand*bar;
+        float expand = 0.01 * max(max(E.x, E.y), E.z);
+        //X.xz = mod((X.xz),size)-vec2(0.5)*size;   
+        return foo*MESH(X, expand) - expand*bar;
     }
 
   
@@ -385,7 +378,6 @@ Scene.prototype.initGui = function(gui)
     gui.addSlider(this.par, {name: 'foo', min: 0.0, max: 1.0}); 
     gui.addSlider(this.par, {name: 'bar', min: -1.0, max: 1.0}); 
     gui.addSlider(this.par, {name: 'size', min: 0.0, max: 10.0}); 
-    gui.addSlider(this.par, {name: 'offset', min: 0.0, max: 1.0}); 
     gui.addColor(this.par, "rotation", 180.0);
 }
 

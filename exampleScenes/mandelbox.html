@@ -1,6 +1,6 @@
 
 <body onload="onLoad();">
-<script src="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/js/compiled/snelly.min.js"></script>
+<script src="../js/compiled/snelly.min.js"></script>
 
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
@@ -178,8 +178,9 @@ Scene.prototype.shader = function()
     `;
 }
 
-Scene.prototype.getMinScale = function() { return 1.0e-5; }
-Scene.prototype.getMaxScale = function() { return 1.0e2; }
+Scene.prototype.getLengthScale = function()    { return 1.0; }
+Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
+Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
 
 Scene.prototype.envMap = function() 
 { return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg'; }
@@ -194,7 +195,7 @@ Scene.prototype.initGui = function(gui)
 	gui.addColor(this.par, "lightColor");
 }
 
-Scene.prototype.syncShader = function(shader) 
+Scene.prototype.syncShader = function(snelly, shader) 
 { 
 	shader.uniformF("Scale", this.par.Scale);
 	shader.uniformF("MinRad2", this.par.MinRad2);

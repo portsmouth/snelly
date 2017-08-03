@@ -1,6 +1,6 @@
 
 <body onload="onLoad();">
-<script src="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/js/compiled/snelly.min.js"></script>
+<script src="../js/compiled/snelly.min.js"></script>
 
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
@@ -26,7 +26,7 @@ Scene.prototype.init = function(snelly)
 	camera.fov = 45;
 	camera.up.set(0, 1, 0);
 	camera.position.set(-2.9520402657563745, 3.1391808649337656, -1.8001470342036083);
-	controls.target.set(0.34020701366979117, 0.20748564352678772, 0.6882820335375682);
+	controls.target.set(0.34020701366979117, 0.20748564352678h772, 0.6882820335375682);
 	controls.zoomSpeed = 1;
 	controls.keyPanSpeed = 0.1;
 
@@ -178,8 +178,9 @@ Scene.prototype.shader = function()
     `;
 }
 
-Scene.prototype.getMinScale = function() { return 1.0e-5; }
-Scene.prototype.getMaxScale = function() { return 1.0e2; }
+Scene.prototype.getLengthScale = function()    { return 1.0; }
+Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
+Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
 
 Scene.prototype.envMap = function() 
 { return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg'; }
@@ -191,7 +192,7 @@ Scene.prototype.initGui = function(gui)
     gui.addSlider(this.par, {name: 'numIterations', min: 1, max: 10, step: 1, recompile: true}); 
 }
 
-Scene.prototype.syncShader = function(shader) 
+Scene.prototype.syncShader = function(snelly, shader) 
 { 
 	shader.uniformF("scale", this.par.scale);
 	shader.uniform3Fv("RotVector", this.par.rotation);

@@ -1,6 +1,6 @@
    
 <body onload="onLoad();">
-<script src="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/js/compiled/snelly.min.js"></script>
+<script src="../js/compiled/snelly.min.js"></script>
 
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
@@ -234,10 +234,11 @@ Scene.prototype.shader = function()
 	`;
 }
 
-Scene.prototype.getMinScale = function() { return 1.0e-4; }
-Scene.prototype.getMaxScale = function() { return 1.0e3; }
+Scene.prototype.getLengthScale = function()    { return 1.0; }
+Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
+Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
 
-Scene.prototype.syncShader = function(shader)
+Scene.prototype.syncShader = function(snelly, shader)
 {
 	shader.uniform3Fv("GDFVectors", this.GDFVectorsFlattened);
 

@@ -1,6 +1,6 @@
 
 <body onload="onLoad();">
-<script src="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/js/compiled/snelly.min.js"></script>
+<script src="../js/compiled/snelly.min.js"></script>
 
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
@@ -207,7 +207,6 @@ Scene.prototype.onkeydownCallback = function(event, snelly, gl)
 	{
 		case 32: // toggle pause/play on spacebar
 			this.playing = !this.playing;
-			break;
 	}
 }
 
@@ -240,7 +239,7 @@ this.animFrame = ${this.animFrame};
     `; 
 }
 
-Scene.prototype.syncShader = function(shader)
+Scene.prototype.syncShader = function(snelly, shader)
 {
 	shader.uniformF("sphereRadius", this.parameters.sphereRadius);
 	shader.uniformF("diskRadius", this.parameters.diskRadius);
@@ -277,6 +276,10 @@ Scene.prototype.getName = function() { return 'A basic animation'; }
 * Optional clickable URL (displayed in UI)
 */
 Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/basicAnimation.html"; }
+
+Scene.prototype.getLengthScale = function()    { return 1.0; }
+Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
+Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
 
 </script>
 

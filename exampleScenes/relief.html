@@ -115,7 +115,6 @@ Scene.prototype.init = function(snelly)
     this.par.foo = 0.5;
     this.par.bar = 0.0;
     this.par.size = 1.0;
-    this.par.offset = 0.0;
     this.par.rotation = [0,0,0];
 
     /******* copy-pasted console output on 'O', begin *******/
@@ -130,21 +129,21 @@ Scene.prototype.init = function(snelly)
     /** Camera settings **/
     camera.fov = 45;
     camera.aperture = 0.002;
-    camera.focalDistance = 13.223498344421387;
+    camera.focalDistance = 2000;
     camera.up.set(0, 1, 0);
-    camera.position.set(13.94674888352934, 9.010409736178898, -7.058573409297118);
-    controls.target.set(1.8163217411976813, 6.288693588879061, 3.137120046080853);
+    camera.position.set(-427.83310894699173, 251.17814929245876, 560.8402693740318);
+    controls.target.set(223.85310913915603, 242.4086377837339, -4.365351783915509);
 
     /** Renderer settings **/
     renderer.renderMode = 'pt';
-    renderer.maxBounces = 2;
+    renderer.maxBounces = 6;
     renderer.maxMarchSteps = 439;
     renderer.radianceClamp = 3;
     renderer.skyPower = 1;
     renderer.skyTemperature = 6000;
-    renderer.exposure = 7.892882311486963;
-    renderer.gamma = 1.8237460019204588;
-    renderer.whitepoint = 0.6769966219250189;
+    renderer.exposure = 15.785764622973925;
+    renderer.gamma = 2.1987315010570825;
+    renderer.whitepoint = 1.758985200845666;
     renderer.envMapVisible = false;
     renderer.shadowStrength = 1;
     renderer.maxStepsIsMiss = true;
@@ -162,13 +161,14 @@ Scene.prototype.init = function(snelly)
     dielectric.absorptionScale = -1; // mfp in multiples of scene scale
     dielectric.roughness = 0.005;
 
-    let metal = materials.loadMetal('Aluminium');
+    let metal = materials.loadMetal('Gold');
     metal.roughness = 0.02;
 
     /******* copy-pasted console output on 'O', end *******/
-    
 
-    renderer.minsSPPToRedraw = 1;
+    renderer.minsSPPToRedraw = 0;
+    //renderer.width = 3840;
+    //renderer.height = 2160;
 
     let gl = snelly.getGLContext();
     this.sdfTexture = gl.createTexture();
@@ -191,13 +191,7 @@ Scene.prototype.init = function(snelly)
     this.EDGE = [1,1,1];
 
     // Load SDF texture
-    //let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/46aa39d6/assets/armadillo.png';
-    //let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/881a5024/assets/bunny_lo.png';
-    let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/46aa39d6/assets/bunny.png';
-    //let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/cf5a1f37/assets/hand_buddha.png';
-    //let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/cf5a1f37/assets/lady_relief.png';
-    //let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/cf5a1f37/assets/head_242.png';
-    //let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/12a8c8cd/assets/eminem.png';
+    let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/cf5a1f37/assets/lady_relief.png';
 
     var packer = new Packer();
     let SCENE = this;
@@ -238,7 +232,7 @@ Scene.prototype.init = function(snelly)
 
 }
 
-Scene.prototype.getLengthScale = function()    { return 100.0; }
+Scene.prototype.getLengthScale = function()    { return 1.0; }
 Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
 Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
 
@@ -257,7 +251,6 @@ Scene.prototype.syncShader = function(snelly, shader)
     shader.uniformF("foo", this.par.foo);
     shader.uniformF("bar", this.par.bar);
     shader.uniformF("size", this.par.size);
-    shader.uniformF("offset", this.par.offset);
     shader.uniform3Fv("RotVector", this.par.rotation);
 
     shader.uniform3Fv("O", this.ORIG);
@@ -270,7 +263,6 @@ Scene.prototype.shader = function()
     uniform float foo;
     uniform float bar;
     uniform float size;
-    uniform float offset;
     uniform vec3 O;
     uniform vec3 E;
 
@@ -296,15 +288,6 @@ Scene.prototype.shader = function()
         return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
     } 
 
-    float sdCross( in vec3 p )
-    {
-        float inf = 1.0e6;
-        float da = sdBox(p.xyz, vec3(inf,1.0,1.0));
-        float db = sdBox(p.yzx, vec3(1.0,inf,1.0));
-        float dc = sdBox(p.zxy, vec3(1.0,1.0,inf));
-        return min(da,min(db,dc));
-    }
-
     mat3 rotationMatrix3(vec3 v, float angle)
     {
         float c = cos(radians(angle));
@@ -328,11 +311,11 @@ Scene.prototype.shader = function()
         rot = rotationMatrix3(axis, angle);
     }
 
-    float menger(vec3 X, float m) 
+    float menger(vec3 X) 
     {
-        float sd = sdBox(X-O, E);
-        X -= offset*E;
-        float s = size / m;
+        float box = sdBox(X-O, E);
+        float sd = box;
+        float s = size;
         const int iter = 5;
         for (int i=0; i<iter; i++) 
         {
@@ -346,30 +329,28 @@ Scene.prototype.shader = function()
             float c = (min(da,min(db,dc))-1.0)/s;
             sd = max(sd, c);
         }
-        return sd;
+        return opS(box, sd);
     }   
 
-    float MESH(in vec3 X, float m)
+    float MESH(in vec3 X)
     {        
         // if X is outside grid, return distance to a slightly embedded grid
         if ( sdBox(X, O, O+E) > 0.0 )
         {
-            return sdBox(X, O+0.05*E, O+0.95*E);
+            return sdBox(X, O+0.01*E, O+0.99*E);
         }
 
         vec3 D = X - O;
         vec3 uvw = vec3(D.x/E.x, D.y/E.y, D.z/E.z);
         float sdf = texture(sdfTex, uvw).r;
-        return opI(sdf, menger(X, m));
+        return opI(sdf, menger(X));
     }
 
    
-    float SDF_SURFACE(vec3 X)
+    float SDF_METAL(vec3 X)
     {         
-        float L = max(max(E.x, E.y), E.z);
-        float expand = 0.01 * L;
-        //X.xz = mod((X.xz),size*L)-vec2(0.5)*size*L;   
-        return foo*MESH(X, L) - expand*bar;
+        float expand = 0.01 * max(max(E.x, E.y), E.z);
+        return foo*MESH(X) - expand*bar;
     }
 
   
@@ -385,7 +366,6 @@ Scene.prototype.initGui = function(gui)
     gui.addSlider(this.par, {name: 'foo', min: 0.0, max: 1.0}); 
     gui.addSlider(this.par, {name: 'bar', min: -1.0, max: 1.0}); 
     gui.addSlider(this.par, {name: 'size', min: 0.0, max: 10.0}); 
-    gui.addSlider(this.par, {name: 'offset', min: 0.0, max: 1.0}); 
     gui.addColor(this.par, "rotation", 180.0);
 }
 
