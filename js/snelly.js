@@ -179,28 +179,34 @@ Snelly.prototype.initScene = function()
 		GLU.fail('Scene must define a "shader" function!');
 	}
 
-	// Obtain min.max scale, if specified
-	this.minScale = 1.0e-4;
-	if (typeof this.sceneObj.getMinScale !== "undefined") 
+	// Obtain length scales, if specified
+	this.lengthScale = 1.0;
+	if (typeof this.sceneObj.getLengthScale !== "undefined") 
 	{
-		this.minScale = this.sceneObj.getMinScale(); // sanity
+		this.lengthScale = this.sceneObj.getLengthScale();
 	}
-	this.minScale = Math.max(1.0e-6, this.minScale);
 
-	this.maxScale = 1.0e2;
-	if (typeof this.sceneObj.getMaxScale !== "undefined")
+	this.minLengthScale = 1.0e-4;
+	if (typeof this.sceneObj.getMinLengthScale !== "undefined") 
 	{
-		this.maxScale = this.sceneObj.getMaxScale();
+		this.minLengthScale = this.sceneObj.getMinLengthScale();
 	}
-	this.maxScale = Math.min(1.0e6, this.maxScale); // sanity
+	this.minLengthScale = Math.max(1.0e-12, this.minLengthScale);  // sanity
+
+	this.maxLengthScale = 1.0e2;
+	if (typeof this.sceneObj.getMaxLengthScale !== "undefined")
+	{
+		this.maxLengthScale = this.sceneObj.getMaxLengthScale();
+	}
+	this.maxLengthScale = Math.min(1.0e9, this.maxLengthScale); // sanity
 
 	// Set initial default camera position and target based on max scale
-	let po = 0.01*this.maxScale; // @todo: should be e.g. 10.0 * this.sceneScale
+	let po = 2.0*this.lengthScale;
 	this.camera.position.set(po, po, po);
 	this.camControls.target.set(0.0, 0.0, 0.0);
 
-	this.camera.aperture      = 1.0e-4 * this.maxScale; // @todo: should be e.g. 0.001 * this.sceneScale
-	this.camera.focalDistance = 1.0e-2 * this.maxScale; // @todo: should be e.g.  10.0 * this.sceneScale
+	this.camera.aperture      = 1.0e-3 * this.lengthScale;
+	this.camera.focalDistance =   10.0 * this.lengthScale;
 
 	// Call user-defined init function	
 	if (typeof this.sceneObj.init !== "undefined") 
@@ -243,8 +249,6 @@ Snelly.prototype.initScene = function()
   	this.loadSpectrum("blackbody");
 	
 	// Camera setup
-	this.camera.near = this.minScale;
-	this.camera.far  = this.maxScale;
 	this.camControls.update();	
 	this.reset(false);
 }
@@ -523,11 +527,11 @@ Snelly.prototype.onClick = function(event)
 {
 	if (this.onSnellyLink) 
 	{
-    	window.location = "https://github.com/portsmouth/snelly";
+    	window.open("https://github.com/portsmouth/snelly");
     }
     if (this.onUserLink) 
 	{
-    	window.location = this.sceneURL;
+    	window.open(this.sceneURL);
     }
 	event.preventDefault();
 }
@@ -576,6 +580,7 @@ Snelly.prototype.onDocumentRightClick = function(event)
 	let ryPick = (wyPick/rsh) * render_canvas.height;
 	var pickData = this.pathtracer.pick(rxPick, ryPick);
 	this.camera.focalDistance = pickData.distance;
+	console.log('pick data: ', pickData);
 	this.gui.sync();
 	this.reset(true);
 }

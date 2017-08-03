@@ -1,0 +1,105 @@
+   
+<body onload="onLoad();">
+
+<script src="../js/thirdparty/jquery-1.11.3.min.js"></script>
+<script src="../js/thirdparty/three/three.min.js"></script>
+<script src="../js/thirdparty/three/libs/stats.min.js"></script>
+<script src="../js/thirdparty/three/libs/dat.gui.min.js"></script>
+<script src="../js/thirdparty/three/controls/OrbitControls.js"></script>
+<script src="../js/gl.js"></script>
+<script src="../js/gui.js"></script>
+<script src="../js/shaders.js"></script>
+<script src="../js/color.js"></script>
+<script src="../js/materials.js"></script>
+<script src="../js/spectra.js"></script>
+<script src="../js/renderer.js"></script>
+<script src="../js/snelly.js"></script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                         scene definition                          */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script>
+
+function Scene() {}
+Scene.prototype.init = function(snelly)
+{
+    this.par = {};
+    this.par.R = 0.3;
+
+    let materials = snelly.getMaterials();
+    let metal = materials.loadMetal('Iron');
+    metal.roughness = 3.0e-3;
+    
+    let surface = materials.loadSurface();
+    surface.roughness = 0.003;
+    surface.diffuseAlbedo = [1, 1, 1];
+    surface.specAlbedo = [0,0,0];
+
+    let renderer  = snelly.getRenderer();
+    //renderer.width = 3000;
+    //renderer.height = 2100;
+    renderer.minsSPPToRedraw = 1.0;
+}
+
+Scene.prototype.shader = function()
+{
+    return `
+    uniform float R;
+    float sdSphere(vec3 X, float r) { return length(X) - r; }   
+    float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+    {                            
+        vec3 d = abs(X-0.5*(bmin+bmax)) - 0.5*(bmax-bmin);
+        return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+    } 
+
+    float balls(vec3 X)
+    {
+        X.xz = mod((X.xz),1.0)-vec2(0.5);
+        return sdSphere(X-vec3(0,R,0), R);
+    }
+
+    float opU(float d1, float d2) { return min(d1,d2); }
+
+    float SDF_SURFACE(vec3 X)
+    {            
+        float L = 1.0e4;
+        float floor = sdBox(X, vec3(-L,-0.1,-L), vec3(L, 0.0,L));
+        return opU(balls(X), floor);
+    }
+
+    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
+    {
+        if (X.y <= 1.0e-3)
+        {
+            const float gridSize = 0.1;
+            float ax = 1.0 - pow(0.5*(1.0 + cos(X.x/gridSize)), 300.0);
+            float ay = 1.0 - pow(0.5*(1.0 + cos(X.z/gridSize)), 300.0);
+            return vec3(ax*ay);
+        }
+        else
+        {
+            return vec3(abs(cos(X.x)), abs(sin(X.y)), abs(cos(X.z)));
+        }
+    }
+    `;
+}
+
+Scene.prototype.getName = function() { return 'Hello World'; }
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/helloWorld.html"; }
+Scene.prototype.envMap = function() { return ''; }
+Scene.prototype.initGui = function(gui) { gui.addSlider(this.par, {name: 'R', min: 0.0, max: 1.0}); }
+Scene.prototype.syncShader = function(snelly, shader) { shader.uniformF("R", this.par.R); }
+
+</script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                            main loop                              */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+</script>
+
+</body>

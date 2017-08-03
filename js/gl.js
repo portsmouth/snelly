@@ -47,6 +47,8 @@ var GLU = {};
 		}
 	}
 
+	// We assume here a global Shaders object has been defined, which
+	// maps names like foo-vertex-shader, foo-fragment-shader to the respective code for shader name foo.
 	this.resolveShaderSource = function(shader_names)
 	{
 		var shaderSources = {};
@@ -131,6 +133,7 @@ var GLU = {};
 				}
 			}
 		};
+
 		var vertexShader       = GLU.compileShaderSource(name, vertSource, gl.VERTEX_SHADER);
 		var fragmentShader     = GLU.compileShaderSource(name, fragSource, gl.FRAGMENT_SHADER);
 		this.program = GLU.createProgram(vertexShader, fragmentShader);
@@ -539,7 +542,10 @@ var GLU = {};
 	}
 
 	// Create CSS rules for the document contents
-	var sheet = window.document.styleSheets[0];
+	let style = document.createElement("style");
+	style.appendChild(document.createTextNode("")); // WebKit hack :(
+	document.head.appendChild(style);
+	let sheet = window.document.styleSheets[0];
 
 	sheet.insertRule(`body{
   margin: 0px;

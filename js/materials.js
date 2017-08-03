@@ -342,7 +342,7 @@ function Dielectric(name)
 {
 	Material.call(this, name);
 	this.roughness = 0.005;
-	this.absorptionScale = -1.0; // set later based on scene maxScale
+	this.absorptionScale = -1.0; // set later based on scene maxLengthScale
 	this.absorptionColor  = [1.0, 1.0, 1.0];
 	this.absorptionColorF = [0.0, 0.0, 0.0];
 	this.absorptionRGB    = [0.0, 0.0, 0.0];
@@ -358,17 +358,16 @@ Dielectric.prototype.syncShader = function(shader)
 	this.specAlbedoXYZ = rgbToXyz(this.specAlbedo);
 	shader.uniform3Fv("dieleSpecAlbedoXYZ", this.specAlbedoXYZ);
 
-	var sceneScale = snelly.maxScale;
-	this.absorptionRGB[0] = sceneScale/Math.max(this.absorptionScale, 1.0e-3) * Math.max(0.0, 1.0 - this.absorptionColor[0]);
-	this.absorptionRGB[1] = sceneScale/Math.max(this.absorptionScale, 1.0e-3) * Math.max(0.0, 1.0 - this.absorptionColor[1]);
-	this.absorptionRGB[2] = sceneScale/Math.max(this.absorptionScale, 1.0e-3) * Math.max(0.0, 1.0 - this.absorptionColor[2]);
+	this.absorptionRGB[0] = snelly.lengthScale/Math.max(this.absorptionScale, 1.0e-3) * Math.max(0.0, 1.0 - this.absorptionColor[0]);
+	this.absorptionRGB[1] = snelly.lengthScale/Math.max(this.absorptionScale, 1.0e-3) * Math.max(0.0, 1.0 - this.absorptionColor[1]);
+	this.absorptionRGB[2] = snelly.lengthScale/Math.max(this.absorptionScale, 1.0e-3) * Math.max(0.0, 1.0 - this.absorptionColor[2]);
 
 	shader.uniform3Fv("dieleAbsorptionRGB", this.absorptionRGB);
 }
 
 Dielectric.prototype.initGui  = function(parentFolder) 
 { 
-	if (this.absorptionScale<0.0) this.absorptionScale = snelly.maxScale; 
+	if (this.absorptionScale<0.0) this.absorptionScale = snelly.maxLengthScale; 
 
 	this.roughnessItem = parentFolder.add(this, 'roughness', 0.0, 0.1);
 	this.roughnessItem.onChange( function(value) { snelly.camControls.enabled = false; snelly.reset(true); } );
@@ -394,7 +393,7 @@ Dielectric.prototype.initGui  = function(parentFolder)
 							snelly.reset(true);
 						} );
 
-	this.absorptionScaleItem = parentFolder.add(this, 'absorptionScale', 0.0, snelly.maxScale);
+	this.absorptionScaleItem = parentFolder.add(this, 'absorptionScale', 0.0, 10.0*snelly.lengthScale);
 	this.absorptionScaleItem.onChange( function(value) { snelly.camera.enabled = false; snelly.reset(true); } );
 	this.absorptionScaleItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 

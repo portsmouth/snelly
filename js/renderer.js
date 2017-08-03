@@ -304,18 +304,14 @@ Renderer.prototype.pick = function(xPick, yPick)
 	PROGRAM.uniform3Fv("camDir", [camDir.x, camDir.y, camDir.z]);
 	PROGRAM.uniform3Fv("camX", [camX.x, camX.y, camX.z]);
 	PROGRAM.uniform3Fv("camY", [camUp.x, camUp.y, camUp.z]);
-	PROGRAM.uniformF("camNear", camera.near);
-	PROGRAM.uniformF("camFar", camera.far);
 	PROGRAM.uniformF("camFovy", camera.fov);
-	PROGRAM.uniformF("camZoom", camera.zoom);
 	PROGRAM.uniformF("camAspect", camera.aspect);
 	PROGRAM.uniformF("camAperture", camera.aperture);
-	PROGRAM.uniformF("camFocalDistance", camera.focalDistance);
-	PROGRAM.uniform2Fv("resolution", [this._width, this._height]);
-	PROGRAM.uniformF("maxScale", snelly.maxScale);
 
-	PROGRAM.uniformF("minScale", snelly.minScale);
-	PROGRAM.uniformF("maxScale", snelly.maxScale);
+	PROGRAM.uniformF("camFocalDistance", Math.max(1.0e-3*snelly.lengthScale, camera.focalDistance));
+	PROGRAM.uniform2Fv("resolution", [this._width, this._height]);
+	PROGRAM.uniformF("minLengthScale", snelly.minLengthScale);
+	PROGRAM.uniformF("maxLengthScale", snelly.maxLengthScale);
 	PROGRAM.uniformI("maxStepsIsMiss", Boolean(this.maxStepsIsMiss) ? 1 : 0);
 	PROGRAM.uniform2Fv("mousePick", [xPick, yPick]); // picked pixel
 
@@ -396,17 +392,14 @@ Renderer.prototype.render = function()
 	INTEGRATOR_PROGRAM.uniform3Fv("camDir", [camDir.x, camDir.y, camDir.z]);
 	INTEGRATOR_PROGRAM.uniform3Fv("camX", [camX.x, camX.y, camX.z]);
 	INTEGRATOR_PROGRAM.uniform3Fv("camY", [camUp.x, camUp.y, camUp.z]);
-	INTEGRATOR_PROGRAM.uniformF("camNear", camera.near);
-	INTEGRATOR_PROGRAM.uniformF("camFar", camera.far);
 	INTEGRATOR_PROGRAM.uniformF("camFovy", camera.fov);
-	INTEGRATOR_PROGRAM.uniformF("camZoom", camera.zoom);
 	INTEGRATOR_PROGRAM.uniformF("camAspect", camera.aspect);
 	INTEGRATOR_PROGRAM.uniformF("camAperture", camera.aperture);
-	INTEGRATOR_PROGRAM.uniformF("camFocalDistance", camera.focalDistance);
+	INTEGRATOR_PROGRAM.uniformF("camFocalDistance", Math.max(1.0e-3*snelly.lengthScale, camera.focalDistance));
 	INTEGRATOR_PROGRAM.uniform2Fv("resolution", [this._width, this._height]);
 
 	// Read wavelength -> XYZ table
-	if (this.renderMode == 'pt')
+	if (this.renderMode=='pt' || this.renderMode=='ao' || this.renderMode=='firsthit')
 	{
 		snelly.wavelengthToXYZ.bind(2);
 		INTEGRATOR_PROGRAM.uniformTexture("WavelengthToXYZ", snelly.wavelengthToXYZ);
@@ -419,8 +412,8 @@ Renderer.prototype.render = function()
 	INTEGRATOR_PROGRAM.uniformF("skyPower", this.skyPower);
 	INTEGRATOR_PROGRAM.uniformF("radianceClamp", Math.pow(10.0, this.radianceClamp));
 	INTEGRATOR_PROGRAM.uniformF("skipProbability", this.skipProbability);
-	INTEGRATOR_PROGRAM.uniformF("maxScale", snelly.maxScale);
-	INTEGRATOR_PROGRAM.uniformF("minScale", snelly.minScale);
+	INTEGRATOR_PROGRAM.uniformF("maxLengthScale", snelly.maxLengthScale);
+	INTEGRATOR_PROGRAM.uniformF("minLengthScale", snelly.minLengthScale);
 	INTEGRATOR_PROGRAM.uniformF("shadowStrength", this.shadowStrength);
 	INTEGRATOR_PROGRAM.uniformI("envMapVisible", Boolean(this.envMapVisible) ? 1 : 0);
 	INTEGRATOR_PROGRAM.uniformF("envMapRotation", Math.min(Math.max(this.envMapRotation, 0.0), 360.0));

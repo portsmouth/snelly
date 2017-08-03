@@ -1,0 +1,209 @@
+
+<body onload="onLoad();">
+<script type="text/javascript">
+
+window.Packer = function()
+{
+	this.VERSION_MAJOR = 1;
+	this.VERSION_MINOR = 0;
+}
+
+window.Packer.prototype = {
+
+	encode: function(asset) {
+
+		let mdBuf = this.utf8Encode(JSON.stringify(asset.metadata));
+		let mdSize = mdBuf.byteLength;
+		let dataSize = asset.data.byteLength;
+		let totalSize = 12 + mdSize + dataSize;
+		this.raw = new Uint8Array(totalSize);
+		let buf = this.raw;
+
+		// Write header (magic number, version, and metadata size)
+		buf[0] = 0xbe; buf[1] = 0xef; // intro, 0xBEEF
+		buf[2] = this.VERSION_MAJOR; // version major
+		buf[3] = this.VERSION_MINOR; // version minor
+		buf[4] = mdSize & 0xff; // metadata size, 32 bit little endian
+		buf[5] = (mdSize >>  8) & 0xff;
+		buf[6] = (mdSize >> 16) & 0xff;
+		buf[7] = (mdSize >> 24) & 0xff;
+		buf[8] = dataSize & 0xff; // data buffer size, 32 bit little endian
+		buf[9] = (dataSize >>  8) & 0xff;
+		buf[10] = (dataSize >> 16) & 0xff;
+		buf[11] = (dataSize >> 24) & 0xff;
+
+		// Write metadata
+		buf.set(mdBuf, 12);
+
+		// Write data
+		let pos = 12 + mdSize;
+
+		// array of floats cast to bytes
+		let dataAsUint8Array = new Uint8Array(asset.data.buffer);
+		buf.set(dataAsUint8Array, pos);
+	},
+
+	createImage: function() {
+
+		let canvas = document.createElement('canvas');
+		let ctx = canvas.getContext('2d');
+		let bitsPerColorComponent = 8;
+		var px = Math.ceil(Math.sqrt(this.raw.byteLength / 3));
+		canvas.width = px;
+		canvas.height = px;
+		ctx.fillRect(0, 0, px, px);
+		let img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+		let imgData = img.data;
+		let imgLength = imgData.length;
+		let i = 0;
+		let j = 0;
+		while (i < imgLength) 
+		{
+			// Cannot use alpha channel unfortunately 
+			imgData[i++] = this.raw[j++];
+			imgData[i++] = this.raw[j++];
+			imgData[i++] = this.raw[j++];
+			imgData[i++] = 0xff;
+		} 
+
+		ctx.putImageData(img, 0, 0);
+		document.body.appendChild(canvas);
+	},
+
+	decode: function(image) {
+
+		let bitsPerColorComponent = 8;
+		let canvas = document.createElement('canvas');
+		let ctx = canvas.getContext('2d');
+		canvas.width = image.width;
+		canvas.height = image.height;
+		ctx.drawImage(image, 0, 0);
+		let img = ctx.getImageData(0, 0, image.width, image.height);
+
+		let imgData = img.data;
+		let length = imgData.length;
+		let buf = this.raw_decode = new Uint8Array(image.width * image.height * 3);
+
+		let i = 0;
+		let j = 0;
+		while(i < length) 
+		{
+			buf[j++] = imgData[i++];
+			buf[j++] = imgData[i++];
+			buf[j++] = imgData[i++];
+			i++;
+		}
+
+		if(buf[0] == 0xbe && buf[1] == 0xef) 
+		{
+			let mdSize   = buf[4] | buf[5] << 8 | buf[6] << 16 | buf[7] << 24;
+			let dataSize = buf[8] | buf[9] << 8 | buf[10] << 16 | buf[11] << 24;
+
+			console.log('mdSize: ', mdSize);
+			console.log('dataSize: ', dataSize);
+			console.log('data in buffer: ', buf.length - mdSize - 12);
+
+			let mdBuf = buf.subarray(12, 12 + mdSize);
+			let metaData = JSON.parse(this.utf8Decode(mdBuf));
+			console.log('loaded metadata: ', metaData)
+			let pos = 12 + mdSize;
+			var data = new Uint8Array(dataSize);
+			data.set(buf.subarray(pos, pos + dataSize));
+			let dataAsFloat32Array = new Float32Array(data.buffer);
+
+			let asset = {
+                metadata: metaData,
+                data: dataAsFloat32Array };
+            return asset;
+		}
+		else
+		{
+			console.log('corrupt magic number in file!');
+		}
+	},
+
+	loadImage: function(url, callback) 
+	{
+		var imgInfo = {
+			width: 1,
+			height: 1,
+			url: url,
+		};
+		var img = new Image();
+		img.addEventListener('load', function() {
+			callback(img, url);
+		});
+		img.crossOrigin = "";
+		img.src = url;
+		return imgInfo;
+	},
+
+	utf8Encode: function(string) {
+		var tmparr = [];
+		var len = string.length;
+		for (var n = 0; n < len; n++) {
+			var c = string.charCodeAt(n);
+			if (c < 128) {
+				tmparr.push(c);
+			} else if((c > 127) && (c < 2048)) {
+				tmparr.push((c >> 6) | 192);
+				tmparr.push((c & 63) | 128);
+			} else {
+				tmparr.push((c >> 12) | 224);
+				tmparr.push(((c >> 6) & 63) | 128);
+				tmparr.push((c & 63) | 128);
+			}
+		}
+		return new Uint8Array(tmparr);
+	},
+
+	utf8Decode: function(uint8array) {
+		var len = uint8array.byteLength;
+		var string = "";
+		var i = 0;
+		while (i < len) {
+			var c = uint8array[i];
+			if (c < 128) {
+				string += String.fromCharCode(c);
+				i++;
+			} else if((c > 191) && (c < 224) && (i + 1 < len)) {
+				string += String.fromCharCode(((c & 31) << 6) | (uint8array[i + 1] & 63));
+				i += 2;
+			} else if(i + 2 < len) {
+				string += String.fromCharCode(((c & 15) << 12) | ((uint8array[i + 1] & 63) << 6) | (uint8array[i + 2] & 63));
+				i += 3;
+			}
+		}
+		return string;
+	}
+
+}
+
+function onLoad() 
+{ 	
+
+	let asset = {
+		metadata: { ORIG: [-0.6793, 0.011761, -0.708207],
+					EDGE: [1.2164, 1.544828, 1.556992],
+					GRES: [100, 127, 128] },
+		data: new Float32Array( [0.0, 1.0, -1.0] );
+	}
+
+	let asset = {
+		metadata: { ORIG: [ $ORIG_VEC ],
+					EDGE: [ $EDGE_VEC ],
+					GRES: [ $GRES_VEC ] },
+		data: new Float32Array( [ $SDF_ARRAY ] );
+	}
+
+	var packer = new Packer();
+
+	// Encoding
+	packer.encode(asset);
+	packer.createImage();
+	console.log('image generated');
+
+}
+
+</script>
+</body>

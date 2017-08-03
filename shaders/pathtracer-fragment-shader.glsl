@@ -17,16 +17,13 @@ uniform vec3 camPos;
 uniform vec3 camDir;
 uniform vec3 camX;
 uniform vec3 camY;
-uniform float camNear;
-uniform float camFar;
 uniform float camFovy; // degrees 
-uniform float camZoom;
 uniform float camAspect;
 uniform float camAperture;
 uniform float camFocalDistance;
 
-uniform float minScale;
-uniform float maxScale;
+uniform float minLengthScale;
+uniform float maxLengthScale;
 uniform float skyPower;
 uniform bool haveEnvMap;
 uniform bool envMapVisible;
@@ -74,7 +71,7 @@ IOR_FUNC
 bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
                    inout vec3 hit, inout int material)
 {
-    float minMarchDist = minScale;
+    float minMarchDist = minLengthScale;
     float sdf_diele = abs(SDF_DIELECTRIC(start));
     float sdf_metal = abs(SDF_METAL(start));
     float sdf_surfa = abs(SDF_SURFACE(start));
@@ -113,17 +110,17 @@ bool traceRay(in vec3 start, in vec3 dir,
 // (whether occluded along infinite ray)
 bool Occluded(in vec3 start, in vec3 dir)
 {
-    float eps = 3.0*minScale;
+    float eps = 3.0*minLengthScale;
     vec3 delta = eps * dir;
     int material;
     vec3 hit;
-    return traceRay(start+delta, dir, hit, material, maxScale);
+    return traceRay(start+delta, dir, hit, material, maxLengthScale);
 }
 
 vec3 normal(in vec3 pW, int material)
 {
     // Compute normal as gradient of SDF
-    float normalEpsilon = 2.0*minScale;
+    float normalEpsilon = 2.0*minLengthScale;
     vec3 e = vec3(normalEpsilon, 0.0, 0.0);
     vec3 xyyp = pW+e.xyy; vec3 xyyn = pW-e.xyy;
     vec3 yxyp = pW+e.yxy; vec3 yxyn = pW-e.yxy;
@@ -791,10 +788,10 @@ void constructPrimaryRay(in vec2 pixel, inout vec4 rnd,
 {
     // Compute world ray direction for given (possibly jittered) fragment
     vec2 ndc = -1.0 + 2.0*(pixel/resolution.xy);
-    float fh = camNear*tan(0.5*radians(camFovy)) / camZoom; // frustum height
+    float fh = tan(0.5*radians(camFovy)); // frustum height
     float fw = camAspect*fh;
     vec3 s = -fw*ndc.x*camX + fh*ndc.y*camY;
-    primaryDir = normalize(camNear*camDir + s);
+    primaryDir = normalize(camDir + s);
     if (camAperture<=0.0) 
     {
         primaryStart = camPos;
@@ -843,7 +840,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     vec3 woW = -primaryDir;
     int rayMaterial = MAT_VACUU;
     int hitMaterial;
-    bool hit = traceRay(primaryStart, primaryDir, pW, hitMaterial, maxScale);
+    bool hit = traceRay(primaryStart, primaryDir, pW, hitMaterial, maxLengthScale);
     
     vec3 colorXYZ; 
     if ( !hit )
@@ -883,11 +880,11 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
             if (throughput < THROUGHPUT_EPSILON) break;
 
             // Trace bounce ray
-            float displacement = 3.0*minScale;
+            float displacement = 3.0*minLengthScale;
             float wiWnW = dot(wiW, nW);
             pW += nW * sign(wiWnW) * displacement; // perturb vertex into half-space of scattered ray
             vec3 pW_next;
-            bool hit = traceRay(pW, wiW, pW_next, hitMaterial, maxScale);
+            bool hit = traceRay(pW, wiW, pW_next, hitMaterial, maxLengthScale);
 
             // If ray missed, add environment light term and terminate path
             if (!hit)

@@ -198,16 +198,28 @@ Scene.prototype.syncShader = function(snelly, shader)
 	shader.uniformF("_bar", this.parameters.bar);
 }
 
+
+/**
+* Optional. Gives the raytracer some indication of the (rough) typical length scale of this scene, 
+* so it can set tolerances and defaults appropriately. 
+* Defaults to 1.0.
+* @returns {number}
+*/
+Scene.prototype.getLengthScale = function()
+{
+	return 1.0;
+}
+
 /**
 * Optional. Gives the raytracer some indication of the (rough) minimum length scale, 
 * so it can set tolerances appropriately. This sets the rough length scale of the smallest 
 * resolvable structure. (Note that decreasing this will usually lead to longer render times).
-* Defaults to 0.0001.
+* Defaults to 0.0001 of the scene length scale.
 * @returns {number}
 */
-Scene.prototype.getMinScale = function()
+Scene.prototype.getMinLengthScale = function()
 {
-	return 1.0e-4;
+	return 1.0e-4 * this.getLengthScale();
 }
 
 
@@ -216,12 +228,12 @@ Scene.prototype.getMinScale = function()
 * so it can set tolerances appropriately. The raymarcher will march no further
 * from the camera than this scale, thus it acts as the "far plane" distance.
 * (Note that increasing this will usually lead to longer render times).
-* Defaults to 100.0.
+* Defaults to 100.0 of the scene length scale;
 * @returns {number}
 */
-Scene.prototype.getMaxScale = function()
+Scene.prototype.getMaxLengthScale = function()
 {
-	return 1.0e2;
+	return 1.0e2 * this.getLengthScale();
 }
 
 
