@@ -144,7 +144,7 @@ GUI.prototype.addSlider = function(parameters, param, folder=undefined)
  * Add a dat.GUI UI color picker to control a 3-element array parameter (where the RGB color channels are mapped into [0,1] float range)
  * @param {Object} parameters - the parameters object for the scene, with a key-value pair (where value is a 3-element array) for the color parameter name
  * @param {Object} name - the color parameter name
- * @param {Object} folder - optionally, pass a scale factor to apply to the RGB color components to calculate the result (defaults to 1.0)
+ * @param {Object} scale - optionally, pass a scale factor to apply to the RGB color components to calculate the result (defaults to 1.0)
  * @param {Object} folder - optionally, pass the dat.GUI folder to add the parameter to (defaults to the main scene folder)
  * @returns {Object} the created dat.GUI color picker item
 */
