@@ -47,6 +47,15 @@ var GLU = {};
 		}
 	}
 
+	function addLineNumbers(string, fs) {
+		var lines = string.split( '\n' );
+		for ( var i = 0; i < lines.length; i ++ ) {
+			let num = i+1;
+			lines[ i ] = num.toString().fontcolor("blue").bold() + ': ' + lines[ i ];
+		}
+		return lines.join( '\t\n' ).fontsize(fs);
+	}
+
 	// We assume here a global Shaders object has been defined, which
 	// maps names like foo-vertex-shader, foo-fragment-shader to the respective code for shader name foo.
 	this.resolveShaderSource = function(shader_names)
@@ -64,7 +73,7 @@ var GLU = {};
 		return shaderSources;
 	}
 
-	this.createProgram = function(vertexShader, fragmentShader) 
+	this.createProgram = function(vertexShader, fragmentShader, vertSource, fragSource) 
 	{
 		// create a program.
 		var program = gl.createProgram();
@@ -81,9 +90,14 @@ var GLU = {};
 		if (!success) 
 		{
 			// something went wrong with the link
-			this.fail("Program failed to link: " + gl.getProgramInfoLog(program) + 
-				    "\n" + gl.getShaderInfoLog(fragmentShader) + 
-				    "\n" + gl.getShaderInfoLog(vertexShader));
+			let errMsg = "Program failed to link: ".bold().fontcolor("red") + gl.getProgramInfoLog(program) + 
+			"\n" + gl.getShaderInfoLog(fragmentShader) + 
+			"\n" + gl.getShaderInfoLog(vertexShader)
+
+			errMsg += "\n\nProblematic shaders:\n\nVERTEX_SHADER:\n".bold().fontcolor("red") + addLineNumbers(vertSource)
+					+"\n\nFRAGMENT_SHADER:\n".bold().fontcolor("red") + addLineNumbers(fragSource);
+					
+			this.fail(errMsg);
 		}
 
 		return program;
@@ -99,7 +113,12 @@ var GLU = {};
 		{
 			// Something went wrong during compilation; get the error
 			var shaderTypeStr = (shaderType==gl.VERTEX_SHADER) ? 'vertex' : 'fragment';
-			this.fail("Could not compile " + shaderName + " " + shaderTypeStr + " shader: " + gl.getShaderInfoLog(shader));
+			let errMsg = "Could not compile ".bold() + shaderName.bold() + " " + shaderTypeStr.bold() + " shader: \n\n".bold();
+			let glErr = gl.getShaderInfoLog(shader).bold().fontcolor("red");
+			glErr = glErr.replace(/^/gm, "\t");
+			errMsg += glErr;
+			errMsg += "\nProblematic shader:\n\n" + addLineNumbers(shaderSource, 1);
+			this.fail(errMsg);
 		}
 		return shader;
 	}
@@ -136,7 +155,7 @@ var GLU = {};
 
 		var vertexShader       = GLU.compileShaderSource(name, vertSource, gl.VERTEX_SHADER);
 		var fragmentShader     = GLU.compileShaderSource(name, fragSource, gl.FRAGMENT_SHADER);
-		this.program = GLU.createProgram(vertexShader, fragmentShader);
+		this.program = GLU.createProgram(vertexShader, fragmentShader, vertSource, fragSource);
 		if (!gl.getProgramParameter(this.program, gl.LINK_STATUS))
 			alert("Could not initialise shaders");
 		this.uniforms = {};
@@ -522,17 +541,18 @@ var GLU = {};
 		var sorryP = document.createElement("p"); 
 		sorryP.appendChild(document.createTextNode("[Snelly] error occurred:"));
 		sorryP.style.fontSize = "32px";
+		sorryP.style.font = "bold 24px arial,serif";
 		sorryP.style.color = 'red';
 
-		var failureP = document.createElement("p");
-		failureP.className = "warning-box";
-		failureP.style.fontSize = "24px";
-		failureP.innerHTML = '<pre>' + '    ' + message + '</pre>';
+		var debug = document.createElement("div");
+		debug.id = "debugger";
+		debug.scrollTop = debug.scrollHeight;
+		debug.innerHTML = '<pre>' + '    ' + message + '</pre>';
 
 		var failureDiv = document.createElement("div"); 
 		failureDiv.className = "center";
 		failureDiv.appendChild(sorryP);
-		failureDiv.appendChild(failureP);
+		failureDiv.appendChild(debug);
 
 		document.getElementById("container").appendChild(failureDiv);
 		this.canvas.style.display = 'none';
@@ -573,6 +593,19 @@ var GLU = {};
     z-index: 100;
     right: 0px;
 }`, sheet.cssRules.length);
+
+	sheet.insertRule(`#debugger { 
+		position: relative; 
+		z-index: 5;
+		right: 10px;
+		margin: 10px;
+		overflow: scroll;
+		height: 100vh;
+		width: 95vw;
+		font-family: Verdana, Tahoma, Arial, Helvetica, sans-serif;
+		left: 0px;
+		top: 0px;
+	}`, sheet.cssRules.length);
 
 	// Create here the DOM elements for renderer and text canvas
 	var container = document.createElement("div");
