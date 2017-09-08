@@ -48,10 +48,11 @@ uniform float surfaceIor;
 #define PDF_EPSILON 1.0e-6
 #define THROUGHPUT_EPSILON 1.0e-5
 
-#define MAT_VACUU  -1
+#define MAT_INVAL  -1
 #define MAT_DIELE  0
 #define MAT_METAL  1
 #define MAT_SURFA  2
+#define MAT_VOLUM  3
 
 #define M_PI 3.1415926535897932384626433832795
 
@@ -66,6 +67,22 @@ IOR_FUNC
 ///////////////////////////////////////////////////////////////////////////////////
 // SDF raymarcher
 ///////////////////////////////////////////////////////////////////////////////////
+
+/// GLSL floating point pseudorandom number generator, from
+/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
+/// http://arxiv.org/pdf/1505.06022.pdf
+float rand(inout vec4 rnd) 
+{
+    const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
+    const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
+    const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
+    const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
+    vec4 beta = floor(rnd/q);
+    vec4 p = a*(rnd - beta*q) - beta*r;
+    beta = (1.0 - sign(p))*0.5*m;
+    rnd = p + beta;
+    return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
+}
 
 // find first hit over specified segment
 bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
@@ -103,18 +120,39 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
 bool traceRay(in vec3 start, in vec3 dir, 
               inout vec3 hit, inout int material, float maxMarchDist)
 {
-    material = MAT_VACUU;
+    material = MAT_INVAL;
     return traceDistance(start, dir, maxMarchDist, hit, material);
 }
 
-// (whether occluded along infinite ray)
-bool Occluded(in vec3 start, in vec3 dir)
+// MC-estimates the amount of light transmitted along an infinite ray
+float Visibility(in vec3 start, in vec3 dir, inout vec4 rnd)
 {
+    // Find first surface hit along ray
     float eps = 3.0*minLengthScale;
     vec3 delta = eps * dir;
-    int material;
     vec3 hit;
-    return traceRay(start+delta, dir, hit, material, maxLengthScale);
+    int material;
+    if (traceRay(start+delta, dir, hit, material, maxLengthScale))
+    {
+        return 0.0;
+    }
+
+    // (@todo: if no volume, define replace this with:  return 1.0)
+    // Transmit according to whether a Woodcock-march reaches the max distance
+    float sigma_t_max = VOLUME_EXTINCTION_MAX();
+    float inv_sigma_t_max = 1.0/sigma_t_max; // (nb, >> maxLengthScale in the case of no volume)
+    float marchStep = -log(rand(rnd)) * inv_sigma_t_max; // Woodcock/delta tracking
+    float distanceMarched = marchStep;
+    vec3 P = start;
+    while (distanceMarched<maxLengthScale)
+    {
+        P += marchStep*dir;
+        float sigma_t = VOLUME_EXTINCTION(P);
+        if (rand(rnd) < sigma_t * inv_sigma_t_max) return 0.0; // opaque
+        marchStep = -log(rand(rnd)) * inv_sigma_t_max; // Woodcock/delta tracking
+        distanceMarched += marchStep;
+    }
+    return 1.0; // transparent
 }
 
 vec3 normal(in vec3 pW, int material)
@@ -221,25 +259,21 @@ vec3 xyz_to_spectrum(vec3 XYZ)
 // Sampling formulae
 /////////////////////////////////////////////////////////////////////////
 
-/// GLSL floating point pseudorandom number generator, from
-/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
-/// http://arxiv.org/pdf/1505.06022.pdf
-float rand(inout vec4 rnd) 
-{
-    const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
-    const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
-    const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
-    const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
-    vec4 beta = floor(rnd/q);
-    vec4 p = a*(rnd - beta*q) - beta*r;
-    beta = (1.0 - sign(p))*0.5*m;
-    rnd = p + beta;
-    return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
+/// Uniformly sample a sphere
+vec3 sampleSphere(inout vec4 rnd, inout float pdf)
+{   
+    float z = 1.0 - 2.0*rand(rnd);
+    float r = sqrt(max(0.0, 1.0 - z*z));
+    float phi = 2.0*M_PI*rand(rnd);
+    float x = cos(phi);
+    float y = sin(phi);
+    pdf = 1.0/(4.0*M_PI);
+    return vec3(x, y, z);
 }
 
+// Do cosine-weighted sampling of hemisphere
 vec3 sampleHemisphere(inout vec4 rnd, inout float pdf)
 {
-    // Do cosine-weighted sampling of hemisphere
     float r = sqrt(rand(rnd));
     float theta = 2.0 * M_PI * rand(rnd);
     float x = r * cos(theta);
@@ -249,17 +283,38 @@ vec3 sampleHemisphere(inout vec4 rnd, inout float pdf)
     return vec3(x, y, z);
 }
 
+// pdf for cosine-weighted sampling of hemisphere
 float pdfHemisphere(in vec3 wiL)
 {
-    // pdf for cosine-weighted sampling of hemisphere
     return wiL.z / M_PI;
 }
 
 float powerHeuristic(const float a, const float b)
 {
-    float t = a;
-    return t / (t + b);
+    return a/(a + b);
 }
+
+vec3 samplePhaseFunction(in vec3 rayDir, inout vec4 rnd)
+{
+    float g = 0.0; // @todo: parameter
+    float costheta;
+    if (abs(g)<1.0e-3)
+        costheta = 1.0 - 2.0*rand(rnd);
+    else
+        costheta = -1.0/(2.0*g) * (1.0 + g*g - ((1.0-g*g)*(1.0-g+2.0*g*rand(rnd))));
+    float sintheta = sqrt(max(0.0, 1.0-costheta*costheta));
+    float phi = 2.0*M_PI*rand(rnd);
+    Basis basis = makeBasis(rayDir);
+    return costheta*rayDir + sintheta*(cos(phi)*basis.tW + sin(phi)*basis.bW);
+}
+
+float phaseFunction(float mu)
+{
+    float g = 0.0; // @todo: parameter
+	float gSqr = g*g;
+	return (1.0 - gSqr) / pow(1.0 - 2.0*g*mu + gSqr, 1.5);
+}
+
 
 /////////////////////////////////////////////////////////////////////////
 // Beckmann Microfacet formulae
@@ -743,40 +798,44 @@ vec3 environmentRadianceXYZ(in vec3 dir)
 float environmentRadiance(in vec3 dir, in vec3 XYZ)
 {
     vec3 XYZ_sky = environmentRadianceXYZ(dir);
-
-    // convert to radiance at the given wavelength
-    vec3 XYZ_spec = xyz_to_spectrum(XYZ_sky);
+    vec3 XYZ_spec = xyz_to_spectrum(XYZ_sky); // convert to radiance at the given wavelength
     return dot(XYZ, XYZ_spec);
 }
 
-float directLighting(in vec3 pW, Basis basis, in vec3 woW, in int material, 
-                     float wavelength_nm, in vec3 XYZ, inout vec4 rnd)
+// Estimate direct radiance at the given surface vertex
+float directSurfaceLighting(in vec3 pW, Basis basis, in vec3 woW, in int material, 
+                            float wavelength_nm, in vec3 XYZ, inout vec4 rnd)
 {
+    // Env-map sampling: @todo: use importance sampling
     float lightPdf;
-    float Li;
-    vec3 wiW; // direction of sampled direct light (*towards* the light)
-    {
-        // Env-map sampling
-        float hemispherePdf;
-        vec3 wiL = sampleHemisphere(rnd, hemispherePdf);
-        lightPdf = hemispherePdf;
-        wiW = localToWorld(wiL, basis);
-        Li = environmentRadiance(wiW, XYZ);
-
-        bool occluded = Occluded(pW, wiW); 
-        if (occluded) Li *= abs(1.0 - shadowStrength);
-    }
-
+    vec3 wiL = sampleHemisphere(rnd, lightPdf);
+    vec3 wiW = localToWorld(wiL, basis); // direction of sampled direct light (*towards* the light)
+    float Li = environmentRadiance(wiW, XYZ);
+    float V = Visibility(pW, wiW, rnd); 
+    Li *= abs(1.0 - shadowStrength*(1.0-V));
+    
     // Apply MIS weight with the BSDF pdf for the sampled direction
     vec3 woL = worldToLocal(woW, basis);
-    vec3 wiL = worldToLocal(wiW, basis);
     float bsdfPdf = pdfBsdf(pW, basis, woL, wiL, material, wavelength_nm, XYZ);
     if ( bsdfPdf<PDF_EPSILON ) return 0.0;
-
     float f = evaluateBsdf(pW, basis, woL, wiL, material, wavelength_nm, XYZ, rnd);
     float misWeight = powerHeuristic(lightPdf, bsdfPdf);
     float fOverPdf = min(radianceClamp, f/max(PDF_EPSILON, lightPdf));
     return fOverPdf * Li * abs(dot(wiW, basis.nW)) * misWeight;
+}
+
+// Estimate direct radiance at the given volumetric vertex
+float directVolumeLighting(in vec3 pW, in vec3 woW, in vec3 XYZ, inout vec4 rnd)
+{
+    // Env-map sampling: @todo: use importance sampling
+    float lightPdf;
+    vec3 wiW = sampleSphere(rnd, lightPdf); // direction of sampled direct light (*towards* the light)
+    float Li = environmentRadiance(wiW, XYZ);
+    float V = Visibility(pW, wiW, rnd); 
+    Li *= abs(1.0 - shadowStrength*(1.0-V));
+    float f = phaseFunction(dot(woW, wiW));
+    float fOverPdf = min(radianceClamp, f/max(PDF_EPSILON, lightPdf));
+    return fOverPdf * Li;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -799,7 +858,7 @@ void constructPrimaryRay(in vec2 pixel, inout vec4 rnd,
     }
     vec3 focalPlaneHit = camPos + camFocalDistance*primaryDir/dot(primaryDir, camDir);
     float lensRadial = camAperture * sqrt(rand(rnd));
-    float theta = 2.0*M_PI * rand(rnd);
+    float theta = 2.0*M_PI*rand(rnd);
     vec3 lensPos = camPos + lensRadial*(-camX*cos(theta) + camY*sin(theta));
     primaryStart = lensPos;
     primaryDir = normalize(focalPlaneHit - lensPos);
@@ -813,7 +872,6 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         float oldN = oldL.w;
         float newN = oldN;
         vec3 newL = oldL.rgb;
-
         gbuf_rad = vec4(newL, newN);
         gbuf_rng = rnd;
         return;
@@ -827,6 +885,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
 
     // Convert wavelength to XYZ tristimulus
     vec3 XYZ = texture(WavelengthToXYZ, vec2(w, 0.5)).rgb;
+    vec3 RGB = clamp(xyzToRgb(XYZ), 0.0, 1.0);
 
     // Jitter over pixel
     if (jitter) pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
@@ -835,92 +894,112 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     vec3 primaryStart, primaryDir;
     constructPrimaryRay(pixel, rnd, primaryStart, primaryDir);
 
-    // Raycast to first hit point
-    vec3 pW;
-    vec3 woW = -primaryDir;
-    int rayMaterial = MAT_VACUU;
-    int hitMaterial;
-    bool hit = traceRay(primaryStart, primaryDir, pW, hitMaterial, maxLengthScale);
-    
-    vec3 colorXYZ; 
-    if ( !hit )
+    // Perform pathtrace to estimate the primary ray radiance, L
+    float L = 0.0;    
+    float throughput = 1.0;
+    float misWeight = 1.0; // For MIS book-keeping
+    vec3 pW = primaryStart;
+    vec3 rayDir = primaryDir; // (nb, opposite to photon direction)
+    bool inDielectric = false; // keep track of medium (either in dielectric, or vacuum/volume)
+    float sigma_t_max = VOLUME_EXTINCTION_MAX();
+
+    for (int vertex=0; vertex<=MAX_BOUNCES; ++vertex)
     {
-        if (envMapVisible) colorXYZ = environmentRadianceXYZ(primaryDir);
-        else               colorXYZ = vec3(0.0);
-    }
-    else
-    {   
-        float L = 0.0;    
-        float throughput = 1.0;
-        for (int bounce=0; bounce<MAX_BOUNCES; ++bounce)
+        // Raycast along current propagation direction rayDir, from current vertex pW to pW_next
+        vec3 woW = -rayDir;
+        vec3 pW_next;
+        int hitMaterial;
+        bool hit = traceRay(pW, rayDir, pW_next, hitMaterial, maxLengthScale);
+        float rayLength = maxLengthScale;
+        if (hit) rayLength = length(pW_next - pW);
+        
+        // If the current ray lies inside a dielectric, apply Beer's law for absorption
+        if (inDielectric)
         {
-            // Compute normal at current surface vertex
-            vec3 nW = normal(pW, hitMaterial);
-            Basis basis = makeBasis(nW);
-
-            // Add direct lighting term at current surface vertex
-            L += throughput * directLighting(pW, basis, woW, hitMaterial, wavelength_nm, XYZ, rnd);
-
-            // Sample BSDF for the next bounce direction
-            vec3 woL = worldToLocal(woW, basis);
-            vec3 wiL;
-            float bsdfPdf;
-            float f = sampleBsdf(pW, basis, woL, hitMaterial, wavelength_nm, XYZ, wiL, bsdfPdf, rnd);
-            vec3 wiW = localToWorld(wiL, basis);
-
-            // material in which ray propagates changes (only) on transmission
-            if (dot(woW, nW) * dot(wiW, nW) < 0.0) 
-            {
-                rayMaterial = hitMaterial;
-            }
-
-            // Update path throughput
-            float fOverPdf = min(radianceClamp, f/max(PDF_EPSILON, bsdfPdf));
-            throughput *= fOverPdf * abs(dot(wiW, nW));
-            if (throughput < THROUGHPUT_EPSILON) break;
-
-            // Trace bounce ray
-            float displacement = 3.0*minLengthScale;
-            float wiWnW = dot(wiW, nW);
-            pW += nW * sign(wiWnW) * displacement; // perturb vertex into half-space of scattered ray
-            vec3 pW_next;
-            bool hit = traceRay(pW, wiW, pW_next, hitMaterial, maxLengthScale);
-
-            // If ray missed, add environment light term and terminate path
-            if (!hit)
-            {
-                float lightPdf = pdfHemisphere(wiL);
-                float misWeight = powerHeuristic(bsdfPdf, lightPdf);
-                float Li = environmentRadiance(wiW, XYZ);
-                L += throughput * Li * misWeight;
-                break;
-            }
-
-            // Support non-physical illumination of occluded areas by the env map
-            else if (shadowStrength < 1.0)
-            {
-                float lightPdf = pdfHemisphere(wiL);
-                float misWeight = powerHeuristic(bsdfPdf, lightPdf);
-                float Li = environmentRadiance(wiW, XYZ);
-                L += throughput * Li * misWeight * abs(1.0 - shadowStrength);
-            }
-
-            // If the bounce ray lies inside a dielectric, apply Beer's law for absorption
-            if (rayMaterial==MAT_DIELE)
-            {
-                float absorptionLength = length(pW_next - pW);
-                vec3 RGB = clamp(xyzToRgb(XYZ), 0.0, 1.0);
-                throughput *= exp(-absorptionLength*dot(dieleAbsorptionRGB, RGB));
-            }
-
-            // Update vertex
-            vec3 rayDir = normalize(pW_next - pW);
-            woW = -rayDir;
-            pW = pW_next;
+            throughput *= exp(-rayLength*dot(dieleAbsorptionRGB, RGB));
         }
 
-        colorXYZ = XYZ * L;
+        // (@todo: define this out completely if there is no volume)
+        // else check for a possible volume scattering event between pW and pW_next
+        else if (sigma_t_max>DENOM_TOLERANCE)
+        {
+            vec3 pScatter = pW;        
+            bool scatter = false;    
+            float inv_sigma_t_max = 1.0/sigma_t_max;
+            float distanceMarched = 0.0;
+            float sigma_t;
+            while (!scatter && distanceMarched<rayLength)
+            {
+                float marchStep = -log(rand(rnd)) * inv_sigma_t_max; // Woodcock/delta tracking
+                pScatter += marchStep*rayDir;
+                sigma_t = VOLUME_EXTINCTION(pScatter);
+                scatter = bool(rand(rnd) < sigma_t * inv_sigma_t_max);
+                distanceMarched += marchStep;
+            }
+            if (scatter) // Scattering event, continue immediately to next vertex
+            {
+                vec3 wiW = samplePhaseFunction(rayDir, rnd); // sample scattered direction
+                float emission = abs(dot(RGB, VOLUME_EMISSION(pScatter)));          // @todo: strip if no volume emission
+                
+                float albedo = dot(RGB, VOLUME_ALBEDO(pScatter));;
+                L += throughput * emission/sigma_t; // add volume emission term     // @todo: strip if no volume emission
+                L += throughput * albedo * directVolumeLighting(pScatter, woW, XYZ, rnd); // add contribution due to direct lighting at vertex
+                throughput *= albedo;// update throughput due to scattering
+                pW = pScatter; // continue to next vertex
+                rayDir = wiW;
+                continue;
+            }
+        }
+
+        // If ray didn't scatter and missed all geometry, add environment light term and terminate path
+        if (!hit)
+        {
+            if (vertex==0 && !envMapVisible) break;
+            float Li = environmentRadiance(rayDir, XYZ);
+            L += throughput * Li * misWeight;
+            break;
+        }
+
+        // Ray didn't scatter but hit geometry, so deal with the surface interaction.
+        // First update current vertex to next surface hit point
+        pW = pW_next;
+    
+        // Compute normal at current surface vertex
+        vec3 nW = normal(pW, hitMaterial);
+        Basis basis = makeBasis(nW);
+
+        // Add direct lighting term at current surface vertex
+        L += throughput * directSurfaceLighting(pW, basis, woW, hitMaterial, wavelength_nm, XYZ, rnd);
+
+        // Sample BSDF for the next bounce direction
+        vec3 woL = worldToLocal(woW, basis);
+        vec3 wiL;
+        float bsdfPdf;
+        float f = sampleBsdf(pW, basis, woL, hitMaterial, wavelength_nm, XYZ, wiL, bsdfPdf, rnd);
+        vec3 wiW = localToWorld(wiL, basis);
+        rayDir = wiW; // Update ray direction
+
+        // medium in which ray propagates changes (only) on dielectric transmission
+        if (dot(woW, nW) * dot(wiW, nW) < 0.0) 
+        {
+            inDielectric = !inDielectric;
+        }
+
+        // Update path throughput
+        float fOverPdf = min(radianceClamp, f/max(PDF_EPSILON, bsdfPdf));
+        throughput *= fOverPdf * abs(dot(wiW, nW));
+        if (throughput < THROUGHPUT_EPSILON) break;
+
+        // Prepare for tracing the bounce ray
+        float displacement = 3.0*minLengthScale;
+        float wiWnW = dot(wiW, nW);
+        pW += nW * sign(wiWnW) * displacement; // perturb vertex into half-space of scattered ray
+        float lightPdf = pdfHemisphere(wiL); // compute MIS weight for bounce ray
+        float misWeight = powerHeuristic(bsdfPdf, lightPdf);
     }
+
+    // Compute tristimulus contribution from estimated radiance
+    vec3 colorXYZ = XYZ * L;
 
     // Write updated radiance and sample count
     vec4 oldL = texture(Radiance, vTexCoord);
@@ -939,3 +1018,15 @@ void main()
     pathtrace(gl_FragCoord.xy, rnd);
 }
 
+
+
+// junk
+/*
+    // Support non-physical illumination of occluded areas by the env map
+    /* // @todo: maybe remove and support surface emission to achieve this? 
+    if (shadowStrength < 1.0)
+    {
+        float Li = environmentRadiance(wiW, XYZ);
+        L += throughput * Li * misWeight * abs(1.0 - shadowStrength);
+    }
+*/

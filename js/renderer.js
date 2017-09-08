@@ -211,6 +211,7 @@ Renderer.prototype.compileShaders = function()
 
 	// Insert default functions for those not implemented 
 	if (shader.indexOf("INIT(")                            == -1) { shader += `\n void INIT() {}\n`; }
+
 	if (shader.indexOf("SDF_SURFACE(")                     == -1) { shader += `\n float SDF_SURFACE(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
  	if (shader.indexOf("SURFACE_DIFFUSE_REFLECTANCE(")     == -1) { shader += `\n vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
  	if (shader.indexOf("SURFACE_SPECULAR_REFLECTANCE(")    == -1) { shader += `\n vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
@@ -223,6 +224,11 @@ Renderer.prototype.compileShaders = function()
  	if (shader.indexOf("SDF_DIELECTRIC(")                  == -1) { shader += `\n float SDF_DIELECTRIC(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
  	if (shader.indexOf("DIELECTRIC_SPECULAR_REFLECTANCE(") == -1) { shader += `\n vec3 DIELECTRIC_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
  	if (shader.indexOf("DIELECTRIC_ROUGHNESS(")            == -1) { shader += `\n float DIELECTRIC_ROUGHNESS(in float roughness, in vec3 X, in vec3 N) { return roughness; }\n`; }
+
+	if (shader.indexOf("VOLUME_EXTINCTION(")               == -1) { shader += `\n float VOLUME_EXTINCTION(vec3 X) { return 0.0; }\n`; }
+	if (shader.indexOf("VOLUME_EXTINCTION_MAX(")           == -1) { shader += `\n float VOLUME_EXTINCTION_MAX() { return 0.0; }\n`; }
+	if (shader.indexOf("VOLUME_ALBEDO(")                   == -1) { shader += `\n vec3 VOLUME_ALBEDO(vec3 X) { return vec3(0.0); }\n`; }
+	if (shader.indexOf("VOLUME_EMISSION(")                 == -1) { shader += `\n vec3 VOLUME_EMISSION(vec3 X) { return vec3(0.0); }\n`; }
 
 	// @todo: insert material GLSL code
 	var dielectricObj = snelly.getLoadedDielectric(); if (dielectricObj == null) return;
