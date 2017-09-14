@@ -1153,32 +1153,34 @@ float rand(inout vec4 rnd)
 bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
                    inout vec3 hit, inout int material)
 {
-    float minMarchDist = minLengthScale;
-    float sdf_diele = abs(SDF_DIELECTRIC(start));
-    float sdf_metal = abs(SDF_METAL(start));
-    float sdf_surfa = abs(SDF_SURFACE(start));
-    float sdf = min(sdf_diele, min(sdf_metal, sdf_surfa));
-    float InitialSign = sign(sdf);
+    float minMarch = minLengthScale;
+    const float HUGE_VAL = 1.0e20;
 
+    // @todo: define out the tests which don't apply
+    float sdf = HUGE_VAL;
+    float sdf_surfa = abs(SDF_SURFACE(start));    sdf = min(sdf, sdf_surfa);
+    float sdf_metal = abs(SDF_METAL(start));      sdf = min(sdf, sdf_metal);
+    float sdf_diele = abs(SDF_DIELECTRIC(start)); sdf = min(sdf, sdf_diele);
+    float sdf_volum = abs(SDF_VOLUME(start));     sdf = min(sdf, sdf_volum);
+
+    float InitialSign = sign(sdf);
     float t = 0.0;  
-    int iters=0;
     for (int n=0; n<MAX_MARCH_STEPS; n++)
     {
         // With this formula, the ray advances whether sdf is initially negative or positive --
         // but on crossing the zero isosurface, sdf flips allowing bracketing of the root. 
         t += InitialSign * sdf;
-        if (t>=maxDist) break;
+        if (t>=maxDist) return false;
         vec3 pW = start + t*dir;    
-        sdf_diele = abs(SDF_DIELECTRIC(pW)); if (sdf_diele<minMarchDist) { material = MAT_DIELE; break; }
-        sdf_metal = abs(SDF_METAL(pW));      if (sdf_metal<minMarchDist) { material = MAT_METAL; break; }
-        sdf_surfa = abs(SDF_SURFACE(pW));    if (sdf_surfa<minMarchDist) { material = MAT_SURFA; break; }
-        sdf = min(sdf_diele, min(sdf_metal, sdf_surfa));
-        iters++;
+        
+        // @todo: define out the tests which don't apply
+        sdf = HUGE_VAL;
+        sdf_surfa = abs(SDF_SURFACE(pW));    if (sdf_surfa<minMarch) { material = MAT_SURFA; hit = start + t*dir; return true; } sdf = min(sdf, sdf_surfa);
+        sdf_metal = abs(SDF_METAL(pW));      if (sdf_metal<minMarch) { material = MAT_METAL; hit = start + t*dir; return true; } sdf = min(sdf, sdf_metal);
+        sdf_diele = abs(SDF_DIELECTRIC(pW)); if (sdf_diele<minMarch) { material = MAT_DIELE; hit = start + t*dir; return true; } sdf = min(sdf, sdf_diele);
+        sdf_volum = abs(SDF_VOLUME(pW));     if (sdf_volum<minMarch) { material = MAT_VOLUM; hit = start + t*dir; return true; } sdf = min(sdf, sdf_volum);
     }
-    hit = start + t*dir;
-    if (t>=maxDist) return false;
-    if (maxStepsIsMiss && iters>=MAX_MARCH_STEPS) return false;
-    return true;
+    return !maxStepsIsMiss;
 }
 
 // find first hit along infinite ray
@@ -1190,17 +1192,29 @@ bool traceRay(in vec3 start, in vec3 dir,
 }
 
 // MC-estimates the amount of light transmitted along an infinite ray
-float Visibility(in vec3 start, in vec3 dir, inout vec4 rnd)
+float Visibility(in vec3 start, in vec3 dir, inout vec4 rnd, bool inVolume)
 {
     // Find first surface hit along ray
     float eps = 3.0*minLengthScale;
-    vec3 delta = eps * dir;
-    vec3 hit;
-    int material;
-    if (traceRay(start+delta, dir, hit, material, maxLengthScale))
+    vec3 p = start + eps*dir;
+    vec3 hitPoint;
+    int hitMaterial;
+    bool hit = traceRay(p, dir, hitPoint, hitMaterial, maxLengthScale);
+    if (!hit) return 1.0;
+    if (hitMaterial!=MAT_VOLUM) return 0.0; // hit a surface, so visibility is zero
+
+    // We hit the volume boundary
+    if (!inVolume)
     {
-        return 0.0;
+        // from the volume exterior, so re-trace from the volume boundary
+        p = hitPoint + eps*dir;
+        hit = traceRay(p, dir, hitPoint, hitMaterial, maxLengthScale);
+        if (!hit) return 1.0; // (should not happen, geometrically) 
+        if (hitMaterial!=MAT_VOLUM) return 0.0; 
     }
+        
+    float maxDist = length(hitPoint - p);
+    p = hitPoint + eps*dir;   
 
     // (@todo: if no volume, define replace this with:  return 1.0)
     // Transmit according to whether a Woodcock-march reaches the max distance
@@ -1208,11 +1222,10 @@ float Visibility(in vec3 start, in vec3 dir, inout vec4 rnd)
     float inv_sigma_t_max = 1.0/sigma_t_max; // (nb, >> maxLengthScale in the case of no volume)
     float marchStep = -log(rand(rnd)) * inv_sigma_t_max; // Woodcock/delta tracking
     float distanceMarched = marchStep;
-    vec3 P = start;
-    while (distanceMarched<maxLengthScale)
+    while (distanceMarched<maxDist)
     {
-        P += marchStep*dir;
-        float sigma_t = VOLUME_EXTINCTION(P);
+        p += marchStep*dir;
+        float sigma_t = VOLUME_EXTINCTION(p);
         if (rand(rnd) < sigma_t * inv_sigma_t_max) return 0.0; // opaque
         marchStep = -log(rand(rnd)) * inv_sigma_t_max; // Woodcock/delta tracking
         distanceMarched += marchStep;
@@ -1229,9 +1242,12 @@ vec3 normal(in vec3 pW, int material)
     vec3 yxyp = pW+e.yxy; vec3 yxyn = pW-e.yxy;
     vec3 yyxp = pW+e.yyx; vec3 yyxn = pW-e.yyx;
     vec3 N;
-    if      (material==MAT_DIELE) { N = vec3(SDF_DIELECTRIC(xyyp)-SDF_DIELECTRIC(xyyn), SDF_DIELECTRIC(yxyp)-SDF_DIELECTRIC(yxyn), SDF_DIELECTRIC(yyxp) - SDF_DIELECTRIC(yyxn)); }
-    else if (material==MAT_METAL) { N = vec3(SDF_METAL(xyyp)     -SDF_METAL(xyyn),      SDF_METAL(yxyp)     -SDF_METAL(yxyn),      SDF_METAL(yyxp)      - SDF_METAL(yyxn)); }
-    else                          { N = vec3(SDF_SURFACE(xyyp)   -SDF_SURFACE(xyyn),    SDF_SURFACE(yxyp)   -SDF_SURFACE(yxyn),    SDF_SURFACE(yyxp)    - SDF_SURFACE(yyxn)); }
+
+    // @todo: define out the materials which don't apply
+    if      (material==MAT_DIELE) { N = vec3(SDF_DIELECTRIC(xyyp) - SDF_DIELECTRIC(xyyn), SDF_DIELECTRIC(yxyp) - SDF_DIELECTRIC(yxyn), SDF_DIELECTRIC(yyxp) - SDF_DIELECTRIC(yyxn)); }
+    else if (material==MAT_VOLUM) { N = vec3(    SDF_VOLUME(xyyp) -     SDF_VOLUME(xyyn),     SDF_VOLUME(yxyp) -     SDF_VOLUME(yxyn),     SDF_VOLUME(yyxp) -     SDF_VOLUME(yyxn)); }
+    else if (material==MAT_METAL) { N = vec3(     SDF_METAL(xyyp) -      SDF_METAL(xyyn),      SDF_METAL(yxyp) -      SDF_METAL(yxyn),      SDF_METAL(yyxp) -      SDF_METAL(yyxn)); }
+    else if (material==MAT_SURFA) { N = vec3(   SDF_SURFACE(xyyp) -    SDF_SURFACE(xyyn),    SDF_SURFACE(yxyp) -    SDF_SURFACE(yxyn),    SDF_SURFACE(yyxp) -    SDF_SURFACE(yyxn)); }
     return normalize(N);
 }
 
@@ -1366,7 +1382,7 @@ vec3 samplePhaseFunction(in vec3 rayDir, inout vec4 rnd)
     if (abs(g)<1.0e-3)
         costheta = 1.0 - 2.0*rand(rnd);
     else
-        costheta = -1.0/(2.0*g) * (1.0 + g*g - ((1.0-g*g)*(1.0-g+2.0*g*rand(rnd))));
+        costheta = 1.0/(2.0*g) * (1.0 + g*g - ((1.0-g*g)*(1.0-g+2.0*g*rand(rnd))));
     float sintheta = sqrt(max(0.0, 1.0-costheta*costheta));
     float phi = 2.0*M_PI*rand(rnd);
     Basis basis = makeBasis(rayDir);
@@ -1377,7 +1393,7 @@ float phaseFunction(float mu)
 {
     float g = 0.0; // @todo: parameter
 	float gSqr = g*g;
-	return (1.0 - gSqr) / pow(1.0 - 2.0*g*mu + gSqr, 1.5);
+	return (1.0/(4.0*M_PI)) * (1.0 - gSqr) / pow(1.0 - 2.0*g*mu + gSqr, 1.5); 
 }
 
 
@@ -1869,15 +1885,15 @@ float environmentRadiance(in vec3 dir, in vec3 XYZ)
 
 // Estimate direct radiance at the given surface vertex
 float directSurfaceLighting(in vec3 pW, Basis basis, in vec3 woW, in int material, 
-                            float wavelength_nm, in vec3 XYZ, inout vec4 rnd)
+                            float wavelength_nm, in vec3 XYZ, inout vec4 rnd, bool inVolume)
 {
     // Env-map sampling: @todo: use importance sampling
     float lightPdf;
     vec3 wiL = sampleHemisphere(rnd, lightPdf);
     vec3 wiW = localToWorld(wiL, basis); // direction of sampled direct light (*towards* the light)
     float Li = environmentRadiance(wiW, XYZ);
-    float V = Visibility(pW, wiW, rnd); 
-    Li *= abs(1.0 - shadowStrength*(1.0-V));
+    float V = Visibility(pW, wiW, rnd, inVolume); 
+    Li *= V; //abs(1.0 - shadowStrength*(1.0-V));
     
     // Apply MIS weight with the BSDF pdf for the sampled direction
     vec3 woL = worldToLocal(woW, basis);
@@ -1890,15 +1906,15 @@ float directSurfaceLighting(in vec3 pW, Basis basis, in vec3 woW, in int materia
 }
 
 // Estimate direct radiance at the given volumetric vertex
-float directVolumeLighting(in vec3 pW, in vec3 woW, in vec3 XYZ, inout vec4 rnd)
+float directVolumeLighting(in vec3 pW, in vec3 woW, in vec3 XYZ, inout vec4 rnd, bool inVolume)
 {
     // Env-map sampling: @todo: use importance sampling
     float lightPdf;
     vec3 wiW = sampleSphere(rnd, lightPdf); // direction of sampled direct light (*towards* the light)
     float Li = environmentRadiance(wiW, XYZ);
-    float V = Visibility(pW, wiW, rnd); 
-    Li *= abs(1.0 - shadowStrength*(1.0-V));
-    float f = phaseFunction(dot(woW, wiW));
+    float V = Visibility(pW, wiW, rnd, inVolume); 
+    Li *= V; //abs(1.0 - shadowStrength*(1.0-V));
+    float f = phaseFunction(dot(woW, -wiW));
     float fOverPdf = min(radianceClamp, f/max(PDF_EPSILON, lightPdf));
     return fOverPdf * Li;
 }
@@ -1965,8 +1981,10 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     float misWeight = 1.0; // For MIS book-keeping
     vec3 pW = primaryStart;
     vec3 rayDir = primaryDir; // (nb, opposite to photon direction)
-    bool inDielectric = false; // keep track of medium (either in dielectric, or vacuum/volume)
     float sigma_t_max = VOLUME_EXTINCTION_MAX();
+    float normalPerturbation = 3.0*minLengthScale;
+    bool inDielectric = SDF_DIELECTRIC(primaryStart) < 0.0; 
+    bool inVolume     = SDF_VOLUME(primaryStart) < 0.0;
 
     for (int vertex=0; vertex<=MAX_BOUNCES; ++vertex)
     {
@@ -1976,47 +1994,81 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         int hitMaterial;
         bool hit = traceRay(pW, rayDir, pW_next, hitMaterial, maxLengthScale);
         float rayLength = maxLengthScale;
-        if (hit) rayLength = length(pW_next - pW);
-        
-        // If the current ray lies inside a dielectric, apply Beer's law for absorption
-        if (inDielectric)
+        if (hit) 
         {
-            throughput *= exp(-rayLength*dot(dieleAbsorptionRGB, RGB));
+            rayLength = length(pW_next - pW);
         }
 
-        // (@todo: define this out completely if there is no volume)
-        // else check for a possible volume scattering event between pW and pW_next
-        else if (sigma_t_max>DENOM_TOLERANCE)
+        // (@todo: define this logic out completely if there is no volume)
+        // We will assume that the volume boundary is convex, otherwise the logic is too complex.
+        float volumeRayLength = rayLength;
+        if (hitMaterial==MAT_VOLUM && !inVolume) 
         {
-            vec3 pScatter = pW;        
-            bool scatter = false;    
-            float inv_sigma_t_max = 1.0/sigma_t_max;
-            float distanceMarched = 0.0;
-            float sigma_t;
-            while (!scatter && distanceMarched<rayLength)
+            // Move to the volume boundary entry point, and re-trace into volume interior:
+            inVolume = true;
+            pW = pW_next;
+            vec3 nW = normal(pW, hitMaterial);
+            pW += nW * sign(dot(rayDir, nW)) * normalPerturbation;
+            hit = traceRay(pW, rayDir, pW_next, hitMaterial, maxLengthScale);
+            if (hit) 
             {
-                float marchStep = -log(rand(rnd)) * inv_sigma_t_max; // Woodcock/delta tracking
-                pScatter += marchStep*rayDir;
+                volumeRayLength = length(pW_next - pW);
+                rayLength += volumeRayLength;
+            }
+        }
+        
+        // If entering (or already inside) the volume, do Woodcock tracking to check for a possible volume scattering event between pW and pW_next.
+        // Except if the current ray lies inside a dielectric, in which case there is no volumetric scattering (i.e. the dielectric displaces the volume).
+        // (@todo: define this logic out completely if there is no volume)
+        if (inVolume && !inDielectric)
+        {
+            float inv_sigma_t_max = 1.0/sigma_t_max;
+            float distanceMarched = -log(rand(rnd)) * inv_sigma_t_max; // Woodcock/delta tracking;
+            bool scatter = false;    
+            float sigma_t;
+            vec3 pScatter;
+            float eps = 3.0*minLengthScale;
+            while (!scatter && distanceMarched<volumeRayLength-eps)
+            {
+                pScatter = pW + distanceMarched*rayDir;
                 sigma_t = VOLUME_EXTINCTION(pScatter);
                 scatter = bool(rand(rnd) < sigma_t * inv_sigma_t_max);
-                distanceMarched += marchStep;
+                if (!scatter) distanceMarched += -log(rand(rnd)) * inv_sigma_t_max;
             }
-            if (scatter) // Scattering event, continue immediately to next vertex
+
+            // If there was a scattering event, continue immediately to the next vertex
+            if (scatter) 
             {
-                vec3 wiW = samplePhaseFunction(rayDir, rnd); // sample scattered direction
+                vec3 wiW = samplePhaseFunction(rayDir, rnd); // sample scattered dir (NB, phase function is the angle PDF so denominator cancels)
                 float emission = abs(dot(RGB, VOLUME_EMISSION(pScatter)));          // @todo: strip if no volume emission
-                
                 float albedo = dot(RGB, VOLUME_ALBEDO(pScatter));;
                 L += throughput * emission/sigma_t; // add volume emission term     // @todo: strip if no volume emission
-                L += throughput * albedo * directVolumeLighting(pScatter, woW, XYZ, rnd); // add contribution due to direct lighting at vertex
+                L += throughput * albedo * directVolumeLighting(pScatter, woW, XYZ, rnd, inVolume); // add contribution due to direct lighting at vertex
                 throughput *= albedo;// update throughput due to scattering
+                if (throughput < THROUGHPUT_EPSILON) break;
                 pW = pScatter; // continue to next vertex
                 rayDir = wiW;
                 continue;
             }
+
+            // If this ray didn't scatter and hit the volume boundary again, we must be exiting the volume
+            // (since we assume the boundary is convex). Restart the trace from the volume boundary
+            else if (hitMaterial==MAT_VOLUM)
+            {
+                /// Move to the volume boundary exit point, and re-trace into volume exterior:
+                inVolume = false;
+                pW = pW_next;       
+                vec3 nW = normal(pW, hitMaterial);
+                pW += nW * sign(dot(rayDir, nW)) * normalPerturbation;
+                hit = traceRay(pW, rayDir, pW_next, hitMaterial, maxLengthScale);
+                if (hit) 
+                {
+                    rayLength += length(pW_next - pW);
+                }
+            }
         }
 
-        // If ray didn't scatter and missed all geometry, add environment light term and terminate path
+        // If this ray didn't scatter and missed all geometry, add environment light term and terminate path
         if (!hit)
         {
             if (vertex==0 && !envMapVisible) break;
@@ -2025,16 +2077,20 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
             break;
         }
 
-        // Ray didn't scatter but hit geometry, so deal with the surface interaction.
-        // First update current vertex to next surface hit point
+        // If the current ray lies inside a dielectric, apply Beer's law for absorption
+        if (inDielectric)
+        {
+            throughput *= exp(-rayLength*dot(dieleAbsorptionRGB, RGB));
+        }
+
+        // This ray didn't scatter but hit some geometry, so deal with the surface interaction.
+        // First, compute normal at current surface vertex
         pW = pW_next;
-    
-        // Compute normal at current surface vertex
         vec3 nW = normal(pW, hitMaterial);
         Basis basis = makeBasis(nW);
 
         // Add direct lighting term at current surface vertex
-        L += throughput * directSurfaceLighting(pW, basis, woW, hitMaterial, wavelength_nm, XYZ, rnd);
+       L += throughput * directSurfaceLighting(pW, basis, woW, hitMaterial, wavelength_nm, XYZ, rnd, inVolume);
 
         // Sample BSDF for the next bounce direction
         vec3 woL = worldToLocal(woW, basis);
@@ -2044,7 +2100,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         vec3 wiW = localToWorld(wiL, basis);
         rayDir = wiW; // Update ray direction
 
-        // medium in which ray propagates changes (only) on dielectric transmission
+        // Detect dielectric transmission
         if (dot(woW, nW) * dot(wiW, nW) < 0.0) 
         {
             inDielectric = !inDielectric;
@@ -2056,9 +2112,8 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         if (throughput < THROUGHPUT_EPSILON) break;
 
         // Prepare for tracing the bounce ray
-        float displacement = 3.0*minLengthScale;
         float wiWnW = dot(wiW, nW);
-        pW += nW * sign(wiWnW) * displacement; // perturb vertex into half-space of scattered ray
+        pW += nW * sign(wiWnW) * normalPerturbation; // perturb vertex into half-space of scattered ray
         float lightPdf = pdfHemisphere(wiL); // compute MIS weight for bounce ray
         float misWeight = powerHeuristic(bsdfPdf, lightPdf);
     }
