@@ -70,21 +70,37 @@ GUI.prototype.createRendererSettings = function()
 	this.rendererFolder.add(camera, 'focalDistance', 1.0e-3*snelly.lengthScale, 100.0*snelly.lengthScale).onChange( function(value) { pathtracer.reset(true); } );
 	this.rendererFolder.add(pathtracer, 'gamma', 0.0, 3.0);
 	this.rendererFolder.add(pathtracer, 'whitepoint', 0.0, 2.0);
-	this.rendererFolder.add(pathtracer, 'shadowStrength', 0.0, 1.0).onChange( function(value) { pathtracer.reset(true); } );
+	this.rendererFolder.add(pathtracer, 'AA').onChange( function(value) { pathtracer.reset(true); } );
 	this.rendererFolder.add(pathtracer, 'maxStepsIsMiss').onChange( function(value) { pathtracer.reset(true); } );
 	this.rendererFolder.add(pathtracer, 'envMapVisible').onChange( function(value) { pathtracer.reset(true); } );
 	this.rendererFolder.add(pathtracer, 'envMapRotation', 0.0, 360.0).onChange( function(value) { pathtracer.reset(true); } );
-	this.rendererFolder.add(pathtracer, 'AA').onChange( function(value) { pathtracer.reset(true); } );
+	
+	this.rendererFolder.add(pathtracer, 'sunPower', 0.0, 10.0).onChange( function(value) { pathtracer.reset(true); } );
+	this.rendererFolder.add(pathtracer, 'sunAngularSize', 0.0, 20.0).onChange( function(value) { pathtracer.reset(true); } );
+	this.rendererFolder.add(pathtracer, 'sunLatitude', -90.0, 90.0).onChange( function(value) { pathtracer.reset(true); } );
+	this.rendererFolder.add(pathtracer, 'sunLongitude', 0.0, 360.0).onChange( function(value) { pathtracer.reset(true); } );
 
-	var skyPowerItem = this.rendererFolder.add(pathtracer, 'skyPower', 0.0, 10.0);
-	skyPowerItem.onChange( function(value) 
-	{ 
-		snelly.camera.enabled = false;
-		var no_recompile = true;
-		pathtracer.reset(no_recompile);
-	} );
-	skyPowerItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+	this.rendererFolder.sunColor = [pathtracer.sunColor[0]*255.0, pathtracer.sunColor[1]*255.0, pathtracer.sunColor[2]*255.0];
+	var sunColorItem = this.rendererFolder.addColor(this.rendererFolder, 'sunColor');
+	sunColorItem.onChange( function(C) {
+							if (typeof C==='string' || C instanceof String)
+							{
+								var color = hexToRgb(C);
+								pathtracer.sunColor[0] = color.r / 255.0;
+								pathtracer.sunColor[1] = color.g / 255.0;
+								pathtracer.sunColor[2] = color.b / 255.0;
+							}
+							else
+							{
+								pathtracer.sunColor[0] = C[0] / 255.0;
+								pathtracer.sunColor[1] = C[1] / 255.0;
+								pathtracer.sunColor[2] = C[2] / 255.0;
+							}
+							snelly.reset(true);
+						} );
 
+	var skyPowerItem = this.rendererFolder.add(pathtracer, 'skyPower', 0.0, 10.0).onChange( function(value) { pathtracer.reset(true); } );
+	
 	// init gui for spectrum
 	spectrumObj = snelly.getLoadedSpectrum();
 	spectrumObj.initGui(this.rendererFolder);

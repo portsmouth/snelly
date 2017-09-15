@@ -25,6 +25,13 @@ uniform float camFocalDistance;
 uniform float minLengthScale;
 uniform float maxLengthScale;
 uniform float skyPower;
+uniform float sunPower;
+uniform float sunAngularSize;
+uniform float sunLatitude;
+uniform float sunLongitude;
+uniform vec3 sunColor;
+uniform vec3 sunDir;
+
 uniform bool haveEnvMap;
 uniform bool envMapVisible;
 uniform float envMapRotation;
@@ -203,6 +210,8 @@ struct Basis
     vec3 tW;
     vec3 bW;
 };
+
+Basis sunBasis;
 
 Basis makeBasis(in vec3 nW)
 {
@@ -794,7 +803,7 @@ vec3 environmentRadianceXYZ(in vec3 dir)
 {
     float phi = atan(dir.x, dir.z) + M_PI + M_PI*envMapRotation/180.0;
     phi -= 2.0*M_PI*floor(phi/(2.0*M_PI)); // wrap phi to [0, 2*pi]
-    float theta = acos(dir.y);           // theta in [0, pi]
+    float theta = acos(dir.y);             // theta in [0, pi]
     float u = phi/(2.0*M_PI);
     float v = theta/M_PI;
     vec3 XYZ;
@@ -818,37 +827,103 @@ float environmentRadiance(in vec3 dir, in vec3 XYZ)
     return dot(XYZ, XYZ_spec);
 }
 
+vec3 sampleSunDir(inout vec4 rnd)
+{
+    float theta = sunAngularSize * M_PI/180.0 * sqrt(rand(rnd));
+    float phi = 2.0 * M_PI * rand(rnd);
+    float costheta = cos(theta);
+    float sintheta = sin(theta);
+    float cosphi = cos(phi);
+    float sinphi = sin(phi);
+    float x = sintheta * cosphi;
+    float y = sintheta * sinphi;
+    float z = costheta;
+    return localToWorld(vec3(x, y, z), sunBasis);
+}
+
+float sunRadiance(in vec3 dir, in vec3 XYZ)
+{
+    if (dot(dir, sunDir) < cos(sunAngularSize*M_PI/180.0)) return 0.0; 
+    vec3 RGB_sun = sunPower * sunColor;
+    vec3 XYZ_sun = rgbToXyz(RGB_sun); // @todo: just supply XYZ_sun
+    vec3 XYZ_spec = xyz_to_spectrum(XYZ_sun); // convert to radiance at the given wavelength
+    return dot(XYZ, XYZ_spec);
+}
+
+float sampleLightAtSurface(Basis basis, in vec3 XYZ, inout vec4 rnd, inout vec3 wiL, inout vec3 wiW, inout float lightPdf)
+{
+    // Light sampling (choose either sun or sky)
+    float relSunPower = sunPower/max(skyPower+sunPower, DENOM_TOLERANCE);
+    bool chooseSun = (rand(rnd) < relSunPower);
+    if (chooseSun) // Sample sun
+    {
+        lightPdf = relSunPower;
+        wiW = sampleSunDir(rnd);
+        wiL = worldToLocal(wiW, basis);
+        if (wiL.z>=0.0) // if sun is below the horizon, sample sky instead
+        {
+            lightPdf = relSunPower; 
+            return sunRadiance(wiW, XYZ);
+        }
+    }
+
+    // Sample sky
+    wiL = sampleHemisphere(rnd, lightPdf);
+    wiW = localToWorld(wiL, basis); 
+    lightPdf *= max(PDF_EPSILON, 1.0-relSunPower);
+    return environmentRadiance(wiW, XYZ);
+}
+
 // Estimate direct radiance at the given surface vertex
 float directSurfaceLighting(in vec3 pW, Basis basis, in vec3 woW, in int material, 
                             float wavelength_nm, in vec3 XYZ, inout vec4 rnd, bool inVolume)
 {
-    // Env-map sampling: @todo: use importance sampling
+    vec3 wiL, wiW; // direction of sampled direct light (*towards* the light)
     float lightPdf;
-    vec3 wiL = sampleHemisphere(rnd, lightPdf);
-    vec3 wiW = localToWorld(wiL, basis); // direction of sampled direct light (*towards* the light)
-    float Li = environmentRadiance(wiW, XYZ);
+    float Li = sampleLightAtSurface(basis, XYZ, rnd, wiL, wiW, lightPdf);
     float V = Visibility(pW, wiW, rnd, inVolume); 
-    Li *= V; //abs(1.0 - shadowStrength*(1.0-V));
+    Li *= V;
     
     // Apply MIS weight with the BSDF pdf for the sampled direction
     vec3 woL = worldToLocal(woW, basis);
     float bsdfPdf = pdfBsdf(pW, basis, woL, wiL, material, wavelength_nm, XYZ);
-    if ( bsdfPdf<PDF_EPSILON ) return 0.0;
+    if (bsdfPdf<PDF_EPSILON) return 0.0;
     float f = evaluateBsdf(pW, basis, woL, wiL, material, wavelength_nm, XYZ, rnd);
     float misWeight = powerHeuristic(lightPdf, bsdfPdf);
     float fOverPdf = min(radianceClamp, f/max(PDF_EPSILON, lightPdf));
     return fOverPdf * Li * abs(dot(wiW, basis.nW)) * misWeight;
 }
 
+float sampleLightInVolume(in vec3 XYZ, inout vec4 rnd, inout vec3 wiW, inout float lightPdf)
+{
+    // Light sampling (choose either sun or sky)
+    float relSunPower = sunPower/max(skyPower+sunPower, DENOM_TOLERANCE);
+    bool chooseSun = (rand(rnd) < relSunPower);
+    float Li;
+    if (chooseSun) // Sample sun
+    {
+        wiW = sampleSunDir(rnd);
+        lightPdf = relSunPower;
+        Li = sunRadiance(wiW, XYZ);
+    }
+    else // Sample sky
+    {
+        wiW = sampleSphere(rnd, lightPdf);
+        lightPdf *= max(PDF_EPSILON, 1.0-relSunPower);
+        Li = environmentRadiance(wiW, XYZ);
+    }
+    return Li;
+}
+
 // Estimate direct radiance at the given volumetric vertex
 float directVolumeLighting(in vec3 pW, in vec3 woW, in vec3 XYZ, inout vec4 rnd, bool inVolume)
 {
-    // Env-map sampling: @todo: use importance sampling
+    vec3 wiW; // direction of sampled direct light (*towards* the light)
     float lightPdf;
-    vec3 wiW = sampleSphere(rnd, lightPdf); // direction of sampled direct light (*towards* the light)
-    float Li = environmentRadiance(wiW, XYZ);
+    float Li = sampleLightInVolume(XYZ, rnd, wiW, lightPdf);
     float V = Visibility(pW, wiW, rnd, inVolume); 
-    Li *= V; //abs(1.0 - shadowStrength*(1.0-V));
+    Li *= V;
+
     float f = phaseFunction(dot(woW, -wiW));
     float fOverPdf = min(radianceClamp, f/max(PDF_EPSILON, lightPdf));
     return fOverPdf * Li;
@@ -905,6 +980,9 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
 
     // Jitter over pixel
     if (jitter) pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
+
+    // Setup sun basis
+    sunBasis = makeBasis(sunDir);
 
     // Compute world ray direction for this fragment
     vec3 primaryStart, primaryDir;
@@ -1006,8 +1084,10 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         // If this ray didn't scatter and missed all geometry, add environment light term and terminate path
         if (!hit)
         {
-            if (vertex==0 && !envMapVisible) break;
-            float Li = environmentRadiance(rayDir, XYZ);
+            float Li;
+            bool sunVisible = true; // @todo: parameter
+            if (!(vertex==0 && !envMapVisible)) Li += environmentRadiance(rayDir, XYZ);
+            if (!(vertex==0 && !sunVisible))    Li += sunRadiance(rayDir, XYZ);
             L += throughput * Li * misWeight;
             break;
         }
@@ -1025,7 +1105,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         Basis basis = makeBasis(nW);
 
         // Add direct lighting term at current surface vertex
-       L += throughput * directSurfaceLighting(pW, basis, woW, hitMaterial, wavelength_nm, XYZ, rnd, inVolume);
+        L += throughput * directSurfaceLighting(pW, basis, woW, hitMaterial, wavelength_nm, XYZ, rnd, inVolume);
 
         // Sample BSDF for the next bounce direction
         vec3 woL = worldToLocal(woW, basis);
@@ -1073,15 +1153,3 @@ void main()
     pathtrace(gl_FragCoord.xy, rnd);
 }
 
-
-
-// junk
-/*
-    // Support non-physical illumination of occluded areas by the env map
-    /* // @todo: maybe remove and support surface emission to achieve this? 
-    if (shadowStrength < 1.0)
-    {
-        float Li = environmentRadiance(wiW, XYZ);
-        L += throughput * Li * misWeight * abs(1.0 - shadowStrength);
-    }
-*/

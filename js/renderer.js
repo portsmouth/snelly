@@ -116,6 +116,11 @@ var Renderer = function()
 	this.radianceClamp = 3.0;
 	this.skyPower = 1.0;
 	this.skyTemperature = 6000.0;
+	this.sunPower = 1.0;
+	this.sunAngularSize = 5.0;
+	this.sunColor = [1.0,0.8,0.5];
+    this.sunLatitude = 50.0;
+	this.sunLongitude = 0.0;
 	this.exposure = 3.0;
 	this.gamma = 2.2;
 	this.whitepoint = 2.0;
@@ -147,7 +152,8 @@ var Renderer = function()
 					{
 						pathtracer.loaded =  true;	
 						pathtracer.envMap = imgInfo;
-						//computeEnvMapCDF();
+						
+
 					});
   			})(pathtracer.loaded);
   		}
@@ -178,14 +184,6 @@ Renderer.prototype.createQuadVbo = function()
 	return vbo;
 }
 
-
-Renderer.computeEnvMapCDF = function()
-{
-	if (this.envMap == null) return;
-
-
-
-}
 
 /**
 * Restart accumulating samples.
@@ -288,6 +286,20 @@ Renderer.prototype.enabled = function()
 Renderer.prototype.depthTestEnabled = function()
 {
 	return this.depthTest;
+}
+
+Renderer.prototype.updateSunDir = function()
+{
+	let latTheta = (90.0-this.sunLatitude) * Math.PI/180.0;
+	let lonPhi = this.sunLongitude * Math.PI/180.0;
+	let costheta = Math.cos(latTheta);
+    let sintheta = Math.sin(latTheta);
+    let cosphi = Math.cos(lonPhi);
+    let sinphi = Math.sin(lonPhi);
+    let x = sintheta * cosphi;
+    let z = sintheta * sinphi;
+	let y = costheta;
+	this.sunDir = [x, y, z];
 }
 
 Renderer.prototype.pick = function(xPick, yPick)
@@ -426,6 +438,14 @@ Renderer.prototype.render = function()
 	// Pathtracing options
 	INTEGRATOR_PROGRAM.uniformI("maxBounces", this.maxBounces);
 	INTEGRATOR_PROGRAM.uniformF("skyPower", this.skyPower);
+	INTEGRATOR_PROGRAM.uniformF("sunPower", this.sunPower);
+	INTEGRATOR_PROGRAM.uniformF("sunAngularSize", this.sunAngularSize);
+	INTEGRATOR_PROGRAM.uniformF("sunLatitude", this.sunLatitude);
+	INTEGRATOR_PROGRAM.uniformF("sunLongitude", this.sunLongitude);
+	INTEGRATOR_PROGRAM.uniform3Fv("sunColor", this.sunColor);
+	this.updateSunDir();
+	INTEGRATOR_PROGRAM.uniform3Fv("sunDir", this.sunDir);
+
 	INTEGRATOR_PROGRAM.uniformF("radianceClamp", Math.pow(10.0, this.radianceClamp));
 	INTEGRATOR_PROGRAM.uniformF("skipProbability", this.skipProbability);
 	INTEGRATOR_PROGRAM.uniformF("maxLengthScale", snelly.maxLengthScale);
