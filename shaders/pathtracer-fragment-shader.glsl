@@ -106,13 +106,11 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
     float sdf_volum = abs(SDF_VOLUME(start));     sdf = min(sdf, sdf_volum);
 
     float InitialSign = sign(sdf);
-    float t = 0.0;  
+    float t = InitialSign * sdf; // (always take the first step along the ray direction)
+    if (t>=maxDist) return false;
+
     for (int n=0; n<MAX_MARCH_STEPS; n++)
     {
-        // With this formula, the ray advances whether sdf is initially negative or positive --
-        // but on crossing the zero isosurface, sdf flips allowing bracketing of the root. 
-        t += InitialSign * sdf;
-        if (t>=maxDist) return false;
         vec3 pW = start + t*dir;    
         
         // @todo: define out the tests which don't apply
@@ -121,6 +119,11 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
         sdf_metal = abs(SDF_METAL(pW));      if (sdf_metal<minMarch) { material = MAT_METAL; hit = start + t*dir; return true; } sdf = min(sdf, sdf_metal);
         sdf_diele = abs(SDF_DIELECTRIC(pW)); if (sdf_diele<minMarch) { material = MAT_DIELE; hit = start + t*dir; return true; } sdf = min(sdf, sdf_diele);
         sdf_volum = abs(SDF_VOLUME(pW));     if (sdf_volum<minMarch) { material = MAT_VOLUM; hit = start + t*dir; return true; } sdf = min(sdf, sdf_volum);
+    
+        // With this formula, the ray advances whether sdf is initially negative or positive --
+        // but on crossing the zero isosurface, sdf flips allowing bracketing of the root. 
+        t += InitialSign * sdf;
+        if (t>=maxDist) return false;
     }
     return !maxStepsIsMiss;
 }
@@ -131,48 +134,6 @@ bool traceRay(in vec3 start, in vec3 dir,
 {
     material = MAT_INVAL;
     return traceDistance(start, dir, maxMarchDist, hit, material);
-}
-
-// MC-estimates the amount of light transmitted along an infinite ray
-float Visibility(in vec3 start, in vec3 dir, inout vec4 rnd, bool inVolume)
-{
-    // Find first surface hit along ray
-    float eps = 3.0*minLengthScale;
-    vec3 p = start + eps*dir;
-    vec3 hitPoint;
-    int hitMaterial;
-    bool hit = traceRay(p, dir, hitPoint, hitMaterial, maxLengthScale);
-    if (!hit) return 1.0;
-    if (hitMaterial!=MAT_VOLUM) return 0.0; // hit a surface, so visibility is zero
-
-    // We hit the volume boundary
-    if (!inVolume)
-    {
-        // from the volume exterior, so re-trace from the volume boundary
-        p = hitPoint + eps*dir;
-        hit = traceRay(p, dir, hitPoint, hitMaterial, maxLengthScale);
-        if (!hit) return 1.0; // (should not happen, geometrically) 
-        if (hitMaterial!=MAT_VOLUM) return 0.0; 
-    }
-        
-    float maxDist = length(hitPoint - p);
-    p = hitPoint + eps*dir;   
-
-    // (@todo: if no volume, define replace this with:  return 1.0)
-    // Transmit according to whether a Woodcock-march reaches the max distance
-    float sigma_t_max = VOLUME_EXTINCTION_MAX();
-    float inv_sigma_t_max = 1.0/sigma_t_max; // (nb, >> maxLengthScale in the case of no volume)
-    float marchStep = -log(rand(rnd)) * inv_sigma_t_max; // Woodcock/delta tracking
-    float distanceMarched = marchStep;
-    while (distanceMarched<maxDist)
-    {
-        p += marchStep*dir;
-        float sigma_t = VOLUME_EXTINCTION(p);
-        if (rand(rnd) < sigma_t * inv_sigma_t_max) return 0.0; // opaque
-        marchStep = -log(rand(rnd)) * inv_sigma_t_max; // Woodcock/delta tracking
-        distanceMarched += marchStep;
-    }
-    return 1.0; // transparent
 }
 
 vec3 normal(in vec3 pW, int material)
@@ -192,6 +153,77 @@ vec3 normal(in vec3 pW, int material)
     else if (material==MAT_SURFA) { N = vec3(   SDF_SURFACE(xyyp) -    SDF_SURFACE(xyyn),    SDF_SURFACE(yxyp) -    SDF_SURFACE(yxyn),    SDF_SURFACE(yyxp) -    SDF_SURFACE(yyxn)); }
     return normalize(N);
 }
+
+// MC-estimates the amount of light transmitted along an infinite ray
+float Visibility(in vec3 pW, in vec3 rayDir, inout vec4 rnd, bool inVolume)
+{
+    vec3 pW_next;
+    int hitMaterial;
+    bool hit = traceRay(pW, rayDir, pW_next, hitMaterial, maxLengthScale);
+
+    // Deal with all volume interactions until the ray either hits a surface or escapes
+    const int maxVolHits = 16;
+    int volHits = 0;
+    float sigma_t_max = VOLUME_EXTINCTION_MAX();
+    float inv_sigma_t_max = 1.0/sigma_t_max;
+    float eps = 3.0*minLengthScale;
+    const int maxWoodcockSteps = 128; 
+
+    while ((inVolume || hitMaterial==MAT_VOLUM) && volHits<maxVolHits)
+    {
+        // If ray lies in the volume interior
+        if (inVolume)
+        {
+            // Do Woodcock tracking to check for a possible volume scattering event along the in-volume segment pW -> pW_next
+            // (except if the current ray lies inside a dielectric, in which case there is no volumetric scattering, i.e. the dielectric displaces the volume)
+            vec3 pScatter;
+            float sigma_t;
+            bool scatter = false;
+            float segmentLength = length(pW_next - pW);
+            float distanceMarched = -log(rand(rnd)) * inv_sigma_t_max;
+            int steps = 0; 
+            while (!scatter && distanceMarched<segmentLength-eps && steps<maxWoodcockSteps)
+            {
+                pScatter = pW + distanceMarched*rayDir;
+                sigma_t = VOLUME_EXTINCTION(pScatter);
+                scatter = bool(rand(rnd) < sigma_t * inv_sigma_t_max);
+                if (!scatter) distanceMarched += -log(rand(rnd)) * inv_sigma_t_max;
+                steps++;
+            }
+            
+            if (scatter) return 0.0; // on scattering, return zero visibility
+            else
+            {
+                pW = pW_next;
+                if (hitMaterial==MAT_VOLUM) // if hitMaterial is volume boundary, displace pW into volume exterior 
+                {
+                    vec3 nW = normal(pW, MAT_VOLUM);
+                    pW += nW * eps;
+                    inVolume = false;
+                }
+                else // if hitMaterial is a surface, return zero visibility
+                    return 0.0;
+            }
+        }
+    
+        // else if ray passed through the volume exterior and hit the volume boundary
+        else // !inVolume
+        {
+            pW = pW_next; // advance to the volume boundary
+            vec3 nW = normal(pW, MAT_VOLUM); // displace pW into volume interior
+            pW -= nW * eps;
+            inVolume = true;
+        }
+
+        // Re-trace from new pW
+        hit = traceRay(pW, rayDir, pW_next, hitMaterial, maxLengthScale);
+        volHits++;
+    }
+
+    if (!hit || volHits==maxVolHits) return 1.0; // if no hit or scattering, return visibility 1.0 (transparent)
+    else return 0.0; 
+}
+
 
 /////////////////////////////////////////////////////////////////////////
 // Basis transforms
@@ -853,24 +885,23 @@ float sunRadiance(in vec3 dir, in vec3 XYZ)
 float sampleLightAtSurface(Basis basis, in vec3 XYZ, inout vec4 rnd, inout vec3 wiL, inout vec3 wiW, inout float lightPdf)
 {
     // Light sampling (choose either sun or sky)
-    float relSunPower = sunPower/max(skyPower+sunPower, DENOM_TOLERANCE);
-    bool chooseSun = (rand(rnd) < relSunPower);
-    if (chooseSun) // Sample sun
+    vec3 wiW_sun = sampleSunDir(rnd);
+    vec3 wiL_sun = worldToLocal(wiW_sun, basis);
+    float sunWeight = sunPower * max(0.0, wiL_sun.z);
+    vec3 wiL_sky = sampleHemisphere(rnd, lightPdf);
+    float skyWeight = skyPower * max(0.0, wiL_sky.z);
+    float sunProb = clamp(max(sunWeight, DENOM_TOLERANCE) / max(skyWeight+sunWeight, DENOM_TOLERANCE), 0.0, 1.0);
+    bool chooseSun = (rand(rnd) <= sunProb);
+    if (chooseSun)
     {
-        lightPdf = relSunPower;
-        wiW = sampleSunDir(rnd);
-        wiL = worldToLocal(wiW, basis);
-        if (wiL.z>=0.0) // if sun is below the horizon, sample sky instead
-        {
-            lightPdf = relSunPower; 
-            return sunRadiance(wiW, XYZ);
-        }
+        lightPdf = sunProb; 
+        wiL = wiL_sun;
+        wiW = wiW_sun;
+        return sunRadiance(wiW_sun, XYZ);
     }
-
-    // Sample sky
-    wiL = sampleHemisphere(rnd, lightPdf);
-    wiW = localToWorld(wiL, basis); 
-    lightPdf *= max(PDF_EPSILON, 1.0-relSunPower);
+    lightPdf *= max(PDF_EPSILON, 1.0-sunProb);
+    wiL = wiL_sky;
+    wiW = localToWorld(wiL_sky, basis); 
     return environmentRadiance(wiW, XYZ);
 }
 
@@ -881,7 +912,8 @@ float directSurfaceLighting(in vec3 pW, Basis basis, in vec3 woW, in int materia
     vec3 wiL, wiW; // direction of sampled direct light (*towards* the light)
     float lightPdf;
     float Li = sampleLightAtSurface(basis, XYZ, rnd, wiL, wiW, lightPdf);
-    float V = Visibility(pW, wiW, rnd, inVolume); 
+    vec3 dPw = 3.0*minLengthScale * basis.nW;
+    float V = Visibility(pW+dPw, wiW, rnd, inVolume); 
     Li *= V;
     
     // Apply MIS weight with the BSDF pdf for the sampled direction
@@ -993,93 +1025,132 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     float throughput = 1.0;
     float misWeight = 1.0; // For MIS book-keeping
     vec3 pW = primaryStart;
-    vec3 rayDir = primaryDir; // (nb, opposite to photon direction)
+    vec3 rayDir = primaryDir; // (opposite to light direction)
     float sigma_t_max = VOLUME_EXTINCTION_MAX();
-    float normalPerturbation = 3.0*minLengthScale;
+    float inv_sigma_t_max = 1.0/sigma_t_max;
+    float eps = 3.0*minLengthScale;
+    const int maxWoodcockSteps = 128; 
+    const int maxVolHits = 16;
     bool inDielectric = SDF_DIELECTRIC(primaryStart) < 0.0; 
     bool inVolume     = SDF_VOLUME(primaryStart) < 0.0;
 
-    for (int vertex=0; vertex<=MAX_BOUNCES; ++vertex)
+    for (int vertex=0; vertex<MAX_BOUNCES; ++vertex)
     {
         // Raycast along current propagation direction rayDir, from current vertex pW to pW_next
-        vec3 woW = -rayDir;
         vec3 pW_next;
         int hitMaterial;
         bool hit = traceRay(pW, rayDir, pW_next, hitMaterial, maxLengthScale);
         float rayLength = maxLengthScale;
-        if (hit) 
+        if (hit)
         {
             rayLength = length(pW_next - pW);
         }
 
-        // (@todo: define this logic out completely if there is no volume)
-        // We will assume that the volume boundary is convex, otherwise the logic is too complex.
-        float volumeRayLength = rayLength;
-        if (hitMaterial==MAT_VOLUM && !inVolume) 
-        {
-            // Move to the volume boundary entry point, and re-trace into volume interior:
-            inVolume = true;
-            pW = pW_next;
-            vec3 nW = normal(pW, hitMaterial);
-            pW += nW * sign(dot(rayDir, nW)) * normalPerturbation;
-            hit = traceRay(pW, rayDir, pW_next, hitMaterial, maxLengthScale);
-            if (hit) 
-            {
-                volumeRayLength = length(pW_next - pW);
-                rayLength += volumeRayLength;
-            }
-        }
-        
-        // If entering (or already inside) the volume, do Woodcock tracking to check for a possible volume scattering event between pW and pW_next.
-        // Except if the current ray lies inside a dielectric, in which case there is no volumetric scattering (i.e. the dielectric displaces the volume).
-        // (@todo: define this logic out completely if there is no volume)
-        if (inVolume && !inDielectric)
-        {
-            float inv_sigma_t_max = 1.0/sigma_t_max;
-            float distanceMarched = -log(rand(rnd)) * inv_sigma_t_max; // Woodcock/delta tracking;
-            bool scatter = false;    
-            float sigma_t;
-            vec3 pScatter;
-            float eps = 3.0*minLengthScale;
-            while (!scatter && distanceMarched<volumeRayLength-eps)
-            {
-                pScatter = pW + distanceMarched*rayDir;
-                sigma_t = VOLUME_EXTINCTION(pScatter);
-                scatter = bool(rand(rnd) < sigma_t * inv_sigma_t_max);
-                if (!scatter) distanceMarched += -log(rand(rnd)) * inv_sigma_t_max;
-            }
+        /*  Volume rendering logic:
+            ray state: pW -> pW_next,  hitMaterial(pW_next), inVolume
 
-            // If there was a scattering event, continue immediately to the next vertex
-            if (scatter) 
-            {
-                vec3 wiW = samplePhaseFunction(rayDir, rnd); // sample scattered dir (NB, phase function is the angle PDF so denominator cancels)
-                float emission = abs(dot(RGB, VOLUME_EMISSION(pScatter)));          // @todo: strip if no volume emission
-                float albedo = dot(RGB, VOLUME_ALBEDO(pScatter));;
-                L += throughput * emission/sigma_t; // add volume emission term     // @todo: strip if no volume emission
-                L += throughput * albedo * directVolumeLighting(pScatter, woW, XYZ, rnd, inVolume); // add contribution due to direct lighting at vertex
-                throughput *= albedo;// update throughput due to scattering
-                if (throughput < THROUGHPUT_EPSILON) break;
-                pW = pScatter; // continue to next vertex
-                rayDir = wiW;
-                continue;
-            }
+            while (inVolume || hitMaterial(pW_next)==VOLUME)
 
-            // If this ray didn't scatter and hit the volume boundary again, we must be exiting the volume
-            // (since we assume the boundary is convex). Restart the trace from the volume boundary
-            else if (hitMaterial==MAT_VOLUM)
+                - if inVolume
+                    - if !inDielectric, check for scatter on segment pW -> pW_next
+                    - if no scatter, 
+                            - set pW = pW_next
+                            - if hitMaterial is surface, break and handle it (note, still inside volume)
+                            - if hitMaterial is volume boundary, 
+                                - displace pW into volume exterior 
+                                - inVolume = false
+                            - (or if !hit, that's a numerical glitch as we should be inside a closed volume boundary, so just break)
+                    - else if scatter,
+                            - set pW = pScatter
+                            - update rayDir via phase function sampling      
+
+                - else
+                    - advance to volume boundary:  pW = pW_next
+                    - displace pW into volume interior
+                    - inVolume = true
+                    
+                - re-trace from new pW, giving new pW_next, hit, hitMaterial(pW_next)
+                    
+            - if !hit (ray escaped to infinity) add env light contibution, and terminate
+            - otherwise, hit a surface. Add contribution, fire bounce ray pW -> pW_next, continue
+        */
+
+
+        // Deal with all volume interactions until the ray either hits a surface or escapes
+        int volHits = 0;
+        while ((inVolume || hitMaterial==MAT_VOLUM) && volHits<maxVolHits)
+        {
+            // If ray lies in the volume interior
+            if (inVolume)
             {
-                /// Move to the volume boundary exit point, and re-trace into volume exterior:
-                inVolume = false;
-                pW = pW_next;       
-                vec3 nW = normal(pW, hitMaterial);
-                pW += nW * sign(dot(rayDir, nW)) * normalPerturbation;
-                hit = traceRay(pW, rayDir, pW_next, hitMaterial, maxLengthScale);
-                if (hit) 
+                float segmentLength = length(pW_next - pW);
+
+                // Do Woodcock tracking to check for a possible volume scattering event along the in-volume segment pW -> pW_next
+                // (except if the current ray lies inside a dielectric, in which case there is no volumetric scattering, i.e. the dielectric displaces the volume)
+                vec3 pScatter;
+                float sigma_t;
+                bool scatter = false;
+                if (!inDielectric)
                 {
-                    rayLength += length(pW_next - pW);
+                    float distanceMarched = -log(rand(rnd)) * inv_sigma_t_max;
+                    int steps = 0; 
+                    while (!scatter && distanceMarched<segmentLength-eps && steps<maxWoodcockSteps)
+                    {
+                        pScatter = pW + distanceMarched*rayDir;
+                        sigma_t = VOLUME_EXTINCTION(pScatter);
+                        scatter = bool(rand(rnd) < sigma_t * inv_sigma_t_max);
+                        if (!scatter) distanceMarched += -log(rand(rnd)) * inv_sigma_t_max;
+                        steps++;
+                    }
+                }
+            
+                // Scattering event
+                if (scatter)
+                {
+                    vec3 wiW = samplePhaseFunction(rayDir, rnd); // sample scattered dir (NB, PF is the angle PDF so the MC PDF denom. cancels it in the L estimator)
+                    float emission = abs(dot(RGB, VOLUME_EMISSION(pScatter)));
+                    vec3 XYZ_albedo = rgbToXyz(VOLUME_ALBEDO(pScatter));
+                    vec3 XYZ_spec = xyz_to_spectrum(XYZ_albedo);
+                    float albedo = dot(XYZ, XYZ_spec);
+                    L += throughput * emission/sigma_t; // add volume emission term
+                    L += throughput * albedo * directVolumeLighting(pScatter, -rayDir, XYZ, rnd, inVolume); // add contribution due to direct lighting at vertex
+                    throughput *= albedo;// update throughput due to scattering
+                    if (throughput < THROUGHPUT_EPSILON) break;
+                    pW = pScatter; // continue to next vertex
+                    rayDir = wiW;
+                }
+
+                // No scattering
+                else
+                {
+                    pW = pW_next;
+                    if (hitMaterial==MAT_VOLUM) // if hitMaterial is volume boundary, displace pW into volume exterior 
+                    {
+                        vec3 nW = normal(pW, MAT_VOLUM);
+                        pW += nW * eps;
+                        inVolume = false;
+                    }
+                    else        // if hitMaterial is a surface, break and handle it (note, still inside volume)
+                        break;  // (or if !hit, that's a numerical glitch as we should be inside a closed volume boundary)               
                 }
             }
+      
+            // else if ray passed through the volume exterior and hit the volume boundary
+            else // !inVolume
+            {
+                pW = pW_next; // advance to the volume boundary
+                vec3 nW = normal(pW, MAT_VOLUM); // displace pW into volume interior
+                pW -= nW * eps;
+                inVolume = true;
+            }
+
+            // Re-trace from new pW
+            hit = traceRay(pW, rayDir, pW_next, hitMaterial, maxLengthScale);
+            volHits++;
         }
+
+        if (volHits == maxVolHits) hit = false;
+        vec3 woW = -rayDir;
 
         // If this ray didn't scatter and missed all geometry, add environment light term and terminate path
         if (!hit)
@@ -1105,8 +1176,11 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         Basis basis = makeBasis(nW);
 
         // Add direct lighting term at current surface vertex
-        L += throughput * directSurfaceLighting(pW, basis, woW, hitMaterial, wavelength_nm, XYZ, rnd, inVolume);
-
+        if (!inDielectric)
+        {
+            L += throughput * directSurfaceLighting(pW, basis, woW, hitMaterial, wavelength_nm, XYZ, rnd, inVolume);
+        }
+        
         // Sample BSDF for the next bounce direction
         vec3 woL = worldToLocal(woW, basis);
         vec3 wiL;
@@ -1127,8 +1201,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         if (throughput < THROUGHPUT_EPSILON) break;
 
         // Prepare for tracing the bounce ray
-        float wiWnW = dot(wiW, nW);
-        pW += nW * sign(wiWnW) * normalPerturbation; // perturb vertex into half-space of scattered ray
+        pW += nW * sign(dot(wiW, nW)) * eps; // perturb vertex into half-space of scattered ray
         float lightPdf = pdfHemisphere(wiL); // compute MIS weight for bounce ray
         float misWeight = powerHeuristic(bsdfPdf, lightPdf);
     }
