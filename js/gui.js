@@ -75,7 +75,7 @@ GUI.prototype.createRendererSettings = function()
 	this.rendererFolder.add(pathtracer, 'envMapVisible').onChange( function(value) { pathtracer.reset(true); } );
 	this.rendererFolder.add(pathtracer, 'envMapRotation', 0.0, 360.0).onChange( function(value) { pathtracer.reset(true); } );
 	
-	this.rendererFolder.add(pathtracer, 'sunPower', 0.0, 10.0).onChange( function(value) { pathtracer.reset(true); } );
+	this.rendererFolder.add(pathtracer, 'sunPower', 0.0, 1000.0).onChange( function(value) { pathtracer.reset(true); } );
 	this.rendererFolder.add(pathtracer, 'sunAngularSize', 0.0, 20.0).onChange( function(value) { pathtracer.reset(true); } );
 	this.rendererFolder.add(pathtracer, 'sunLatitude', -90.0, 90.0).onChange( function(value) { pathtracer.reset(true); } );
 	this.rendererFolder.add(pathtracer, 'sunLongitude', 0.0, 360.0).onChange( function(value) { pathtracer.reset(true); } );

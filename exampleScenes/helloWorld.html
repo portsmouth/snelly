@@ -14,19 +14,55 @@ Scene.prototype.init = function(snelly)
     this.par = {};
     this.par.R = 0.3;
 
-    let materials = snelly.getMaterials();
-    let metal = materials.loadMetal('Iron');
-    metal.roughness = 3.0e-3;
-    
-    let surface = materials.loadSurface();
-    surface.roughness = 0.003;
-    surface.diffuseAlbedo = [1, 1, 1];
-    surface.specAlbedo = [0,0,0];
+let renderer  = snelly.getRenderer();
+let camera    = snelly.getCamera();
+let controls  = snelly.getControls();
+let materials = snelly.getMaterials();
+	
+snelly.showGUI(true);
 
-    let renderer  = snelly.getRenderer();
-    //renderer.width = 3000;
-    //renderer.height = 2100;
-    renderer.minsSPPToRedraw = 1.0;
+/** Camera settings **/
+camera.fov = 45;
+camera.aperture = 0.001;
+camera.focalDistance = 4.544073581695557;
+camera.up.set(0, 1, 0);
+camera.position.set(-0.17656228216599557, 2.8945795849187768, -5.514994462063763);
+controls.target.set(0.11089246548458753, -0.44244222502145125, -0.04881751793776906);
+
+/** Renderer settings **/
+renderer.renderMode = 'pt';
+renderer.maxBounces = 2;
+renderer.maxMarchSteps = 256;
+renderer.radianceClamp = 3;
+renderer.skyPower = 1.0;
+renderer.skyTemperature = 6000;
+renderer.sunLatitude = 50;
+renderer.sunLongitude = 0;
+renderer.sunAngularSize = 0.1;
+renderer.sunPower = 5.0;
+renderer.sunColor = [1, 0.8, 0.5];
+renderer.exposure = 3;
+renderer.gamma = 2.2;
+renderer.whitepoint = 2;
+renderer.envMapVisible = true;
+renderer.shadowStrength = 1;
+renderer.maxStepsIsMiss = true;
+renderer.AA = true;
+
+/** Material settings **/
+let surface = materials.loadSurface();
+surface.roughness = 0.003;
+surface.ior = 1.5;
+surface.diffuseAlbedo = [1, 1, 1];
+surface.specAlbedo = [0, 0, 0];
+
+let dielectric = materials.loadDielectric('Glass (BK7)');
+dielectric.absorptionColor = [1, 1, 1];
+dielectric.absorptionScale = -1; // mfp in multiples of scene scale
+dielectric.roughness = 0.005;
+
+let metal = materials.loadMetal('Iron');
+metal.roughness = 0.003;
 }
 
 Scene.prototype.shader = function()
