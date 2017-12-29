@@ -18,7 +18,7 @@ uniform vec3 camPos;
 uniform vec3 camDir;
 uniform vec3 camX;
 uniform vec3 camY;
-uniform float camFovy; // degrees 
+uniform float camFovy; // degrees
 uniform float camAspect;
 uniform float camAperture;
 uniform float camFocalDistance;
@@ -77,15 +77,15 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
     float sdf = min(sdf_diele, min(sdf_metal, sdf_surfa));
     float InitialSign = sign(sdf);
 
-    float t = 0.0;  
+    float t = 0.0;
     int iters=0;
     for (int n=0; n<MAX_MARCH_STEPS; n++)
     {
         // With this formula, the ray advances whether sdf is initially negative or positive --
-        // but on crossing the zero isosurface, sdf flips allowing bracketing of the root. 
+        // but on crossing the zero isosurface, sdf flips allowing bracketing of the root.
         t += InitialSign * sdf;
         if (t>=maxDist) break;
-        vec3 pW = start + t*dir;    
+        vec3 pW = start + t*dir;
         sdf_diele = abs(SDF_DIELECTRIC(pW)); if (sdf_diele<minMarchDist) { material = MAT_DIELE; break; }
         sdf_metal = abs(SDF_METAL(pW));      if (sdf_metal<minMarchDist) { material = MAT_METAL; break; }
         sdf_surfa = abs(SDF_SURFACE(pW));    if (sdf_surfa<minMarchDist) { material = MAT_SURFA; break; }
@@ -99,7 +99,7 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
 }
 
 // find first hit along infinite ray
-bool traceRay(in vec3 start, in vec3 dir, 
+bool traceRay(in vec3 start, in vec3 dir,
               inout vec3 hit, inout int material, float maxMarchDist)
 {
     material = MAT_VACUU;
@@ -223,7 +223,7 @@ vec3 xyz_to_spectrum(vec3 XYZ)
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
-float rand(inout vec4 rnd) 
+float rand(inout vec4 rnd)
 {
     const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
     const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
@@ -248,45 +248,42 @@ vec3 sampleHemisphere(inout vec4 rnd, inout float pdf)
     return vec3(x, y, z);
 }
 
-vec3 SURFACE_DIFFUSE_REFL_XYZ(in vec3 X, in vec3 nW, in vec3 woW)
+vec3 SURFACE_DIFFUSE_REFL_RGB(in vec3 X, in vec3 nW, in vec3 woW)
 {
     vec3 C = xyzToRgb(surfaceDiffuseAlbedoXYZ);
     vec3 reflRGB = SURFACE_DIFFUSE_REFLECTANCE(C, X, nW, woW);
-    vec3 reflXYZ = rgbToXyz(reflRGB);
-    return xyz_to_spectrum(reflXYZ);
+    return reflRGB;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Light sampling
 ////////////////////////////////////////////////////////////////////////////////
 
-vec3 environmentRadianceXYZ(in vec3 dir)
+vec3 environmentRadiance(in vec3 dir)
 {
     float phi = atan(dir.x, dir.z) + M_PI + M_PI*envMapRotation/180.0;
     phi -= 2.0*M_PI*floor(phi/(2.0*M_PI)); // wrap phi to [0, 2*pi]
-    float theta = acos(dir.y);           // theta in [0, pi]
+    float theta = acos(dir.y);             // theta in [0, pi]
     float u = phi/(2.0*M_PI);
     float v = theta/M_PI;
-    vec3 XYZ;
+    vec3 RGB;
     if (haveEnvMap)
     {
-        vec3 RGB = texture(envMap, vec2(u,v)).rgb;
+        RGB = texture(envMap, vec2(u,v)).rgb;
         RGB *= skyPower;
-        XYZ = rgbToXyz(RGB);
     }
     else
     {
-        XYZ = skyPower * vec3(1.0);
+        RGB = skyPower * vec3(1.0);
     }
-    return XYZ;
+    return RGB;
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // Ambient occlusion integrator
 ////////////////////////////////////////////////////////////////////////////////
 
-void constructPrimaryRay(in vec2 pixel, inout vec4 rnd, 
+void constructPrimaryRay(in vec2 pixel, inout vec4 rnd,
                          inout vec3 primaryStart, inout vec3 primaryDir)
 {
     // Compute world ray direction for given (possibly jittered) fragment
@@ -295,7 +292,7 @@ void constructPrimaryRay(in vec2 pixel, inout vec4 rnd,
     float fw = camAspect*fh;
     vec3 s = -fw*ndc.x*camX + fh*ndc.y*camY;
     primaryDir = normalize(camDir + s);
-    if (camAperture<=0.0) 
+    if (camAperture<=0.0)
     {
         primaryStart = camPos;
         return;
@@ -323,7 +320,7 @@ void main()
         gbuf_rad = vec4(newL, newN);
         gbuf_rng = rnd;
         return;
-    } 
+    }
 
     // Jitter over pixel
     vec2 pixel = gl_FragCoord.xy;
@@ -338,7 +335,7 @@ void main()
     int hitMaterial;
     bool hit = traceRay(primaryStart, primaryDir, pW, hitMaterial, maxLengthScale);
 
-    vec3 colorXYZ;
+    vec3 RGB;
     if (hit)
     {
         // Compute normal at hit point
@@ -350,28 +347,26 @@ void main()
         vec3 wiL = sampleHemisphere(rnd, hemispherePdf);
         vec3 wiW = localToWorld(wiL, basis);
 
-        // Compute diffuse albedo at sampled wavelength
-        float w = texture(ICDF, vec2(rand(rnd), 0.5)).r;
-        vec3 XYZ = texture(WavelengthToXYZ, vec2(w, 0.5)).rgb;
-        float diffuseAlbedo = clamp(dot(XYZ, SURFACE_DIFFUSE_REFL_XYZ(pW, basis.nW, woW)), 0.0, 1.0);
-
+        // Compute diffuse albedo
+        vec3 diffuseAlbedo = SURFACE_DIFFUSE_REFL_RGB(pW, basis.nW, woW);
+        
         // Set incident radiance to according to whether the AO ray hit anything or missed.
-        float L;
-        if (!Occluded(pW, wiW)) L = diffuseAlbedo;
-        else                    L = diffuseAlbedo * abs(1.0 - shadowStrength);
-        colorXYZ = XYZ * L;
+        if (!Occluded(pW, wiW)) RGB = diffuseAlbedo;
+        else                    RGB = diffuseAlbedo * abs(1.0 - shadowStrength);
     }
     else
     {
-        if (envMapVisible) colorXYZ = environmentRadianceXYZ(primaryDir);
-        else               colorXYZ = vec3(0.0);
+        if (envMapVisible) RGB = environmentRadiance(primaryDir);
+        else               RGB = vec3(0.0);
     }
-
+    
+    vec3 XYZ = rgbToXyz(RGB);
+    
     // Write updated radiance and sample count
     vec4 oldL = texture(Radiance, vTexCoord);
     float oldN = oldL.w;
     float newN = oldN + 1.0;
-    vec3 newL = (oldN*oldL.rgb + colorXYZ) / newN;
+    vec3 newL = (oldN*oldL.rgb + XYZ) / newN;
 
     gbuf_rad = vec4(newL, newN);
     gbuf_rng = rnd;

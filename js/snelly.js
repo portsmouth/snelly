@@ -1,7 +1,7 @@
 
-/** 
+/**
 * Snelly is the global object providing access to all functionality in the system.
-* @constructor 
+* @constructor
 * @param {Scene} sceneObj - The user-defined scene
 */
 var Snelly = function(sceneObj)
@@ -27,6 +27,7 @@ var Snelly = function(sceneObj)
 	this.textCtx = text_canvas.getContext("2d");
 	this.onSnellyLink = false;
 	this.onUserLink = false;
+    this.statusText = '';
 
 	window.addEventListener( 'resize', this, false );
 
@@ -82,7 +83,7 @@ var Snelly = function(sceneObj)
 	window.addEventListener( 'click', this, false );
 	window.addEventListener( 'keydown', this, false );
 
-	this.initialized = true; 
+	this.initialized = true;
 }
 
 /**
@@ -110,7 +111,7 @@ Snelly.prototype.handleEvent = function(event)
 
 /**
 * Access to the Renderer object
-*  @returns {Renderer} 
+*  @returns {Renderer}
 */
 Snelly.prototype.getRenderer = function()
 {
@@ -119,7 +120,7 @@ Snelly.prototype.getRenderer = function()
 
 /**
 * Access to the GUI object
-*  @returns {GUI} 
+*  @returns {GUI}
 */
 Snelly.prototype.getGUI = function()
 {
@@ -153,6 +154,14 @@ Snelly.prototype.showGUI = function(show)
 	this.guiVisible = show;
 }
 
+/**
+* Specify arbitrary status text (one line only) to display in the lower right of the viewport
+* @param {Boolean} statusText - text to display
+*/
+Snelly.prototype.setStatus = function(statusText)
+{
+	this.statusText = statusText;
+}
 
 //
 // Scene management
@@ -163,7 +172,7 @@ Snelly.prototype.getScene = function()
 	return this.sceneObj;
 }
 
-/** 
+/**
  * @returns {WebGLRenderingContext} The webGL context
  */
 Snelly.prototype.getGLContext = function()
@@ -181,13 +190,13 @@ Snelly.prototype.initScene = function()
 
 	// Obtain length scales, if specified
 	this.lengthScale = 1.0;
-	if (typeof this.sceneObj.getLengthScale !== "undefined") 
+	if (typeof this.sceneObj.getLengthScale !== "undefined")
 	{
 		this.lengthScale = this.sceneObj.getLengthScale();
 	}
 
 	this.minLengthScale = 1.0e-4;
-	if (typeof this.sceneObj.getMinLengthScale !== "undefined") 
+	if (typeof this.sceneObj.getMinLengthScale !== "undefined")
 	{
 		this.minLengthScale = this.sceneObj.getMinLengthScale();
 	}
@@ -205,24 +214,24 @@ Snelly.prototype.initScene = function()
 	this.camera.position.set(po, po, po);
 	this.camControls.target.set(0.0, 0.0, 0.0);
 
-	this.camera.aperture      = 1.0e-3 * this.lengthScale;
-	this.camera.focalDistance =   10.0 * this.lengthScale;
+	this.camera.aperture      = -3.0; // logarithmic, relative to length scale
+	this.camera.focalDistance =  1.0; // logarithmic, relative to length scale
 
-	// Call user-defined init function	
-	if (typeof this.sceneObj.init !== "undefined") 
+	// Call user-defined init function
+	if (typeof this.sceneObj.init !== "undefined")
 	{
 		this.sceneObj.init(this);
 	}
 
 	// Read optional scene name and URL, if provided
 	this.sceneName = '';
-	if (typeof this.sceneObj.getName !== "undefined") 
+	if (typeof this.sceneObj.getName !== "undefined")
 	{
 		this.sceneName = this.sceneObj.getName();
 	}
 
 	this.sceneURL = '';
-	if (typeof this.sceneObj.getURL !== "undefined") 
+	if (typeof this.sceneObj.getURL !== "undefined")
 	{
 		this.sceneURL = this.sceneObj.getURL();
 	}
@@ -246,10 +255,13 @@ Snelly.prototype.initScene = function()
   	// Set up blackbody spectrum sampling
   	this.spectra = [];
 	this.addSpectrum( new BlackbodySpectrum("blackbody", "Blackbody spectrum", this.pathtracer.skyTemperature) );
-  	this.loadSpectrum("blackbody");
-	
+    this.loadSpectrum("blackbody");
+    
+    //this.addSpectrum( new FlatSpectrum("flat", "Flat spectrum", 390.0, 750.0) );
+    //this.loadSpectrum("flat");
+  
 	// Camera setup
-	this.camControls.update();	
+	this.camControls.update();
 	this.reset(false);
 }
 
@@ -269,7 +281,7 @@ let controls  = snelly.getControls();
 let materials = snelly.getMaterials();
 	`;
 
-	if (typeof this.sceneObj.initGenerator !== "undefined") 
+	if (typeof this.sceneObj.initGenerator !== "undefined")
 	{
 		code += this.sceneObj.initGenerator();
 	}
@@ -290,6 +302,7 @@ renderer.renderMode = '${renderer.renderMode}';
 renderer.maxBounces = ${renderer.maxBounces};
 renderer.maxMarchSteps = ${renderer.maxMarchSteps};
 renderer.radianceClamp = ${renderer.radianceClamp};
+renderer.wavelengthSamples = ${renderer.wavelengthSamples};
 renderer.skyPower = ${renderer.skyPower};
 renderer.skyTemperature = ${renderer.skyTemperature};
 renderer.sunLatitude = ${renderer.sunLatitude};
@@ -406,12 +419,12 @@ Snelly.prototype.getSurface = function()
 
 // Renderer reset on camera or other parameters update
 Snelly.prototype.reset = function(no_recompile = false)
-{	
+{
 	if (!this.initialized || this.terminated) return;
 	this.pathtracer.reset(no_recompile);
 }
    
-// Render all 
+// Render all
 Snelly.prototype.render = function()
 {
 	if (!this.initialized || this.terminated) return;
@@ -421,7 +434,7 @@ Snelly.prototype.render = function()
 	// Render distance field surface via pathtracing
 	this.pathtracer.render();
 
-	// Update HUD text canvas	
+	// Update HUD text canvas
 	this.textCtx.textAlign = "left";   	// This determines the alignment of text, e.g. left, center, right
 	this.textCtx.textBaseline = "middle";	// This determines the baseline of the text, e.g. top, middle, bottom
 	this.textCtx.font = '12px monospace';	// This determines the size of the text and the font family used
@@ -453,6 +466,13 @@ Snelly.prototype.render = function()
 	  		this.textCtx.strokeText(this.sceneURL, 14, this.textCtx.canvas.height-40);
 	  		this.textCtx.fillText(this.sceneURL, 14, this.textCtx.canvas.height-40);
 		}
+        if (this.statusText != '')
+        {
+            this.textCtx.fillStyle = "#ff4000";
+            let x = this.textCtx.canvas.width - 12*this.statusText.length;
+            this.textCtx.strokeText(this.statusText, x, this.textCtx.canvas.height-25);
+	  		this.textCtx.fillText(this.statusText, x, this.textCtx.canvas.height-25);
+        }
 	}
 
 	this.rendering = false;
@@ -520,7 +540,7 @@ Snelly.prototype.resize = function()
 
 
 /**
-* 
+*
 * @returns {number} - the minimum texture unit for user supplied textures in the shader
 */
 Snelly.prototype.getUserTextureUnitStart = function()
@@ -530,11 +550,11 @@ Snelly.prototype.getUserTextureUnitStart = function()
 
 Snelly.prototype.onClick = function(event)
 {
-	if (this.onSnellyLink) 
+	if (this.onSnellyLink)
 	{
     	window.open("https://github.com/portsmouth/snelly");
     }
-    if (this.onUserLink) 
+    if (this.onUserLink)
 	{
     	window.open(this.sceneURL);
     }
@@ -584,8 +604,8 @@ Snelly.prototype.onDocumentRightClick = function(event)
 	let rxPick = (wxPick/rsw) * render_canvas.width;
 	let ryPick = (wyPick/rsh) * render_canvas.height;
 	var pickData = this.pathtracer.pick(rxPick, ryPick);
-	this.camera.focalDistance = pickData.distance;
-	console.log('pick data: ', pickData);
+    let fd = Math.max(1.0e-6, Math.abs(pickData.distance));
+	this.camera.focalDistance = Math.log10(fd/this.lengthScale);
 	this.gui.sync();
 	this.reset(true);
 }
@@ -608,7 +628,7 @@ Snelly.prototype.onkeydown = function(event)
 			this.reset(true);
 			break;
 
-		case 82: // R key: reset scene 
+		case 82: // R key: reset scene
 			this.initScene();
 			break;
 
@@ -646,7 +666,7 @@ Snelly.prototype.onkeydown = function(event)
 			break;
 		}
 		
-		case 65: // A key: cam left 
+		case 65: // A key: cam left
 		{
 			let toTarget = new THREE.Vector3();
 			toTarget.copy(this.camControls.target);
@@ -679,7 +699,7 @@ Snelly.prototype.onkeydown = function(event)
 			break;
 		}
 		
-		case 68: // S key: cam right 
+		case 68: // S key: cam right
 		{
 			let toTarget = new THREE.Vector3();
 			toTarget.copy(this.camControls.target);
@@ -698,7 +718,7 @@ Snelly.prototype.onkeydown = function(event)
 	}
 
 	// Call user keydown callback
-	if (typeof this.sceneObj.onkeydownCallback !== "undefined") 
+	if (typeof this.sceneObj.onkeydownCallback !== "undefined")
 	{
 		this.sceneObj.onkeydownCallback(event, snelly, GLU.gl);
 	}
@@ -712,8 +732,3 @@ function camChanged()
 		snelly.reset(no_recompile);
 	}
 }
-
-
-
-
-

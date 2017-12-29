@@ -1,8 +1,8 @@
 
-/** @constructor 
+/** @constructor
 * Interface to the dat.GUI UI.
 */
-var GUI = function(visible = true) 
+var GUI = function(visible = true)
 {
 	// Create dat gui
 	this.gui = new dat.GUI();
@@ -17,7 +17,7 @@ var GUI = function(visible = true)
 		this.gui.__proto__.constructor.toggleHide();
 }
 
-function updateDisplay(gui) 
+function updateDisplay(gui)
 {
     for (var i in gui.__controllers) {
         gui.__controllers[i].updateDisplay();
@@ -41,7 +41,7 @@ GUI.prototype.toggleHide = function()
 	this.visible = !this.visible;
 }
 
-function hexToRgb(hex) 
+function hexToRgb(hex)
 {
     var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? {
@@ -60,59 +60,79 @@ GUI.prototype.createRendererSettings = function()
 
 	// @todo: add a basic AO and normals mode as well, useful for scene debugging.
 	var renderModes = ['pt', 'ao', 'normals', 'firsthit'];
-	this.rendererFolder.add(pathtracer, 'renderMode', renderModes).onChange( function(renderMode) { pathtracer.renderMode = renderMode; pathtracer.reset(); });
-	this.rendererFolder.add(pathtracer, 'maxBounces', 1, 10).onChange( function(value) { pathtracer.maxBounces = Math.floor(value); pathtracer.reset(); });
-	this.rendererFolder.add(pathtracer, 'maxMarchSteps', 1, 1024).onChange( function(value) { pathtracer.maxMarchSteps = Math.floor(value); pathtracer.reset(); } );
-	this.rendererFolder.add(pathtracer, 'radianceClamp', -2.0, 6.0).onChange( function(value) { pathtracer.reset(true); } );
-	this.rendererFolder.add(pathtracer, 'exposure', 0.0, 50.0);
-	this.rendererFolder.add(camera, 'fov', 5.0, 120.0).onChange( function(value) { pathtracer.reset(true); } );
-	this.rendererFolder.add(camera, 'aperture',      1.0e-6*snelly.lengthScale, snelly.lengthScale).onChange( function(value) { pathtracer.reset(true); } );
-	this.rendererFolder.add(camera, 'focalDistance', 1.0e-3*snelly.lengthScale, 100.0*snelly.lengthScale).onChange( function(value) { pathtracer.reset(true); } );
-	this.rendererFolder.add(pathtracer, 'gamma', 0.0, 3.0);
-	this.rendererFolder.add(pathtracer, 'whitepoint', 0.0, 2.0);
-	this.rendererFolder.add(pathtracer, 'AA').onChange( function(value) { pathtracer.reset(true); } );
-	this.rendererFolder.add(pathtracer, 'maxStepsIsMiss').onChange( function(value) { pathtracer.reset(true); } );
-	this.rendererFolder.add(pathtracer, 'envMapVisible').onChange( function(value) { pathtracer.reset(true); } );
-	this.rendererFolder.add(pathtracer, 'envMapRotation', 0.0, 360.0).onChange( function(value) { pathtracer.reset(true); } );
+    
+    // raymarching folder
+    this.raymarchingFolder = this.rendererFolder.addFolder('Raymarcher');
+    this.raymarchingFolder.add(pathtracer, 'renderMode', renderModes).onChange( function(renderMode) { pathtracer.renderMode = renderMode; pathtracer.reset(); });
+	this.raymarchingFolder.add(pathtracer, 'maxBounces', 0, 10).onChange( function(value) { pathtracer.maxBounces = Math.floor(value); pathtracer.reset(); });
+	this.raymarchingFolder.add(pathtracer, 'maxMarchSteps', 1, 1024).onChange( function(value) { pathtracer.maxMarchSteps = Math.floor(value); pathtracer.reset(); } );
+	this.raymarchingFolder.add(pathtracer, 'maxStepsIsMiss').onChange( function(value) { pathtracer.reset(true); } );
+    this.raymarchingFolder.add(pathtracer, 'radianceClamp', -2.0, 6.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.raymarchingFolder.add(pathtracer, 'wavelengthSamples', 4, 1024).onChange( function(value) { pathtracer.reset(true); } );
+    this.raymarchingFolder.close();
+    
+    // camera folder
+    this.cameraFolder = this.rendererFolder.addFolder('Camera');
+    this.cameraFolder.add(camera, 'fov', 5.0, 120.0).onChange( function(value) { pathtracer.reset(true); } );
+	this.cameraFolder.add(camera, 'aperture',      -16.0, 1.0).onChange( function(value) { pathtracer.reset(true); } );
+	this.cameraFolder.add(camera, 'focalDistance', -3.0, 3.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.cameraFolder.close();
+    
+    // tonemapping folder
+    this.tonemappingFolder = this.rendererFolder.addFolder('Tonemapping');
+    this.tonemappingFolder.add(pathtracer, 'exposure', -3.0, 3.0);
+    this.tonemappingFolder.add(pathtracer, 'gamma', 0.0, 3.0);
+    this.tonemappingFolder.add(pathtracer, 'whitepoint', 0.0, 3.0);
+    this.tonemappingFolder.add(pathtracer, 'AA').onChange( function(value) { pathtracer.reset(true); } );
+    this.tonemappingFolder.close();
+    
+    // lighting folder
+    this.lightingFolder = this.rendererFolder.addFolder('Lighting');
+    
+    var skyPowerItem = this.lightingFolder.add(pathtracer, 'skyPower', 0.0, 10.0).onChange( function(value) { pathtracer.reset(true); } );
+    
+    // init gui for spectrum
+    spectrumObj = snelly.getLoadedSpectrum();
+    spectrumObj.initGui(this.lightingFolder);
+
+    this.lightingFolder.add(pathtracer, 'envMapRotation', 0.0, 360.0).onChange( function(value) { pathtracer.reset(true); } );
+	this.lightingFolder.add(pathtracer, 'envMapVisible').onChange( function(value) { pathtracer.reset(true); } );
 	
-	this.rendererFolder.add(pathtracer, 'sunPower', 0.0, 1000.0).onChange( function(value) { pathtracer.reset(true); } );
-	this.rendererFolder.add(pathtracer, 'sunAngularSize', 0.0, 20.0).onChange( function(value) { pathtracer.reset(true); } );
-	this.rendererFolder.add(pathtracer, 'sunLatitude', -90.0, 90.0).onChange( function(value) { pathtracer.reset(true); } );
-	this.rendererFolder.add(pathtracer, 'sunLongitude', 0.0, 360.0).onChange( function(value) { pathtracer.reset(true); } );
-
-	this.rendererFolder.sunColor = [pathtracer.sunColor[0]*255.0, pathtracer.sunColor[1]*255.0, pathtracer.sunColor[2]*255.0];
-	var sunColorItem = this.rendererFolder.addColor(this.rendererFolder, 'sunColor');
-	sunColorItem.onChange( function(C) {
-							if (typeof C==='string' || C instanceof String)
-							{
-								var color = hexToRgb(C);
-								pathtracer.sunColor[0] = color.r / 255.0;
-								pathtracer.sunColor[1] = color.g / 255.0;
-								pathtracer.sunColor[2] = color.b / 255.0;
-							}
-							else
-							{
-								pathtracer.sunColor[0] = C[0] / 255.0;
-								pathtracer.sunColor[1] = C[1] / 255.0;
-								pathtracer.sunColor[2] = C[2] / 255.0;
-							}
-							snelly.reset(true);
-						} );
-
-	var skyPowerItem = this.rendererFolder.add(pathtracer, 'skyPower', 0.0, 10.0).onChange( function(value) { pathtracer.reset(true); } );
-	
-	// init gui for spectrum
-	spectrumObj = snelly.getLoadedSpectrum();
-	spectrumObj.initGui(this.rendererFolder);
-
+	this.lightingFolder.add(pathtracer, 'sunPower', 0.0, 10.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.lightingFolder.sunColor = [pathtracer.sunColor[0]*255.0, pathtracer.sunColor[1]*255.0, pathtracer.sunColor[2]*255.0];
+    var sunColorItem = this.lightingFolder.addColor(this.lightingFolder, 'sunColor');
+    sunColorItem.onChange( function(C) {
+                            if (typeof C==='string' || C instanceof String)
+                            {
+                                var color = hexToRgb(C);
+                                pathtracer.sunColor[0] = color.r / 255.0;
+                                pathtracer.sunColor[1] = color.g / 255.0;
+                                pathtracer.sunColor[2] = color.b / 255.0;
+                            }
+                            else
+                            {
+                                pathtracer.sunColor[0] = C[0] / 255.0;
+                                pathtracer.sunColor[1] = C[1] / 255.0;
+                                pathtracer.sunColor[2] = C[2] / 255.0;
+                            }
+                            snelly.reset(true);
+                        } );
+                        
+	this.lightingFolder.add(pathtracer, 'sunAngularSize', 0.0, 20.0).onChange( function(value) { pathtracer.reset(true); } );
+	this.lightingFolder.add(pathtracer, 'sunLatitude', -90.0, 90.0).onChange( function(value) { pathtracer.reset(true); } );
+	this.lightingFolder.add(pathtracer, 'sunLongitude', 0.0, 360.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.lightingFolder.add(pathtracer, 'sunVisibleDirectly').onChange( function(value) { pathtracer.reset(true); } );
+    this.lightingFolder.add(pathtracer, 'shadowStrength', 0.0, 1.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.lightingFolder.close();
+    
 	this.gui.remember(this.pathtracerSettings);
-	this.rendererFolder.close();
+	this.rendererFolder.open();
 }
 
 GUI.prototype.createSceneSettings = function()
 {
 	var sceneObj = snelly.getScene();
-	if (typeof sceneObj.initGui !== "undefined") 
+	if (typeof sceneObj.initGui !== "undefined")
 	{
 		this.sceneFolder = this.gui.addFolder('Scene');
 		sceneObj.initGui(this);
@@ -121,7 +141,7 @@ GUI.prototype.createSceneSettings = function()
 	}
 }
 
-/** 
+/**
  * Add a dat.GUI UI slider to control a float parameter.
  * The scene parameters need to be organized into an Object as
  * key-value pairs, for supply to this function.
@@ -130,7 +150,7 @@ GUI.prototype.createSceneSettings = function()
  * @param {Object} folder - optionally, pass the dat.GUI folder to add the parameter to (defaults to the main scene folder)
  * @returns {Object} the created dat.GUI slider item
  * @example
- *		Scene.prototype.initGui = function(gui)            
+ *		Scene.prototype.initGui = function(gui)
  *		{
  *			gui.addSlider(this.parameters, c);
  *			gui.addSlider(this.parameters, {name: 'foo2', min: 0.0, max: 1.0});
@@ -156,7 +176,7 @@ GUI.prototype.addSlider = function(parameters, param, folder=undefined)
 	return item;
 }
 
-/** 
+/**
  * Add a dat.GUI UI color picker to control a 3-element array parameter (where the RGB color channels are mapped into [0,1] float range)
  * @param {Object} parameters - the parameters object for the scene, with a key-value pair (where value is a 3-element array) for the color parameter name
  * @param {Object} name - the color parameter name
@@ -316,7 +336,3 @@ GUI.prototype.createMaterialSettings = function()
 
 	this.gui.remember(this.materialSettings);
 }
-
-
-
-

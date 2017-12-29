@@ -4,6 +4,7 @@ uniform sampler2D Radiance;         // 0 (IO buffer)
 uniform sampler2D RngData;          // 1 (IO buffer)
 uniform sampler2D WavelengthToXYZ;  // 2
 uniform sampler2D ICDF;             // 3
+uniform sampler2D RadianceBlocks;   // 4
 uniform sampler2D iorTex;           // 4
 uniform sampler2D kTex;             // 5 (for metals)
 uniform sampler2D envMap;           // 6
@@ -17,29 +18,33 @@ uniform vec3 camPos;
 uniform vec3 camDir;
 uniform vec3 camX;
 uniform vec3 camY;
-uniform float camFovy; // degrees 
+uniform float camFovy; // degrees
 uniform float camAspect;
 uniform float camAperture;
 uniform float camFocalDistance;
 
 uniform float minLengthScale;
 uniform float maxLengthScale;
-uniform float skyPower;
+
 uniform float sunPower;
 uniform float sunAngularSize;
 uniform float sunLatitude;
 uniform float sunLongitude;
 uniform vec3 sunColor;
 uniform vec3 sunDir;
+uniform bool sunVisibleDirectly;
 
 uniform bool haveEnvMap;
 uniform bool envMapVisible;
 uniform float envMapRotation;
+uniform float skyPower;
+
 uniform float radianceClamp;
 uniform float skipProbability;
 uniform float shadowStrength;
 uniform bool maxStepsIsMiss;
 uniform bool jitter;
+uniform int wavelengthSamples;
 
 uniform float metalRoughness;
 uniform vec3 metalSpecAlbedoXYZ;
@@ -78,7 +83,7 @@ IOR_FUNC
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
-float rand(inout vec4 rnd) 
+float rand(inout vec4 rnd)
 {
     const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
     const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
@@ -111,17 +116,17 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
 
     for (int n=0; n<MAX_MARCH_STEPS; n++)
     {
-        vec3 pW = start + t*dir;    
-        
+        vec3 pW = start + t*dir;
+
         // @todo: define out the tests which don't apply
         sdf = HUGE_VAL;
         sdf_surfa = abs(SDF_SURFACE(pW));    if (sdf_surfa<minMarch) { material = MAT_SURFA; hit = start + t*dir; return true; } sdf = min(sdf, sdf_surfa);
         sdf_metal = abs(SDF_METAL(pW));      if (sdf_metal<minMarch) { material = MAT_METAL; hit = start + t*dir; return true; } sdf = min(sdf, sdf_metal);
         sdf_diele = abs(SDF_DIELECTRIC(pW)); if (sdf_diele<minMarch) { material = MAT_DIELE; hit = start + t*dir; return true; } sdf = min(sdf, sdf_diele);
         sdf_volum = abs(SDF_VOLUME(pW));     if (sdf_volum<minMarch) { material = MAT_VOLUM; hit = start + t*dir; return true; } sdf = min(sdf, sdf_volum);
-    
+
         // With this formula, the ray advances whether sdf is initially negative or positive --
-        // but on crossing the zero isosurface, sdf flips allowing bracketing of the root. 
+        // but on crossing the zero isosurface, sdf flips allowing bracketing of the root.
         t += InitialSign * sdf;
         if (t>=maxDist) return false;
     }
@@ -129,7 +134,7 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
 }
 
 // find first hit along infinite ray
-bool traceRay(in vec3 start, in vec3 dir, 
+bool traceRay(in vec3 start, in vec3 dir,
               inout vec3 hit, inout int material, float maxMarchDist)
 {
     material = MAT_INVAL;
@@ -167,7 +172,7 @@ float Visibility(in vec3 pW, in vec3 rayDir, inout vec4 rnd, bool inVolume)
     float sigma_t_max = VOLUME_EXTINCTION_MAX();
     float inv_sigma_t_max = 1.0/sigma_t_max;
     float eps = 3.0*minLengthScale;
-    const int maxWoodcockSteps = 128; 
+    const int maxWoodcockSteps = 128;
 
     while ((inVolume || hitMaterial==MAT_VOLUM) && volHits<maxVolHits)
     {
@@ -181,7 +186,7 @@ float Visibility(in vec3 pW, in vec3 rayDir, inout vec4 rnd, bool inVolume)
             bool interacted = false;
             float segmentLength = length(pW_next - pW);
             float distanceMarched = -log(rand(rnd)) * inv_sigma_t_max;
-            int steps = 0; 
+            int steps = 0;
             while (distanceMarched<segmentLength-eps && steps<maxWoodcockSteps)
             {
                 pScatter = pW + distanceMarched*rayDir;
@@ -191,12 +196,12 @@ float Visibility(in vec3 pW, in vec3 rayDir, inout vec4 rnd, bool inVolume)
                 distanceMarched += -log(rand(rnd)) * inv_sigma_t_max;
                 steps++;
             }
-            
+
             if (interacted) return 0.0; // on absorption/scattering, return zero visibility
             else
             {
                 pW = pW_next;
-                if (hitMaterial==MAT_VOLUM) // if hitMaterial is volume boundary, displace pW into volume exterior 
+                if (hitMaterial==MAT_VOLUM) // if hitMaterial is volume boundary, displace pW into volume exterior
                 {
                     vec3 nW = normal(pW, MAT_VOLUM);
                     pW += nW * eps;
@@ -206,7 +211,7 @@ float Visibility(in vec3 pW, in vec3 rayDir, inout vec4 rnd, bool inVolume)
                     return 0.0;
             }
         }
-    
+
         // else if ray passed through the volume exterior and hit the volume boundary
         else // !inVolume
         {
@@ -222,7 +227,7 @@ float Visibility(in vec3 pW, in vec3 rayDir, inout vec4 rnd, bool inVolume)
     }
 
     if (!hit || volHits==maxVolHits) return 1.0; // if no hit or scattering, return visibility 1.0 (transparent)
-    else return 0.0; 
+    else return 0.0;
 }
 
 
@@ -319,7 +324,7 @@ vec3 xyz_to_spectrum(vec3 XYZ)
 
 /// Uniformly sample a sphere
 vec3 sampleSphere(inout vec4 rnd, inout float pdf)
-{   
+{
     float z = 1.0 - 2.0*rand(rnd);
     float r = sqrt(max(0.0, 1.0 - z*z));
     float phi = 2.0*M_PI*rand(rnd);
@@ -370,7 +375,7 @@ float phaseFunction(float mu)
 {
     float g = 0.0; // @todo: parameter
 	float gSqr = g*g;
-	return (1.0/(4.0*M_PI)) * (1.0 - gSqr) / pow(1.0 - 2.0*g*mu + gSqr, 1.5); 
+	return (1.0/(4.0*M_PI)) * (1.0 - gSqr) / pow(1.0 - 2.0*g*mu + gSqr, 1.5);
 }
 
 
@@ -742,10 +747,8 @@ float evaluateSurface(in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in ve
     vec3 h = normalize(wiL + woL); // Compute the reflection half-vector
     float D = microfacetEval(h, roughness);
     float G = smithG2(woL, wiL, h, roughness);
-    float specWeight = specAlbedo * Fr;
-    float diffWeight = diffuseAlbedo * (1.0-specWeight);
-    float f = specWeight * D * G / max(4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
-    f += diffWeight/M_PI;
+    float f = Fr * specAlbedo * D * G / max(4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
+    f += diffuseAlbedo/M_PI;
     return f;
 }
 
@@ -761,10 +764,8 @@ float pdfSurface(in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in vec3 XY
     float dwh_dwo = 1.0 / max(abs(4.0*dot(woL, h)), DENOM_TOLERANCE); // Jacobian of the half-direction mapping
     float specularPdf = microfacetPDF(h, roughness) * dwh_dwo;
     float Fr = fresnelDielectricReflectanceFast(wiL.z, ior);
-    float specWeight = specAlbedo * Fr;
-    float diffWeight = diffuseAlbedo * (1.0-specWeight);
-    float weightSum = max(specWeight + diffWeight, DENOM_TOLERANCE);
-    float specProb = specWeight/weightSum;
+    float sum = max(Fr*specAlbedo + diffuseAlbedo, DENOM_TOLERANCE);
+    float specProb = Fr*specAlbedo/sum;
     return specProb*specularPdf + (1.0-specProb)*diffusePdf;
 }
 
@@ -776,16 +777,13 @@ float sampleSurface(in vec3 X, in Basis basis, in vec3 woL, in vec3 XYZ,
     float    specAlbedo = clamp(dot(XYZ, SURFACE_SPEC_REFL_XYZ(X, basis.nW, woW)),    0.0, 1.0);
     float ior = surfaceIor;
     float roughness = SURFACE_ROUGHNESS(surfaceRoughness, X, basis.nW);
-    float Fr = fresnelDielectricReflectanceFast(wiL.z, ior);
-    float specWeight = specAlbedo * Fr;
-    float diffWeight = diffuseAlbedo * (1.0-specWeight);
-    float weightSum = max(specWeight + diffWeight, DENOM_TOLERANCE);
-    float specProb = specWeight/weightSum;
+    float sum = max(specAlbedo + diffuseAlbedo, DENOM_TOLERANCE);
+    float specProb = specAlbedo/sum;
     if (rand(rnd) >= specProb) // diffuse term, happens with probability 1-specProb
     {
         wiL = sampleHemisphere(rnd, pdfOut);
         pdfOut *= (1.0-specProb);
-        return diffWeight/M_PI;
+        return diffuseAlbedo/M_PI;
     }
     else
     {
@@ -794,7 +792,8 @@ float sampleSurface(in vec3 X, in Basis basis, in vec3 woL, in vec3 XYZ,
         if (wiL.z<DENOM_TOLERANCE) wiL.z *= -1.0; // Reflect into positive hemisphere if necessary (ad hoc)
         float D = microfacetEval(m, roughness);
         float G = smithG2(woL, wiL, m, roughness); // Shadow-masking function
-        float f = specWeight * D * G / max(4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
+        float Fr = fresnelDielectricReflectanceFast(wiL.z, ior);
+        float f = Fr * specAlbedo * D * G / max(4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
         float dwh_dwo; // Jacobian of the half-direction mapping
         dwh_dwo = 1.0 / max(abs(4.0*dot(woL, m)), DENOM_TOLERANCE);
         pdfOut = specProb * microfacetPDF(m, roughness) * dwh_dwo;
@@ -804,7 +803,7 @@ float sampleSurface(in vec3 X, in Basis basis, in vec3 woL, in vec3 XYZ,
 
 // ****************************        BSDF common interface        ****************************
 
-float evaluateBsdf( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm, in vec3 XYZ, 
+float evaluateBsdf( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm, in vec3 XYZ,
                     inout vec4 rnd )
 {
     if      (material==MAT_DIELE) { return evaluateDielectric(X, basis, woL, wiL, wavelength_nm, XYZ); }
@@ -813,7 +812,7 @@ float evaluateBsdf( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in int 
 }
 
 float sampleBsdf( in vec3 X, in Basis basis, in vec3 woL, in int material, in float wavelength_nm, in vec3 XYZ,
-                  inout vec3 wiL, inout float pdfOut, inout vec4 rnd ) 
+                  inout vec3 wiL, inout float pdfOut, inout vec4 rnd )
 {
     if      (material==MAT_DIELE) { return sampleDielectric(X, basis, woL, wavelength_nm, XYZ, wiL, pdfOut, rnd); }
     else if (material==MAT_METAL) { return      sampleMetal(X, basis, woL, wavelength_nm, XYZ, wiL, pdfOut, rnd); }
@@ -876,7 +875,7 @@ vec3 sampleSunDir(inout vec4 rnd)
 
 float sunRadiance(in vec3 dir, in vec3 XYZ)
 {
-    if (dot(dir, sunDir) < cos(sunAngularSize*M_PI/180.0)) return 0.0; 
+    if (dot(dir, sunDir) < cos(sunAngularSize*M_PI/180.0)) return 0.0;
     vec3 RGB_sun = sunPower * sunColor;
     vec3 XYZ_sun = rgbToXyz(RGB_sun); // @todo: just supply XYZ_sun
     vec3 XYZ_spec = xyz_to_spectrum(XYZ_sun); // convert to radiance at the given wavelength
@@ -890,7 +889,7 @@ float sampleLightAtSurface(Basis basis, in vec3 XYZ, inout vec4 rnd, inout vec3 
     vec3 wiL_sun = worldToLocal(wiW_sun, basis);
     float sunPdf = 1.0; // convenient to decouple total sun power from its angular size
     float sunWeight = sunPower * max(0.0, wiL_sun.z);
-    
+
     float skyPdf;
     vec3 wiL_sky = sampleHemisphere(rnd, skyPdf);
     float skyWeight = skyPower * max(0.0, wiL_sky.z);
@@ -899,7 +898,7 @@ float sampleLightAtSurface(Basis basis, in vec3 XYZ, inout vec4 rnd, inout vec3 
     bool chooseSun = (rand(rnd) <= sunProb);
     if (chooseSun)
     {
-        lightPdf = sunPdf * sunProb; 
+        lightPdf = sunPdf * sunProb;
         wiL = wiL_sun;
         wiW = wiW_sun;
         return sunRadiance(wiW_sun, XYZ);
@@ -911,15 +910,15 @@ float sampleLightAtSurface(Basis basis, in vec3 XYZ, inout vec4 rnd, inout vec3 
 }
 
 // Estimate direct radiance at the given surface vertex
-float directSurfaceLighting(in vec3 pW, Basis basis, in vec3 woW, in int material, 
+float directSurfaceLighting(in vec3 pW, Basis basis, in vec3 woW, in int material,
                             float wavelength_nm, in vec3 XYZ, inout vec4 rnd, bool inVolume, inout float lightPdf)
 {
     vec3 wiL, wiW; // direction of sampled direct light (*towards* the light)
     float Li = sampleLightAtSurface(basis, XYZ, rnd, wiL, wiW, lightPdf);
     vec3 dPw = 3.0*minLengthScale * basis.nW;
-    float V = Visibility(pW+dPw, wiW, rnd, inVolume); 
-    Li *= V;
-    
+    float V = Visibility(pW+dPw, wiW, rnd, inVolume);
+    Li *= abs(1.0 - shadowStrength*(1.0-V));
+
     // Apply MIS weight with the BSDF pdf for the sampled direction
     vec3 woL = worldToLocal(woW, basis);
     float bsdfPdf = pdfBsdf(pW, basis, woL, wiL, material, wavelength_nm, XYZ);
@@ -936,7 +935,7 @@ float sampleLightInVolume(in vec3 XYZ, inout vec4 rnd, inout vec3 wiW, inout flo
     vec3 wiW_sun = sampleSunDir(rnd);
     float sunPdf = 1.0; // convenient to decouple total sun power from its angular size
     float sunWeight = sunPower * sunPdf;
-    
+
     float skyPdf;
     vec3 wiW_sky = sampleSphere(rnd, skyPdf);
     float skyWeight = skyPower * skyPdf;
@@ -945,12 +944,12 @@ float sampleLightInVolume(in vec3 XYZ, inout vec4 rnd, inout vec3 wiW, inout flo
     bool chooseSun = (rand(rnd) <= sunProb);
     if (chooseSun)
     {
-        lightPdf = sunPdf * sunProb; 
+        lightPdf = sunPdf * sunProb;
         wiW = wiW_sun;
         return sunRadiance(wiW_sun, XYZ);
     }
     lightPdf = skyPdf * max(PDF_EPSILON, 1.0-sunProb);
-    wiW = wiW_sky; 
+    wiW = wiW_sky;
     return environmentRadiance(wiW, XYZ);
 }
 
@@ -960,8 +959,8 @@ float directVolumeLighting(in vec3 pW, in vec3 woW, in vec3 XYZ, inout vec4 rnd,
     vec3 wiW; // direction of sampled direct light (*towards* the light)
     float lightPdf;
     float Li = sampleLightInVolume(XYZ, rnd, wiW, lightPdf);
-    float V = Visibility(pW, wiW, rnd, inVolume); 
-    Li *= V;
+    float V = Visibility(pW, wiW, rnd, inVolume);
+    Li *= abs(1.0 - shadowStrength*(1.0-V));
 
     float f = phaseFunction(dot(woW, -wiW));
     float fOverPdf = min(radianceClamp, f/max(PDF_EPSILON, lightPdf));
@@ -972,7 +971,7 @@ float directVolumeLighting(in vec3 pW, in vec3 woW, in vec3 XYZ, inout vec4 rnd,
 // Pathtracing integrator
 ////////////////////////////////////////////////////////////////////////////////
 
-void constructPrimaryRay(in vec2 pixel, inout vec4 rnd, 
+void constructPrimaryRay(in vec2 pixel, inout vec4 rnd,
                          inout vec3 primaryStart, inout vec3 primaryDir)
 {
     // Compute world ray direction for given (possibly jittered) fragment
@@ -981,7 +980,7 @@ void constructPrimaryRay(in vec2 pixel, inout vec4 rnd,
     float fw = camAspect*fh;
     vec3 s = -fw*ndc.x*camX + fh*ndc.y*camY;
     primaryDir = normalize(camDir + s);
-    if (camAperture<=0.0) 
+    if (camAperture<=0.0)
     {
         primaryStart = camPos;
         return;
@@ -1005,18 +1004,18 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         gbuf_rad = vec4(newL, newN);
         gbuf_rng = rnd;
         return;
-    } 
+    }
 
-    // Sample photon wavelength via the inverse CDF of the emission spectrum
-    // (here w is spectral offset, i.e. wavelength = 360.0 + (750.0 - 360.0)*w)
-    // (linear interpolation into the inverse CDF texture and XYZ table should ensure smooth sampling over the range)
-    float w = texture(ICDF, vec2(rand(rnd), 0.5)).r;
+    // Sample photon wavelength via the inverse CDF of the emission spectrum.
+    // We limit the sampled wavelengths to between about 420nm and 700nm to avoid color mismatch at low sample count
+    float xi = 0.1+0.8*(0.5+floor(float(wavelengthSamples)*rand(rnd))) / float(wavelengthSamples);
+    float w = texture(ICDF, vec2(xi, 0.5)).r;
     float wavelength_nm = 390.0 + (750.0 - 390.0)*w;
 
     // Convert wavelength to XYZ tristimulus
     vec3 XYZ = texture(WavelengthToXYZ, vec2(w, 0.5)).rgb;
     vec3 RGB = clamp(xyzToRgb(XYZ), 0.0, 1.0);
-
+    
     // Jitter over pixel
     if (jitter) pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
 
@@ -1028,7 +1027,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     constructPrimaryRay(pixel, rnd, primaryStart, primaryDir);
 
     // Perform pathtrace to estimate the primary ray radiance, L
-    float L = 0.0;    
+    float L = 0.0;
     float throughput = 1.0;
     float misWeight = 1.0; // For MIS book-keeping
     vec3 pW = primaryStart;
@@ -1036,12 +1035,12 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     float sigma_t_max = VOLUME_EXTINCTION_MAX();
     float inv_sigma_t_max = 1.0/sigma_t_max;
     float eps = 3.0*minLengthScale;
-    const int maxWoodcockSteps = 128; 
+    const int maxWoodcockSteps = 128;
     const int maxVolHits = 16;
-    bool inDielectric = SDF_DIELECTRIC(primaryStart) < 0.0; 
+    bool inDielectric = SDF_DIELECTRIC(primaryStart) < 0.0;
     bool inVolume     = SDF_VOLUME(primaryStart) < 0.0;
 
-    for (int vertex=0; vertex<MAX_BOUNCES; ++vertex)
+    for (int vertex=0; vertex<=MAX_BOUNCES; ++vertex)
     {
         // Raycast along current propagation direction rayDir, from current vertex pW to pW_next
         vec3 pW_next;
@@ -1071,7 +1070,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
                 if (!inDielectric)
                 {
                     float distanceMarched = -log(rand(rnd)) * inv_sigma_t_max;
-                    int steps = 0; 
+                    int steps = 0;
                     while (distanceMarched<segmentLength-eps && steps<maxWoodcockSteps)
                     {
                         pScatter = pW + distanceMarched*rayDir;
@@ -1082,7 +1081,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
                         steps++;
                     }
                 }
-            
+
                 // Absorption/scattering event
                 if (interacted)
                 {
@@ -1109,17 +1108,17 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
                 else
                 {
                     pW = pW_next;
-                    if (hitMaterial==MAT_VOLUM) // if hitMaterial is volume boundary, displace pW into volume exterior 
+                    if (hitMaterial==MAT_VOLUM) // if hitMaterial is volume boundary, displace pW into volume exterior
                     {
                         vec3 nW = normal(pW, MAT_VOLUM);
                         pW += nW * eps;
                         inVolume = false;
                     }
                     else        // if hitMaterial is a surface, break and handle it (note, still inside volume)
-                        break;  // (or if !hit, that's a numerical glitch as we should be inside a closed volume boundary)               
+                        break;  // (or if !hit, that's a numerical glitch as we should be inside a closed volume boundary)
                 }
             }
-      
+
             // else if ray passed through the volume exterior and hit the volume boundary
             else // !inVolume
             {
@@ -1142,10 +1141,10 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         // If this ray didn't scatter and missed all geometry, add environment light term and terminate path
         if (!hit)
         {
-            float Li;
+            float Li = 0.0;
             bool sunVisible = true; // @todo: parameter
-            if (!(vertex==0 && !envMapVisible)) Li += environmentRadiance(rayDir, XYZ);
-            if (!(vertex==0 && !sunVisible))    Li += sunRadiance(rayDir, XYZ);
+            if (!(vertex==0 && !envMapVisible))      Li += environmentRadiance(rayDir, XYZ);
+            if (!(vertex==0 && !sunVisibleDirectly)) Li += sunRadiance(rayDir, XYZ);
             L += throughput * Li * misWeight;
             break;
         }
@@ -1161,7 +1160,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         pW = pW_next;
         vec3 nW = normal(pW, hitMaterial);
         Basis basis = makeBasis(nW);
-      
+
         // Sample BSDF for the next bounce direction
         vec3 woL = worldToLocal(woW, basis);
         vec3 wiL;
@@ -1171,7 +1170,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         rayDir = wiW; // Update ray direction
 
         // Detect dielectric transmission
-        if (hitMaterial==MAT_DIELE && dot(woW, nW)*dot(wiW, nW) < 0.0) 
+        if (hitMaterial==MAT_DIELE && dot(woW, nW)*dot(wiW, nW) < 0.0)
         {
             inDielectric = !inDielectric;
         }
@@ -1183,7 +1182,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
 
         // Add direct lighting term at current surface vertex
         float lightPdf = 0.0;
-        if (!inDielectric)
+        //if (!inDielectric)
         {
             L += throughput * directSurfaceLighting(pW, basis, woW, hitMaterial, wavelength_nm, XYZ, rnd, inVolume, lightPdf);
         }
@@ -1212,4 +1211,3 @@ void main()
     vec4 rnd = texture(RngData, vTexCoord);
     pathtrace(gl_FragCoord.xy, rnd);
 }
-
