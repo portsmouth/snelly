@@ -10,12 +10,12 @@
 */
 function Material(name)
 {
-	this._name = name;
+    this._name = name;
 }
 
 Material.prototype.getName = function()
 {
-	return this._name;
+    return this._name;
 }
 
 ////////////////////////////////////////////////////////
@@ -38,24 +38,24 @@ Material.prototype.getName = function()
 */
 function Surface(name)
 {
-	Material.call(this, name);
+    Material.call(this, name);
 
-	this.diffuseAlbedo = [1.0, 1.0, 1.0];
-	this.specAlbedo = [1.0, 1.0, 1.0];
-	this.roughness = 0.1;
-	this.ior = 1.5;
+    this.diffuseAlbedo = [1.0, 1.0, 1.0];
+    this.specAlbedo = [1.0, 1.0, 1.0];
+    this.roughness = 0.1;
+    this.ior = 1.5;
 }
 
 Surface.prototype = Object.create(Material.prototype);
 
 Surface.prototype.syncShader = function(shader)
 {
-	this.diffuseAlbedoXYZ = rgbToXyz(this.diffuseAlbedo);
-	this.specAlbedoXYZ    = rgbToXyz(this.specAlbedo);
-	shader.uniform3Fv("surfaceDiffuseAlbedoXYZ", this.diffuseAlbedoXYZ);
-	shader.uniform3Fv("surfaceSpecAlbedoXYZ", this.specAlbedoXYZ);
-	shader.uniformF("surfaceRoughness", this.roughness);
-	shader.uniformF("surfaceIor", this.ior);
+    this.diffuseAlbedoXYZ = rgbToXyz(this.diffuseAlbedo);
+    this.specAlbedoXYZ    = rgbToXyz(this.specAlbedo);
+    shader.uniform3Fv("surfaceDiffuseAlbedoXYZ", this.diffuseAlbedoXYZ);
+    shader.uniform3Fv("surfaceSpecAlbedoXYZ", this.specAlbedoXYZ);
+    shader.uniformF("surfaceRoughness", this.roughness);
+    shader.uniformF("surfaceIor", this.ior);
 }
 
 
@@ -99,52 +99,52 @@ Surface.prototype.syncShader = function(shader)
 */
 function Metal(name)
 {
-	Material.call(this, name);
-	this.roughness = 0.02;
-	this.specAlbedo = [1.0, 1.0, 1.0];
+    Material.call(this, name);
+    this.roughness = 0.02;
+    this.specAlbedo = [1.0, 1.0, 1.0];
 }
 
 Metal.prototype = Object.create(Material.prototype);
 
 Metal.prototype.syncShader = function(shader)
 {
-	shader.uniformF("metalRoughness", this.roughness);
+    shader.uniformF("metalRoughness", this.roughness);
 
-	this.specAlbedoXYZ = rgbToXyz(this.specAlbedo);
-	shader.uniform3Fv("metalSpecAlbedoXYZ", this.specAlbedoXYZ);
+    this.specAlbedoXYZ = rgbToXyz(this.specAlbedo);
+    shader.uniform3Fv("metalSpecAlbedoXYZ", this.specAlbedoXYZ);
 }
 
 Metal.prototype.initGui  = function(parentFolder) 
 { 
-	this.roughnessItem = parentFolder.add(this, 'roughness', 0.0, 0.1);
-	this.roughnessItem.onChange( function(value) { snelly.camControls.enabled = false; snelly.reset(true); } );
-	this.roughnessItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
+    this.roughnessItem = parentFolder.add(this, 'roughness', 0.0, 0.1);
+    this.roughnessItem.onChange( function(value) { snelly.camControls.enabled = false; snelly.reset(true); } );
+    this.roughnessItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 
-	this.specular = [this.specAlbedo[0]*255.0, this.specAlbedo[1]*255.0, this.specAlbedo[2]*255.0];
-	this.specItem = parentFolder.addColor(this, 'specular');
-	var ME = this;
-	this.specItem.onChange( function(albedo) {
-								if (typeof albedo==='string' || albedo instanceof String)
-								{
-									var color = hexToRgb(albedo);
-									ME.specAlbedo[0] = color.r / 255.0;
-									ME.specAlbedo[1] = color.g / 255.0;
-									ME.specAlbedo[2] = color.b / 255.0;
-								}
-								else
-								{
-									ME.specAlbedo[0] = albedo[0] / 255.0;
-									ME.specAlbedo[1] = albedo[1] / 255.0;
-									ME.specAlbedo[2] = albedo[2] / 255.0;
-								}
-								snelly.reset(true);
-							} );
+    this.specular = [this.specAlbedo[0]*255.0, this.specAlbedo[1]*255.0, this.specAlbedo[2]*255.0];
+    this.specItem = parentFolder.addColor(this, 'specular');
+    var ME = this;
+    this.specItem.onChange( function(albedo) {
+                                if (typeof albedo==='string' || albedo instanceof String)
+                                {
+                                    var color = hexToRgb(albedo);
+                                    ME.specAlbedo[0] = color.r / 255.0;
+                                    ME.specAlbedo[1] = color.g / 255.0;
+                                    ME.specAlbedo[2] = color.b / 255.0;
+                                }
+                                else
+                                {
+                                    ME.specAlbedo[0] = albedo[0] / 255.0;
+                                    ME.specAlbedo[1] = albedo[1] / 255.0;
+                                    ME.specAlbedo[2] = albedo[2] / 255.0;
+                                }
+                                snelly.reset(true);
+                            } );
 }
 
 Metal.prototype.eraseGui = function(parentFolder) 
 { 
-	parentFolder.remove(this.roughnessItem);
-	parentFolder.remove(this.specItem);
+    parentFolder.remove(this.roughnessItem);
+    parentFolder.remove(this.specItem);
 }
 
 function tabulated_aluminium() { // 64 samples of n, k between 390.000000nm and 750.000000nm
@@ -244,41 +244,41 @@ function tabulated_zirconium() { // 64 samples of n, k between 390.000000nm and 
 
 function TabulatedMetal(name, nk)
 {
-	Metal.call(this, name);
-	this.ior_tex  = new GLU.Texture(64, 1, 1, true, true, true, nk.n);
-	this.k_tex    = new GLU.Texture(64, 1, 1, true, true, true, nk.k);
+    Metal.call(this, name);
+    this.ior_tex  = new GLU.Texture(64, 1, 1, true, true, true, nk.n);
+    this.k_tex    = new GLU.Texture(64, 1, 1, true, true, true, nk.k);
 }
 
 TabulatedMetal.prototype = Object.create(Metal.prototype);
 
 TabulatedMetal.prototype.ior = function()
 {
-	// Defines GLSL functions which take wavelength (in nanometres) and return ior and k
-	var Nsample = 64;
-	var delta = 1.0/(750.0-390.0);
+    // Defines GLSL functions which take wavelength (in nanometres) and return ior and k
+    var Nsample = 64;
+    var delta = 1.0/(750.0-390.0);
 return `
 float IOR_METAL(float wavelength_nm)
 {
-	float u = (wavelength_nm - 390.0) * ${delta};
-	return texture(iorTex, vec2(u, 0.5)).r;
+    float u = (wavelength_nm - 390.0) * ${delta};
+    return texture(iorTex, vec2(u, 0.5)).r;
 }                                                       
 float K_METAL(float wavelength_nm)                                      
 {
-	float u = (wavelength_nm - 390.0) * ${delta};
-	return texture(kTex, vec2(u, 0.5)).r;
+    float u = (wavelength_nm - 390.0) * ${delta};
+    return texture(kTex, vec2(u, 0.5)).r;
 }
-	`;
+    `;
 }
 
 TabulatedMetal.prototype.syncShader = function(shader)
 {
-	this.ior_tex.bind(4);
+    this.ior_tex.bind(4);
     shader.uniformTexture("iorTex", this.ior_tex);
 
     this.k_tex.bind(5);
     shader.uniformTexture("k_tex", this.k_tex);
 
-	Metal.prototype.syncShader.call(this, shader);
+    Metal.prototype.syncShader.call(this, shader);
 }
 
 // set up gui and callbacks for this material
@@ -340,90 +340,90 @@ TabulatedMetal.prototype.eraseGui = function(parentFolder) { Metal.prototype.era
 */
 function Dielectric(name)
 {
-	Material.call(this, name);
-	this.roughness = 0.005;
-	this.absorptionScale = -1.0; // set later based on scene maxLengthScale
-	this.absorptionColor  = [1.0, 1.0, 1.0];
-	this.absorptionColorF = [0.0, 0.0, 0.0];
-	this.absorptionRGB    = [0.0, 0.0, 0.0];
-	this.specAlbedo = [1.0, 1.0, 1.0];
+    Material.call(this, name);
+    this.roughness = 0.005;
+    this.absorptionScale = -1.0; // set later based on scene maxLengthScale
+    this.absorptionColor  = [1.0, 1.0, 1.0];
+    this.absorptionColorF = [0.0, 0.0, 0.0];
+    this.absorptionRGB    = [0.0, 0.0, 0.0];
+    this.specAlbedo = [1.0, 1.0, 1.0];
 }
 
 Dielectric.prototype = Object.create(Material.prototype);
 
 Dielectric.prototype.syncShader = function(shader)
 {
-	shader.uniformF("dieleRoughness", this.roughness);
+    shader.uniformF("dieleRoughness", this.roughness);
 
-	this.specAlbedoXYZ = rgbToXyz(this.specAlbedo);
-	shader.uniform3Fv("dieleSpecAlbedoXYZ", this.specAlbedoXYZ);
+    this.specAlbedoXYZ = rgbToXyz(this.specAlbedo);
+    shader.uniform3Fv("dieleSpecAlbedoXYZ", this.specAlbedoXYZ);
 
-	this.absorptionRGB[0] = snelly.lengthScale/Math.max(this.absorptionScale, 1.0e-3) * Math.max(0.0, 1.0 - this.absorptionColor[0]);
-	this.absorptionRGB[1] = snelly.lengthScale/Math.max(this.absorptionScale, 1.0e-3) * Math.max(0.0, 1.0 - this.absorptionColor[1]);
-	this.absorptionRGB[2] = snelly.lengthScale/Math.max(this.absorptionScale, 1.0e-3) * Math.max(0.0, 1.0 - this.absorptionColor[2]);
+    this.absorptionRGB[0] = snelly.lengthScale/Math.max(this.absorptionScale, 1.0e-3) * Math.max(0.0, 1.0 - this.absorptionColor[0]);
+    this.absorptionRGB[1] = snelly.lengthScale/Math.max(this.absorptionScale, 1.0e-3) * Math.max(0.0, 1.0 - this.absorptionColor[1]);
+    this.absorptionRGB[2] = snelly.lengthScale/Math.max(this.absorptionScale, 1.0e-3) * Math.max(0.0, 1.0 - this.absorptionColor[2]);
 
-	shader.uniform3Fv("dieleAbsorptionRGB", this.absorptionRGB);
+    shader.uniform3Fv("dieleAbsorptionRGB", this.absorptionRGB);
 }
 
 Dielectric.prototype.initGui  = function(parentFolder) 
 { 
-	if (this.absorptionScale<0.0) this.absorptionScale = snelly.maxLengthScale; 
+    if (this.absorptionScale<0.0) this.absorptionScale = snelly.maxLengthScale; 
 
-	this.roughnessItem = parentFolder.add(this, 'roughness', 0.0, 0.1);
-	this.roughnessItem.onChange( function(value) { snelly.camControls.enabled = false; snelly.reset(true); } );
-	this.roughnessItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
+    this.roughnessItem = parentFolder.add(this, 'roughness', 0.0, 0.1);
+    this.roughnessItem.onChange( function(value) { snelly.camControls.enabled = false; snelly.reset(true); } );
+    this.roughnessItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 
-	this.absorption = [this.absorptionColor[0]*255.0, this.absorptionColor[1]*255.0, this.absorptionColor[2]*255.0];
-	this.absorptionColorItem = parentFolder.addColor(this, 'absorption');
-	var ME = this;
-	this.absorptionColorItem.onChange( function(value) {
-							if (typeof value==='string' || value instanceof String)
-							{
-								var color = hexToRgb(value);
-								ME.absorptionColor[0] = color.r / 255.0;
-								ME.absorptionColor[1] = color.g / 255.0;
-								ME.absorptionColor[2] = color.b / 255.0;
-							}
-							else
-							{
-								ME.absorptionColor[0] = value[0] / 255.0;
-								ME.absorptionColor[1] = value[1] / 255.0;
-								ME.absorptionColor[2] = value[2] / 255.0;
-							}
-							snelly.reset(true);
-						} );
+    this.absorption = [this.absorptionColor[0]*255.0, this.absorptionColor[1]*255.0, this.absorptionColor[2]*255.0];
+    this.absorptionColorItem = parentFolder.addColor(this, 'absorption');
+    var ME = this;
+    this.absorptionColorItem.onChange( function(value) {
+                            if (typeof value==='string' || value instanceof String)
+                            {
+                                var color = hexToRgb(value);
+                                ME.absorptionColor[0] = color.r / 255.0;
+                                ME.absorptionColor[1] = color.g / 255.0;
+                                ME.absorptionColor[2] = color.b / 255.0;
+                            }
+                            else
+                            {
+                                ME.absorptionColor[0] = value[0] / 255.0;
+                                ME.absorptionColor[1] = value[1] / 255.0;
+                                ME.absorptionColor[2] = value[2] / 255.0;
+                            }
+                            snelly.reset(true);
+                        } );
 
-	this.absorptionScaleItem = parentFolder.add(this, 'absorptionScale', 0.0, 10.0*snelly.lengthScale);
-	this.absorptionScaleItem.onChange( function(value) { snelly.camera.enabled = false; snelly.reset(true); } );
-	this.absorptionScaleItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
+    this.absorptionScaleItem = parentFolder.add(this, 'absorptionScale', 0.0, 10.0*snelly.lengthScale);
+    this.absorptionScaleItem.onChange( function(value) { snelly.camera.enabled = false; snelly.reset(true); } );
+    this.absorptionScaleItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 
-	this.specular = [this.specAlbedo[0]*255.0, this.specAlbedo[1]*255.0, this.specAlbedo[2]*255.0];
-	this.specItem = parentFolder.addColor(this, 'specular');
-	var ME = this;
-	this.specItem.onChange( function(albedo) {
-								if (typeof albedo==='string' || albedo instanceof String)
-								{
-									var color = hexToRgb(albedo);
-									ME.specAlbedo[0] = color.r / 255.0;
-									ME.specAlbedo[1] = color.g / 255.0;
-									ME.specAlbedo[2] = color.b / 255.0;
-								}
-								else
-								{
-									ME.specAlbedo[0] = albedo[0] / 255.0;
-									ME.specAlbedo[1] = albedo[1] / 255.0;
-									ME.specAlbedo[2] = albedo[2] / 255.0;
-								}
-								snelly.reset(true);
-							} );
+    this.specular = [this.specAlbedo[0]*255.0, this.specAlbedo[1]*255.0, this.specAlbedo[2]*255.0];
+    this.specItem = parentFolder.addColor(this, 'specular');
+    var ME = this;
+    this.specItem.onChange( function(albedo) {
+                                if (typeof albedo==='string' || albedo instanceof String)
+                                {
+                                    var color = hexToRgb(albedo);
+                                    ME.specAlbedo[0] = color.r / 255.0;
+                                    ME.specAlbedo[1] = color.g / 255.0;
+                                    ME.specAlbedo[2] = color.b / 255.0;
+                                }
+                                else
+                                {
+                                    ME.specAlbedo[0] = albedo[0] / 255.0;
+                                    ME.specAlbedo[1] = albedo[1] / 255.0;
+                                    ME.specAlbedo[2] = albedo[2] / 255.0;
+                                }
+                                snelly.reset(true);
+                            } );
 }
 
 Dielectric.prototype.eraseGui = function(parentFolder) 
 { 
-	parentFolder.remove(this.roughnessItem);
-	parentFolder.remove(this.specItem);
-	parentFolder.remove(this.absorptionColorItem);
-	parentFolder.remove(this.absorptionScaleItem);
+    parentFolder.remove(this.roughnessItem);
+    parentFolder.remove(this.specItem);
+    parentFolder.remove(this.absorptionColorItem);
+    parentFolder.remove(this.absorptionScaleItem);
 }
 
 
@@ -432,43 +432,43 @@ Dielectric.prototype.eraseGui = function(parentFolder)
 //
 function ConstantDielectric(name, iorVal) 
 {
-	Dielectric.call(this, name);
-	this.iorVal = iorVal;
+    Dielectric.call(this, name);
+    this.iorVal = iorVal;
 }
 
 ConstantDielectric.prototype = Object.create(Dielectric.prototype);
 
 ConstantDielectric.prototype.ior = function()
 {
-	return `
+    return `
 uniform float _iorVal;
 float IOR_DIELE(float wavelength_nm)  
 {                     
-	return _iorVal;   
+    return _iorVal;   
 }
-	`;
+    `;
 }
 
 ConstantDielectric.prototype.syncShader = function(shader)
 {
-	shader.uniformF("_iorVal", this.iorVal);
-	Dielectric.prototype.syncShader.call(this, shader);
+    shader.uniformF("_iorVal", this.iorVal);
+    Dielectric.prototype.syncShader.call(this, shader);
 }
 
 // set up gui and callbacks for this material
 ConstantDielectric.prototype.initGui = function(parentFolder)
 {
-	this.iorItem = parentFolder.add(this, 'iorVal', 0.0, 5.0);
-	this.iorItem.onChange( function(value) { snelly.camControls.enabled = false; snelly.reset(true); } );
-	this.iorItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
+    this.iorItem = parentFolder.add(this, 'iorVal', 0.0, 5.0);
+    this.iorItem.onChange( function(value) { snelly.camControls.enabled = false; snelly.reset(true); } );
+    this.iorItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 
-	Dielectric.prototype.initGui.call(this, parentFolder)
+    Dielectric.prototype.initGui.call(this, parentFolder)
 }
 
 ConstantDielectric.prototype.eraseGui = function(parentFolder)
 {
-	parentFolder.remove(this.iorItem);
-	Dielectric.prototype.eraseGui.call(this, parentFolder)
+    parentFolder.remove(this.iorItem);
+    Dielectric.prototype.eraseGui.call(this, parentFolder)
 }
 
 
@@ -476,46 +476,46 @@ ConstantDielectric.prototype.eraseGui = function(parentFolder)
 // The standard Sellmeier model for dielectrics (model 1 at refractiveindex.info)
 function SellmeierDielectric(name, coeffs) 
 {
-	Dielectric.call(this, name);
-	this.coeffs = coeffs;
+    Dielectric.call(this, name);
+    this.coeffs = coeffs;
 }
 
 SellmeierDielectric.prototype = Object.create(Dielectric.prototype);
 
 SellmeierDielectric.prototype.ior = function()
 {
-	var numTerms = (this.coeffs.length - 1)/2;
-	var IOR_FORMULA = `1.0 + _C1 `;
-	for (var t=1; t<=numTerms; ++t)
-	{
-		IOR_FORMULA += `+ _C${2*t}*l2/(l2 - _C${2*t+1}*_C${2*t+1})`;
-	}
+    var numTerms = (this.coeffs.length - 1)/2;
+    var IOR_FORMULA = `1.0 + _C1 `;
+    for (var t=1; t<=numTerms; ++t)
+    {
+        IOR_FORMULA += `+ _C${2*t}*l2/(l2 - _C${2*t+1}*_C${2*t+1})`;
+    }
 
-	// Defines a GLSL function which takes wavelength (in micrometres) and returns ior
-	var uniforms = '';
-	for (var n=1; n<=this.coeffs.length; ++n)
-	{
-		uniforms += `uniform float _C${n};\n`
-	}
-	var code = `${uniforms}    
+    // Defines a GLSL function which takes wavelength (in micrometres) and returns ior
+    var uniforms = '';
+    for (var n=1; n<=this.coeffs.length; ++n)
+    {
+        uniforms += `uniform float _C${n};\n`
+    }
+    var code = `${uniforms}    
 float IOR_DIELE(float wavelength_nm) 
 {                                                                                            
-	float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
-	float l2 = wavelength_um*wavelength_um;                                                                               
-	float n2 = ${IOR_FORMULA}; 
-	return max(sqrt(abs(n2)), 1.0e-3);                                                                     
+    float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
+    float l2 = wavelength_um*wavelength_um;                                                                               
+    float n2 = ${IOR_FORMULA}; 
+    return max(sqrt(abs(n2)), 1.0e-3);                                                                     
 }`;
 
-	return code;
+    return code;
 }
 
 SellmeierDielectric.prototype.syncShader = function(shader)
 {
-	for (var n=1; n<=this.coeffs.length; ++n)
-	{
-		shader.uniformF(`_C${n}`, this.coeffs[n-1]);
-	}
-	Dielectric.prototype.syncShader.call(this, shader);
+    for (var n=1; n<=this.coeffs.length; ++n)
+    {
+        shader.uniformF(`_C${n}`, this.coeffs[n-1]);
+    }
+    Dielectric.prototype.syncShader.call(this, shader);
 }
 
 // set up gui and callbacks for this material
@@ -527,46 +527,46 @@ SellmeierDielectric.prototype.eraseGui = function(parentFolder) { Dielectric.pro
 // coeffs array must have an odd number of elements (the constant, plus a pair per 'pole' term)
 function Sellmeier2Dielectric(name, coeffs) 
 {
-	Dielectric.call(this, name);
-	this.coeffs = coeffs;
+    Dielectric.call(this, name);
+    this.coeffs = coeffs;
 }
 
 Sellmeier2Dielectric.prototype = Object.create(Dielectric.prototype);
 
 Sellmeier2Dielectric.prototype.ior = function()
 {
-	var numTerms = (this.coeffs.length - 1)/2;
-	var IOR_FORMULA = `1.0 + _C1 `;
-	for (var t=1; t<=numTerms; ++t)
-	{
-		IOR_FORMULA += `+ _C${2*t}*l2/(l2 - _C${2*t+1})`;
-	}
+    var numTerms = (this.coeffs.length - 1)/2;
+    var IOR_FORMULA = `1.0 + _C1 `;
+    for (var t=1; t<=numTerms; ++t)
+    {
+        IOR_FORMULA += `+ _C${2*t}*l2/(l2 - _C${2*t+1})`;
+    }
 
-	// Defines a GLSL function which takes wavelength (in nanometres) and returns ior
-	var uniforms = '';
-	for (var n=1; n<=this.coeffs.length; ++n)
-	{
-		uniforms += `uniform float _C${n};\n`
-	}
-	var code = `${uniforms}    
+    // Defines a GLSL function which takes wavelength (in nanometres) and returns ior
+    var uniforms = '';
+    for (var n=1; n<=this.coeffs.length; ++n)
+    {
+        uniforms += `uniform float _C${n};\n`
+    }
+    var code = `${uniforms}    
 float IOR_DIELE(float wavelength_nm) 
 {                                                                                            
-	float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
-	float l2 = wavelength_um*wavelength_um;                                                                               
-	float n2 = ${IOR_FORMULA}; 
-	return max(sqrt(abs(n2)), 1.0e-3);                                                                     
+    float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
+    float l2 = wavelength_um*wavelength_um;                                                                               
+    float n2 = ${IOR_FORMULA}; 
+    return max(sqrt(abs(n2)), 1.0e-3);                                                                     
 }`;
 
-	return code;
+    return code;
 }
 
 Sellmeier2Dielectric.prototype.syncShader = function(shader)
 {
-	for (var n=1; n<=this.coeffs.length; ++n)
-	{
-		shader.uniformF(`_C${n}`, this.coeffs[n-1]);
-	}
-	Dielectric.prototype.syncShader.call(this, shader);
+    for (var n=1; n<=this.coeffs.length; ++n)
+    {
+        shader.uniformF(`_C${n}`, this.coeffs[n-1]);
+    }
+    Dielectric.prototype.syncShader.call(this, shader);
 }
 
 // set up gui and callbacks for this material
@@ -578,22 +578,22 @@ Sellmeier2Dielectric.prototype.eraseGui = function(parentFolder) { Dielectric.pr
 // Model 4 at Polyanskiy's refractiveindex.info:
 function PolyanskiyDielectric(name, coeffs) 
 {
-	Dielectric.call(this, name);
-	this.C1 = coeffs[0];
-	this.C2 = coeffs[1];
-	this.C3 = coeffs[2];
-	this.C4 = coeffs[3];
-	this.C5 = coeffs[4];
+    Dielectric.call(this, name);
+    this.C1 = coeffs[0];
+    this.C2 = coeffs[1];
+    this.C3 = coeffs[2];
+    this.C4 = coeffs[3];
+    this.C5 = coeffs[4];
 }
 
 PolyanskiyDielectric.prototype = Object.create(Dielectric.prototype);
 
 PolyanskiyDielectric.prototype.ior = function()
 {
-	var IOR_FORMULA = ' _C1 + _C2*pow(l, _C3)/(l*l - pow(_C4, _C5))'; 
+    var IOR_FORMULA = ' _C1 + _C2*pow(l, _C3)/(l*l - pow(_C4, _C5))'; 
 
-	// Defines a GLSL function which takes wavelength (in nanometres) and returns ior
-	var code = `
+    // Defines a GLSL function which takes wavelength (in nanometres) and returns ior
+    var code = `
 uniform float _C1;
 uniform float _C2;
 uniform float _C3;
@@ -601,23 +601,23 @@ uniform float _C4;
 uniform float _C5;
 float IOR_DIELE(float wavelength_nm) 
 {                                                                                            
-	float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
-	float l = wavelength_um;                                                                               
-	float n2 = ${IOR_FORMULA}; 
-	return max(sqrt(abs(n2)), 1.0e-3);                                                                     
+    float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
+    float l = wavelength_um;                                                                               
+    float n2 = ${IOR_FORMULA}; 
+    return max(sqrt(abs(n2)), 1.0e-3);                                                                     
 }`;
 
-	return code;
+    return code;
 }
 
 PolyanskiyDielectric.prototype.syncShader = function(shader)
 {
-	shader.uniformF('_C1', this.C1);
-	shader.uniformF('_C2', this.C2);
-	shader.uniformF('_C3', this.C3);
-	shader.uniformF('_C4', this.C4);
-	shader.uniformF('_C5', this.C5);
-	Dielectric.prototype.syncShader.call(this, shader);
+    shader.uniformF('_C1', this.C1);
+    shader.uniformF('_C2', this.C2);
+    shader.uniformF('_C3', this.C3);
+    shader.uniformF('_C4', this.C4);
+    shader.uniformF('_C5', this.C5);
+    Dielectric.prototype.syncShader.call(this, shader);
 }
 
 // set up gui and callbacks for this material
@@ -628,46 +628,46 @@ PolyanskiyDielectric.prototype.eraseGui = function(parentFolder) { Dielectric.pr
 // Cauchy model for dielectrics (model 5 at refractiveindex.info)
 function CauchyDielectric(name, coeffs) 
 {
-	Dielectric.call(this, name);
-	this.coeffs = coeffs;
+    Dielectric.call(this, name);
+    this.coeffs = coeffs;
 }
 
 CauchyDielectric.prototype = Object.create(Dielectric.prototype);
 
 CauchyDielectric.prototype.ior = function()
 {
-	var numTerms = (this.coeffs.length - 1)/2;
-	var IOR_FORMULA = `_C1`;
-	for (var t=1; t<=numTerms; ++t)
-	{
-		IOR_FORMULA += ` + _C${2*t}*pow(l, _C${2*t+1})`;
-	}
+    var numTerms = (this.coeffs.length - 1)/2;
+    var IOR_FORMULA = `_C1`;
+    for (var t=1; t<=numTerms; ++t)
+    {
+        IOR_FORMULA += ` + _C${2*t}*pow(l, _C${2*t+1})`;
+    }
 
-	// Defines a GLSL function which takes wavelength (in nanometres) and returns ior
-	var uniforms = '';
-	for (var n=1; n<=this.coeffs.length; ++n)
-	{
-		uniforms += `uniform float _C${n};\n`;
-	}
-	var code = `${uniforms}    
+    // Defines a GLSL function which takes wavelength (in nanometres) and returns ior
+    var uniforms = '';
+    for (var n=1; n<=this.coeffs.length; ++n)
+    {
+        uniforms += `uniform float _C${n};\n`;
+    }
+    var code = `${uniforms}    
 float IOR_DIELE(float wavelength_nm) 
 {                                                                                            
-	float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
-	float l = wavelength_um;                                                                               
-	float n = ${IOR_FORMULA}; 
-	return max(n, 1.0e-3);                                                                     
+    float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
+    float l = wavelength_um;                                                                               
+    float n = ${IOR_FORMULA}; 
+    return max(n, 1.0e-3);                                                                     
 }`;
 
-	return code;
+    return code;
 }
 
 CauchyDielectric.prototype.syncShader = function(shader)
 {
-	for (var n=1; n<=this.coeffs.length; ++n)
-	{
-		shader.uniformF(`_C${n}`, this.coeffs[n-1]);
-	}
-	Dielectric.prototype.syncShader.call(this, shader);
+    for (var n=1; n<=this.coeffs.length; ++n)
+    {
+        shader.uniformF(`_C${n}`, this.coeffs[n-1]);
+    }
+    Dielectric.prototype.syncShader.call(this, shader);
 }
 
 // set up gui and callbacks for this material
@@ -689,87 +689,87 @@ CauchyDielectric.prototype.eraseGui = function(parentFolder) { Dielectric.protot
 */
 var Materials = function()
 {
-	this.dielectrics = {}
-	this.metals = {}
-	this.dielectricObj = null;
-	this.metalObj = null;
-	{
-		// Dielectrics
-		this.addDielectric( new ConstantDielectric("Constant IOR dielectric", 1.5) ); 
-		this.addDielectric( new SellmeierDielectric("Glass (BK7)",       [0.0, 1.03961212, 0.00600069867, 0.231792344, 0.0200179144, 1.01046945,  103.560653]) );
-		this.addDielectric( new Sellmeier2Dielectric("Glass (K7)",       [0.0, 1.1273555,  0.00720341707, 0.124412303, 0.0269835916, 0.827100531, 100.384588]) );
-		this.addDielectric( new Sellmeier2Dielectric("Glass (F5)",       [0.0, 1.3104463,  0.00958633048, 0.19603426,  0.0457627627, 0.96612977,  115.011883]) );
-		this.addDielectric( new Sellmeier2Dielectric("Glass (LAFN7)",    [0.0, 1.66842615, 0.0103159999,  0.298512803, 0.0469216348, 1.0774376,   82.5078509]) );
-		this.addDielectric( new Sellmeier2Dielectric("Glass (LASF35)",   [0.0, 2.45505861, 0.0135670404,  0.453006077, 0.054580302,  2.3851308,   167.904715]) );
-		this.addDielectric( new Sellmeier2Dielectric("Glass (N-LAK33A)", [0.0, 1.44116999, 0.00680933877, 0.571749501, 0.0222291824, 1.16605226,  80.9379555]) );
-		this.addDielectric( new SellmeierDielectric("Glass (N-FK51A)",   [0.0, 0.97124781, 0.00472301995, 0.216901417, 0.0153575612, 0.90465166,  168.68133]) );
-		this.addDielectric( new Sellmeier2Dielectric("Glass (SF4)",      [0.0, 1.61957826, 0.0125502104,  0.339493189, 0.0544559822, 1.02566931,  117.652222]) );
-		this.addDielectric( new Sellmeier2Dielectric("Glass (SF67)",     [0.0, 1.97464225, 0.0145772324,  0.467095921, 0.0669790359, 2.43154209,  157.444895]) );
-		this.addDielectric( new Sellmeier2Dielectric("Water",            [0.0,        5.67252e-1, 5.08555046e-3, 1.736581e-1, 1.8149386e-2, 2.12153e-2, 2.61726e-2, 1.1384932e-1, 1.073888e1]) );
-		this.addDielectric( new Sellmeier2Dielectric("Ethanol",          [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
-		this.addDielectric( new Sellmeier2Dielectric("Polycarbonate",    [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
-		this.addDielectric( new CauchyDielectric("Glycerol",             [1.45797, 0.00598, -2, -0.00036, -4]) );
-		this.addDielectric( new CauchyDielectric("Liquid Crystal (E7)",  [1.4990,  0.0072,  -2,  0.0003,  -4]) );
-		this.addDielectric( new SellmeierDielectric("Diamond",           [0.0,        0.3306,     0.175,         4.3356,      0.1060]) );
-		this.addDielectric( new SellmeierDielectric("Quartz",            [0.0, 0.6961663, 0.0684043, 0.4079426, 0.1162414, 0.8974794, 9.896161]) );
-		this.addDielectric( new SellmeierDielectric("Fused Silica",      [0.0,        0.6961663,  0.0684043,     0.4079426,  0.1162414, 0.8974794, 9.896161]) );
-		this.addDielectric( new SellmeierDielectric("Sapphire",          [0.0,        1.5039759,  0.0740288,     0.55069141, 0.1216529, 6.5927379, 20.072248]) );
-		this.addDielectric( new SellmeierDielectric("Sodium Chloride",   [0.00055,    0.19800,    0.050,         0.48398,     0.100,        0.38696,   0.128]) );
-		this.addDielectric( new PolyanskiyDielectric("Proustite",        [7.483, 0.474, 0.0, 0.09, 1.0]) );
-		this.addDielectric( new PolyanskiyDielectric("Rutile",           [5.913, 0.2441, 0.0, 0.0803, 1.0]) );
-		this.addDielectric( new PolyanskiyDielectric("Silver Chloride",  [4.00804, 0.079086, 0.0, 0.04584, 1.0]) );
+    this.dielectrics = {}
+    this.metals = {}
+    this.dielectricObj = null;
+    this.metalObj = null;
+    {
+        // Dielectrics
+        this.addDielectric( new ConstantDielectric("Constant IOR dielectric", 1.5) ); 
+        this.addDielectric( new SellmeierDielectric("Glass (BK7)",       [0.0, 1.03961212, 0.00600069867, 0.231792344, 0.0200179144, 1.01046945,  103.560653]) );
+        this.addDielectric( new Sellmeier2Dielectric("Glass (K7)",       [0.0, 1.1273555,  0.00720341707, 0.124412303, 0.0269835916, 0.827100531, 100.384588]) );
+        this.addDielectric( new Sellmeier2Dielectric("Glass (F5)",       [0.0, 1.3104463,  0.00958633048, 0.19603426,  0.0457627627, 0.96612977,  115.011883]) );
+        this.addDielectric( new Sellmeier2Dielectric("Glass (LAFN7)",    [0.0, 1.66842615, 0.0103159999,  0.298512803, 0.0469216348, 1.0774376,   82.5078509]) );
+        this.addDielectric( new Sellmeier2Dielectric("Glass (LASF35)",   [0.0, 2.45505861, 0.0135670404,  0.453006077, 0.054580302,  2.3851308,   167.904715]) );
+        this.addDielectric( new Sellmeier2Dielectric("Glass (N-LAK33A)", [0.0, 1.44116999, 0.00680933877, 0.571749501, 0.0222291824, 1.16605226,  80.9379555]) );
+        this.addDielectric( new SellmeierDielectric("Glass (N-FK51A)",   [0.0, 0.97124781, 0.00472301995, 0.216901417, 0.0153575612, 0.90465166,  168.68133]) );
+        this.addDielectric( new Sellmeier2Dielectric("Glass (SF4)",      [0.0, 1.61957826, 0.0125502104,  0.339493189, 0.0544559822, 1.02566931,  117.652222]) );
+        this.addDielectric( new Sellmeier2Dielectric("Glass (SF67)",     [0.0, 1.97464225, 0.0145772324,  0.467095921, 0.0669790359, 2.43154209,  157.444895]) );
+        this.addDielectric( new Sellmeier2Dielectric("Water",            [0.0,        5.67252e-1, 5.08555046e-3, 1.736581e-1, 1.8149386e-2, 2.12153e-2, 2.61726e-2, 1.1384932e-1, 1.073888e1]) );
+        this.addDielectric( new Sellmeier2Dielectric("Ethanol",          [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
+        this.addDielectric( new Sellmeier2Dielectric("Polycarbonate",    [0.0,        0.83189,    0.00930,       -0.15582,    -49.45200]) );
+        this.addDielectric( new CauchyDielectric("Glycerol",             [1.45797, 0.00598, -2, -0.00036, -4]) );
+        this.addDielectric( new CauchyDielectric("Liquid Crystal (E7)",  [1.4990,  0.0072,  -2,  0.0003,  -4]) );
+        this.addDielectric( new SellmeierDielectric("Diamond",           [0.0,        0.3306,     0.175,         4.3356,      0.1060]) );
+        this.addDielectric( new SellmeierDielectric("Quartz",            [0.0, 0.6961663, 0.0684043, 0.4079426, 0.1162414, 0.8974794, 9.896161]) );
+        this.addDielectric( new SellmeierDielectric("Fused Silica",      [0.0,        0.6961663,  0.0684043,     0.4079426,  0.1162414, 0.8974794, 9.896161]) );
+        this.addDielectric( new SellmeierDielectric("Sapphire",          [0.0,        1.5039759,  0.0740288,     0.55069141, 0.1216529, 6.5927379, 20.072248]) );
+        this.addDielectric( new SellmeierDielectric("Sodium Chloride",   [0.00055,    0.19800,    0.050,         0.48398,     0.100,        0.38696,   0.128]) );
+        this.addDielectric( new PolyanskiyDielectric("Proustite",        [7.483, 0.474, 0.0, 0.09, 1.0]) );
+        this.addDielectric( new PolyanskiyDielectric("Rutile",           [5.913, 0.2441, 0.0, 0.0803, 1.0]) );
+        this.addDielectric( new PolyanskiyDielectric("Silver Chloride",  [4.00804, 0.079086, 0.0, 0.04584, 1.0]) );
 
-		// Metals
-		this.addMetal( new TabulatedMetal("Aluminium",  tabulated_aluminium() ));
-		this.addMetal( new TabulatedMetal("Brass",      tabulated_brass()     ));
-		this.addMetal( new TabulatedMetal("Calcium",    tabulated_calcium()   ));
-		this.addMetal( new TabulatedMetal("Chromium",   tabulated_chromium()  ));
-		this.addMetal( new TabulatedMetal("Cobalt",     tabulated_cobalt()    ));
-		this.addMetal( new TabulatedMetal("Copper",     tabulated_copper()    ));
-		this.addMetal( new TabulatedMetal("Gold",       tabulated_gold()      ));
-		this.addMetal( new TabulatedMetal("Iridium",    tabulated_iridium()   ));
-		this.addMetal( new TabulatedMetal("Iron",       tabulated_iron()      ));
-		this.addMetal( new TabulatedMetal("Lead",       tabulated_lead()      ));
-		this.addMetal( new TabulatedMetal("Mercury",    tabulated_mercury()   ));
-		this.addMetal( new TabulatedMetal("Molybdenum", tabulated_molybdenum()));
-		this.addMetal( new TabulatedMetal("Nickel",     tabulated_nickel()    ));
-		this.addMetal( new TabulatedMetal("Palladium",  tabulated_palladium() ));
-		this.addMetal( new TabulatedMetal("Platinum",   tabulated_platinum()  ));
-		this.addMetal( new TabulatedMetal("Silicon",    tabulated_silicon()   ));
-		this.addMetal( new TabulatedMetal("Silver",     tabulated_silver()    ));
-		this.addMetal( new TabulatedMetal("Titanium",   tabulated_titanium()  ));
-		this.addMetal( new TabulatedMetal("Tungsten",   tabulated_tungsten()  ));
-		this.addMetal( new TabulatedMetal("Vanadium",   tabulated_vanadium()  ));
-		this.addMetal( new TabulatedMetal("Zinc",       tabulated_zinc()      ));
-		this.addMetal( new TabulatedMetal("Zirconium",  tabulated_zirconium() ));
+        // Metals
+        this.addMetal( new TabulatedMetal("Aluminium",  tabulated_aluminium() ));
+        this.addMetal( new TabulatedMetal("Brass",      tabulated_brass()     ));
+        this.addMetal( new TabulatedMetal("Calcium",    tabulated_calcium()   ));
+        this.addMetal( new TabulatedMetal("Chromium",   tabulated_chromium()  ));
+        this.addMetal( new TabulatedMetal("Cobalt",     tabulated_cobalt()    ));
+        this.addMetal( new TabulatedMetal("Copper",     tabulated_copper()    ));
+        this.addMetal( new TabulatedMetal("Gold",       tabulated_gold()      ));
+        this.addMetal( new TabulatedMetal("Iridium",    tabulated_iridium()   ));
+        this.addMetal( new TabulatedMetal("Iron",       tabulated_iron()      ));
+        this.addMetal( new TabulatedMetal("Lead",       tabulated_lead()      ));
+        this.addMetal( new TabulatedMetal("Mercury",    tabulated_mercury()   ));
+        this.addMetal( new TabulatedMetal("Molybdenum", tabulated_molybdenum()));
+        this.addMetal( new TabulatedMetal("Nickel",     tabulated_nickel()    ));
+        this.addMetal( new TabulatedMetal("Palladium",  tabulated_palladium() ));
+        this.addMetal( new TabulatedMetal("Platinum",   tabulated_platinum()  ));
+        this.addMetal( new TabulatedMetal("Silicon",    tabulated_silicon()   ));
+        this.addMetal( new TabulatedMetal("Silver",     tabulated_silver()    ));
+        this.addMetal( new TabulatedMetal("Titanium",   tabulated_titanium()  ));
+        this.addMetal( new TabulatedMetal("Tungsten",   tabulated_tungsten()  ));
+        this.addMetal( new TabulatedMetal("Vanadium",   tabulated_vanadium()  ));
+        this.addMetal( new TabulatedMetal("Zinc",       tabulated_zinc()      ));
+        this.addMetal( new TabulatedMetal("Zirconium",  tabulated_zirconium() ));
 
-		// Surface (uber)
-		this.surfaceObj = new Surface("Surface", "");
+        // Surface (uber)
+        this.surfaceObj = new Surface("Surface", "");
 
-		// Defaults:
-		this.loadDielectric("Glass (BK7)");
-		this.loadMetal("Aluminium");
-	}
+        // Defaults:
+        this.loadDielectric("Glass (BK7)");
+        this.loadMetal("Aluminium");
+    }
 }
 
 Materials.prototype.addDielectric = function(materialObj)
 {
-	this.dielectrics[materialObj.getName()] = materialObj;
+    this.dielectrics[materialObj.getName()] = materialObj;
 }
 
 Materials.prototype.getDielectrics = function()
 {
-	return this.dielectrics;
+    return this.dielectrics;
 }
 
 Materials.prototype.addMetal = function(materialObj)
 {
-	this.metals[materialObj.getName()] = materialObj;
+    this.metals[materialObj.getName()] = materialObj;
 }
 
 Materials.prototype.getMetals = function()
 {
-	return this.metals;
+    return this.metals;
 }
 
 /**
@@ -803,8 +803,8 @@ Materials.prototype.getMetals = function()
 */
 Materials.prototype.loadDielectric = function(dielectricName)
 {
-	this.dielectricObj = this.dielectrics[dielectricName];
-	return this.dielectricObj;
+    this.dielectricObj = this.dielectrics[dielectricName];
+    return this.dielectricObj;
 }
 
 /**
@@ -838,13 +838,13 @@ Materials.prototype.loadDielectric = function(dielectricName)
 */
 Materials.prototype.loadMetal = function(metalName)
 {
-	this.metalObj = this.metals[metalName];
-	return this.metalObj;
+    this.metalObj = this.metals[metalName];
+    return this.metalObj;
 }
 
 Materials.prototype.getLoadedDielectric = function()
 {
-	return this.dielectricObj;
+    return this.dielectricObj;
 }
 
 /**
@@ -853,12 +853,12 @@ Materials.prototype.getLoadedDielectric = function()
 */
 Materials.prototype.getDielectric = function()
 {
-	return this.getLoadedDielectric();
+    return this.getLoadedDielectric();
 }
 
 Materials.prototype.getLoadedMetal = function()
 {
-	return this.metalObj;
+    return this.metalObj;
 }
 
 /**
@@ -867,13 +867,13 @@ Materials.prototype.getLoadedMetal = function()
 */
 Materials.prototype.getMetal = function()
 {
-	return this.getLoadedMetal();
+    return this.getLoadedMetal();
 }
 
 
 Materials.prototype.loadSurface  = function()
 {
-	return this.surfaceObj;
+    return this.surfaceObj;
 }
 
 /**
@@ -882,15 +882,15 @@ Materials.prototype.loadSurface  = function()
 */
 Materials.prototype.getSurface  = function()
 {
-	return this.surfaceObj;
+    return this.surfaceObj;
 }
 
 // Upload current material parameters
 Materials.prototype.syncShader  = function(program)
 {
-	if (this.metalObj      !== null) this.metalObj.syncShader(program);
-	if (this.dielectricObj !== null) this.dielectricObj.syncShader(program);
-	if (this.surfaceObj    !== null) this.surfaceObj.syncShader(program);
+    if (this.metalObj      !== null) this.metalObj.syncShader(program);
+    if (this.dielectricObj !== null) this.dielectricObj.syncShader(program);
+    if (this.surfaceObj    !== null) this.surfaceObj.syncShader(program);
 }
 
-	
+    
