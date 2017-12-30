@@ -17,7 +17,7 @@ uniform float maxLengthScale;
 uniform bool maxStepsIsMiss;
 uniform vec2 mousePick;
 
-#define MAT_VACUU  -1
+#define MAT_INVAL  -1
 #define MAT_DIELE  0
 #define MAT_METAL  1
 #define MAT_SURFA  2
@@ -28,7 +28,9 @@ uniform vec2 mousePick;
 // Dynamically injected code
 //////////////////////////////////////////////////////////////
 
-SHADER
+__DEFINES__
+
+__SHADER__
 
 ///////////////////////////////////////////////////////////////////////////////////
 // SDF raymarcher
@@ -39,30 +41,43 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
                    inout vec3 hit, inout int material)
 {
     float minMarchDist = minLengthScale;
-    float sdf_diele = abs(SDF_DIELECTRIC(start));
-    float sdf_metal = abs(SDF_METAL(start));
-    float sdf_surfa = abs(SDF_SURFACE(start));
-    float sdf = min(sdf_diele, min(sdf_metal, sdf_surfa));
-    float InitialSign = sign(sdf);
 
-    float t = 0.0;  
+    const float HUGE_VAL = 1.0e20;
+    float sdf = HUGE_VAL;
+#ifdef HAS_SURFACE
+    float sdf_surfa = abs(SDF_SURFACE(start));    sdf = min(sdf, sdf_surfa);
+#endif
+#ifdef HAS_METAL
+    float sdf_metal = abs(SDF_METAL(start));      sdf = min(sdf, sdf_metal);
+#endif
+#ifdef HAS_DIELECTRIC
+    float sdf_diele = abs(SDF_DIELECTRIC(start)); sdf = min(sdf, sdf_diele);
+#endif
+
+    float InitialSign = sign(sdf);
+    float t = 0.0;
     int iters=0;
-    for (int n=0; n<MAX_MARCH_STEPS; n++)
+    for (int n=0; n<__MAX_MARCH_STEPS__; n++)
     {
         // With this formula, the ray advances whether sdf is initially negative or positive --
-        // but on crossing the zero isosurface, sdf flips allowing bracketing of the root. 
+        // but on crossing the zero isosurface, sdf flips allowing bracketing of the root.
         t += InitialSign * sdf;
         if (t>=maxDist) break;
-        vec3 pW = start + t*dir;    
-        sdf_diele = abs(SDF_DIELECTRIC(pW)); if (sdf_diele<minMarchDist) { material = MAT_DIELE; break; }
-        sdf_metal = abs(SDF_METAL(pW));      if (sdf_metal<minMarchDist) { material = MAT_METAL; break; }
-        sdf_surfa = abs(SDF_SURFACE(pW));    if (sdf_surfa<minMarchDist) { material = MAT_SURFA; break; }
-        sdf = min(sdf_diele, min(sdf_metal, sdf_surfa));
+        vec3 pW = start + t*dir;
+#ifdef HAS_DIELECTRIC
+        sdf_diele = abs(SDF_DIELECTRIC(pW)); if (sdf_diele<minMarchDist) { material = MAT_DIELE; } sdf = min(sdf, sdf_diele); break;
+#endif
+#ifdef HAS_METAL
+        sdf_metal = abs(SDF_METAL(pW));      if (sdf_metal<minMarchDist) { material = MAT_METAL; } sdf = min(sdf, sdf_metal); break; 
+#endif
+#ifdef HAS_SURFACE
+        sdf_surfa = abs(SDF_SURFACE(pW));    if (sdf_surfa<minMarchDist) { material = MAT_SURFA; } sdf = min(sdf, sdf_surfa); break;
+#endif
         iters++;
     }
     hit = start + t*dir;
     if (t>=maxDist) return false;
-    if (maxStepsIsMiss && iters>=MAX_MARCH_STEPS) return false;
+    if (maxStepsIsMiss && iters>=__MAX_MARCH_STEPS__) return false;
     return true;
 }
 
@@ -70,7 +85,7 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
 bool traceRay(in vec3 start, in vec3 dir, 
               inout vec3 hit, inout int material, float maxMarchDist)
 {
-    material = MAT_VACUU;
+    material = MAT_INVAL;
     return traceDistance(start, dir, maxMarchDist, hit, material);
 }
 

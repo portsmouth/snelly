@@ -52,7 +52,7 @@ uniform float surfaceIor;
 #define PDF_EPSILON 1.0e-6
 #define THROUGHPUT_EPSILON 1.0e-5
 
-#define MAT_VACUU  -1
+#define MAT_INVAL  -1
 #define MAT_DIELE  0
 #define MAT_METAL  1
 #define MAT_SURFA  2
@@ -63,7 +63,9 @@ uniform float surfaceIor;
 // Dynamically injected code
 //////////////////////////////////////////////////////////////
 
-SHADER
+__DEFINES__
+
+__SHADER__
 
 ///////////////////////////////////////////////////////////////////////////////////
 // SDF raymarcher
@@ -74,30 +76,44 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
                    inout vec3 hit, inout int material)
 {
     float minMarchDist = minLengthScale;
-    float sdf_diele = abs(SDF_DIELECTRIC(start));
-    float sdf_metal = abs(SDF_METAL(start));
-    float sdf_surfa = abs(SDF_SURFACE(start));
-    float sdf = min(sdf_diele, min(sdf_metal, sdf_surfa));
-    float InitialSign = sign(sdf);
 
+    const float HUGE_VAL = 1.0e20;
+    float sdf = HUGE_VAL;
+#ifdef HAS_SURFACE
+    float sdf_surfa = abs(SDF_SURFACE(start));    sdf = min(sdf, sdf_surfa);
+#endif
+#ifdef HAS_METAL
+    float sdf_metal = abs(SDF_METAL(start));      sdf = min(sdf, sdf_metal);
+#endif
+#ifdef HAS_DIELECTRIC
+    float sdf_diele = abs(SDF_DIELECTRIC(start)); sdf = min(sdf, sdf_diele);
+#endif
+
+    float InitialSign = sign(sdf);
     float t = 0.0;
     int iters=0;
-    for (int n=0; n<MAX_MARCH_STEPS; n++)
+    for (int n=0; n<__MAX_MARCH_STEPS__; n++)
     {
         // With this formula, the ray advances whether sdf is initially negative or positive --
         // but on crossing the zero isosurface, sdf flips allowing bracketing of the root.
         t += InitialSign * sdf;
         if (t>=maxDist) break;
         vec3 pW = start + t*dir;
-        sdf_diele = abs(SDF_DIELECTRIC(pW)); if (sdf_diele<minMarchDist) { material = MAT_DIELE; break; }
-        sdf_metal = abs(SDF_METAL(pW));      if (sdf_metal<minMarchDist) { material = MAT_METAL; break; }
-        sdf_surfa = abs(SDF_SURFACE(pW));    if (sdf_surfa<minMarchDist) { material = MAT_SURFA; break; }
-        sdf = min(sdf_diele, min(sdf_metal, sdf_surfa));
+        sdf = HUGE_VAL;
+#ifdef HAS_SURFACE
+        sdf_surfa = abs(SDF_SURFACE(pW));    if (sdf_surfa<minMarchDist) { material = MAT_SURFA; break; } sdf = min(sdf, sdf_surfa);
+#endif
+#ifdef HAS_METAL
+        sdf_metal = abs(SDF_METAL(pW));      if (sdf_metal<minMarchDist) { material = MAT_METAL; break; } sdf = min(sdf, sdf_metal);
+#endif
+#ifdef HAS_DIELECTRIC
+        sdf_diele = abs(SDF_DIELECTRIC(pW)); if (sdf_diele<minMarchDist) { material = MAT_DIELE; break; } sdf = min(sdf, sdf_diele); 
+#endif
         iters++;
     }
     hit = start + t*dir;
     if (t>=maxDist) return false;
-    if (maxStepsIsMiss && iters>=MAX_MARCH_STEPS) return false;
+    if (maxStepsIsMiss && iters>=__MAX_MARCH_STEPS__) return false;
     return true;
 }
 
@@ -105,7 +121,7 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
 bool traceRay(in vec3 start, in vec3 dir,
               inout vec3 hit, inout int material, float maxMarchDist)
 {
-    material = MAT_VACUU;
+    material = MAT_INVAL;
     return traceDistance(start, dir, maxMarchDist, hit, material);
 }
 
@@ -128,10 +144,15 @@ vec3 normal(in vec3 pW, int material)
     vec3 yxyp = pW+e.yxy; vec3 yxyn = pW-e.yxy;
     vec3 yyxp = pW+e.yyx; vec3 yyxn = pW-e.yyx;
     vec3 N;
-    if      (material==MAT_DIELE) { N = vec3(SDF_DIELECTRIC(xyyp)-SDF_DIELECTRIC(xyyn), SDF_DIELECTRIC(yxyp)-SDF_DIELECTRIC(yxyn), SDF_DIELECTRIC(yyxp) - SDF_DIELECTRIC(yyxn)); }
-    else if (material==MAT_METAL) { N = vec3(SDF_METAL(xyyp)     -SDF_METAL(xyyn),      SDF_METAL(yxyp)     -SDF_METAL(yxyn),      SDF_METAL(yyxp)      - SDF_METAL(yyxn)); }
-    else                          { N = vec3(SDF_SURFACE(xyyp)   -SDF_SURFACE(xyyn),    SDF_SURFACE(yxyp)   -SDF_SURFACE(yxyn),    SDF_SURFACE(yyxp)    - SDF_SURFACE(yyxn)); }
-    return normalize(N);
+#ifdef HAS_SURFACE
+    if (material==MAT_SURFA) { N = vec3(   SDF_SURFACE(xyyp) -    SDF_SURFACE(xyyn),    SDF_SURFACE(yxyp) -    SDF_SURFACE(yxyn),    SDF_SURFACE(yyxp) -    SDF_SURFACE(yyxn)); return normalize(N); }
+#endif
+#ifdef HAS_METAL
+    if (material==MAT_METAL) { N = vec3(     SDF_METAL(xyyp) -      SDF_METAL(xyyn),      SDF_METAL(yxyp) -      SDF_METAL(yxyn),      SDF_METAL(yyxp) -      SDF_METAL(yyxn)); return normalize(N); }
+#endif
+#ifdef HAS_DIELECTRIC
+    if (material==MAT_DIELE) { N = vec3(SDF_DIELECTRIC(xyyp) - SDF_DIELECTRIC(xyyn), SDF_DIELECTRIC(yxyp) - SDF_DIELECTRIC(yxyn), SDF_DIELECTRIC(yyxp) - SDF_DIELECTRIC(yyxn)); return normalize(N); }
+#endif
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -386,8 +407,8 @@ out vec2 vTexCoord;
 
 void main() 
 {
-	gl_Position = vec4(Position, 1.0);
-	vTexCoord = TexCoord;
+    gl_Position = vec4(Position, 1.0);
+    vTexCoord = TexCoord;
 }
 `,
 
@@ -452,7 +473,9 @@ uniform float surfaceIor;
 // Dynamically injected code
 //////////////////////////////////////////////////////////////
 
-SHADER
+__DEFINES__
+
+__SHADER__
 
 ///////////////////////////////////////////////////////////////////////////////////
 // SDF raymarcher
@@ -463,29 +486,22 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist, inout vec3 hit)
 {
     float minMarch = minLengthScale;
     const float HUGE_VAL = 1.0e20;
-
-    // @todo: define out the tests which don't apply
     float sdf = abs(SDF_SURFACE(start));
     float InitialSign = sign(sdf);
     float t = InitialSign * sdf; // (always take the first step along the ray direction)
     if (t>=maxDist) return false;
-
-    for (int n=0; n<MAX_MARCH_STEPS; n++)
+    for (int n=0; n<__MAX_MARCH_STEPS__; n++)
     {
         vec3 pW = start + t*dir;
-        sdf = HUGE_VAL;
         float sdf_surfa = abs(SDF_SURFACE(pW));
         if (sdf_surfa<minMarch)
         {
             hit = start + t*dir;
             return true;
         }
-
-        sdf = min(sdf, sdf_surfa);
-
         // With this formula, the ray advances whether sdf is initially negative or positive --
         // but on crossing the zero isosurface, sdf flips allowing bracketing of the root.
-        t += InitialSign * sdf;
+        t += InitialSign * sdf_surfa;
         if (t>=maxDist) return false;
     }
     return !maxStepsIsMiss;
@@ -667,8 +683,8 @@ vec3 samplePhaseFunction(in vec3 rayDir, inout vec4 rnd)
 float phaseFunction(float mu)
 {
     float g = 0.0; // @todo: parameter
-	float gSqr = g*g;
-	return (1.0/(4.0*M_PI)) * (1.0 - gSqr) / pow(1.0 - 2.0*g*mu + gSqr, 1.5);
+    float gSqr = g*g;
+    return (1.0/(4.0*M_PI)) * (1.0 - gSqr) / pow(1.0 - 2.0*g*mu + gSqr, 1.5);
 }
 
 
@@ -1010,7 +1026,7 @@ void main()
         RGB += throughput * directSurfaceLighting(pW, basis, woW, rnd, lightPdf);
 
         // Add lighting term from BRDF sampling (optionally)
-        if (MAX_BOUNCES>0)
+        if (__MAX_BOUNCES__>0)
         {
             float eps = 3.0*minLengthScale;
             pW += nW * sign(dot(wiW, nW)) * eps;
@@ -1050,8 +1066,8 @@ out vec2 vTexCoord;
 
 void main() 
 {
-	gl_Position = vec4(Position, 1.0);
-	vTexCoord = TexCoord;
+    gl_Position = vec4(Position, 1.0);
+    vTexCoord = TexCoord;
 }
 `,
 
@@ -1107,7 +1123,7 @@ uniform float surfaceIor;
 #define PDF_EPSILON 1.0e-6
 #define THROUGHPUT_EPSILON 1.0e-5
 
-#define MAT_VACUU  -1
+#define MAT_INVAL  -1
 #define MAT_DIELE  0
 #define MAT_METAL  1
 #define MAT_SURFA  2
@@ -1118,7 +1134,9 @@ uniform float surfaceIor;
 // Dynamically injected code
 //////////////////////////////////////////////////////////////
 
-SHADER
+__DEFINES__
+
+__SHADER__
 
 ///////////////////////////////////////////////////////////////////////////////////
 // SDF raymarcher
@@ -1129,30 +1147,44 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
                    inout vec3 hit, inout int material)
 {
     float minMarchDist = minLengthScale;
-    float sdf_diele = abs(SDF_DIELECTRIC(start));
-    float sdf_metal = abs(SDF_METAL(start));
-    float sdf_surfa = abs(SDF_SURFACE(start));
-    float sdf = min(sdf_diele, min(sdf_metal, sdf_surfa));
-    float InitialSign = sign(sdf);
 
-    float t = 0.0;  
+    const float HUGE_VAL = 1.0e20;
+    float sdf = HUGE_VAL;
+#ifdef HAS_SURFACE
+    float sdf_surfa = abs(SDF_SURFACE(start));    sdf = min(sdf, sdf_surfa);
+#endif
+#ifdef HAS_METAL
+    float sdf_metal = abs(SDF_METAL(start));      sdf = min(sdf, sdf_metal);
+#endif
+#ifdef HAS_DIELECTRIC
+    float sdf_diele = abs(SDF_DIELECTRIC(start)); sdf = min(sdf, sdf_diele);
+#endif
+
+    float InitialSign = sign(sdf);
+    float t = 0.0;
     int iters=0;
-    for (int n=0; n<MAX_MARCH_STEPS; n++)
+    for (int n=0; n<__MAX_MARCH_STEPS__; n++)
     {
         // With this formula, the ray advances whether sdf is initially negative or positive --
-        // but on crossing the zero isosurface, sdf flips allowing bracketing of the root. 
+        // but on crossing the zero isosurface, sdf flips allowing bracketing of the root.
         t += InitialSign * sdf;
         if (t>=maxDist) break;
-        vec3 pW = start + t*dir;    
-        sdf_diele = abs(SDF_DIELECTRIC(pW)); if (sdf_diele<minMarchDist) { material = MAT_DIELE; break; }
-        sdf_metal = abs(SDF_METAL(pW));      if (sdf_metal<minMarchDist) { material = MAT_METAL; break; }
-        sdf_surfa = abs(SDF_SURFACE(pW));    if (sdf_surfa<minMarchDist) { material = MAT_SURFA; break; }
-        sdf = min(sdf_diele, min(sdf_metal, sdf_surfa));
+        vec3 pW = start + t*dir;
+        sdf = HUGE_VAL;
+#ifdef HAS_DIELECTRIC
+        sdf_diele = abs(SDF_DIELECTRIC(pW)); if (sdf_diele<minMarchDist) { material = MAT_DIELE; break; } sdf = min(sdf, sdf_diele); 
+#endif
+#ifdef HAS_METAL
+        sdf_metal = abs(SDF_METAL(pW));      if (sdf_metal<minMarchDist) { material = MAT_METAL; break; } sdf = min(sdf, sdf_metal);
+#endif
+#ifdef HAS_SURFACE
+        sdf_surfa = abs(SDF_SURFACE(pW));    if (sdf_surfa<minMarchDist) { material = MAT_SURFA; break; } sdf = min(sdf, sdf_surfa);
+#endif
         iters++;
     }
     hit = start + t*dir;
     if (t>=maxDist) return false;
-    if (maxStepsIsMiss && iters>=MAX_MARCH_STEPS) return false;
+    if (maxStepsIsMiss && iters>=__MAX_MARCH_STEPS__) return false;
     return true;
 }
 
@@ -1160,7 +1192,7 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
 bool traceRay(in vec3 start, in vec3 dir, 
               inout vec3 hit, inout int material, float maxMarchDist)
 {
-    material = MAT_VACUU;
+    material = MAT_INVAL;
     return traceDistance(start, dir, maxMarchDist, hit, material);
 }
 
@@ -1183,10 +1215,15 @@ vec3 normal(in vec3 pW, int material)
     vec3 yxyp = pW+e.yxy; vec3 yxyn = pW-e.yxy;
     vec3 yyxp = pW+e.yyx; vec3 yyxn = pW-e.yyx;
     vec3 N;
-    if      (material==MAT_DIELE) { N = vec3(SDF_DIELECTRIC(xyyp)-SDF_DIELECTRIC(xyyn), SDF_DIELECTRIC(yxyp)-SDF_DIELECTRIC(yxyn), SDF_DIELECTRIC(yyxp) - SDF_DIELECTRIC(yyxn)); }
-    else if (material==MAT_METAL) { N = vec3(SDF_METAL(xyyp)     -SDF_METAL(xyyn),      SDF_METAL(yxyp)     -SDF_METAL(yxyn),      SDF_METAL(yyxp)      - SDF_METAL(yyxn)); }
-    else                          { N = vec3(SDF_SURFACE(xyyp)   -SDF_SURFACE(xyyn),    SDF_SURFACE(yxyp)   -SDF_SURFACE(yxyn),    SDF_SURFACE(yyxp)    - SDF_SURFACE(yyxn)); }
-    return normalize(N);
+#ifdef HAS_SURFACE
+    if (material==MAT_SURFA) { N = vec3(   SDF_SURFACE(xyyp) -    SDF_SURFACE(xyyn),    SDF_SURFACE(yxyp) -    SDF_SURFACE(yxyn),    SDF_SURFACE(yyxp) -    SDF_SURFACE(yyxn)); return normalize(N); }
+#endif
+#ifdef HAS_METAL
+    if (material==MAT_METAL) { N = vec3(     SDF_METAL(xyyp) -      SDF_METAL(xyyn),      SDF_METAL(yxyp) -      SDF_METAL(yxyn),      SDF_METAL(yyxp) -      SDF_METAL(yyxn)); return normalize(N); }
+#endif
+#ifdef HAS_DIELECTRIC
+    if (material==MAT_DIELE) { N = vec3(SDF_DIELECTRIC(xyyp) - SDF_DIELECTRIC(xyyn), SDF_DIELECTRIC(yxyp) - SDF_DIELECTRIC(yxyn), SDF_DIELECTRIC(yyxp) - SDF_DIELECTRIC(yyxn)); return normalize(N); }
+#endif
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -1368,13 +1405,15 @@ out vec2 vTexCoord;
 
 void main() 
 {
-	gl_Position = vec4(Position, 1.0);
-	vTexCoord = TexCoord;
+    gl_Position = vec4(Position, 1.0);
+    vTexCoord = TexCoord;
 }
 `,
 
 'pathtracer-fragment-shader': `#version 300 es
 precision highp float;
+
+vec3 test(in vec3 pW, int material);
 
 uniform sampler2D Radiance;         // 0 (IO buffer)
 uniform sampler2D RngData;          // 1 (IO buffer)
@@ -1448,9 +1487,11 @@ uniform float surfaceIor;
 // Dynamically injected code
 //////////////////////////////////////////////////////////////
 
-SHADER
+__DEFINES__
 
-IOR_FUNC
+__SHADER__
+
+__IOR_FUNC__
 
 ///////////////////////////////////////////////////////////////////////////////////
 // SDF raymarcher
@@ -1478,29 +1519,39 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
 {
     float minMarch = minLengthScale;
     const float HUGE_VAL = 1.0e20;
-
-    // @todo: define out the tests which don't apply
     float sdf = HUGE_VAL;
+#ifdef HAS_SURFACE
     float sdf_surfa = abs(SDF_SURFACE(start));    sdf = min(sdf, sdf_surfa);
+#endif
+#ifdef HAS_METAL
     float sdf_metal = abs(SDF_METAL(start));      sdf = min(sdf, sdf_metal);
+#endif
+#ifdef HAS_DIELECTRIC
     float sdf_diele = abs(SDF_DIELECTRIC(start)); sdf = min(sdf, sdf_diele);
+#endif
+#ifdef HAS_VOLUME
     float sdf_volum = abs(SDF_VOLUME(start));     sdf = min(sdf, sdf_volum);
+#endif
 
     float InitialSign = sign(sdf);
     float t = InitialSign * sdf; // (always take the first step along the ray direction)
     if (t>=maxDist) return false;
-
-    for (int n=0; n<MAX_MARCH_STEPS; n++)
+    for (int n=0; n<__MAX_MARCH_STEPS__; n++)
     {
         vec3 pW = start + t*dir;
-
-        // @todo: define out the tests which don't apply
         sdf = HUGE_VAL;
+#ifdef HAS_SURFACE
         sdf_surfa = abs(SDF_SURFACE(pW));    if (sdf_surfa<minMarch) { material = MAT_SURFA; hit = start + t*dir; return true; } sdf = min(sdf, sdf_surfa);
+#endif
+#ifdef HAS_METAL
         sdf_metal = abs(SDF_METAL(pW));      if (sdf_metal<minMarch) { material = MAT_METAL; hit = start + t*dir; return true; } sdf = min(sdf, sdf_metal);
+#endif
+#ifdef HAS_DIELECTRIC
         sdf_diele = abs(SDF_DIELECTRIC(pW)); if (sdf_diele<minMarch) { material = MAT_DIELE; hit = start + t*dir; return true; } sdf = min(sdf, sdf_diele);
+#endif
+#ifdef HAS_VOLUME
         sdf_volum = abs(SDF_VOLUME(pW));     if (sdf_volum<minMarch) { material = MAT_VOLUM; hit = start + t*dir; return true; } sdf = min(sdf, sdf_volum);
-
+#endif
         // With this formula, the ray advances whether sdf is initially negative or positive --
         // but on crossing the zero isosurface, sdf flips allowing bracketing of the root.
         t += InitialSign * sdf;
@@ -1526,13 +1577,18 @@ vec3 normal(in vec3 pW, int material)
     vec3 yxyp = pW+e.yxy; vec3 yxyn = pW-e.yxy;
     vec3 yyxp = pW+e.yyx; vec3 yyxn = pW-e.yyx;
     vec3 N;
-
-    // @todo: define out the materials which don't apply
-    if      (material==MAT_DIELE) { N = vec3(SDF_DIELECTRIC(xyyp) - SDF_DIELECTRIC(xyyn), SDF_DIELECTRIC(yxyp) - SDF_DIELECTRIC(yxyn), SDF_DIELECTRIC(yyxp) - SDF_DIELECTRIC(yyxn)); }
-    else if (material==MAT_VOLUM) { N = vec3(    SDF_VOLUME(xyyp) -     SDF_VOLUME(xyyn),     SDF_VOLUME(yxyp) -     SDF_VOLUME(yxyn),     SDF_VOLUME(yyxp) -     SDF_VOLUME(yyxn)); }
-    else if (material==MAT_METAL) { N = vec3(     SDF_METAL(xyyp) -      SDF_METAL(xyyn),      SDF_METAL(yxyp) -      SDF_METAL(yxyn),      SDF_METAL(yyxp) -      SDF_METAL(yyxn)); }
-    else if (material==MAT_SURFA) { N = vec3(   SDF_SURFACE(xyyp) -    SDF_SURFACE(xyyn),    SDF_SURFACE(yxyp) -    SDF_SURFACE(yxyn),    SDF_SURFACE(yyxp) -    SDF_SURFACE(yyxn)); }
-    return normalize(N);
+#ifdef HAS_SURFACE
+    if (material==MAT_SURFA) { N = vec3(   SDF_SURFACE(xyyp) -    SDF_SURFACE(xyyn),    SDF_SURFACE(yxyp) -    SDF_SURFACE(yxyn),    SDF_SURFACE(yyxp) -    SDF_SURFACE(yyxn)); return normalize(N); }
+#endif
+#ifdef HAS_METAL
+    if (material==MAT_METAL) { N = vec3(     SDF_METAL(xyyp) -      SDF_METAL(xyyn),      SDF_METAL(yxyp) -      SDF_METAL(yxyn),      SDF_METAL(yyxp) -      SDF_METAL(yyxn)); return normalize(N); }
+#endif
+#ifdef HAS_DIELECTRIC
+    if (material==MAT_DIELE) { N = vec3(SDF_DIELECTRIC(xyyp) - SDF_DIELECTRIC(xyyn), SDF_DIELECTRIC(yxyp) - SDF_DIELECTRIC(yxyn), SDF_DIELECTRIC(yyxp) - SDF_DIELECTRIC(yyxn)); return normalize(N); }
+#endif
+#ifdef HAS_VOLUME
+    if (material==MAT_VOLUM) { N = vec3(    SDF_VOLUME(xyyp) -     SDF_VOLUME(xyyn),     SDF_VOLUME(yxyp) -     SDF_VOLUME(yxyn),     SDF_VOLUME(yyxp) -     SDF_VOLUME(yyxn)); return normalize(N); }
+#endif
 }
 
 // MC-estimates the amount of light transmitted along an infinite ray
@@ -1541,7 +1597,9 @@ float Visibility(in vec3 pW, in vec3 rayDir, inout vec4 rnd, bool inVolume)
     vec3 pW_next;
     int hitMaterial;
     bool hit = traceRay(pW, rayDir, pW_next, hitMaterial, maxLengthScale);
-
+#ifndef HAS_VOLUME
+    return float(!hit);
+#else
     // Deal with all volume interactions until the ray either hits a surface or escapes
     const int maxVolHits = 16;
     int volHits = 0;
@@ -1549,7 +1607,6 @@ float Visibility(in vec3 pW, in vec3 rayDir, inout vec4 rnd, bool inVolume)
     float inv_sigma_t_max = 1.0/sigma_t_max;
     float eps = 3.0*minLengthScale;
     const int maxWoodcockSteps = 128;
-
     while ((inVolume || hitMaterial==MAT_VOLUM) && volHits<maxVolHits)
     {
         // If ray lies in the volume interior
@@ -1601,9 +1658,8 @@ float Visibility(in vec3 pW, in vec3 rayDir, inout vec4 rnd, bool inVolume)
         hit = traceRay(pW, rayDir, pW_next, hitMaterial, maxLengthScale);
         volHits++;
     }
-
-    if (!hit || volHits==maxVolHits) return 1.0; // if no hit or scattering, return visibility 1.0 (transparent)
-    else return 0.0;
+    return float(!hit || volHits==maxVolHits); // if no hit or scattering, return visibility 1.0 (transparent)
+#endif // HAS_VOLUME
 }
 
 
@@ -1750,8 +1806,8 @@ vec3 samplePhaseFunction(in vec3 rayDir, inout vec4 rnd)
 float phaseFunction(float mu)
 {
     float g = 0.0; // @todo: parameter
-	float gSqr = g*g;
-	return (1.0/(4.0*M_PI)) * (1.0 - gSqr) / pow(1.0 - 2.0*g*mu + gSqr, 1.5);
+    float gSqr = g*g;
+    return (1.0/(4.0*M_PI)) * (1.0 - gSqr) / pow(1.0 - 2.0*g*mu + gSqr, 1.5);
 }
 
 
@@ -1812,6 +1868,8 @@ float smithG2(in vec3 woL, in vec3 wiL, in vec3 mLocal, float roughness)
 /////////////////////////////////////////////////////////////////////////
 // BRDF functions
 /////////////////////////////////////////////////////////////////////////
+
+#ifdef HAS_GEOMETRY
 
 // ****************************        Dielectric        ****************************
 
@@ -2182,26 +2240,45 @@ float sampleSurface(in vec3 X, in Basis basis, in vec3 woL, in vec3 XYZ,
 float evaluateBsdf( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm, in vec3 XYZ,
                     inout vec4 rnd )
 {
-    if      (material==MAT_DIELE) { return evaluateDielectric(X, basis, woL, wiL, wavelength_nm, XYZ); }
-    else if (material==MAT_METAL) { return      evaluateMetal(X, basis, woL, wiL, wavelength_nm, XYZ); }
-    else                          { return    evaluateSurface(X, basis, woL, wiL,                XYZ); }
+#ifdef HAS_SURFACE
+    if (material==MAT_SURFA) { return    evaluateSurface(X, basis, woL, wiL,                XYZ); }
+#endif
+#ifdef HAS_METAL
+    if (material==MAT_METAL) { return      evaluateMetal(X, basis, woL, wiL, wavelength_nm, XYZ); }
+#endif
+#ifdef HAS_DIELECTRIC
+    if (material==MAT_DIELE) { return evaluateDielectric(X, basis, woL, wiL, wavelength_nm, XYZ); }
+#endif
 }
 
 float sampleBsdf( in vec3 X, in Basis basis, in vec3 woL, in int material, in float wavelength_nm, in vec3 XYZ,
                   inout vec3 wiL, inout float pdfOut, inout vec4 rnd )
 {
-    if      (material==MAT_DIELE) { return sampleDielectric(X, basis, woL, wavelength_nm, XYZ, wiL, pdfOut, rnd); }
-    else if (material==MAT_METAL) { return      sampleMetal(X, basis, woL, wavelength_nm, XYZ, wiL, pdfOut, rnd); }
-    else                          { return    sampleSurface(X, basis, woL,                XYZ, wiL, pdfOut, rnd); }
+#ifdef HAS_SURFACE
+    if (material==MAT_SURFA) { return    sampleSurface(X, basis, woL,                XYZ, wiL, pdfOut, rnd); }
+#endif
+#ifdef HAS_METAL
+    if (material==MAT_METAL) { return      sampleMetal(X, basis, woL, wavelength_nm, XYZ, wiL, pdfOut, rnd); }
+#endif
+#ifdef HAS_DIELECTRIC
+    if (material==MAT_DIELE) { return sampleDielectric(X, basis, woL, wavelength_nm, XYZ, wiL, pdfOut, rnd); }
+#endif
 }
 
 float pdfBsdf( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm, in vec3 XYZ )
 {
-    if      (material==MAT_DIELE) { return pdfDielectric(X, basis, woL, wiL, wavelength_nm, XYZ); }
-    else if (material==MAT_METAL) { return      pdfMetal(X, basis, woL, wiL, wavelength_nm, XYZ); }
-    else                          { return    pdfSurface(X, basis, woL, wiL,                XYZ); }
+#ifdef HAS_SURFACE
+    if (material==MAT_SURFA) { return    pdfSurface(X, basis, woL, wiL,                XYZ); }
+#endif
+#ifdef HAS_METAL
+    if (material==MAT_METAL) { return      pdfMetal(X, basis, woL, wiL, wavelength_nm, XYZ); }
+#endif
+#ifdef HAS_DIELECTRIC
+    if (material==MAT_DIELE) { return pdfDielectric(X, basis, woL, wiL, wavelength_nm, XYZ); }
+#endif
 }
 
+#endif // HAS_GEOMETRY
 
 ////////////////////////////////////////////////////////////////////////////////
 // Light sampling
@@ -2258,6 +2335,8 @@ float sunRadiance(in vec3 dir, in vec3 XYZ)
     return dot(XYZ, XYZ_spec);
 }
 
+#ifdef HAS_GEOMETRY
+
 float sampleLightAtSurface(Basis basis, in vec3 XYZ, inout vec4 rnd, inout vec3 wiL, inout vec3 wiW, inout float lightPdf)
 {
     // Light sampling (choose either sun or sky)
@@ -2305,6 +2384,10 @@ float directSurfaceLighting(in vec3 pW, Basis basis, in vec3 woW, in int materia
     return fOverPdf * Li * abs(dot(wiW, basis.nW)) * misWeight;
 }
 
+#endif // HAS_GEOMETRY
+
+#ifdef HAS_VOLUME
+
 float sampleLightInVolume(in vec3 XYZ, inout vec4 rnd, inout vec3 wiW, inout float lightPdf)
 {
     // Light sampling (choose either sun or sky)
@@ -2342,6 +2425,8 @@ float directVolumeLighting(in vec3 pW, in vec3 woW, in vec3 XYZ, inout vec4 rnd,
     float fOverPdf = min(radianceClamp, f/max(PDF_EPSILON, lightPdf));
     return fOverPdf * Li;
 }
+
+#endif // HAS_VOLUME
 
 ////////////////////////////////////////////////////////////////////////////////
 // Pathtracing integrator
@@ -2408,15 +2493,20 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     float misWeight = 1.0; // For MIS book-keeping
     vec3 pW = primaryStart;
     vec3 rayDir = primaryDir; // (opposite to light direction)
+    bool inVolume = false;
+#ifdef HAS_VOLUME
     float sigma_t_max = VOLUME_EXTINCTION_MAX();
     float inv_sigma_t_max = 1.0/sigma_t_max;
-    float eps = 3.0*minLengthScale;
     const int maxWoodcockSteps = 128;
     const int maxVolHits = 16;
+    inVolume = SDF_VOLUME(primaryStart) < 0.0;
+#endif
+    float eps = 3.0*minLengthScale;
+#ifdef HAS_DIELECTRIC
     bool inDielectric = SDF_DIELECTRIC(primaryStart) < 0.0;
-    bool inVolume     = SDF_VOLUME(primaryStart) < 0.0;
+#endif
 
-    for (int vertex=0; vertex<=MAX_BOUNCES; ++vertex)
+    for (int vertex=0; vertex<=__MAX_BOUNCES__; ++vertex)
     {
         // Raycast along current propagation direction rayDir, from current vertex pW to pW_next
         vec3 pW_next;
@@ -2428,6 +2518,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
             rayLength = length(pW_next - pW);
         }
 
+#ifdef HAS_VOLUME
         // Deal with all volume interactions until the ray either hits a surface or escapes
         int volHits = 0;
         bool absorb = false;
@@ -2443,7 +2534,9 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
                 vec3 pScatter;
                 float sigma_t;
                 bool interacted = false;
+#ifdef HAS_DIELECTRIC
                 if (!inDielectric)
+#endif
                 {
                     float distanceMarched = -log(rand(rnd)) * inv_sigma_t_max;
                     int steps = 0;
@@ -2512,7 +2605,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         // If ray was absorbed by the volume, terminate
         if (absorb) break;
         if (volHits == maxVolHits) hit = false;
-        vec3 woW = -rayDir;
+#endif // HAS_VOLUME
 
         // If this ray didn't scatter and missed all geometry, add environment light term and terminate path
         if (!hit)
@@ -2525,11 +2618,16 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
             break;
         }
 
+#ifndef HAS_GEOMETRY
+        break;
+#else
         // If the current ray lies inside a dielectric, apply Beer's law for absorption
+#ifdef HAS_DIELECTRIC
         if (inDielectric)
         {
             throughput *= exp(-rayLength*dot(dieleAbsorptionRGB, RGB));
         }
+#endif
 
         // This ray didn't scatter but hit some geometry, so deal with the surface interaction.
         // First, compute normal at current surface vertex
@@ -2538,6 +2636,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         Basis basis = makeBasis(nW);
 
         // Sample BSDF for the next bounce direction
+        vec3 woW = -rayDir;
         vec3 woL = worldToLocal(woW, basis);
         vec3 wiL;
         float bsdfPdf;
@@ -2546,10 +2645,12 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         rayDir = wiW; // Update ray direction
 
         // Detect dielectric transmission
+#ifdef HAS_DIELECTRIC
         if (hitMaterial==MAT_DIELE && dot(woW, nW)*dot(wiW, nW) < 0.0)
         {
             inDielectric = !inDielectric;
         }
+#endif
 
         // Update path throughput
         float fOverPdf = min(radianceClamp, f/max(PDF_EPSILON, bsdfPdf));
@@ -2558,14 +2659,17 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
 
         // Add direct lighting term at current surface vertex
         float lightPdf = 0.0;
-        //if (!inDielectric)
+#ifdef HAS_DIELECTRIC
+        if (!inDielectric)
+#endif
         {
             L += throughput * directSurfaceLighting(pW, basis, woW, hitMaterial, wavelength_nm, XYZ, rnd, inVolume, lightPdf);
         }
 
         // Prepare for tracing the bounce ray
-        pW += nW * sign(dot(wiW, nW)) * eps;                 // perturb vertex into half-space of scattered ray
-        float misWeight = powerHeuristic(bsdfPdf, lightPdf); // compute MIS weight for bounce ray
+        pW += nW * sign(dot(wiW, nW)) * eps;           // perturb vertex into half-space of scattered ray
+        misWeight = powerHeuristic(bsdfPdf, lightPdf); // compute MIS weight for bounce ray
+#endif // HAS_GEOMETRY
     }
 
     // Compute tristimulus contribution from estimated radiance
@@ -2599,8 +2703,8 @@ out vec2 vTexCoord;
 
 void main() 
 {
-	gl_Position = vec4(Position, 1.0);
-	vTexCoord = TexCoord;
+    gl_Position = vec4(Position, 1.0);
+    vTexCoord = TexCoord;
 }
 `,
 
@@ -2624,7 +2728,7 @@ uniform float maxLengthScale;
 uniform bool maxStepsIsMiss;
 uniform vec2 mousePick;
 
-#define MAT_VACUU  -1
+#define MAT_INVAL  -1
 #define MAT_DIELE  0
 #define MAT_METAL  1
 #define MAT_SURFA  2
@@ -2635,7 +2739,9 @@ uniform vec2 mousePick;
 // Dynamically injected code
 //////////////////////////////////////////////////////////////
 
-SHADER
+__DEFINES__
+
+__SHADER__
 
 ///////////////////////////////////////////////////////////////////////////////////
 // SDF raymarcher
@@ -2646,30 +2752,43 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
                    inout vec3 hit, inout int material)
 {
     float minMarchDist = minLengthScale;
-    float sdf_diele = abs(SDF_DIELECTRIC(start));
-    float sdf_metal = abs(SDF_METAL(start));
-    float sdf_surfa = abs(SDF_SURFACE(start));
-    float sdf = min(sdf_diele, min(sdf_metal, sdf_surfa));
-    float InitialSign = sign(sdf);
 
-    float t = 0.0;  
+    const float HUGE_VAL = 1.0e20;
+    float sdf = HUGE_VAL;
+#ifdef HAS_SURFACE
+    float sdf_surfa = abs(SDF_SURFACE(start));    sdf = min(sdf, sdf_surfa);
+#endif
+#ifdef HAS_METAL
+    float sdf_metal = abs(SDF_METAL(start));      sdf = min(sdf, sdf_metal);
+#endif
+#ifdef HAS_DIELECTRIC
+    float sdf_diele = abs(SDF_DIELECTRIC(start)); sdf = min(sdf, sdf_diele);
+#endif
+
+    float InitialSign = sign(sdf);
+    float t = 0.0;
     int iters=0;
-    for (int n=0; n<MAX_MARCH_STEPS; n++)
+    for (int n=0; n<__MAX_MARCH_STEPS__; n++)
     {
         // With this formula, the ray advances whether sdf is initially negative or positive --
-        // but on crossing the zero isosurface, sdf flips allowing bracketing of the root. 
+        // but on crossing the zero isosurface, sdf flips allowing bracketing of the root.
         t += InitialSign * sdf;
         if (t>=maxDist) break;
-        vec3 pW = start + t*dir;    
-        sdf_diele = abs(SDF_DIELECTRIC(pW)); if (sdf_diele<minMarchDist) { material = MAT_DIELE; break; }
-        sdf_metal = abs(SDF_METAL(pW));      if (sdf_metal<minMarchDist) { material = MAT_METAL; break; }
-        sdf_surfa = abs(SDF_SURFACE(pW));    if (sdf_surfa<minMarchDist) { material = MAT_SURFA; break; }
-        sdf = min(sdf_diele, min(sdf_metal, sdf_surfa));
+        vec3 pW = start + t*dir;
+#ifdef HAS_DIELECTRIC
+        sdf_diele = abs(SDF_DIELECTRIC(pW)); if (sdf_diele<minMarchDist) { material = MAT_DIELE; } sdf = min(sdf, sdf_diele); break;
+#endif
+#ifdef HAS_METAL
+        sdf_metal = abs(SDF_METAL(pW));      if (sdf_metal<minMarchDist) { material = MAT_METAL; } sdf = min(sdf, sdf_metal); break; 
+#endif
+#ifdef HAS_SURFACE
+        sdf_surfa = abs(SDF_SURFACE(pW));    if (sdf_surfa<minMarchDist) { material = MAT_SURFA; } sdf = min(sdf, sdf_surfa); break;
+#endif
         iters++;
     }
     hit = start + t*dir;
     if (t>=maxDist) return false;
-    if (maxStepsIsMiss && iters>=MAX_MARCH_STEPS) return false;
+    if (maxStepsIsMiss && iters>=__MAX_MARCH_STEPS__) return false;
     return true;
 }
 
@@ -2677,7 +2796,7 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
 bool traceRay(in vec3 start, in vec3 dir, 
               inout vec3 hit, inout int material, float maxMarchDist)
 {
-    material = MAT_VACUU;
+    material = MAT_INVAL;
     return traceDistance(start, dir, maxMarchDist, hit, material);
 }
 
@@ -2746,8 +2865,8 @@ out vec2 vTexCoord;
 
 void main() 
 {
-	gl_Position = vec4(Position, 1.0);
-	vTexCoord = TexCoord;
+    gl_Position = vec4(Position, 1.0);
+    vTexCoord = TexCoord;
 }
 `,
 
@@ -2766,46 +2885,46 @@ out vec4 outputColor;
 
 void constrain_rgb(inout vec3 RGB)
 {
-	float w;
-	w = (0.0 < RGB.r) ? 0.0 : RGB.r;
-	w = (w   < RGB.g) ? 0.0 : RGB.g;
-	w = (w   < RGB.b) ? 0.0 : RGB.b;
-	w = -w;
-	if (w>0.0)
-	{
-		RGB.r += w; RGB.g += w; RGB.b += w;
-	}
+    float w;
+    w = (0.0 < RGB.r) ? 0.0 : RGB.r;
+    w = (w   < RGB.g) ? 0.0 : RGB.g;
+    w = (w   < RGB.b) ? 0.0 : RGB.b;
+    w = -w;
+    if (w>0.0)
+    {
+        RGB.r += w; RGB.g += w; RGB.b += w;
+    }
 }
 
 void main()
 {
-	vec3 L = exposure * texture(Radiance, vTexCoord).rgb;
-	float X = L.x;
-	float Y = L.y;
-	float Z = L.z;
-	float sum = X + Y + Z;
-	float x = X / sum;
-	float y = Y / sum; 
+    vec3 L = exposure * texture(Radiance, vTexCoord).rgb;
+    float X = L.x;
+    float Y = L.y;
+    float Z = L.z;
+    float sum = X + Y + Z;
+    float x = X / sum;
+    float y = Y / sum; 
 
-	// compute Reinhard tonemapping scale factor
-	float scale = (1.0 + Y/(whitepoint*whitepoint)) / (1.0 + Y);
-	Y *= scale;
-	X = x * Y / y;
-	Z = (1.0 - x - y) * (Y / y);
+    // compute Reinhard tonemapping scale factor
+    float scale = (1.0 + Y/(whitepoint*whitepoint)) / (1.0 + Y);
+    Y *= scale;
+    X = x * Y / y;
+    Z = (1.0 - x - y) * (Y / y);
 
-	// convert XYZ tristimulus to sRGB color space
-	vec3 RGB;
-	RGB.r =  3.2406*X - 1.5372*Y - 0.4986*Z;
-	RGB.g = -0.9689*X + 1.8758*Y + 0.0415*Z;
-	RGB.b =  0.0557*X - 0.2040*Y + 1.0570*Z;
+    // convert XYZ tristimulus to sRGB color space
+    vec3 RGB;
+    RGB.r =  3.2406*X - 1.5372*Y - 0.4986*Z;
+    RGB.g = -0.9689*X + 1.8758*Y + 0.0415*Z;
+    RGB.b =  0.0557*X - 0.2040*Y + 1.0570*Z;
 
-	// deal with out-of-gamut RGB.
-	constrain_rgb(RGB);
+    // deal with out-of-gamut RGB.
+    constrain_rgb(RGB);
 
-	// apply gamma correction
-	vec3 S = pow(abs(RGB), vec3(invGamma));
+    // apply gamma correction
+    vec3 S = pow(abs(RGB), vec3(invGamma));
 
-	outputColor = vec4(S, 0.0);
+    outputColor = vec4(S, 0.0);
 }
 `,
 
@@ -2818,8 +2937,8 @@ out vec2 vTexCoord;
 
 void main() 
 {
-	gl_Position = vec4(Position, 1.0);
-	vTexCoord = TexCoord;
+    gl_Position = vec4(Position, 1.0);
+    vTexCoord = TexCoord;
 }
 `,
 

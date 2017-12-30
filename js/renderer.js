@@ -143,7 +143,15 @@ var Renderer = function()
     this.AA = true;
 
     // Load shaders
-    this.shaderSources = GLU.resolveShaderSource(["pathtracer", "ao", "normals", "firsthit", "pick", "tonemapper"]);
+    this.shaderSources = GLU.resolveShaderSource({
+        'pathtracer': {'v': 'pathtracer-vertex-shader', 'f': 'pathtracer-fragment-shader'},
+        'ao':         {'v': 'ao-vertex-shader',         'f': 'ao-fragment-shader'        },
+        'normals':    {'v': 'normals-vertex-shader',    'f': 'normals-fragment-shader'   },
+        'firsthit':   {'v': 'firsthit-vertex-shader',   'f': 'firsthit-fragment-shader'  },
+        'tonemapper': {'v': 'tonemapper-vertex-shader', 'f': 'tonemapper-fragment-shader'},
+        'pick':       {'v': 'pick-vertex-shader',       'f': 'pick-fragment-shader'}
+    });
+
     this.filterPrograms = null;
 
     // load env map
@@ -229,26 +237,36 @@ Renderer.prototype.compileShaders = function()
     // Insert default functions for those not implemented
     if (shader.indexOf("INIT(")                            == -1) { shader += `\n void INIT() {}\n`; }
 
-    if (shader.indexOf("SDF_SURFACE(")                     == -1) { shader += `\n float SDF_SURFACE(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
-     if (shader.indexOf("SURFACE_DIFFUSE_REFLECTANCE(")     == -1) { shader += `\n vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
-     if (shader.indexOf("SURFACE_SPECULAR_REFLECTANCE(")    == -1) { shader += `\n vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
-     if (shader.indexOf("SURFACE_ROUGHNESS(")               == -1) { shader += `\n float SURFACE_ROUGHNESS(in float roughness, in vec3 X, in vec3 N) { return roughness; }\n`; }
+    let hasSurface = true;
+    if (shader.indexOf("SDF_SURFACE(")                     == -1) { hasSurface = false; }
+    if (shader.indexOf("SURFACE_DIFFUSE_REFLECTANCE(")     == -1) { shader += `\n vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
+    if (shader.indexOf("SURFACE_SPECULAR_REFLECTANCE(")    == -1) { shader += `\n vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
+    if (shader.indexOf("SURFACE_ROUGHNESS(")               == -1) { shader += `\n float SURFACE_ROUGHNESS(in float roughness, in vec3 X, in vec3 N) { return roughness; }\n`; }
 
-     if (shader.indexOf("SDF_METAL(")                       == -1) { shader += `\n float SDF_METAL(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
-     if (shader.indexOf("METAL_SPECULAR_REFLECTANCE(")      == -1) { shader += `\n vec3 METAL_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
-     if (shader.indexOf("METAL_ROUGHNESS(")                 == -1) { shader += `\n float METAL_ROUGHNESS(in float roughness, in vec3 X, in vec3 N) { return roughness; }\n`; }
+    let hasMetal = true;
+    if (shader.indexOf("SDF_METAL(")                       == -1) { hasMetal = false; }
+    if (shader.indexOf("METAL_SPECULAR_REFLECTANCE(")      == -1) { shader += `\n vec3 METAL_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
+    if (shader.indexOf("METAL_ROUGHNESS(")                 == -1) { shader += `\n float METAL_ROUGHNESS(in float roughness, in vec3 X, in vec3 N) { return roughness; }\n`; }
 
-     if (shader.indexOf("SDF_DIELECTRIC(")                  == -1) { shader += `\n float SDF_DIELECTRIC(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
-     if (shader.indexOf("DIELECTRIC_SPECULAR_REFLECTANCE(") == -1) { shader += `\n vec3 DIELECTRIC_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
-     if (shader.indexOf("DIELECTRIC_ROUGHNESS(")            == -1) { shader += `\n float DIELECTRIC_ROUGHNESS(in float roughness, in vec3 X, in vec3 N) { return roughness; }\n`; }
+    let hasDielectric = true;
+    if (shader.indexOf("SDF_DIELECTRIC(")                  == -1) { hasDielectric = false; }
+    if (shader.indexOf("DIELECTRIC_SPECULAR_REFLECTANCE(") == -1) { shader += `\n vec3 DIELECTRIC_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
+    if (shader.indexOf("DIELECTRIC_ROUGHNESS(")            == -1) { shader += `\n float DIELECTRIC_ROUGHNESS(in float roughness, in vec3 X, in vec3 N) { return roughness; }\n`; }
 
-    if (shader.indexOf("SDF_VOLUME(")                      == -1) { shader += `\n float SDF_VOLUME(vec3 X) { const float HUGE_VAL = 1.0e20; return HUGE_VAL; }\n`; }
-    if (shader.indexOf("VOLUME_EXTINCTION(")               == -1) { shader += `\n float VOLUME_EXTINCTION(vec3 X) { return 0.0; }\n`; }
-    if (shader.indexOf("VOLUME_EXTINCTION_MAX(")           == -1) { shader += `\n float VOLUME_EXTINCTION_MAX() { return 0.0; }\n`; }
-    if (shader.indexOf("VOLUME_ALBEDO(")                   == -1) { shader += `\n vec3 VOLUME_ALBEDO(vec3 X) { return vec3(0.0); }\n`; }
+    let hasVolume = true;
+    if (shader.indexOf("SDF_VOLUME(")                      == -1) { hasVolume= false; }
+    if (shader.indexOf("VOLUME_EXTINCTION(")               == -1) { hasVolume= false; }
+    if (shader.indexOf("VOLUME_EXTINCTION_MAX(")           == -1) { hasVolume= false; }
+    if (shader.indexOf("VOLUME_ALBEDO(")                   == -1) { hasVolume= false; }
     if (shader.indexOf("VOLUME_EMISSION(")                 == -1) { shader += `\n vec3 VOLUME_EMISSION(vec3 X) { return vec3(0.0); }\n`; }
 
-    // @todo: insert material GLSL code
+    let hasGeometry = (hasSurface || hasMetal || hasDielectric);
+    if ( !(hasGeometry || hasVolume) )
+    { 
+        GLU.fail('Scene must define at least one of: SDF_SURFACE, SDF_METAL, SDF_DIELECTRIC, or SDF_VOLUME'); 
+    }
+    
+    // Insert material GLSL code
     var dielectricObj = snelly.getLoadedDielectric(); if (dielectricObj == null) return;
     var metalObj      = snelly.getLoadedMetal();      if (metalObj == null) return;
     iorCodeDiele    = dielectricObj.ior();
@@ -257,10 +275,17 @@ Renderer.prototype.compileShaders = function()
     // Copy the current scene and material routines into the source code
     // of the trace fragment shader
     replacements = {};
-    replacements.SHADER          = shader;
-    replacements.IOR_FUNC        = iorCodeDiele + '\n' + iorCodeMetal;
-    replacements.MAX_MARCH_STEPS = this.maxMarchSteps;
-    replacements.MAX_BOUNCES     = this.maxBounces;
+    replacements.__SHADER__          = shader;
+    replacements.__IOR_FUNC__        = iorCodeDiele + '\n' + iorCodeMetal;
+    replacements.__MAX_MARCH_STEPS__ = this.maxMarchSteps;
+    replacements.__MAX_BOUNCES__     = this.maxBounces;
+    
+    replacements.__DEFINES__ = '';
+    if (hasSurface)    replacements.__DEFINES__ += '\n#define HAS_SURFACE\n';
+    if (hasMetal)      replacements.__DEFINES__ += '\n#define HAS_METAL\n';
+    if (hasDielectric) replacements.__DEFINES__ += '\n#define HAS_DIELECTRIC\n';
+    if (hasVolume)     replacements.__DEFINES__ += '\n#define HAS_VOLUME\n';
+    if (hasGeometry)   replacements.__DEFINES__ += '\n#define HAS_GEOMETRY\n';
 
     // Compile pathtracer with different entry point according to mode.
     // Here shaderSources is a dict from name (e.g. "trace")
@@ -274,6 +299,10 @@ Renderer.prototype.compileShaders = function()
             this.normalsProgram = new GLU.Shader('normals', this.shaderSources, replacements);
             break;
         case 'firsthit':
+            if (!hasSurface) 
+            {
+                GLU.fail('"firsthit" shader requires definition of SDF_SURFACE'); 
+            }
             this.firsthitProgram = new GLU.Shader('firsthit', this.shaderSources, replacements);
             break;
         case 'pt':

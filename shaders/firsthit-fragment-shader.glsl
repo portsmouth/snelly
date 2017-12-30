@@ -58,7 +58,9 @@ uniform float surfaceIor;
 // Dynamically injected code
 //////////////////////////////////////////////////////////////
 
-SHADER
+__DEFINES__
+
+__SHADER__
 
 ///////////////////////////////////////////////////////////////////////////////////
 // SDF raymarcher
@@ -69,29 +71,22 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist, inout vec3 hit)
 {
     float minMarch = minLengthScale;
     const float HUGE_VAL = 1.0e20;
-
-    // @todo: define out the tests which don't apply
     float sdf = abs(SDF_SURFACE(start));
     float InitialSign = sign(sdf);
     float t = InitialSign * sdf; // (always take the first step along the ray direction)
     if (t>=maxDist) return false;
-
-    for (int n=0; n<MAX_MARCH_STEPS; n++)
+    for (int n=0; n<__MAX_MARCH_STEPS__; n++)
     {
         vec3 pW = start + t*dir;
-        sdf = HUGE_VAL;
         float sdf_surfa = abs(SDF_SURFACE(pW));
         if (sdf_surfa<minMarch)
         {
             hit = start + t*dir;
             return true;
         }
-
-        sdf = min(sdf, sdf_surfa);
-
         // With this formula, the ray advances whether sdf is initially negative or positive --
         // but on crossing the zero isosurface, sdf flips allowing bracketing of the root.
-        t += InitialSign * sdf;
+        t += InitialSign * sdf_surfa;
         if (t>=maxDist) return false;
     }
     return !maxStepsIsMiss;
@@ -273,8 +268,8 @@ vec3 samplePhaseFunction(in vec3 rayDir, inout vec4 rnd)
 float phaseFunction(float mu)
 {
     float g = 0.0; // @todo: parameter
-	float gSqr = g*g;
-	return (1.0/(4.0*M_PI)) * (1.0 - gSqr) / pow(1.0 - 2.0*g*mu + gSqr, 1.5);
+    float gSqr = g*g;
+    return (1.0/(4.0*M_PI)) * (1.0 - gSqr) / pow(1.0 - 2.0*g*mu + gSqr, 1.5);
 }
 
 
@@ -616,7 +611,7 @@ void main()
         RGB += throughput * directSurfaceLighting(pW, basis, woW, rnd, lightPdf);
 
         // Add lighting term from BRDF sampling (optionally)
-        if (MAX_BOUNCES>0)
+        if (__MAX_BOUNCES__>0)
         {
             float eps = 3.0*minLengthScale;
             pW += nW * sign(dot(wiW, nW)) * eps;
