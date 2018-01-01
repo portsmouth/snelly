@@ -53,6 +53,7 @@ uniform float surfaceIor;
 #define MAT_DIELE  0
 #define MAT_METAL  1
 #define MAT_SURFA  2
+#define MAT_VOLUM  3
 
 #define M_PI 3.1415926535897932384626433832795
 
@@ -85,6 +86,9 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
 #ifdef HAS_DIELECTRIC
     float sdf_diele = abs(SDF_DIELECTRIC(start)); sdf = min(sdf, sdf_diele);
 #endif
+#ifdef HAS_VOLUME
+    float sdf_volum = abs(SDF_VOLUME(start)); sdf = min(sdf, sdf_volum);
+#endif
 
     float InitialSign = sign(sdf);
     float t = 0.0;
@@ -105,6 +109,9 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
 #endif
 #ifdef HAS_DIELECTRIC
         sdf_diele = abs(SDF_DIELECTRIC(pW)); if (sdf_diele<minMarchDist) { material = MAT_DIELE; break; } sdf = min(sdf, sdf_diele); 
+#endif
+#ifdef HAS_VOLUME
+        sdf_volum = abs(SDF_VOLUME(pW)); if (sdf_volum<minMarchDist) { material = MAT_VOLUM; break; } sdf = min(sdf, sdf_volum); 
 #endif
         iters++;
     }
@@ -149,6 +156,9 @@ vec3 normal(in vec3 pW, int material)
 #endif
 #ifdef HAS_DIELECTRIC
     if (material==MAT_DIELE) { N = vec3(SDF_DIELECTRIC(xyyp) - SDF_DIELECTRIC(xyyn), SDF_DIELECTRIC(yxyp) - SDF_DIELECTRIC(yxyn), SDF_DIELECTRIC(yyxp) - SDF_DIELECTRIC(yyxn)); return normalize(N); }
+#endif
+#ifdef HAS_VOLUME
+    if (material==MAT_VOLUM) { N = vec3(    SDF_VOLUME(xyyp) -     SDF_VOLUME(xyyn),     SDF_VOLUME(yxyp) -     SDF_VOLUME(yxyn),     SDF_VOLUME(yyxp) -     SDF_VOLUME(yyxn)); return normalize(N); }
 #endif
 }
 

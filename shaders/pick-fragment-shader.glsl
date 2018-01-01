@@ -21,6 +21,7 @@ uniform vec2 mousePick;
 #define MAT_DIELE  0
 #define MAT_METAL  1
 #define MAT_SURFA  2
+#define MAT_VOLUM  3
 
 #define M_PI 3.1415926535897932384626433832795
 
@@ -53,6 +54,9 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
 #ifdef HAS_DIELECTRIC
     float sdf_diele = abs(SDF_DIELECTRIC(start)); sdf = min(sdf, sdf_diele);
 #endif
+#ifdef HAS_VOLUME
+    float sdf_volum = abs(SDF_VOLUME(start)); sdf = min(sdf, sdf_volum);
+#endif
 
     float InitialSign = sign(sdf);
     float t = 0.0;
@@ -64,14 +68,18 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
         t += InitialSign * sdf;
         if (t>=maxDist) break;
         vec3 pW = start + t*dir;
-#ifdef HAS_DIELECTRIC
-        sdf_diele = abs(SDF_DIELECTRIC(pW)); if (sdf_diele<minMarchDist) { material = MAT_DIELE; } sdf = min(sdf, sdf_diele); break;
+        sdf = HUGE_VAL;
+#ifdef HAS_SURFACE
+        sdf_surfa = abs(SDF_SURFACE(pW));    if (sdf_surfa<minMarchDist) { material = MAT_SURFA; break; } sdf = min(sdf, sdf_surfa);
 #endif
 #ifdef HAS_METAL
-        sdf_metal = abs(SDF_METAL(pW));      if (sdf_metal<minMarchDist) { material = MAT_METAL; } sdf = min(sdf, sdf_metal); break; 
+        sdf_metal = abs(SDF_METAL(pW));      if (sdf_metal<minMarchDist) { material = MAT_METAL; break; } sdf = min(sdf, sdf_metal);
 #endif
-#ifdef HAS_SURFACE
-        sdf_surfa = abs(SDF_SURFACE(pW));    if (sdf_surfa<minMarchDist) { material = MAT_SURFA; } sdf = min(sdf, sdf_surfa); break;
+#ifdef HAS_DIELECTRIC
+        sdf_diele = abs(SDF_DIELECTRIC(pW)); if (sdf_diele<minMarchDist) { material = MAT_DIELE; break; } sdf = min(sdf, sdf_diele); 
+#endif
+#ifdef HAS_VOLUME
+        sdf_volum = abs(SDF_VOLUME(pW)); if (sdf_volum<minMarchDist) { material = MAT_VOLUM; break; } sdf = min(sdf, sdf_volum); 
 #endif
         iters++;
     }
@@ -133,7 +141,6 @@ void main()
     vec3 pW;
     int hitMaterial;
     bool hit = traceRay(primaryStart, primaryDir, pW, hitMaterial, maxLengthScale);
-
     float d = maxLengthScale;
     if (hit)
     {
