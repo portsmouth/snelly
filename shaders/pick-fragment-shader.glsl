@@ -120,7 +120,7 @@ float rand(inout vec4 rnd)
 void constructPickRay(in vec2 pixel,
                       inout vec3 primaryStart, inout vec3 primaryDir)
 {
-    // Compute world ray direction for given (possibly jittered) fragment
+    // Compute world ray direction for given fragment
     vec2 ndc = -1.0 + 2.0*(pixel/resolution.xy);
     float fh = tan(0.5*radians(camFovy)); // frustum height
     float fw = camAspect*fh;

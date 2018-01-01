@@ -4,10 +4,9 @@ uniform sampler2D Radiance;         // 0 (IO buffer)
 uniform sampler2D RngData;          // 1 (IO buffer)
 uniform sampler2D WavelengthToXYZ;  // 2
 uniform sampler2D ICDF;             // 3
-uniform sampler2D RadianceBlocks;   // 4
-uniform sampler2D iorTex;           // 5 (for metals)
-uniform sampler2D kTex;             // 6 (for metals)
-uniform sampler2D envMap;           // 7
+uniform sampler2D iorTex;           // 4 (for metals)
+uniform sampler2D kTex;             // 5 (for metals)
+uniform sampler2D envMap;           // 6
 in vec2 vTexCoord;
 
 layout(location = 0) out vec4 gbuf_rad;
@@ -33,7 +32,6 @@ uniform float radianceClamp;
 uniform float skipProbability;
 uniform float shadowStrength;
 uniform bool maxStepsIsMiss;
-uniform bool jitter;
 
 uniform float metalRoughness;
 uniform vec3 metalSpecAlbedoXYZ;
@@ -296,7 +294,7 @@ void main()
 
     vec4 rnd = texture(RngData, vTexCoord);
     vec2 pixel = gl_FragCoord.xy;
-    if (jitter) pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
+    pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
 
     vec3 primaryStart, primaryDir;
     constructPrimaryRay(pixel, rnd, primaryStart, primaryDir);

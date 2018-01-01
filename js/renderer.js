@@ -514,7 +514,6 @@ Renderer.prototype.render = function()
     INTEGRATOR_PROGRAM.uniformI("envMapVisible", Boolean(this.envMapVisible) ? 1 : 0);
     INTEGRATOR_PROGRAM.uniformF("envMapRotation", Math.min(Math.max(this.envMapRotation, 0.0), 360.0));
     INTEGRATOR_PROGRAM.uniformI("maxStepsIsMiss", Boolean(this.maxStepsIsMiss) ? 1 : 0);
-    INTEGRATOR_PROGRAM.uniformF("jitter", Boolean(this.AA) ? 1 : 0);
     INTEGRATOR_PROGRAM.uniformI("wavelengthSamples", this.wavelengthSamples);
     
     // Attach radiance FBO

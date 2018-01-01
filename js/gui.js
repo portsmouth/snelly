@@ -85,7 +85,6 @@ GUI.prototype.createRendererSettings = function()
     this.tonemappingFolder.add(pathtracer, 'exposure', -3.0, 3.0);
     this.tonemappingFolder.add(pathtracer, 'gamma', 0.0, 3.0);
     this.tonemappingFolder.add(pathtracer, 'whitepoint', 0.0, 3.0);
-    this.tonemappingFolder.add(pathtracer, 'AA').onChange( function(value) { pathtracer.reset(true); } );
     this.tonemappingFolder.close();
     
     // lighting folder
@@ -343,7 +342,7 @@ GUI.prototype.createMaterialSettings = function()
         var volumeObj = snelly.getVolume();
         
         this.volumeFolder.mfp = 1.0 / volumeObj.extinction;
-        this.mfpItem = this.volumeFolder.add(this.volumeFolder, 'mfp', 0.0, 1.0);
+        this.mfpItem = this.volumeFolder.add(this.volumeFolder, 'mfp', 0.0, 10.0);
         this.mfpItem.onChange( function(mfp) { volumeObj.extinction = 1.0/mfp; snelly.reset(true); });
 
         this.volumeFolder.scatteringColor = [volumeObj.scatteringColor[0]*255.0, volumeObj.scatteringColor[1]*255.0, volumeObj.scatteringColor[2]*255.0];
