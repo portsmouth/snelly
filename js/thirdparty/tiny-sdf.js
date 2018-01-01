@@ -36,28 +36,25 @@ TextSDF.prototype.getResVertical = function()
     return this.H;
 }
 
-TextSDF.prototype.draw = function (char) {
+TextSDF.prototype.draw = function (text) 
+{
     this.ctx.clearRect(0, 0, this.W, this.H);
-    this.ctx.fillText(char, 0, this.H/2, this.W);
-
+    this.ctx.fillText(text, 0, this.H/2, this.W);
     var imgData = this.ctx.getImageData(0, 0, this.W, this.H);
-    var alphaChannel = new Float32Array(this.W * this.H);
-
     for (var i = 0; i < this.W * this.H; i++) {
         var a = imgData.data[i * 4 + 3] / 255; // alpha value
         this.gridOuter[i] = a === 1 ? 0 : a === 0 ? INF : Math.pow(Math.max(0, 0.5 - a), 2);
         this.gridInner[i] = a === 1 ? INF : a === 0 ? 0 : Math.pow(Math.max(0, a - 0.5), 2);
     }
-
     edt(this.gridOuter, this.W, this.H, this.f, this.d, this.v, this.z);
     edt(this.gridInner, this.W, this.H, this.f, this.d, this.v, this.z);
 
+    var sdf = new Float32Array(this.W * this.H);
     for (i = 0; i < this.W * this.H; i++) {
         var d = this.gridOuter[i] - this.gridInner[i];
-        alphaChannel[i] = d / this.W; // SDF in units of texture width
+        sdf[i] = d / this.W; // SDF in units of texture width
     }
-
-    return alphaChannel;
+    return sdf;
 };
 
 // 2D Euclidean distance transform by Felzenszwalb & Huttenlocher https://cs.brown.edu/~pff/dt/
