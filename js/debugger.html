@@ -39,7 +39,7 @@ Scene.prototype.init = function(snelly)
     let renderer  = snelly.getRenderer();
     //renderer.width = 3000;
     //renderer.height = 2100;
-    renderer.minsSPPToRedraw = 1.0;
+    //renderer.minsSPPToRedraw = 1.0;
 }
 
 Scene.prototype.shader = function()
@@ -82,6 +82,12 @@ Scene.prototype.shader = function()
             return vec3(abs(cos(X.x)), abs(sin(X.y)), abs(cos(X.z)));
         }
     }
+
+    float SDF_VOLUME(vec3 X)
+    {
+        return sdSphere(X, 1.0);
+    }
+
     `;
 }
 

@@ -63,8 +63,10 @@ PathtracerState.prototype.clear = function(fbo)
 * @property {number} width                     - (if not specified, fits to window)
 * @property {number} height                    - (if not specified, fits to window)
 * @property {String} [renderMode='pt']         - rendering mode (either 'pt', 'ao', 'normals', 'firsthit')
-* @property {number} [maxBounces=3]            - maximum number of surface or volume bounces
+* @property {number} [maxBounces=3]            - maximum number of surface bounces
+* @property {number} [maxScatters=2]           - maximum number of volumetric scatterings
 * @property {number} [maxMarchSteps=256]       - maximum number of raymarching steps per path segment
+* @property {number} [maxVolumeSteps=256]      - maximum number of Woodcock tracking steps per path segment
 * @property {number} [maxStepsIsMiss=true]     - whether rays which exceed max step count are considered hits or misses
 * @property {number} [radianceClamp=3.0]       - clamp radiance to (10^) this max value, for firefly reduction
 * @property {number} [wavelengthSamples=1024]  - number of samples to take over visible wavelength range
@@ -120,7 +122,9 @@ var Renderer = function()
     // Default user-adjustable properties
     this.renderMode = 'pt';
     this.maxBounces = 3;
+    this.maxScatters = 2;
     this.maxMarchSteps = 256;
+    this.maxVolumeSteps = 256;
     this.radianceClamp = 3.0;
     this.wavelengthSamples = 1024;
     this.skyPower = 1.0;
@@ -158,10 +162,10 @@ var Renderer = function()
     this.loaded = true;
     var sceneObj = snelly.getScene();
     this.envMap = null;
-    if (typeof sceneObj.envMap !== "undefined")
+    if (typeof(sceneObj.envMap) !== "undefined")
       {
           var url = sceneObj.envMap();
-          if (url != "")
+          if (typeof(url) != "undefined" && url != "")
           {
               var pathtracer = this;
               this.loaded = false;
@@ -170,8 +174,6 @@ var Renderer = function()
                     {
                         pathtracer.loaded =  true;
                         pathtracer.envMap = imgInfo;
-
-
                     });
               })(pathtracer.loaded);
           }
@@ -255,10 +257,12 @@ Renderer.prototype.compileShaders = function()
 
     let hasVolume = true;
     if (shader.indexOf("SDF_VOLUME(")                      == -1) { hasVolume= false; }
-    if (shader.indexOf("VOLUME_EXTINCTION(")               == -1) { hasVolume= false; }
-    if (shader.indexOf("VOLUME_EXTINCTION_MAX(")           == -1) { hasVolume= false; }
-    if (shader.indexOf("VOLUME_ALBEDO(")                   == -1) { hasVolume= false; }
-    if (shader.indexOf("VOLUME_EMISSION(")                 == -1) { shader += `\n vec3 VOLUME_EMISSION(vec3 X) { return vec3(0.0); }\n`; }
+    if (shader.indexOf("VOLUME_EXTINCTION(")               == -1) { shader += `\n float VOLUME_EXTINCTION(float extinction_ui, vec3 X) { return extinction_ui; }\n`; }
+    if (shader.indexOf("VOLUME_EXTINCTION_MAX(")           == -1) { shader += `\n float VOLUME_EXTINCTION_MAX(float extinction_ui) { return extinction_ui; }\n`; }
+    if (shader.indexOf("VOLUME_SCATTERING_COLOR(")         == -1) { shader += `\n vec3 VOLUME_SCATTERING_COLOR(vec3 scattering_color_ui, vec3 X) { return scattering_color_ui; }\n`; }
+    if (shader.indexOf("VOLUME_ABSORPTION_COLOR(")         == -1) { shader += `\n vec3 VOLUME_ABSORPTION_COLOR(vec3 absorption_color_ui, vec3 X) { return absorption_color_ui; }\n`; }
+    if (shader.indexOf("VOLUME_EMISSION(")                 == -1) { shader += `\n vec3 VOLUME_EMISSION(vec3 emission, vec3 X) { return emission; }\n`; }
+    if (shader.indexOf("VOLUME_ANISOTROPY(")               == -1) { shader += `\n float VOLUME_ANISOTROPY(float anisotropy, vec3 X) { return anisotropy; }\n`; }
 
     let hasGeometry = (hasSurface || hasMetal || hasDielectric);
     if ( !(hasGeometry || hasVolume) )
@@ -278,8 +282,10 @@ Renderer.prototype.compileShaders = function()
     replacements.__SHADER__          = shader;
     replacements.__IOR_FUNC__        = iorCodeDiele + '\n' + iorCodeMetal;
     replacements.__MAX_MARCH_STEPS__ = this.maxMarchSteps;
-    replacements.__MAX_BOUNCES__     = this.maxBounces;
-    
+    replacements.__MAX_VOLUME_STEPS__ = this.maxVolumeSteps;
+    replacements.__MAX_BOUNCES__  = this.maxBounces;
+    replacements.__MAX_SCATTERS__  = this.maxScatters;
+
     replacements.__DEFINES__ = '';
     if (hasSurface)    replacements.__DEFINES__ += '\n#define HAS_SURFACE\n';
     if (hasMetal)      replacements.__DEFINES__ += '\n#define HAS_METAL\n';
@@ -389,6 +395,7 @@ Renderer.prototype.pick = function(xPick, yPick)
     PROGRAM.uniformF("camAperture", snelly.lengthScale*Math.pow(1.4142135,camera.aperture));
     PROGRAM.uniformF("camFocalDistance", snelly.lengthScale*Math.pow(10.0,camera.focalDistance));
     PROGRAM.uniform2Fv("resolution", [this._width, this._height]);
+    PROGRAM.uniformF("lengthScale", snelly.lengthScale);
     PROGRAM.uniformF("minLengthScale", snelly.minLengthScale);
     PROGRAM.uniformF("maxLengthScale", snelly.maxLengthScale);
     PROGRAM.uniformI("maxStepsIsMiss", Boolean(this.maxStepsIsMiss) ? 1 : 0);
@@ -397,6 +404,7 @@ Renderer.prototype.pick = function(xPick, yPick)
     let fbo = new GLU.RenderTarget();
     fbo.bind();
     fbo.drawBuffers(1);
+    gl.bindTexture(gl.TEXTURE_2D, null);
 
     let pickData = new Float32Array(4);
     this.pickTex = new GLU.Texture(1, 1, 4, true, false, true, pickData);
@@ -487,7 +495,6 @@ Renderer.prototype.render = function()
     }
 
     // Pathtracing options
-    INTEGRATOR_PROGRAM.uniformI("maxBounces", this.maxBounces);
     INTEGRATOR_PROGRAM.uniformF("skyPower", this.skyPower);
     INTEGRATOR_PROGRAM.uniformF("sunPower", this.sunPower);
     INTEGRATOR_PROGRAM.uniformF("sunAngularSize", this.sunAngularSize);
@@ -500,8 +507,9 @@ Renderer.prototype.render = function()
 
     INTEGRATOR_PROGRAM.uniformF("radianceClamp", Math.pow(10.0, this.radianceClamp));
     INTEGRATOR_PROGRAM.uniformF("skipProbability", this.skipProbability);
-    INTEGRATOR_PROGRAM.uniformF("maxLengthScale", snelly.maxLengthScale);
-    INTEGRATOR_PROGRAM.uniformF("minLengthScale", snelly.minLengthScale);
+    INTEGRATOR_PROGRAM.uniformF("lengthScale", Math.max(snelly.lengthScale, 1.0e-6));
+    INTEGRATOR_PROGRAM.uniformF("maxLengthScale", Math.max(snelly.maxLengthScale, 1.0e-6));
+    INTEGRATOR_PROGRAM.uniformF("minLengthScale", Math.max(snelly.minLengthScale, 1.0e-6));
     INTEGRATOR_PROGRAM.uniformF("shadowStrength", this.shadowStrength);
     INTEGRATOR_PROGRAM.uniformI("envMapVisible", Boolean(this.envMapVisible) ? 1 : 0);
     INTEGRATOR_PROGRAM.uniformF("envMapRotation", Math.min(Math.max(this.envMapRotation, 0.0), 360.0));
@@ -533,6 +541,7 @@ Renderer.prototype.render = function()
         sceneObj.syncShader(snelly, INTEGRATOR_PROGRAM);
     }
 
+    // Upload material parameters
     snelly.materials.syncShader(INTEGRATOR_PROGRAM);
 
     // Trace one path per pixel
@@ -540,6 +549,7 @@ Renderer.prototype.render = function()
     this.quadVbo.bind();
     this.quadVbo.draw(INTEGRATOR_PROGRAM, gl.TRIANGLE_FAN);
     this.fbo.unbind();
+    gl.bindTexture(gl.TEXTURE_2D, null);
 
     ////////////////////////////////////////////////
     /// Tonemapping / compositing
