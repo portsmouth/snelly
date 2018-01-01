@@ -185,6 +185,19 @@ Scene.prototype.initGui = function(gui)
       gui.addParameter(this.parameters, {name: 'bar', min: 0.0, max: 3.0});
 }
 
+
+/**
+* Optional callack which, if implemented, the renderer consults before
+* each frame to determine whether to render. This is needed if the scene has to do some
+* pre-processing, or load something, before rendering is possible.
+* @param {Snelly} snelly - The snelly object
+* @returns {boolean} - whether the scene is ready to render
+*/
+Scene.prototype.isReady = function(snelly)            
+{
+    return true;
+}
+
 /**
 * Optional. Called whenever the UI is changed,
 /* and must sync the params of the shader with the current UI settings

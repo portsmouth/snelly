@@ -316,23 +316,40 @@ renderer.whitepoint = ${renderer.whitepoint};
 renderer.envMapVisible = ${renderer.envMapVisible};
 renderer.shadowStrength = ${renderer.shadowStrength};
 renderer.maxStepsIsMiss = ${renderer.maxStepsIsMiss};
-renderer.AA = ${renderer.AA};
+`;
 
-/** Material settings **/
+    code += `
+/** Material settings **/`;
+    var shader = this.sceneObj.shader();
+    if (shader.indexOf("SDF_SURFACE(") != -1)
+    {
+        code += `
 let surface = materials.loadSurface();
 surface.roughness = ${materials.loadSurface().roughness};
 surface.ior = ${materials.loadSurface().ior};
 surface.diffuseAlbedo = [${materials.loadSurface().diffuseAlbedo[0]}, ${materials.loadSurface().diffuseAlbedo[1]}, ${materials.loadSurface().diffuseAlbedo[2]}];
 surface.specAlbedo = [${materials.loadSurface().specAlbedo[0]}, ${materials.loadSurface().specAlbedo[1]}, ${materials.loadSurface().specAlbedo[2]}];
-
+`;
+    } 
+    if (shader.indexOf("SDF_METAL(") != -1)
+    {
+        code += `
+let metal = materials.loadMetal('${materials.getLoadedMetal().getName()}');
+metal.roughness = ${materials.getLoadedMetal().roughness};
+`;
+    }
+    if (shader.indexOf("SDF_DIELECTRIC(") != -1)
+    {
+        code += `
 let dielectric = materials.loadDielectric('${materials.getLoadedDielectric().getName()}');
 dielectric.absorptionColor = [${materials.getLoadedDielectric().absorptionColor[0]}, ${materials.getLoadedDielectric().absorptionColor[1]}, ${materials.getLoadedDielectric().absorptionColor[2]}];
 dielectric.absorptionScale = ${materials.getLoadedDielectric().absorptionScale}; // mfp in multiples of scene scale
 dielectric.roughness = ${materials.getLoadedDielectric().roughness};
-
-let metal = materials.loadMetal('${materials.getLoadedMetal().getName()}');
-metal.roughness = ${materials.getLoadedMetal().roughness};
-
+`;
+    }
+    if (shader.indexOf("SDF_VOLUME(") != -1)
+    {
+        code += `
 let volume = materials.loadVolume();
 volume.extinction = ${materials.loadVolume().extinction};
 volume.scatteringColor = [${materials.loadVolume().scatteringColor[0]}, ${materials.loadVolume().scatteringColor[1]}, ${materials.loadVolume().scatteringColor[2]}];
@@ -340,10 +357,11 @@ volume.absorptionColor = [${materials.loadVolume().absorptionColor[0]}, ${materi
 volume.anisotropy = ${materials.loadVolume().anisotropy};
 volume.emission = ${materials.loadVolume().emission};
 volume.emissionColor = [${materials.loadVolume().emissionColor[0]}, ${materials.loadVolume().emissionColor[1]}, ${materials.loadVolume().emissionColor[2]}];
+`;
+    }
 
-/******* copy-pasted console output on 'O', end *******/
-    `;
-
+    code += `
+/******* copy-pasted console output on 'O', end *******/`;
     return code;
 }
 
@@ -448,8 +466,17 @@ Snelly.prototype.render = function()
     if (this.sceneObj == null) return;
     this.rendering = true;
 
-    // Render distance field surface via pathtracing
-    this.pathtracer.render();
+    let isReady = true;
+    if (typeof this.sceneObj.isReady !== "undefined")
+    {
+        isReady = this.sceneObj.isReady(this);
+    }
+
+    if (isReady)
+    {
+        // Render distance field surface via pathtracing
+        this.pathtracer.render();
+    }
 
     // Update HUD text canvas
     this.textCtx.textAlign = "left";   	// This determines the alignment of text, e.g. left, center, right
