@@ -50,10 +50,8 @@ Surface.prototype = Object.create(Material.prototype);
 
 Surface.prototype.syncShader = function(shader)
 {
-    this.diffuseAlbedoXYZ = rgbToXyz(this.diffuseAlbedo);
-    this.specAlbedoXYZ    = rgbToXyz(this.specAlbedo);
-    shader.uniform3Fv("surfaceDiffuseAlbedoXYZ", this.diffuseAlbedoXYZ);
-    shader.uniform3Fv("surfaceSpecAlbedoXYZ", this.specAlbedoXYZ);
+    shader.uniform3Fv("surfaceDiffuseAlbedoRGB", this.diffuseAlbedo);
+    shader.uniform3Fv("surfaceSpecAlbedoRGB", this.specAlbedo);
     shader.uniformF("surfaceRoughness", this.roughness);
     shader.uniformF("surfaceIor", this.ior);
 }
@@ -154,9 +152,7 @@ Metal.prototype = Object.create(Material.prototype);
 Metal.prototype.syncShader = function(shader)
 {
     shader.uniformF("metalRoughness", this.roughness);
-
-    this.specAlbedoXYZ = rgbToXyz(this.specAlbedo);
-    shader.uniform3Fv("metalSpecAlbedoXYZ", this.specAlbedoXYZ);
+    shader.uniform3Fv("metalSpecAlbedoRGB", this.specAlbedo);
 }
 
 Metal.prototype.initGui  = function(parentFolder) 
@@ -399,9 +395,7 @@ Dielectric.prototype = Object.create(Material.prototype);
 Dielectric.prototype.syncShader = function(shader)
 {
     shader.uniformF("dieleRoughness", this.roughness);
-
-    this.specAlbedoXYZ = rgbToXyz(this.specAlbedo);
-    shader.uniform3Fv("dieleSpecAlbedoXYZ", this.specAlbedoXYZ);
+    shader.uniform3Fv("dieleSpecAlbedoRGB", this.specAlbedo);
 
     this.absorptionRGB[0] = snelly.lengthScale/Math.max(this.absorptionScale, 1.0e-3) * Math.max(0.0, 1.0 - this.absorptionColor[0]);
     this.absorptionRGB[1] = snelly.lengthScale/Math.max(this.absorptionScale, 1.0e-3) * Math.max(0.0, 1.0 - this.absorptionColor[1]);

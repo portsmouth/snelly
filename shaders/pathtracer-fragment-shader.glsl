@@ -50,12 +50,12 @@ uniform bool jitter;
 uniform int wavelengthSamples;
 
 uniform float metalRoughness;
-uniform vec3 metalSpecAlbedoXYZ;
+uniform vec3 metalSpecAlbedoRGB;
 uniform float dieleRoughness;
 uniform vec3 dieleAbsorptionRGB;
-uniform vec3 dieleSpecAlbedoXYZ;
-uniform vec3 surfaceDiffuseAlbedoXYZ;
-uniform vec3 surfaceSpecAlbedoXYZ;
+uniform vec3 dieleSpecAlbedoRGB;
+uniform vec3 surfaceDiffuseAlbedoRGB;
+uniform vec3 surfaceSpecAlbedoRGB;
 uniform float surfaceRoughness;
 uniform float surfaceIor;
 
@@ -166,29 +166,6 @@ vec3 xyzToRgb(vec3 XYZ)
     RGB.g = -0.9692660*XYZ.x + 1.8760108*XYZ.y + 0.0415560*XYZ.z;
     RGB.b =  0.0556434*XYZ.x - 0.2040259*XYZ.y + 1.0572252*XYZ.z;
     return RGB;
-}
-
-vec3 rgbToXyz(in vec3 RGB)
-{
-    // (Assuming RGB in sRGB color space)
-    vec3 XYZ;
-    XYZ.x = 0.4124564*RGB.r + 0.3575761*RGB.g + 0.1804375*RGB.b;
-    XYZ.y = 0.2126729*RGB.r + 0.7151522*RGB.g + 0.0721750*RGB.b;
-    XYZ.z = 0.0193339*RGB.r + 0.1191920*RGB.g + 0.9503041*RGB.b;
-    return XYZ;
-}
-
-vec3 xyz_to_spectrum(vec3 XYZ)
-{
-    // Given a color in XYZ tristimulus coordinates, return the coefficients in spectrum:
-    //      L(l) = cx x(l) + cy y(l) + cz z(l)
-    // (where x, y, z are the tristimulus CMFs) such that this spectrum reproduces the given XYZ tristimulus.
-    // (NB, these coefficients differ from XYZ, because the XYZ color matching functions are not orthogonal)
-    vec3 c;
-    c.x =  3.38214566*XYZ.x - 2.58540997*XYZ.y - 0.40649004*XYZ.z;
-    c.y = -2.58540997*XYZ.x + 3.20943158*XYZ.y + 0.22767094*XYZ.z;
-    c.z = -0.40649004*XYZ.x + 0.22767094*XYZ.y + 0.70334476*XYZ.z;
-    return c;
 }
 
 vec3 rgbToSpectrum(vec3 RGB)
@@ -379,8 +356,7 @@ bool refraction(in vec3 n, in float eta, in vec3 wt, inout vec3 wi)
 float DIELECTRIC_SPEC_REFL_EVAL(in vec3 X, in vec3 woL, in Basis basis, in vec3 XYZ)
 {
     vec3 woW = localToWorld(woL, basis);
-    vec3 C = xyzToRgb(dieleSpecAlbedoXYZ); // pass dieleSpecAlbedoRGB instead
-    vec3 reflRGB = DIELECTRIC_SPECULAR_REFLECTANCE(C, X, basis.nW, woW);
+    vec3 reflRGB = DIELECTRIC_SPECULAR_REFLECTANCE(dieleSpecAlbedoRGB, X, basis.nW, woW);
     vec3 reflSPC = rgbToSpectrum(reflRGB);
     return max(dot(XYZ, reflSPC), 0.0);
 }
@@ -538,8 +514,7 @@ float fresnelMetalReflectance(in float cosi, in float ior, in float k)
 float METAL_SPEC_REFL_EVAL(in vec3 X, in vec3 woL, in Basis basis, in vec3 XYZ)
 {
     vec3 woW = localToWorld(woL, basis);
-    vec3 C = xyzToRgb(metalSpecAlbedoXYZ); // pass metalSpecAlbedoRGB instead
-    vec3 reflRGB = METAL_SPECULAR_REFLECTANCE(C, X, basis.nW, woW);
+    vec3 reflRGB = METAL_SPECULAR_REFLECTANCE(metalSpecAlbedoRGB, X, basis.nW, woW);
     vec3 reflSPC = rgbToSpectrum(reflRGB);
     return max(dot(XYZ, reflSPC), 0.0);
 }
@@ -594,16 +569,14 @@ float sampleMetal( in vec3 X, in Basis basis, in vec3 woL, in float wavelength_n
 
 float SURFACE_DIFFUSE_REFL_EVAL(in vec3 X, in vec3 nW, in vec3 woW, in vec3 XYZ)
 {
-    vec3 C = xyzToRgb(surfaceDiffuseAlbedoXYZ); // pass surfaceDiffuseAlbedoRGB instead
-    vec3 reflRGB = SURFACE_DIFFUSE_REFLECTANCE(C, X, nW, woW);
+    vec3 reflRGB = SURFACE_DIFFUSE_REFLECTANCE(surfaceDiffuseAlbedoRGB, X, nW, woW);
     vec3 reflSPC = rgbToSpectrum(reflRGB);
     return max(dot(XYZ, reflSPC), 0.0);
 }
 
 float SURFACE_SPEC_REFL_EVAL(in vec3 X, in vec3 nW, in vec3 woW, in vec3 XYZ)
 {
-    vec3 C = xyzToRgb(surfaceSpecAlbedoXYZ); // pass surfaceSpecAlbedoRGB instead
-    vec3 reflRGB = SURFACE_SPECULAR_REFLECTANCE(C, X, nW, woW);
+    vec3 reflRGB = SURFACE_SPECULAR_REFLECTANCE(surfaceSpecAlbedoRGB, X, nW, woW);
     vec3 reflSPC = rgbToSpectrum(reflRGB);
     return max(dot(XYZ, reflSPC), 0.0);
 }
@@ -975,8 +948,7 @@ float sunRadiance(in vec3 dir, in vec3 XYZ)
 {
     if (dot(dir, sunDir) < cos(sunAngularSize*M_PI/180.0)) return 0.0;
     vec3 RGB_sun = sunPower * sunColor;
-    vec3 XYZ_sun = rgbToXyz(RGB_sun); // @todo: just supply XYZ_sun
-    vec3 XYZ_spec = xyz_to_spectrum(XYZ_sun); // convert to radiance at the given wavelength
+    vec3 XYZ_spec = rgbToSpectrum(RGB_sun); // convert to radiance at the given wavelength
     return dot(XYZ, XYZ_spec);
 }
 

@@ -4,10 +4,9 @@ uniform sampler2D Radiance;         // 0 (IO buffer)
 uniform sampler2D RngData;          // 1 (IO buffer)
 uniform sampler2D WavelengthToXYZ;  // 2
 uniform sampler2D ICDF;             // 3
-uniform sampler2D RadianceBlocks;   // 4
-uniform sampler2D iorTex;           // 5 (for metals)
-uniform sampler2D kTex;             // 6 (for metals)
-uniform sampler2D envMap;           // 7
+uniform sampler2D iorTex;           // 4 (for metals)
+uniform sampler2D kTex;             // 5 (for metals)
+uniform sampler2D envMap;           // 6
 in vec2 vTexCoord;
 
 layout(location = 0) out vec4 gbuf_rad;
@@ -41,10 +40,9 @@ uniform float radianceClamp;
 uniform float skipProbability;
 uniform float shadowStrength;
 uniform bool maxStepsIsMiss;
-uniform bool jitter;
 
-uniform vec3 surfaceDiffuseAlbedoXYZ;
-uniform vec3 surfaceSpecAlbedoXYZ;
+uniform vec3 surfaceDiffuseAlbedoRGB;
+uniform vec3 surfaceSpecAlbedoRGB;
 uniform float surfaceRoughness;
 uniform float surfaceIor;
 
@@ -179,20 +177,6 @@ vec3 rgbToXyz(in vec3 RGB)
     XYZ.y = 0.2126729*RGB.r + 0.7151522*RGB.g + 0.0721750*RGB.b;
     XYZ.z = 0.0193339*RGB.r + 0.1191920*RGB.g + 0.9503041*RGB.b;
     return XYZ;
-}
-
-vec3 xyz_to_spectrum(vec3 XYZ)
-{
-    // Given a color in XYZ tristimulus coordinates, return the coefficients in spectrum:
-    //      L(l) = cx x(l) + cy y(l) + cz z(l)
-    // (where x, y, z are the tristimulus CMFs) such that this spectrum reproduces the given XYZ tristimulus.
-    // (NB, these coefficients differ from XYZ, because the XYZ color matching functions are not orthogonal)
-    vec3 c;
-    c.x =  3.38214566*XYZ.x - 2.58540997*XYZ.y - 0.40649004*XYZ.z;
-    c.y = -2.58540997*XYZ.x + 3.20943158*XYZ.y + 0.22767094*XYZ.z;
-    c.z = -0.40649004*XYZ.x + 0.22767094*XYZ.y + 0.70334476*XYZ.z;
-
-    return c;
 }
 
 /// GLSL floating point pseudorandom number generator, from
@@ -333,15 +317,13 @@ float smithG2(in vec3 woL, in vec3 wiL, in vec3 mLocal, float roughness)
 
 vec3 SURFACE_DIFFUSE_REFL_RGB(in vec3 X, in vec3 nW, in vec3 woW)
 {
-    vec3 C = xyzToRgb(surfaceDiffuseAlbedoXYZ);
-    vec3 reflRGB = SURFACE_DIFFUSE_REFLECTANCE(C, X, nW, woW);
+    vec3 reflRGB = SURFACE_DIFFUSE_REFLECTANCE(surfaceDiffuseAlbedoRGB, X, nW, woW);
     return reflRGB;
 }
 
 vec3 SURFACE_SPEC_REFL_RGB(in vec3 X, in vec3 nW, in vec3 woW)
 {
-    vec3 C = xyzToRgb(surfaceSpecAlbedoXYZ);
-    vec3 reflRGB = SURFACE_SPECULAR_REFLECTANCE(C, X, nW, woW);
+    vec3 reflRGB = SURFACE_SPECULAR_REFLECTANCE(surfaceSpecAlbedoRGB, X, nW, woW);
     return reflRGB;
 }
 
@@ -569,7 +551,7 @@ void main()
 
     // Jitter over pixel
     vec2 pixel = gl_FragCoord.xy;
-    if (jitter) pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
+    pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
 
     // Setup sun basis
     sunBasis = makeBasis(sunDir);
