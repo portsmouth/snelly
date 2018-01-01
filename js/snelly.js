@@ -92,7 +92,7 @@ var Snelly = function(sceneObj)
 */
 Snelly.prototype.getVersion = function()
 {
-    return [1, 1, 0];
+    return [2, 0, 0];
 }
 
 Snelly.prototype.handleEvent = function(event)
@@ -214,8 +214,8 @@ Snelly.prototype.initScene = function()
     this.camera.position.set(po, po, po);
     this.camControls.target.set(0.0, 0.0, 0.0);
 
-    this.camera.aperture      = -3.0; // logarithmic, relative to length scale
-    this.camera.focalDistance =  1.0; // logarithmic, relative to length scale
+    this.camera.aperture      = -10.0; // logarithmic (base sqrt(2)), relative to length scale
+    this.camera.focalDistance =  1.0; // logarithmic (base 10), relative to length scale
 
     // Call user-defined init function
     if (typeof this.sceneObj.init !== "undefined")
@@ -333,6 +333,14 @@ dielectric.roughness = ${materials.getLoadedDielectric().roughness};
 let metal = materials.loadMetal('${materials.getLoadedMetal().getName()}');
 metal.roughness = ${materials.getLoadedMetal().roughness};
 
+let volume = materials.loadVolume();
+volume.extinction = ${materials.loadVolume().extinction};
+volume.scatteringColor = [${materials.loadVolume().scatteringColor[0]}, ${materials.loadVolume().scatteringColor[1]}, ${materials.loadVolume().scatteringColor[2]}];
+volume.absorptionColor = [${materials.loadVolume().absorptionColor[0]}, ${materials.loadVolume().absorptionColor[1]}, ${materials.loadVolume().absorptionColor[2]}];
+volume.anisotropy = ${materials.loadVolume().anisotropy};
+volume.emission = ${materials.loadVolume().emission};
+volume.emissionColor = [${materials.loadVolume().emissionColor[0]}, ${materials.loadVolume().emissionColor[1]}, ${materials.loadVolume().emissionColor[2]}];
+
 /******* copy-pasted console output on 'O', end *******/
     `;
 
@@ -415,6 +423,15 @@ Snelly.prototype.getLoadedMetal = function()
 Snelly.prototype.getSurface = function()
 {
     return this.materials.loadSurface();
+}
+
+/**
+* Get Volume object
+ * @returns {Volume}
+*/
+Snelly.prototype.getVolume = function()
+{
+    return this.materials.loadVolume();
 }
 
 // Renderer reset on camera or other parameters update

@@ -64,8 +64,10 @@ GUI.prototype.createRendererSettings = function()
     // raymarching folder
     this.raymarchingFolder = this.rendererFolder.addFolder('Raymarcher');
     this.raymarchingFolder.add(pathtracer, 'renderMode', renderModes).onChange( function(renderMode) { pathtracer.renderMode = renderMode; pathtracer.reset(); });
-    this.raymarchingFolder.add(pathtracer, 'maxBounces', 0, 10).onChange( function(value) { pathtracer.maxBounces = Math.floor(value); pathtracer.reset(); });
+    this.raymarchingFolder.add(pathtracer, 'maxBounces', 0, 20).onChange( function(value) { pathtracer.maxBounces = Math.floor(value); pathtracer.reset(); });
+    this.raymarchingFolder.add(pathtracer, 'maxScatters', 0, 20).onChange( function(value) { pathtracer.maxScatters = Math.floor(value); pathtracer.reset(); });
     this.raymarchingFolder.add(pathtracer, 'maxMarchSteps', 1, 1024).onChange( function(value) { pathtracer.maxMarchSteps = Math.floor(value); pathtracer.reset(); } );
+    this.raymarchingFolder.add(pathtracer, 'maxVolumeSteps', 1, 1024).onChange( function(value) { pathtracer.maxVolumeSteps = Math.floor(value); pathtracer.reset(); } );
     this.raymarchingFolder.add(pathtracer, 'maxStepsIsMiss').onChange( function(value) { pathtracer.reset(true); } );
     this.raymarchingFolder.add(pathtracer, 'radianceClamp', -2.0, 6.0).onChange( function(value) { pathtracer.reset(true); } );
     this.raymarchingFolder.add(pathtracer, 'wavelengthSamples', 4, 1024).onChange( function(value) { pathtracer.reset(true); } );
@@ -332,6 +334,85 @@ GUI.prototype.createMaterialSettings = function()
         this.iorItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
 
         this.surfaceFolder.close();
+    }
+
+    // Volume settings
+    if (shader.indexOf("SDF_VOLUME(") !== -1)
+    {
+        this.volumeFolder = this.gui.addFolder('Volume properties');
+        var volumeObj = snelly.getVolume();
+        
+        this.volumeFolder.mfp = 1.0 / volumeObj.extinction;
+        this.mfpItem = this.volumeFolder.add(this.volumeFolder, 'mfp', 0.0, 1.0);
+        this.mfpItem.onChange( function(mfp) { volumeObj.extinction = 1.0/mfp; snelly.reset(true); });
+
+        this.volumeFolder.scatteringColor = [volumeObj.scatteringColor[0]*255.0, volumeObj.scatteringColor[1]*255.0, volumeObj.scatteringColor[2]*255.0];
+        var scatteringColorItem = this.volumeFolder.addColor(this.volumeFolder, 'scatteringColor');
+        scatteringColorItem.onChange( function(C) {
+                                if (typeof C==='string' || C instanceof String)
+                                {
+                                    var color = hexToRgb(C);
+                                    volumeObj.scatteringColor[0] = color.r / 255.0;
+                                    volumeObj.scatteringColor[1] = color.g / 255.0;
+                                    volumeObj.scatteringColor[2] = color.b / 255.0;
+                                }
+                                else
+                                {
+                                    volumeObj.scatteringColor[0] = C[0] / 255.0;
+                                    volumeObj.scatteringColor[1] = C[1] / 255.0;
+                                    volumeObj.scatteringColor[2] = C[2] / 255.0;
+                                }
+                                snelly.reset(true);
+                            } );
+
+        this.volumeFolder.absorptionColor = [volumeObj.absorptionColor[0]*255.0, volumeObj.absorptionColor[1]*255.0, volumeObj.absorptionColor[2]*255.0];
+        var absorptionColorItem = this.volumeFolder.addColor(this.volumeFolder, 'absorptionColor');
+        absorptionColorItem.onChange( function(C) {
+                                if (typeof C==='string' || C instanceof String)
+                                {
+                                    var color = hexToRgb(C);
+                                    volumeObj.absorptionColor[0] = color.r / 255.0;
+                                    volumeObj.absorptionColor[1] = color.g / 255.0;
+                                    volumeObj.absorptionColor[2] = color.b / 255.0;
+                                }
+                                else
+                                {
+                                    volumeObj.absorptionColor[0] = C[0] / 255.0;
+                                    volumeObj.absorptionColor[1] = C[1] / 255.0;
+                                    volumeObj.absorptionColor[2] = C[2] / 255.0;
+                                }
+                                snelly.reset(true);
+                            } );
+
+
+        this.emissionItem = this.volumeFolder.add(volumeObj, 'emission', 0.0, 10.0);
+        this.emissionItem.onChange( function(value) { volumeObj.emission = value; snelly.camera.enabled = false; snelly.reset(true); } );
+        this.emissionItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+
+        this.volumeFolder.emissionColor = [volumeObj.emissionColor[0]*255.0, volumeObj.emissionColor[1]*255.0, volumeObj.emissionColor[2]*255.0];
+        var emissionColorItem = this.volumeFolder.addColor(this.volumeFolder, 'emissionColor');
+        emissionColorItem.onChange( function(C) {
+                                if (typeof C==='string' || C instanceof String)
+                                {
+                                    var color = hexToRgb(C);
+                                    volumeObj.emissionColor[0] = color.r / 255.0;
+                                    volumeObj.emissionColor[1] = color.g / 255.0;
+                                    volumeObj.emissionColor[2] = color.b / 255.0;
+                                }
+                                else
+                                {
+                                    volumeObj.emissionColor[0] = C[0] / 255.0;
+                                    volumeObj.emissionColor[1] = C[1] / 255.0;
+                                    volumeObj.emissionColor[2] = C[2] / 255.0;
+                                }
+                                snelly.reset(true);
+                            } );
+
+        this.anisotropyItem = this.volumeFolder.add(volumeObj, 'anisotropy', -1.0, 1.0);
+        this.anisotropyItem.onChange( function(value) { volumeObj.anisotropy = value; snelly.camera.enabled = false; snelly.reset(true); } );
+        this.anisotropyItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+
+        this.volumeFolder.close();
     }
 
     this.gui.remember(this.materialSettings);
