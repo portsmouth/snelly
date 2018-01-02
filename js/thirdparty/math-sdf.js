@@ -1,5 +1,3 @@
-const INF = 1e20;
-
 
 // 2D Euclidean distance transform by Felzenszwalb & Huttenlocher https://cs.brown.edu/~pff/dt/
 function edt(data, width, height, f, d, v, z) {
@@ -25,10 +23,10 @@ function edt(data, width, height, f, d, v, z) {
 
 // 1D squared distance transform
 function edt1d(f, d, v, z, n) {
+    const INF = 1e20;
     v[0] = 0;
     z[0] = -INF;
     z[1] = +INF;
-
     for (var q = 1, k = 0; q < n; q++) {
         var s = ((f[q] + q * q) - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
         while (s <= z[k]) {
@@ -40,7 +38,6 @@ function edt1d(f, d, v, z, n) {
         z[k] = s;
         z[k + 1] = +INF;
     }
-
     for (q = 0, k = 0; q < n; q++) {
         while (z[k + 1] < q) k++;
         d[q] = (q - v[k]) * (q - v[k]) + f[v[k]];
@@ -88,7 +85,6 @@ window.MathJax = {
 
         mj2img(SDF_MATH_TEXT, function(image) {
             
-            //document.getElementById("target").innerText = output.img;
             var img = image;
             this.W = img.width;
             this.H = img.height;
@@ -106,6 +102,7 @@ window.MathJax = {
             this.canvas.height = this.H;
             this.ctx = this.canvas.getContext('2d');
 
+            const INF = 1e20;
             this.ctx.drawImage(img, 0, 0, img.width, img.height);
             var imgData = this.ctx.getImageData(0, 0, this.W, this.H);
             for (var i = 0; i < this.W * this.H; i++) {

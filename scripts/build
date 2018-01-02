@@ -35,6 +35,7 @@ jsSources = [
 '../js/thirdparty/jquery-1.11.3.min.js',
 '../js/thirdparty/three/three.min.js',
 '../js/thirdparty/tiny-sdf.js',
+'../js/thirdparty/math-sdf.js',
 '../js/thirdparty/three/libs/stats.min.js',
 '../js/thirdparty/three/libs/dat.gui.min.js',
 '../js/thirdparty/three/controls/OrbitControls.js',

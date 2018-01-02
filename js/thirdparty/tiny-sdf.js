@@ -1,4 +1,3 @@
-const INF = 1e20;
 
 function TextSDF(fontSize, resHorizontal, resVertical, fontFamily, fontWeight) {
     this.fontSize = fontSize;
@@ -38,6 +37,7 @@ TextSDF.prototype.getResVertical = function()
 
 TextSDF.prototype.draw = function (text) 
 {
+    const INF = 1e20;
     this.ctx.clearRect(0, 0, this.W, this.H);
     this.ctx.fillText(text, 0, this.H/2, this.W);
     var imgData = this.ctx.getImageData(0, 0, this.W, this.H);
@@ -81,10 +81,10 @@ function edt(data, width, height, f, d, v, z) {
 
 // 1D squared distance transform
 function edt1d(f, d, v, z, n) {
+    const INF = 1e20;
     v[0] = 0;
     z[0] = -INF;
     z[1] = +INF;
-
     for (var q = 1, k = 0; q < n; q++) {
         var s = ((f[q] + q * q) - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k]);
         while (s <= z[k]) {
@@ -96,7 +96,6 @@ function edt1d(f, d, v, z, n) {
         z[k] = s;
         z[k + 1] = +INF;
     }
-
     for (q = 0, k = 0; q < n; q++) {
         while (z[k + 1] < q) k++;
         d[q] = (q - v[k]) * (q - v[k]) + f[v[k]];
