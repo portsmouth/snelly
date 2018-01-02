@@ -1,12 +1,9 @@
 precision highp float;
 
-vec3 test(in vec3 pW, int material);
-
 uniform sampler2D Radiance;         // 0 (IO buffer)
 uniform sampler2D RngData;          // 1 (IO buffer)
 uniform sampler2D WavelengthToXYZ;  // 2
 uniform sampler2D ICDF;             // 3
-uniform sampler2D RadianceBlocks;   // 4
 uniform sampler2D iorTex;           // 4
 uniform sampler2D kTex;             // 5 (for metals)
 uniform sampler2D envMap;           // 6
@@ -46,7 +43,6 @@ uniform float radianceClamp;
 uniform float skipProbability;
 uniform float shadowStrength;
 uniform bool maxStepsIsMiss;
-uniform bool jitter;
 uniform int wavelengthSamples;
 
 uniform float metalRoughness;
@@ -827,6 +823,33 @@ vec3 normal(in vec3 pW, int material)
 #endif
 }
 
+#ifdef HAS_NORMALMAP
+void perturbNormal(in vec3 X, in Basis basis, int material, inout vec3 nW)
+{
+#ifdef HAS_SURFACE_NORMALMAP
+    if (material==MAT_SURFA) 
+    {
+        vec3 nL = SURFACE_NORMAL_MAP(X);
+        nW = localToWorld(normalize(2.0*nL - vec3(1.0)), basis);
+    }
+#endif
+#ifdef HAS_METAL_NORMALMAP
+    if (material==MAT_METAL) 
+    {
+        vec3 nL = METAL_NORMAL_MAP(X);
+        nW = localToWorld(normalize(2.0*nL - vec3(1.0)), basis);
+    }
+#endif
+#ifdef HAS_DIELECTRIC_NORMALMAP
+    if (material==MAT_DIELE) 
+    {
+        vec3 nL = DIELECTRIC_NORMAL_MAP(X);
+        nW = localToWorld(normalize(2.0*nL - vec3(1.0)), basis);
+    }
+#endif
+}
+#endif
+
 // MC-estimates the amount of light transmitted along an infinite ray
 float Visibility(in vec3 pW, in vec3 rayDir, in vec3 XYZ, inout vec4 rnd, bool inVolume)
 {
@@ -1042,6 +1065,7 @@ float directVolumeLighting(in vec3 pW, in vec3 woW, in vec3 XYZ, inout vec4 rnd,
 
 #endif // HAS_VOLUME
 
+
 ////////////////////////////////////////////////////////////////////////////////
 // Pathtracing integrator
 ////////////////////////////////////////////////////////////////////////////////
@@ -1068,39 +1092,10 @@ void constructPrimaryRay(in vec2 pixel, inout vec4 rnd,
     primaryDir = normalize(focalPlaneHit - lensPos);
 }
 
-void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
+float samplePath(in vec3 primaryStart, in vec3 primaryDir, 
+                 in vec3 XYZ, in vec3 RGB, 
+                 float wavelength_nm, inout vec4 rnd)
 {
-    if (rand(rnd) < skipProbability)
-    {
-        vec4 oldL = texture(Radiance, vTexCoord);
-        float oldN = oldL.w;
-        float newN = oldN;
-        vec3 newL = oldL.rgb;
-        gbuf_rad = vec4(newL, newN);
-        gbuf_rng = rnd;
-        return;
-    }
-
-    // Sample photon wavelength via the inverse CDF of the emission spectrum.
-    // We limit the sampled wavelengths to between about 420nm and 700nm to avoid color mismatch at low sample count
-    float xi = 0.1+0.8*(0.5+floor(float(wavelengthSamples)*rand(rnd))) / float(wavelengthSamples);
-    float w = texture(ICDF, vec2(xi, 0.5)).r;
-    float wavelength_nm = 390.0 + (750.0 - 390.0)*w;
-
-    // Convert wavelength to XYZ tristimulus
-    vec3 XYZ = texture(WavelengthToXYZ, vec2(w, 0.5)).rgb;
-    vec3 RGB = clamp(xyzToRgb(XYZ), 0.0, 1.0);
-    
-    // Jitter over pixel
-    if (jitter) pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
-
-    // Setup sun basis
-    sunBasis = makeBasis(sunDir);
-
-    // Compute world ray direction for this fragment
-    vec3 primaryStart, primaryDir;
-    constructPrimaryRay(pixel, rnd, primaryStart, primaryDir);
-
     // Perform pathtrace to estimate the primary ray radiance, L
     float L = 0.0;
     float throughput = 1.0;
@@ -1244,6 +1239,10 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         pW = pW_next;
         vec3 nW = normal(pW, hitMaterial);
         Basis basis = makeBasis(nW);
+#ifdef HAS_NORMALMAP
+        perturbNormal(pW, basis, hitMaterial, nW);
+        basis = makeBasis(nW);
+#endif
 
         // Sample BSDF for the next bounce direction
         vec3 woW = -rayDir;
@@ -1281,6 +1280,45 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         misWeight = powerHeuristic(bsdfPdf, lightPdf); // compute MIS weight for bounce ray
 #endif // HAS_GEOMETRY
     }
+    return L;
+}
+
+
+void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
+{
+    if (rand(rnd) < skipProbability)
+    {
+        vec4 oldL = texture(Radiance, vTexCoord);
+        float oldN = oldL.w;
+        float newN = oldN;
+        vec3 newL = oldL.rgb;
+        gbuf_rad = vec4(newL, newN);
+        gbuf_rng = rnd;
+        return;
+    }
+ 
+    // Sample photon wavelength via the inverse CDF of the emission spectrum.
+    // We limit the sampled wavelengths to between about 420nm and 700nm to avoid color mismatch at low sample count
+    float xi = 0.1+0.8*(0.5+floor(float(wavelengthSamples)*rand(rnd))) / float(wavelengthSamples);
+    float w = texture(ICDF, vec2(xi, 0.5)).r;
+    float wavelength_nm = 390.0 + (750.0 - 390.0)*w;
+
+    // Evaluate XYZ color matching functions at the sampled wavelengfth
+    vec3 XYZ = texture(WavelengthToXYZ, vec2(w, 0.5)).rgb;
+    vec3 RGB = clamp(xyzToRgb(XYZ), 0.0, 1.0);
+    
+    // Jitter over pixel
+    pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
+
+    // Setup sun basis
+    sunBasis = makeBasis(sunDir);
+
+    // Compute world ray direction for this fragment
+    vec3 primaryStart, primaryDir;
+    constructPrimaryRay(pixel, rnd, primaryStart, primaryDir);
+
+    // Perform pathtrace to estimate the primary ray radiance, L
+    float L = samplePath(primaryStart, primaryDir, XYZ, RGB, wavelength_nm, rnd);
 
     // Compute tristimulus contribution from estimated radiance
     vec3 colorXYZ = XYZ * L;

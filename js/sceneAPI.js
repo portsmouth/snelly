@@ -121,19 +121,20 @@ Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snel
 * Define also (optionally) functions giving the 3d spatial dependence of the material parameters.
 * This function is mandatory!
 
-* The code *must* define at least one of the three functions:
+* The code *must* define at least one of the four functions:
 *```glsl
+*      float SDF_SURFACE(vec3 X);
 *      float SDF_METAL(vec3 X);
 *      float SDF_DIELECTRIC(vec3 X);
-*      float SDF_DIFFUSE(vec3 X);
+*      float SDF_VOLUME(vec3 X);
 *```
-* If only one or two of these are present, the others will not be rendered.
+* Only the SDFs which are defined will be rendered.
 *
 * Optionally, any of the following functions defining the spatial dependence of material reflectances and roughnesses can be defined.
 * The UI-exposed reflectance or roughness is supplied, and can be modified arbitrarily based on the supplied data of the primary ray hit point
 * (and/or any other computed shader variables). The arguments to these functions are as follows:
-*   - *C*: The UI-exposed constant reflectance color ([0,1] floats in sRGB color space)
-*   - *roughness*: The UI-exposed constant roughness
+*   - *refl_ui*: The UI-exposed constant reflectance color ([0,1] floats in sRGB color space)
+*   - *roughness_ui*: The UI-exposed constant roughness
 *   - *X*: world space hit point
 *   - *N*: world space (outward) normal at the hit point
 *   - *V*: world space view direction at the hit point (i.e. direction from the hit point to the eye).
@@ -141,26 +142,41 @@ Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snel
 * Note that the vec3 color returned is also in sRGB color space.
 * (Any of these functions can be omitted, in which case they will be replaced with the default indicated).
 *```glsl
-        // return surface diffuse reflectance (defaults to just return the input UI constant C)
-        vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V);
+        // return surface diffuse reflectance (defaults to just return the input UI constant refl_ui)
+        vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 refl_ui, in vec3 X, in vec3 N, in vec3 V);
 
-        // return surface specular reflectance (defaults to just return the input UI constant C)
-        vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V);
+        // return surface specular reflectance (defaults to just return the input UI constant refl_ui)
+        vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 refl_ui, in vec3 X, in vec3 N, in vec3 V);
 
-        // return surface roughness in [0,1] (defaults to just return the input roughness)
-        float SURFACE_ROUGHNESS(in float roughness, in vec3 X, in vec3 N);
+        // return surface roughness in [0,1] (defaults to just return the input roughness_ui)
+        float SURFACE_ROUGHNESS(in float roughness_ui, in vec3 X, in vec3 N);
 
-        // return metal roughness in [0,1] (defaults to just return the input UI constant roughness)
-        float METAL_ROUGHNESS(in float roughness, in vec3 X, in vec3 N);
+        // return local space normal (z is up)
+        vec3 SURFACE_NORMAL_MAP(in vec3 X);
 
-        // return metal specular reflectance (defaults to just return the input C)
-        vec3 METAL_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V);
+        // return metal roughness in [0,1] (defaults to just return the input UI constant roughness_ui)
+        float METAL_ROUGHNESS(in float roughness_ui, in vec3 X, in vec3 N);
 
-        // return dielectric roughness in [0,1] (defaults to just return the input UI constant roughness)
-        float DIELECTRIC_ROUGHNESS(in float roughness, in vec3 X, in vec3 N);
+        // return metal specular reflectance (defaults to just return the input refl_ui)
+        vec3 METAL_SPECULAR_REFLECTANCE(in vec3 refl_ui, in vec3 X, in vec3 N, in vec3 V);
 
-        // return dielectric specular reflectance (defaults to just return the input UI constant C)
-        vec3 DIELECTRIC_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V);
+        // return local space normal (z is up)
+        vec3 METAL_NORMAL_MAP(in vec3 X);
+
+        // return dielectric roughness in [0,1] (defaults to just return the input UI constant roughness_ui)
+        float DIELECTRIC_ROUGHNESS(in float roughness_ui, in vec3 X, in vec3 N);
+
+        // return dielectric specular reflectance (defaults to just return the input UI constant refl_ui)
+        vec3 DIELECTRIC_SPECULAR_REFLECTANCE(in vec3 refl_ui, in vec3 X, in vec3 N, in vec3 V);
+
+        // return local space normal (z is up)
+        vec3 DIELECTRIC_NORMAL_MAP(in vec3 X);
+
+        float VOLUME_EXTINCTION(float extinction_ui, in vec3 X);
+        float VOLUME_EXTINCTION_MAX(float extinction_ui);
+        vec3 VOLUME_SCATTERING_COLOR(in vec3 scattering_color_ui, in vec3 X);
+        vec3 VOLUME_ABSORPTION_COLOR(in vec3 scattering_color_ui, in vec3 X);
+        vec3 VOLUME_EMISSION(in vec3 emission_ui, in vec3 X);
 *```
 *Optionally, an init function can also be provided, which will be called first by each primary ray. 
 *This is occasionally useful to prepare global variables for use during the succeeding computation for this pixel.
