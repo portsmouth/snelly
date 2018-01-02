@@ -74,8 +74,8 @@ PathtracerState.prototype.clear = function(fbo)
 * @property {number} [minsSPPToRedraw=0.0]    - if >0.0, renderer will not redraw until the specified SPP have been accumulated
 * @property {number} [exposure=0.0]            - exposure, on a log scale
 * @property {number} [gamma=2.2]               - display gamma correction
-* @property {number} [whitepoint=2.0]          - tonemapping whitepoint
-* @property {number} [AA=true]                 - whether to jitter primary ray within pixel for AA
+* @property {number} [contrast=1.0]            - tonemapping contrast
+* @property {number} [saturation=1.0]          - tonemapping saturation
 * @property {number} [skyPower=4.0]            - sky power (arbitrary units)
 * @property {number} [skyTemperature=6000]     - sky temperature (in Kelvin)
 * @property {number} [envMapRotation=0.0]      - env map rotation about pole in degrees (0 to 360)
@@ -137,14 +137,14 @@ var Renderer = function()
     this.sunVisibleDirectly = true;
     this.exposure = 0.0;
     this.gamma = 2.2;
-    this.whitepoint = 2.0;
+    this.contrast = 1.0;
+    this.saturation = 1.0;
     this.goalFPS = 20.0;
     this.minsSPPToRedraw = 0.0;
     this.envMapVisible = true;
     this.envMapRotation = 0.0;
     this.shadowStrength = 1.0;
     this.maxStepsIsMiss = true;
-    this.AA = true;
 
     // Load shaders
     this.shaderSources = GLU.resolveShaderSource({
@@ -240,20 +240,26 @@ Renderer.prototype.compileShaders = function()
     if (shader.indexOf("INIT(")                            == -1) { shader += `\n void INIT() {}\n`; }
 
     let hasSurface = true;
+    let hasSurfaceNM = false;
     if (shader.indexOf("SDF_SURFACE(")                     == -1) { hasSurface = false; }
     if (shader.indexOf("SURFACE_DIFFUSE_REFLECTANCE(")     == -1) { shader += `\n vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
     if (shader.indexOf("SURFACE_SPECULAR_REFLECTANCE(")    == -1) { shader += `\n vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
     if (shader.indexOf("SURFACE_ROUGHNESS(")               == -1) { shader += `\n float SURFACE_ROUGHNESS(in float roughness, in vec3 X, in vec3 N) { return roughness; }\n`; }
+    if (shader.indexOf("SURFACE_NORMAL_MAP(")               > -1) { hasSurfaceNM = true; }
 
     let hasMetal = true;
+    let hasMetalNM = false;
     if (shader.indexOf("SDF_METAL(")                       == -1) { hasMetal = false; }
     if (shader.indexOf("METAL_SPECULAR_REFLECTANCE(")      == -1) { shader += `\n vec3 METAL_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
     if (shader.indexOf("METAL_ROUGHNESS(")                 == -1) { shader += `\n float METAL_ROUGHNESS(in float roughness, in vec3 X, in vec3 N) { return roughness; }\n`; }
+    if (shader.indexOf("METAL_NORMAL_MAP(")                 > -1) { hasMetalNM = true; }
 
     let hasDielectric = true;
+    let hasDielectricNM = false;
     if (shader.indexOf("SDF_DIELECTRIC(")                  == -1) { hasDielectric = false; }
     if (shader.indexOf("DIELECTRIC_SPECULAR_REFLECTANCE(") == -1) { shader += `\n vec3 DIELECTRIC_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
     if (shader.indexOf("DIELECTRIC_ROUGHNESS(")            == -1) { shader += `\n float DIELECTRIC_ROUGHNESS(in float roughness, in vec3 X, in vec3 N) { return roughness; }\n`; }
+    if (shader.indexOf("DIELECTRIC_NORMAL_MAP(")            > -1) { hasDielectricNM = true; }
 
     let hasVolume = true;
     if (shader.indexOf("SDF_VOLUME(")                      == -1) { hasVolume= false; }
@@ -269,6 +275,8 @@ Renderer.prototype.compileShaders = function()
     { 
         GLU.fail('Scene must define at least one of: SDF_SURFACE, SDF_METAL, SDF_DIELECTRIC, or SDF_VOLUME'); 
     }
+
+    let hasNM = (hasSurfaceNM || hasMetalNM || hasDielectricNM);
     
     // Insert material GLSL code
     var dielectricObj = snelly.getLoadedDielectric(); if (dielectricObj == null) return;
@@ -292,6 +300,11 @@ Renderer.prototype.compileShaders = function()
     if (hasDielectric) replacements.__DEFINES__ += '\n#define HAS_DIELECTRIC\n';
     if (hasVolume)     replacements.__DEFINES__ += '\n#define HAS_VOLUME\n';
     if (hasGeometry)   replacements.__DEFINES__ += '\n#define HAS_GEOMETRY\n';
+
+    if (hasNM)           replacements.__DEFINES__ += '\n#define HAS_NORMALMAP\n';
+    if (hasSurfaceNM)    replacements.__DEFINES__ += '\n#define HAS_SURFACE_NORMALMAP\n';
+    if (hasMetalNM)      replacements.__DEFINES__ += '\n#define HAS_METAL_NORMALMAP\n';
+    if (hasDielectricNM) replacements.__DEFINES__ += '\n#define HAS_DIELECTRIC_NORMALMAP\n';
 
     // Compile pathtracer with different entry point according to mode.
     // Here shaderSources is a dict from name (e.g. "trace")
@@ -560,9 +573,10 @@ Renderer.prototype.render = function()
         var radianceTexCurrent = this.pathStates[next].radianceTex;
         radianceTexCurrent.bind(0);
         this.tonemapProgram.uniformTexture("Radiance", radianceTexCurrent);
-        this.tonemapProgram.uniformF("exposure", Math.pow(10.0, this.exposure));
+        this.tonemapProgram.uniformF("exposure", this.exposure);
         this.tonemapProgram.uniformF("invGamma", 1.0/this.gamma);
-        this.tonemapProgram.uniformF("whitepoint", this.whitepoint);
+        this.tonemapProgram.uniformF("contrast", this.contrast);
+        this.tonemapProgram.uniformF("saturation", this.saturation);
 
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
