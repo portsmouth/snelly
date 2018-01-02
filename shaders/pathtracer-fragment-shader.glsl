@@ -105,6 +105,12 @@ __IOR_FUNC__
 // Basis transforms
 /////////////////////////////////////////////////////////////////////////
 
+vec3 safe_normalize(vec3 N)
+{
+    float l = length(N);
+    return (l==0.0) ? vec3(0.0, 1.0, 0.0) : N/l;
+}
+
 float cosTheta2(in vec3 nLocal) { return nLocal.z*nLocal.z; }
 float cosTheta(in vec3 nLocal)  { return nLocal.z; }
 float sinTheta2(in vec3 nLocal) { return 1.0 - cosTheta2(nLocal); }
@@ -137,7 +143,7 @@ Basis makeBasis(in vec3 nW)
         basis.tW.y = nW.z;
         basis.tW.z = -nW.y;
     }
-    basis.tW = normalize(basis.tW);
+    basis.tW = safe_normalize(basis.tW);
     basis.bW = cross(nW, basis.tW);
     return basis;
 }
@@ -261,7 +267,7 @@ vec3 microfacetSample(inout vec4 rnd, in float roughness)
     float tanThetaMSqr = -roughness*roughness * log(max(epsilon, rand(rnd)));
     float cosThetaM = 1.0 / sqrt(1.0 + tanThetaMSqr);
     float sinThetaM = sqrt(max(0.0, 1.0 - cosThetaM*cosThetaM));
-    return normalize(vec3(sinThetaM*cosPhiM, sinThetaM*sinPhiM, cosThetaM));
+    return safe_normalize(vec3(sinThetaM*cosPhiM, sinThetaM*sinPhiM, cosThetaM));
 }
 
 float microfacetPDF(in vec3 m, in float roughness)
@@ -338,7 +344,7 @@ float fresnelDielectricReflectance(in float cosi, in float iorInternal, in float
 // Returns false if no such beam exists, due to total internal reflection.
 bool refraction(in vec3 n, in float eta, in vec3 wt, inout vec3 wi)
 {
-    vec3 x = normalize(cross(cross(n, wt), n));
+    vec3 x = safe_normalize(cross(cross(n, wt), n));
     float sint = dot(wt, x);
     float sini = eta * sint; // Snell's law
     float sini2 = sini*sini;
@@ -367,13 +373,13 @@ float evaluateDielectric( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, i
     float eta; // IOR ratio, et/ei
     if (reflected)
     { // Compute reflection half-vector
-        h = normalize(wiL + woL);
+        h = safe_normalize(wiL + woL);
     }
     else
     { // Compute refraction half-vector
         bool entering = cosTheta(wiL) > 0.0;
         eta = entering ? ior : 1.0/ior;
-        h = normalize(wiL + eta*woL);
+        h = safe_normalize(wiL + eta*woL);
     }
     if (cosTheta(h)<0.0) h *= -1.0; // make sure half-vector points out
     float roughness = DIELECTRIC_ROUGHNESS(dieleRoughness, X, basis.nW);
@@ -406,7 +412,7 @@ float pdfDielectric( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in flo
     float pdf;
     if (reflected)
     {
-        h = normalize(wiL + woL);
+        h = safe_normalize(wiL + woL);
         dwh_dwo = 1.0 / max(4.0*dot(woL, h), DENOM_TOLERANCE);
         pdf = Fr;
     }
@@ -414,7 +420,7 @@ float pdfDielectric( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in flo
     { // Compute reflection half-vector
         bool entering = cosTheta(wiL) > 0.0;
         float eta = entering ? ior : 1.0/max(ior, DENOM_TOLERANCE);
-        vec3 h = normalize(wiL + eta*woL);
+        vec3 h = safe_normalize(wiL + eta*woL);
         float im = dot(wiL, h);
         float om = dot(woL, h);
         float sqrtDenom = im + eta*om;
@@ -533,7 +539,7 @@ float pdfMetal( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in float wa
 {
     float ior = IOR_DIELE(wavelength_nm);
     float k = K_METAL(wavelength_nm);
-    vec3 h = normalize(wiL + woL); // reflection half-vector
+    vec3 h = safe_normalize(wiL + woL); // reflection half-vector
     float dwh_dwo = 1.0 / max(abs(4.0*dot(woL, h)), DENOM_TOLERANCE); // Jacobian of the half-direction mapping
     float roughness = METAL_ROUGHNESS(metalRoughness, X, basis.nW);
     float pdf = microfacetPDF(h, roughness) * dwh_dwo;
@@ -614,7 +620,7 @@ float pdfSurface(in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in vec3 XY
     float ior = surfaceIor;
     float roughness = SURFACE_ROUGHNESS(surfaceRoughness, X, basis.nW);
     float diffusePdf = pdfHemisphere(wiL);
-    vec3 h = normalize(wiL + woL); // reflection half-vector
+    vec3 h = safe_normalize(wiL + woL); // reflection half-vector
     float dwh_dwo = 1.0 / max(abs(4.0*dot(woL, h)), DENOM_TOLERANCE); // Jacobian of the half-direction mapping
     float specularPdf = microfacetPDF(h, roughness) * dwh_dwo;
     float Fr = fresnelDielectricReflectanceFast(wiL.z, ior);
@@ -810,16 +816,16 @@ vec3 normal(in vec3 pW, int material)
     vec3 yyxp = pW+e.yyx; vec3 yyxn = pW-e.yyx;
     vec3 N;
 #ifdef HAS_SURFACE
-    if (material==MAT_SURFA) { N = vec3(   SDF_SURFACE(xyyp) -    SDF_SURFACE(xyyn),    SDF_SURFACE(yxyp) -    SDF_SURFACE(yxyn),    SDF_SURFACE(yyxp) -    SDF_SURFACE(yyxn)); return normalize(N); }
+    if (material==MAT_SURFA) { N = vec3(   SDF_SURFACE(xyyp) -    SDF_SURFACE(xyyn),    SDF_SURFACE(yxyp) -    SDF_SURFACE(yxyn),    SDF_SURFACE(yyxp) -    SDF_SURFACE(yyxn)); return safe_normalize(N); }
 #endif
 #ifdef HAS_METAL
-    if (material==MAT_METAL) { N = vec3(     SDF_METAL(xyyp) -      SDF_METAL(xyyn),      SDF_METAL(yxyp) -      SDF_METAL(yxyn),      SDF_METAL(yyxp) -      SDF_METAL(yyxn)); return normalize(N); }
+    if (material==MAT_METAL) { N = vec3(     SDF_METAL(xyyp) -      SDF_METAL(xyyn),      SDF_METAL(yxyp) -      SDF_METAL(yxyn),      SDF_METAL(yyxp) -      SDF_METAL(yyxn)); return safe_normalize(N); }
 #endif
 #ifdef HAS_DIELECTRIC
-    if (material==MAT_DIELE) { N = vec3(SDF_DIELECTRIC(xyyp) - SDF_DIELECTRIC(xyyn), SDF_DIELECTRIC(yxyp) - SDF_DIELECTRIC(yxyn), SDF_DIELECTRIC(yyxp) - SDF_DIELECTRIC(yyxn)); return normalize(N); }
+    if (material==MAT_DIELE) { N = vec3(SDF_DIELECTRIC(xyyp) - SDF_DIELECTRIC(xyyn), SDF_DIELECTRIC(yxyp) - SDF_DIELECTRIC(yxyn), SDF_DIELECTRIC(yyxp) - SDF_DIELECTRIC(yyxn)); return safe_normalize(N); }
 #endif
 #ifdef HAS_VOLUME
-    if (material==MAT_VOLUM) { N = vec3(    SDF_VOLUME(xyyp) -     SDF_VOLUME(xyyn),     SDF_VOLUME(yxyp) -     SDF_VOLUME(yxyn),     SDF_VOLUME(yyxp) -     SDF_VOLUME(yyxn)); return normalize(N); }
+    if (material==MAT_VOLUM) { N = vec3(    SDF_VOLUME(xyyp) -     SDF_VOLUME(xyyn),     SDF_VOLUME(yxyp) -     SDF_VOLUME(yxyn),     SDF_VOLUME(yyxp) -     SDF_VOLUME(yyxn)); return safe_normalize(N); }
 #endif
 }
 
@@ -1078,7 +1084,7 @@ void constructPrimaryRay(in vec2 pixel, inout vec4 rnd,
     float fh = tan(0.5*radians(camFovy)); // frustum height
     float fw = camAspect*fh;
     vec3 s = -fw*ndc.x*camX + fh*ndc.y*camY;
-    primaryDir = normalize(camDir + s);
+    primaryDir = safe_normalize(camDir + s);
     if (camAperture<=0.0)
     {
         primaryStart = camPos;
@@ -1089,7 +1095,7 @@ void constructPrimaryRay(in vec2 pixel, inout vec4 rnd,
     float theta = 2.0*M_PI*rand(rnd);
     vec3 lensPos = camPos + lensRadial*(-camX*cos(theta) + camY*sin(theta));
     primaryStart = lensPos;
-    primaryDir = normalize(focalPlaneHit - lensPos);
+    primaryDir = safe_normalize(focalPlaneHit - lensPos);
 }
 
 float samplePath(in vec3 primaryStart, in vec3 primaryDir, 
@@ -1286,39 +1292,33 @@ float samplePath(in vec3 primaryStart, in vec3 primaryDir,
 
 void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
 {
-    if (rand(rnd) < skipProbability)
-    {
-        vec4 oldL = texture(Radiance, vTexCoord);
-        float oldN = oldL.w;
-        float newN = oldN;
-        vec3 newL = oldL.rgb;
-        gbuf_rad = vec4(newL, newN);
-        gbuf_rng = rnd;
-        return;
-    }
- 
     // Sample photon wavelength via the inverse CDF of the emission spectrum.
     // We limit the sampled wavelengths to between about 420nm and 700nm to avoid color mismatch at low sample count
     float xi = 0.1+0.8*(0.5+floor(float(wavelengthSamples)*rand(rnd))) / float(wavelengthSamples);
     float w = texture(ICDF, vec2(xi, 0.5)).r;
     float wavelength_nm = 390.0 + (750.0 - 390.0)*w;
 
+    // Setup sun basis
+    sunBasis = makeBasis(sunDir);
+
     // Evaluate XYZ color matching functions at the sampled wavelengfth
     vec3 XYZ = texture(WavelengthToXYZ, vec2(w, 0.5)).rgb;
     vec3 RGB = clamp(xyzToRgb(XYZ), 0.0, 1.0);
     
-    // Jitter over pixel
-    pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
+    float L = 0.0;
+    for (int n=0; n<__MAX_SAMPLES_PER_FRAME__; ++n)
+    {
+        // Jitter over pixel
+        vec2 pixelj = pixel + (-0.5 + vec2(rand(rnd), rand(rnd)));
 
-    // Setup sun basis
-    sunBasis = makeBasis(sunDir);
+        // Compute world ray direction for this fragment
+        vec3 primaryStart, primaryDir;
+        constructPrimaryRay(pixelj, rnd, primaryStart, primaryDir);
 
-    // Compute world ray direction for this fragment
-    vec3 primaryStart, primaryDir;
-    constructPrimaryRay(pixel, rnd, primaryStart, primaryDir);
-
-    // Perform pathtrace to estimate the primary ray radiance, L
-    float L = samplePath(primaryStart, primaryDir, XYZ, RGB, wavelength_nm, rnd);
+        // Perform pathtrace to estimate the primary ray radiance, L
+        L += samplePath(primaryStart, primaryDir, XYZ, RGB, wavelength_nm, rnd);
+    }
+    L /= float(__MAX_SAMPLES_PER_FRAME__);
 
     // Compute tristimulus contribution from estimated radiance
     vec3 colorXYZ = XYZ * L;
@@ -1335,7 +1335,20 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
 
 void main()
 {
-    INIT();
     vec4 rnd = texture(RngData, vTexCoord);
+#ifdef INTERACTIVE_MODE
+    if (rand(rnd) < skipProbability)
+    {
+        vec4 oldL = texture(Radiance, vTexCoord);
+        float oldN = oldL.w;
+        float newN = oldN;
+        vec3 newL = oldL.rgb;
+        gbuf_rad = vec4(newL, newN);
+        gbuf_rng = rnd;
+        return;
+    }
+#endif 
+
+    INIT();
     pathtrace(gl_FragCoord.xy, rnd);
 }

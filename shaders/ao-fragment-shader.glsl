@@ -276,30 +276,6 @@ vec3 SURFACE_DIFFUSE_REFL_RGB(in vec3 X, in vec3 nW, in vec3 woW)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Light sampling
-////////////////////////////////////////////////////////////////////////////////
-
-vec3 environmentRadiance(in vec3 dir)
-{
-    float phi = atan(dir.x, dir.z) + M_PI + M_PI*envMapRotation/180.0;
-    phi -= 2.0*M_PI*floor(phi/(2.0*M_PI)); // wrap phi to [0, 2*pi]
-    float theta = acos(dir.y);             // theta in [0, pi]
-    float u = phi/(2.0*M_PI);
-    float v = theta/M_PI;
-    vec3 RGB;
-    if (haveEnvMap)
-    {
-        RGB = texture(envMap, vec2(u,v)).rgb;
-        RGB *= skyPower;
-    }
-    else
-    {
-        RGB = skyPower * vec3(1.0);
-    }
-    return RGB;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Ambient occlusion integrator
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -327,59 +303,60 @@ void constructPrimaryRay(in vec2 pixel, inout vec4 rnd,
 
 void main()
 {
-    INIT();
-
     vec4 rnd = texture(RngData, vTexCoord);
+#ifdef INTERACTIVE_MODE
     if (rand(rnd) < skipProbability)
     {
         vec4 oldL = texture(Radiance, vTexCoord);
         float oldN = oldL.w;
         float newN = oldN;
         vec3 newL = oldL.rgb;
-
         gbuf_rad = vec4(newL, newN);
         gbuf_rng = rnd;
         return;
     }
+#endif
 
-    // Jitter over pixel
+    INIT();
+
     vec2 pixel = gl_FragCoord.xy;
-    pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
-
-    vec3 primaryStart, primaryDir;
-    constructPrimaryRay(pixel, rnd, primaryStart, primaryDir);
-
-    // Raycast to first hit point
-    vec3 pW;
-    vec3 woW = -primaryDir;
-    int hitMaterial;
-    bool hit = traceRay(primaryStart, primaryDir, pW, hitMaterial, maxLengthScale);
-
-    vec3 RGB;
-    if (hit)
+    vec3 RGB = vec3(0.0);
+    for (int n=0; n<__MAX_SAMPLES_PER_FRAME__; ++n)
     {
-        // Compute normal at hit point
-        vec3 nW = normal(pW, hitMaterial);
-        Basis basis = makeBasis(nW);
+        // Jitter over pixel
+        vec2 pixelj = pixel + (-0.5 + vec2(rand(rnd), rand(rnd)));
+        vec3 primaryStart, primaryDir;
+        constructPrimaryRay(pixelj, rnd, primaryStart, primaryDir);
 
-        // Construct a uniformly sampled AO ray
-        float hemispherePdf;
-        vec3 wiL = sampleHemisphere(rnd, hemispherePdf);
-        vec3 wiW = localToWorld(wiL, basis);
+        // Raycast to first hit point
+        vec3 pW;
+        vec3 woW = -primaryDir;
+        int hitMaterial;
+        bool hit = traceRay(primaryStart, primaryDir, pW, hitMaterial, maxLengthScale);
+        if (hit)
+        {
+            // Compute normal at hit point
+            vec3 nW = normal(pW, hitMaterial);
+            Basis basis = makeBasis(nW);
 
-        // Compute diffuse albedo
-        vec3 diffuseAlbedo = SURFACE_DIFFUSE_REFL_RGB(pW, basis.nW, woW);
-        
-        // Set incident radiance to according to whether the AO ray hit anything or missed.
-        if (!Occluded(pW, wiW)) RGB = diffuseAlbedo;
-        else                    RGB = diffuseAlbedo * abs(1.0 - shadowStrength);
+            // Construct a uniformly sampled AO ray
+            float hemispherePdf;
+            vec3 wiL = sampleHemisphere(rnd, hemispherePdf);
+            vec3 wiW = localToWorld(wiL, basis);
+
+            // Compute diffuse albedo
+            vec3 diffuseAlbedo = SURFACE_DIFFUSE_REFL_RGB(pW, basis.nW, woW);
+            
+            // Set incident radiance to according to whether the AO ray hit anything or missed.
+            if (!Occluded(pW, wiW)) RGB += diffuseAlbedo;
+            else                    RGB += diffuseAlbedo * abs(1.0 - shadowStrength);
+        }
+        else
+        {
+            RGB += skyPower * vec3(1.0);
+        }
     }
-    else
-    {
-        if (envMapVisible) RGB = environmentRadiance(primaryDir);
-        else               RGB = vec3(0.0);
-    }
-    
+    RGB /= float(__MAX_SAMPLES_PER_FRAME__);
     vec3 XYZ = rgbToXyz(RGB);
     
     // Write updated radiance and sample count

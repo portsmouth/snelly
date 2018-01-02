@@ -64,19 +64,21 @@ GUI.prototype.createRendererSettings = function()
     // raymarching folder
     this.raymarchingFolder = this.rendererFolder.addFolder('Raymarcher');
     this.raymarchingFolder.add(pathtracer, 'renderMode', renderModes).onChange( function(renderMode) { pathtracer.renderMode = renderMode; pathtracer.reset(); });
-    this.raymarchingFolder.add(pathtracer, 'maxBounces', 0, 20).onChange( function(value) { pathtracer.maxBounces = Math.floor(value); pathtracer.reset(); });
-    this.raymarchingFolder.add(pathtracer, 'maxScatters', 0, 20).onChange( function(value) { pathtracer.maxScatters = Math.floor(value); pathtracer.reset(); });
-    this.raymarchingFolder.add(pathtracer, 'maxMarchSteps', 1, 1024).onChange( function(value) { pathtracer.maxMarchSteps = Math.floor(value); pathtracer.reset(); } );
-    this.raymarchingFolder.add(pathtracer, 'maxVolumeSteps', 1, 1024).onChange( function(value) { pathtracer.maxVolumeSteps = Math.floor(value); pathtracer.reset(); } );
+    this.raymarchingFolder.add(pathtracer, 'maxBounces', 0, 20, 1).onChange( function(value) { pathtracer.maxBounces = Math.floor(value); pathtracer.reset(); });
+    this.raymarchingFolder.add(pathtracer, 'maxScatters', 0, 20, 1).onChange( function(value) { pathtracer.maxScatters = Math.floor(value); pathtracer.reset(); });
+    this.raymarchingFolder.add(pathtracer, 'maxSamplesPerFrame', 1, 16, 1).onChange( function(value) { pathtracer.maxBounces = Math.floor(value); pathtracer.reset(); });
+    this.raymarchingFolder.add(pathtracer, 'maxMarchSteps', 1, 1024, 1).onChange( function(value) { pathtracer.maxMarchSteps = Math.floor(value); pathtracer.reset(); } );
+    this.raymarchingFolder.add(pathtracer, 'maxVolumeSteps', 1, 1024, 1).onChange( function(value) { pathtracer.maxVolumeSteps = Math.floor(value); pathtracer.reset(); } );
     this.raymarchingFolder.add(pathtracer, 'maxStepsIsMiss').onChange( function(value) { pathtracer.reset(true); } );
     this.raymarchingFolder.add(pathtracer, 'radianceClamp', -2.0, 6.0).onChange( function(value) { pathtracer.reset(true); } );
-    this.raymarchingFolder.add(pathtracer, 'wavelengthSamples', 4, 1024).onChange( function(value) { pathtracer.reset(true); } );
+    this.raymarchingFolder.add(pathtracer, 'wavelengthSamples', 4, 1024, 1).onChange( function(value) { pathtracer.reset(true); } );
+    this.raymarchingFolder.add(pathtracer, 'interactive').onChange( function(value) { pathtracer.reset(); } );
     this.raymarchingFolder.close();
     
     // camera folder
     this.cameraFolder = this.rendererFolder.addFolder('Camera');
     this.cameraFolder.add(camera, 'fov', 5.0, 120.0).onChange( function(value) { pathtracer.reset(true); } );
-    this.cameraFolder.add(camera, 'aperture',      -20.0, 1.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.cameraFolder.add(camera, 'aperture',      -23.0, 1.0).onChange( function(value) { pathtracer.reset(true); } );
     this.cameraFolder.add(camera, 'focalDistance', -3.0, 3.0).onChange( function(value) { pathtracer.reset(true); } );
     this.cameraFolder.close();
     

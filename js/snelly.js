@@ -297,25 +297,32 @@ controls.target.set(${controls.target.x}, ${controls.target.y}, ${controls.targe
 
 /** Renderer settings **/
 renderer.renderMode = '${renderer.renderMode}';
+renderer.maxSamplesPerFrame = ${renderer.maxSamplesPerFrame};
 renderer.maxBounces = ${renderer.maxBounces};
 renderer.maxScatters = ${renderer.maxScatters};
 renderer.maxMarchSteps = ${renderer.maxMarchSteps};
+renderer.maxVolumeSteps = ${renderer.maxVolumeSteps};
+renderer.maxStepsIsMiss = ${renderer.maxStepsIsMiss};
+renderer.interactive = ${renderer.interactive};
+renderer.goalFPS = ${renderer.goalFPS};
+renderer.minsSPPToRedraw = ${renderer.minsSPPToRedraw};
 renderer.radianceClamp = ${renderer.radianceClamp};
 renderer.wavelengthSamples = ${renderer.wavelengthSamples};
-renderer.skyPower = ${renderer.skyPower};
-renderer.skyTemperature = ${renderer.skyTemperature};
-renderer.sunLatitude = ${renderer.sunLatitude};
-renderer.sunLongitude = ${renderer.sunLongitude};
-renderer.sunAngularSize = ${renderer.sunAngularSize};
-renderer.sunPower = ${renderer.sunPower};
-renderer.sunColor = [${renderer.sunColor[0]}, ${renderer.sunColor[1]}, ${renderer.sunColor[2]}];
 renderer.exposure = ${renderer.exposure};
 renderer.gamma = ${renderer.gamma};
 renderer.contrast = ${renderer.contrast};
 renderer.saturation = ${renderer.saturation};
+renderer.skyPower = ${renderer.skyPower};
+renderer.skyTemperature = ${renderer.skyTemperature};
+renderer.envMapRotation = ${renderer.envMapRotation};
 renderer.envMapVisible = ${renderer.envMapVisible};
+renderer.sunPower = ${renderer.sunPower};
+renderer.sunColor = [${renderer.sunColor[0]}, ${renderer.sunColor[1]}, ${renderer.sunColor[2]}];
+renderer.sunAngularSize = ${renderer.sunAngularSize};
+renderer.sunLatitude = ${renderer.sunLatitude};
+renderer.sunLongitude = ${renderer.sunLongitude};
+renderer.sunVisibleDirectly = ${renderer.sunVisibleDirectly};
 renderer.shadowStrength = ${renderer.shadowStrength};
-renderer.maxStepsIsMiss = ${renderer.maxStepsIsMiss};
 `;
 
     code += `

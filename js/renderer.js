@@ -57,21 +57,22 @@ PathtracerState.prototype.clear = function(fbo)
 *  - 'pt': pathtracer (uni-directional)
 *  - 'ao': ambient occlusion, colored via {@link Surface} material diffuse albedo modulated by the `SURFACE_DIFFUSE_REFLECTANCE` shader function
 *  - 'normals': view normal at first hit as a color
-*  - 'firsthit': view first hit {@link Surface} material diffuse albedo, modulated by the sum of
-*    `SURFACE_DIFFUSE_REFLECTANCE` and `SURFACE_SPECULAR_REFLECTANCE` shader functions
+*  - 'firsthit': first-hit only, and {@link Surface} material only
 * @constructor
 * @property {number} width                     - (if not specified, fits to window)
 * @property {number} height                    - (if not specified, fits to window)
 * @property {String} [renderMode='pt']         - rendering mode (either 'pt', 'ao', 'normals', 'firsthit')
+* @property {number} [maxSamplesPerFrame=1]    - maximum number of per-pixel samples per frame
 * @property {number} [maxBounces=3]            - maximum number of surface bounces
 * @property {number} [maxScatters=2]           - maximum number of volumetric scatterings
 * @property {number} [maxMarchSteps=256]       - maximum number of raymarching steps per path segment
 * @property {number} [maxVolumeSteps=256]      - maximum number of Woodcock tracking steps per path segment
 * @property {number} [maxStepsIsMiss=true]     - whether rays which exceed max step count are considered hits or misses
+* @property {number} [interactive=true]        - if enabled, tries to maintain interactive frame rate at the expense of more noise
+* @property {number} [goalFPS=10.0]            - sampling will adjust to try to match goal FPS
+* @property {number} [minsSPPToRedraw=0.0]     - if >0.0, renderer will not redraw until the specified SPP have been accumulated
 * @property {number} [radianceClamp=3.0]       - clamp radiance to (10^) this max value, for firefly reduction
-* @property {number} [wavelengthSamples=1024]  - number of samples to take over visible wavelength range
-* @property {number} [goalFPS=10.0]           - sampling will adjust to try to match goal FPS
-* @property {number} [minsSPPToRedraw=0.0]    - if >0.0, renderer will not redraw until the specified SPP have been accumulated
+* @property {number} [wavelengthSamples=256]   - number of samples to take over visible wavelength range
 * @property {number} [exposure=0.0]            - exposure, on a log scale
 * @property {number} [gamma=2.2]               - display gamma correction
 * @property {number} [contrast=1.0]            - tonemapping contrast
@@ -121,12 +122,13 @@ var Renderer = function()
 
     // Default user-adjustable properties
     this.renderMode = 'pt';
+    this.maxSamplesPerFrame = 1;
     this.maxBounces = 3;
     this.maxScatters = 2;
     this.maxMarchSteps = 256;
     this.maxVolumeSteps = 256;
     this.radianceClamp = 3.0;
-    this.wavelengthSamples = 1024;
+    this.wavelengthSamples = 256;
     this.skyPower = 1.0;
     this.skyTemperature = 6000.0;
     this.sunPower = 1.0;
@@ -145,6 +147,7 @@ var Renderer = function()
     this.envMapRotation = 0.0;
     this.shadowStrength = 1.0;
     this.maxStepsIsMiss = true;
+    this.interactive = true;
 
     // Load shaders
     this.shaderSources = GLU.resolveShaderSource({
@@ -289,10 +292,11 @@ Renderer.prototype.compileShaders = function()
     replacements = {};
     replacements.__SHADER__          = shader;
     replacements.__IOR_FUNC__        = iorCodeDiele + '\n' + iorCodeMetal;
-    replacements.__MAX_MARCH_STEPS__ = this.maxMarchSteps;
-    replacements.__MAX_VOLUME_STEPS__ = this.maxVolumeSteps;
-    replacements.__MAX_BOUNCES__  = this.maxBounces;
-    replacements.__MAX_SCATTERS__  = this.maxScatters;
+    replacements.__MAX_MARCH_STEPS__ = Math.round(this.maxMarchSteps);
+    replacements.__MAX_VOLUME_STEPS__ = Math.round(this.maxVolumeSteps);
+    replacements.__MAX_BOUNCES__  = Math.round(this.maxBounces);
+    replacements.__MAX_SCATTERS__ = Math.round(this.maxScatters);
+    replacements.__MAX_SAMPLES_PER_FRAME__  = Math.round(this.maxSamplesPerFrame); 
 
     replacements.__DEFINES__ = '';
     if (hasSurface)    replacements.__DEFINES__ += '\n#define HAS_SURFACE\n';
@@ -305,6 +309,8 @@ Renderer.prototype.compileShaders = function()
     if (hasSurfaceNM)    replacements.__DEFINES__ += '\n#define HAS_SURFACE_NORMALMAP\n';
     if (hasMetalNM)      replacements.__DEFINES__ += '\n#define HAS_METAL_NORMALMAP\n';
     if (hasDielectricNM) replacements.__DEFINES__ += '\n#define HAS_DIELECTRIC_NORMALMAP\n';
+
+    if (this.interactive) replacements.__DEFINES__ += '\n#define INTERACTIVE_MODE\n';
 
     // Compile pathtracer with different entry point according to mode.
     // Here shaderSources is a dict from name (e.g. "trace")
@@ -454,7 +460,14 @@ Renderer.prototype.render = function()
     gl.viewport(0, 0, this._width, this._height);
 
     // Update expected sample count after this frame, based on current resolution and skip probability
-    this.numSamples += (1.0-this.skipProbability) * this._width * this._height;
+    if (this.interactive)
+    {
+        this.numSamples += (1.0-this.skipProbability) * Math.round(this.maxSamplesPerFrame) * this._width * this._height;
+    }
+    else
+    {   
+        this.numSamples += Math.round(this.maxSamplesPerFrame) * this._width * this._height;
+    }
     this.spp = this.numSamples / (this._width * this._height);
 
     // Update framebuffer only if we reached the requied SPP threshold for redraw
@@ -598,7 +611,7 @@ Renderer.prototype.render = function()
     else
     {
         // apply exponential smoothing to frame time measurements
-        var smoothing = 0.05;
+        var smoothing = 0.5;
         var prev_frame_time_ms = this.frametime_measure_ms;
         this.frametime_measure_ms = smoothing*frame_time_ms + (1.0-smoothing)*prev_frame_time_ms;
     }

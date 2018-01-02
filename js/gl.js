@@ -520,16 +520,18 @@ var GLU = {};
         this.boundUnit = unit;
     }
 
-
-    // creates a texture info { width: w, height: h, texture: tex }
-    // The texture will start with 1x1 pixels and be updated
-    // when the image has loaded
+    /* Loads a texture. Input sRGB images are automatically converted into linear space.
+    * @memberof GLU.this.Texture
+        * @method uniform3F
+        * @param {string} url - URL of the texture to load
+        * @param {Object} callback - function to call on texture load
+        * @returns {Object} - returns a texture info object: { width: w, height: h, texture: gl-tex }
+    */
     this.loadImageAndCreateTextureInfo = function(url, callback)
     {
         let tex = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, tex);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.SRGB8, 1, 1, 0, gl.RGB, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 255, 255]));
-
         let imgInfo = {
             width: 1,   // we don't know the size until it loads
             height: 1,
@@ -544,17 +546,12 @@ var GLU = {};
             imgInfo.tex = tex;
             gl.bindTexture(gl.TEXTURE_2D, tex);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.SRGB8, gl.RGB, gl.UNSIGNED_BYTE, img);
-
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-
             callback(imgInfo);
         });
-        //if ((new URL(url)).origin !== window.location.origin)
-        {
-                img.crossOrigin = "";
-          }
+        img.crossOrigin = "";
         img.src = url;
         return imgInfo;
     }

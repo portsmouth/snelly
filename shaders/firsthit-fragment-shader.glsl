@@ -534,9 +534,8 @@ void constructPrimaryRay(in vec2 pixel, inout vec4 rnd,
 
 void main()
 {
-    INIT();
-
     vec4 rnd = texture(RngData, vTexCoord);
+#ifdef INTERACTIVE_MODE
     if (rand(rnd) < skipProbability)
     {
         vec4 oldL = texture(Radiance, vTexCoord);
@@ -548,68 +547,67 @@ void main()
         gbuf_rng = rnd;
         return;
     }
+#endif
 
-    // Jitter over pixel
-    vec2 pixel = gl_FragCoord.xy;
-    pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
+    INIT();
 
     // Setup sun basis
     sunBasis = makeBasis(sunDir);
 
-    vec3 primaryStart, primaryDir;
-    constructPrimaryRay(pixel, rnd, primaryStart, primaryDir);
-
-    // Raycast to first hit point
-    vec3 pW;
-    vec3 woW = -primaryDir;
-    bool hit = traceRay(primaryStart, primaryDir, pW, maxLengthScale);
-
-    // @todo: features to support realistic 'fractal architecture' renderings:
-    //        - optionally dim according to visibility with less dimming at greater hit distance
-    //        - optional single volume scattering assuming homogeneous medium
-    //               for fast god rays and distance fog.
-
-    vec3 RGB = vec3(0.0, 0.0, 0.0);
-    if (hit)
+    vec2 pixel = gl_FragCoord.xy;
+    vec3 RGB = vec3(0.0);
+    for (int n=0; n<__MAX_SAMPLES_PER_FRAME__; ++n)
     {
-        vec3 nW = normal(pW);
-        Basis basis = makeBasis(nW);
+        // Jitter over pixel
+        vec2 pixelj = pixel + (-0.5 + vec2(rand(rnd), rand(rnd)));
+        vec3 primaryStart, primaryDir;
+        constructPrimaryRay(pixel, rnd, primaryStart, primaryDir);
 
-        // Sample BSDF for the bounce direction
-        vec3 woL = worldToLocal(woW, basis);
-        vec3 wiL;
-        float bsdfPdf;
-        vec3 f = sampleSurface(pW, basis, woL, wiL, bsdfPdf, rnd);
-
-        vec3 wiW = localToWorld(wiL, basis);
-        vec3 rayDir = wiW; // bounce ray direction
-
-        // Update path throughput
-        vec3 fOverPdf = min(vec3(radianceClamp), f/max(PDF_EPSILON, bsdfPdf));
-        vec3 throughput = fOverPdf * abs(dot(wiW, nW));
-
-        // Add term from direct light sampling:
-        float lightPdf;
-        RGB += throughput * directSurfaceLighting(pW, basis, woW, rnd, lightPdf);
-
-        // Add lighting term from BRDF sampling (optionally)
-        if (__MAX_BOUNCES__>0)
+        // Raycast to first hit point
+        vec3 pW;
+        vec3 woW = -primaryDir;
+        bool hit = traceRay(primaryStart, primaryDir, pW, maxLengthScale);
+        if (hit)
         {
-            float eps = 3.0*minLengthScale;
-            pW += nW * sign(dot(wiW, nW)) * eps;
-            float V = Visibility(pW, rayDir);
-            vec3 Li = environmentRadiance(rayDir);
-            Li += sunRadiance(rayDir);
-            Li *= abs(1.0 - shadowStrength*(1.0-V));
-            RGB += throughput * Li * powerHeuristic(bsdfPdf, lightPdf);
+            vec3 nW = normal(pW);
+            Basis basis = makeBasis(nW);
+
+            // Sample BSDF for the bounce direction
+            vec3 woL = worldToLocal(woW, basis);
+            vec3 wiL;
+            float bsdfPdf;
+            vec3 f = sampleSurface(pW, basis, woL, wiL, bsdfPdf, rnd);
+
+            vec3 wiW = localToWorld(wiL, basis);
+            vec3 rayDir = wiW; // bounce ray direction
+
+            // Update path throughput
+            vec3 fOverPdf = min(vec3(radianceClamp), f/max(PDF_EPSILON, bsdfPdf));
+            vec3 throughput = fOverPdf * abs(dot(wiW, nW));
+
+            // Add term from direct light sampling:
+            float lightPdf;
+            RGB += throughput * directSurfaceLighting(pW, basis, woW, rnd, lightPdf);
+
+            // Add lighting term from BRDF sampling (optionally)
+            if (__MAX_BOUNCES__>0)
+            {
+                float eps = 3.0*minLengthScale;
+                pW += nW * sign(dot(wiW, nW)) * eps;
+                float V = Visibility(pW, rayDir);
+                vec3 Li = environmentRadiance(rayDir);
+                Li += sunRadiance(rayDir);
+                Li *= abs(1.0 - shadowStrength*(1.0-V));
+                RGB += throughput * Li * powerHeuristic(bsdfPdf, lightPdf);
+            }
+        }
+        else
+        {
+            if (envMapVisible)      RGB += environmentRadiance(primaryDir);
+            if (sunVisibleDirectly) RGB += sunRadiance(primaryDir);
         }
     }
-    else
-    {
-        if (envMapVisible)      RGB += environmentRadiance(primaryDir);
-        if (sunVisibleDirectly) RGB += sunRadiance(primaryDir);
-    }
-
+    RGB /= float(__MAX_SAMPLES_PER_FRAME__);
     vec3 XYZ = rgbToXyz(RGB);
 
     // Write updated radiance and sample count

@@ -294,29 +294,33 @@ void main()
 
     vec4 rnd = texture(RngData, vTexCoord);
     vec2 pixel = gl_FragCoord.xy;
-    pixel += (-0.5 + vec2(rand(rnd), rand(rnd)));
 
-    vec3 primaryStart, primaryDir;
-    constructPrimaryRay(pixel, rnd, primaryStart, primaryDir);
-
-    // Raycast to first hit point
-    vec3 pW;
-    vec3 woW = -primaryDir;
-    int hitMaterial;
-    bool hit = traceRay(primaryStart, primaryDir, pW, hitMaterial, maxLengthScale);
-    vec3 colorXYZ;
-    if (hit)
+    vec3 colorXYZ = vec3(0.0);
+    for (int n=0; n<__MAX_SAMPLES_PER_FRAME__; ++n)
     {
-        // Compute normal at hit point
-        vec3 nW = normal(pW, hitMaterial);
-        colorXYZ = rgbToXyz(0.5*(nW+vec3(1.0)));
-    }
-    else
-    {
-        if (envMapVisible) colorXYZ = environmentRadianceXYZ(primaryDir);
-        else               colorXYZ = vec3(0.0);
-    }
+        // Jitter over pixel
+        vec2 pixelj = pixel + (-0.5 + vec2(rand(rnd), rand(rnd)));
+        vec3 primaryStart, primaryDir;
+        constructPrimaryRay(pixelj, rnd, primaryStart, primaryDir);
 
+        // Raycast to first hit point
+        vec3 pW;
+        vec3 woW = -primaryDir;
+        int hitMaterial;
+        bool hit = traceRay(primaryStart, primaryDir, pW, hitMaterial, maxLengthScale);
+        if (hit)
+        {
+            // Compute normal at hit point
+            vec3 nW = normal(pW, hitMaterial);
+            colorXYZ += rgbToXyz(0.5*(nW+vec3(1.0)));
+        }
+        else
+        {
+            if (envMapVisible) colorXYZ += environmentRadianceXYZ(primaryDir);
+            else               colorXYZ += vec3(0.0);
+        }
+    }
+    colorXYZ /= float(__MAX_SAMPLES_PER_FRAME__);
 
    // Write updated radiance and sample count
     vec4 oldL = texture(Radiance, vTexCoord);
