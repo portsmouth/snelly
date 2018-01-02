@@ -33,15 +33,7 @@ uniform float skipProbability;
 uniform float shadowStrength;
 uniform bool maxStepsIsMiss;
 
-uniform float metalRoughness;
-uniform vec3 metalSpecAlbedoXYZ;
-uniform float dieleRoughness;
-uniform vec3 dieleAbsorptionRGB;
-uniform vec3 dieleSpecAlbedoXYZ;
-uniform vec3 surfaceDiffuseAlbedoXYZ;
-uniform vec3 surfaceSpecAlbedoXYZ;
-uniform float surfaceRoughness;
-uniform float surfaceIor;
+uniform vec3 surfaceDiffuseAlbedoRGB;
 
 #define DENOM_TOLERANCE 1.0e-7
 #define PDF_EPSILON 1.0e-6
@@ -279,8 +271,7 @@ vec3 sampleHemisphere(inout vec4 rnd, inout float pdf)
 
 vec3 SURFACE_DIFFUSE_REFL_RGB(in vec3 X, in vec3 nW, in vec3 woW)
 {
-    vec3 C = xyzToRgb(surfaceDiffuseAlbedoXYZ);
-    vec3 reflRGB = SURFACE_DIFFUSE_REFLECTANCE(C, X, nW, woW);
+    vec3 reflRGB = SURFACE_DIFFUSE_REFLECTANCE(surfaceDiffuseAlbedoRGB, X, nW, woW);
     return reflRGB;
 }
 

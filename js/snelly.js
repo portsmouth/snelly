@@ -83,6 +83,7 @@ var Snelly = function(sceneObj)
     window.addEventListener( 'click', this, false );
     window.addEventListener( 'keydown', this, false );
 
+    this.reset_time = performance.now();
     this.initialized = true;
 }
 
@@ -257,9 +258,6 @@ Snelly.prototype.initScene = function()
     this.addSpectrum( new BlackbodySpectrum("blackbody", "Blackbody spectrum", this.pathtracer.skyTemperature) );
     this.loadSpectrum("blackbody");
     
-    //this.addSpectrum( new FlatSpectrum("flat", "Flat spectrum", 390.0, 750.0) );
-    //this.loadSpectrum("flat");
-  
     // Camera setup
     this.camControls.update();
     this.reset(false);
@@ -300,6 +298,7 @@ controls.target.set(${controls.target.x}, ${controls.target.y}, ${controls.targe
 /** Renderer settings **/
 renderer.renderMode = '${renderer.renderMode}';
 renderer.maxBounces = ${renderer.maxBounces};
+renderer.maxScatters = ${renderer.maxScatters};
 renderer.maxMarchSteps = ${renderer.maxMarchSteps};
 renderer.radianceClamp = ${renderer.radianceClamp};
 renderer.wavelengthSamples = ${renderer.wavelengthSamples};
@@ -312,7 +311,8 @@ renderer.sunPower = ${renderer.sunPower};
 renderer.sunColor = [${renderer.sunColor[0]}, ${renderer.sunColor[1]}, ${renderer.sunColor[2]}];
 renderer.exposure = ${renderer.exposure};
 renderer.gamma = ${renderer.gamma};
-renderer.whitepoint = ${renderer.whitepoint};
+renderer.contrast = ${renderer.contrast};
+renderer.saturation = ${renderer.saturation};
 renderer.envMapVisible = ${renderer.envMapVisible};
 renderer.shadowStrength = ${renderer.shadowStrength};
 renderer.maxStepsIsMiss = ${renderer.maxStepsIsMiss};
@@ -456,6 +456,7 @@ Snelly.prototype.getVolume = function()
 Snelly.prototype.reset = function(no_recompile = false)
 {
     if (!this.initialized || this.terminated) return;
+    this.reset_time = performance.now();
     this.pathtracer.reset(no_recompile);
 }
    
@@ -476,6 +477,12 @@ Snelly.prototype.render = function()
     {
         // Render distance field surface via pathtracing
         this.pathtracer.render();
+    }
+    else
+    {
+        const gl = GLU.gl;
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     }
 
     // Update HUD text canvas
@@ -506,16 +513,20 @@ Snelly.prototype.render = function()
         if (this.sceneURL != '')
         {
             if (this.onUserLink) this.textCtx.fillStyle = "#aaccff";
-              else                 this.textCtx.fillStyle = "#55aaff";
-              this.textCtx.strokeText(this.sceneURL, 14, this.textCtx.canvas.height-40);
-              this.textCtx.fillText(this.sceneURL, 14, this.textCtx.canvas.height-40);
+            else               this.textCtx.fillStyle = "#55aaff";
+            this.textCtx.strokeText(this.sceneURL, 14, this.textCtx.canvas.height-40);
+            this.textCtx.fillText(this.sceneURL, 14, this.textCtx.canvas.height-40);
         }
         if (this.statusText != '')
         {
-            this.textCtx.fillStyle = "#ff4000";
+            let since_reset_time_ms = performance.now() - this.reset_time;
+            let phase = Math.abs(Math.cos(2.0*since_reset_time_ms/1000.0));
+            let r = Math.round(32+(255-32)*phase);
+            let g = Math.round(32+(128-32)*phase);
+            this.textCtx.fillStyle = "rgb(" + r + ", " + g + ", 0)"; 
             let x = this.textCtx.canvas.width - 12*this.statusText.length;
             this.textCtx.strokeText(this.statusText, x, this.textCtx.canvas.height-25);
-              this.textCtx.fillText(this.statusText, x, this.textCtx.canvas.height-25);
+            this.textCtx.fillText(this.statusText, x, this.textCtx.canvas.height-25);
         }
     }
 
