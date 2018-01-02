@@ -393,15 +393,17 @@ Optional callback on key down.
 | width | <code>number</code> |  | (if not specified, fits to window) |
 | height | <code>number</code> |  | (if not specified, fits to window) |
 | renderMode | <code>String</code> | <code>&#x27;pt&#x27;</code> | rendering mode (either 'pt', 'ao', 'normals', 'firsthit') |
+| maxSamplesPerFrame | <code>number</code> | <code>1</code> | maximum number of per-pixel samples per frame |
 | maxBounces | <code>number</code> | <code>3</code> | maximum number of surface bounces |
 | maxScatters | <code>number</code> | <code>2</code> | maximum number of volumetric scatterings |
 | maxMarchSteps | <code>number</code> | <code>256</code> | maximum number of raymarching steps per path segment |
 | maxVolumeSteps | <code>number</code> | <code>256</code> | maximum number of Woodcock tracking steps per path segment |
 | maxStepsIsMiss | <code>number</code> | <code>true</code> | whether rays which exceed max step count are considered hits or misses |
-| radianceClamp | <code>number</code> | <code>3.0</code> | clamp radiance to (10^) this max value, for firefly reduction |
-| wavelengthSamples | <code>number</code> | <code>1024</code> | number of samples to take over visible wavelength range |
+| interactive | <code>number</code> | <code>true</code> | if enabled, tries to maintain interactive frame rate at the expense of more noise |
 | goalFPS | <code>number</code> | <code>10.0</code> | sampling will adjust to try to match goal FPS |
 | minsSPPToRedraw | <code>number</code> | <code>0.0</code> | if >0.0, renderer will not redraw until the specified SPP have been accumulated |
+| radianceClamp | <code>number</code> | <code>3.0</code> | clamp radiance to (10^) this max value, for firefly reduction |
+| wavelengthSamples | <code>number</code> | <code>256</code> | number of samples to take over visible wavelength range |
 | exposure | <code>number</code> | <code>0.0</code> | exposure, on a log scale |
 | gamma | <code>number</code> | <code>2.2</code> | display gamma correction |
 | contrast | <code>number</code> | <code>1.0</code> | tonemapping contrast |
@@ -433,8 +435,7 @@ Interface to the renderer. The rendering modes available are:
  - 'pt': pathtracer (uni-directional)
  - 'ao': ambient occlusion, colored via [Surface](#Surface) material diffuse albedo modulated by the `SURFACE_DIFFUSE_REFLECTANCE` shader function
  - 'normals': view normal at first hit as a color
- - 'firsthit': view first hit [Surface](#Surface) material diffuse albedo, modulated by the sum of
-   `SURFACE_DIFFUSE_REFLECTANCE` and `SURFACE_SPECULAR_REFLECTANCE` shader functions
+ - 'firsthit': first-hit only, and [Surface](#Surface) material only
 
 <a name="Renderer+focusAt"></a>
 
