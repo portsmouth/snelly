@@ -18,10 +18,7 @@ Snelly is a system for physically-based SDF (signed distance field) pathtracing 
 <a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.2/exampleScenes/volumes/pyroclastic.html"><img src="./docs/screenshots/pyroclastic_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.2/exampleScenes/volumes/volumeBunny.html"><img src="./docs/screenshots/volumeBunny_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.2/exampleScenes/volumes/volumeCheckerboard.html"><img src="./docs/screenshots/volumeCheckerboard_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.2/exampleScenes/volumes/volumetricMath.html"><img src="./docs/screenshots/volumetricMath_thumb.png" width="220"/></a>
 
 
-..		
-font_sdf.html	Update demos.	22 minutes ago
-math_dielectric.html	Update demos.	22 minutes ago
-math_sdf.html
+
 
 UI controls:
  - left mouse to rotate, alt-mouse to pan
