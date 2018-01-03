@@ -1,6 +1,6 @@
    
 <body onload="onLoad();">
-<script src="https://cdn.rawgit.com/portsmouth/snelly/75aa3e8a/js/compiled/snelly.min.js"></script>
+<script src="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/js/compiled/snelly.min.js"></script>
     
     <?/* ------------------------------------------------------------------*/?>
     <?/*                         scene definition                          */?>
@@ -231,7 +231,7 @@
 
     Scene.prototype.isReady = function(snelly)            
     {
-        if (!this.LOADED)
+        if (!this.loaded)
         {
             snelly.setStatus("Loading SDF ...");
         }
@@ -239,7 +239,7 @@
         {
             snelly.setStatus("");
         }
-        return this.LOADED;
+        return this.loaded;
     }
 
     Scene.prototype.getLengthScale = function()    { return 1.0; }

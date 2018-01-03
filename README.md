@@ -3,11 +3,34 @@
 Snelly is a system for physically-based SDF (signed distance field) pathtracing in a web browser. 
 
 
-<a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/helloWorld.html"><img src="./docs/screenshots/helloWorld_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/basicAnimation.html"><img src="./docs/screenshots/basicAnimation_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/gem.html"><img src="./docs/screenshots/gem_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/meteorite.html"><img src="./docs/screenshots/meteorite_thumb.png" width="220"/></a>
+<a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/misc/helloWorld.html"><img src="./docs/screenshots/helloWorld_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/misc/distanceViz.html"><img src="./docs/screenshots/distanceViz_thumb.png" width="220"/></a>
+<a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/misc/city.html"><img src="./docs/screenshots/distanceViz_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/misc/rock.html"><img src="./docs/screenshots/rock_thumb.png" width="220"/></a>
 
-<a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/rock.html"><img src="./docs/screenshots/rock_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/menger.html"><img src="./docs/screenshots/menger_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/mandelbox.html"><img src="./docs/screenshots/mandelbox_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/apollonian_pt.html"><img src="./docs/screenshots/apollonian_pt_thumb.png" width="220"/></a>
+<a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/animation/basicAnimation.html"><img src="./docs/screenshots/basicAnimation_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/animation/bounce.html"><img src="./docs/screenshots/bounce_thumb.png" width="220"/></a>
+<a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/metals/meteorite.html"><img src="./docs/screenshots/meteorite_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/metals/lattice_metallic.html"><img src="./docs/screenshots/lattice_metallic_thumb.png" width="220"/></a>
 
-<a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/apollonian_firsthit.html"><img src="./docs/screenshots/apollonian_firsthit_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/lattice_metallic.html"><img src="./docs/screenshots/lattice_metallic_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/lattice_dielectric.html"><img src="./docs/screenshots/lattice_dielectric_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.0.2/exampleScenes/lattice_mixed.html"><img src="./docs/screenshots/lattice_mixed_thumb.png" width="220"/></a>
+<a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/dielectrics/gem.html"><img src="./docs/screenshots/gem_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/dielectrics/glassPolyhedron.html"><img src="./docs/screenshots/glassPolyhedron_thumb.png" width="220"/></a>
+<a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/dielectrics/lattice_dielectric.html"><img src="./docs/screenshots/lattice_dielectric_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/dielectrics/lattice_mixed.html"><img src="./docs/screenshots/lattice_mixed_thumb.png" width="220"/></a>
+
+<a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/fractals/menger.html"><img src="./docs/screenshots/menger_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/fractals/mandelbox.html"><img src="./docs/screenshots/mandelbox_thumb.png" width="220"/></a>
+<a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/fractals/apollonian_pt.html"><img src="./docs/screenshots/apollonian_pt_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/fractals/apollonian_firsthit.html"><img src="./docs/screenshots/apollonian_firsthit_thumb.png" width="220"/></a>
+
+<a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/fractals/mengerHead.html"><img src="./docs/screenshots/mengerHead_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/fractals/mengerBunny.html"><img src="./docs/screenshots/mengerBunny_thumb.png" width="220"/></a>
+<a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/fonts/font_sdf.html"><img src="./docs/screenshots/font_sdf_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/fonts/math_dielectric.html"><img src="./docs/screenshots/math_dielectric_thumb.png" width="220"/></a>
+
+<a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/fonts/math_sdf.html"><img src="./docs/screenshots/math_sdf_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/meshes/armadillo.html"><img src="./docs/screenshots/armadillo_thumb.png" width="220"/></a>
+<a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/meshes/bunny.html"><img src="./docs/screenshots/bunny_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/meshes/hand.html"><img src="./docs/screenshots/hand_thumb.png" width="220"/></a>
+
+<a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/textures/texture_flesh.html"><img src="./docs/screenshots/texture_flesh_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/textures/texture_rocks.html"><img src="./docs/screenshots/texture_rocks_thumb.png" width="220"/></a>
+<a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/volumes/pyroclastic.html"><img src="./docs/screenshots/pyroclastic_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/volumes/volumeBunny.html"><img src="./docs/screenshots/volumeBunny_thumb.png" width="220"/></a>
+
+<a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/volumes/volumeCheckerboard.html"><img src="./docs/screenshots/volumeCheckerboard_thumb.png" width="220"/></a><a href="https://cdn.rawgit.com/portsmouth/snelly/v1.5.1/exampleScenes/volumes/volumetricMath.html"><img src="./docs/screenshots/volumetricMath_thumb.png" width="220"/></a>
+
+
+..		
+font_sdf.html	Update demos.	22 minutes ago
+math_dielectric.html	Update demos.	22 minutes ago
+math_sdf.html
 
 UI controls:
  - left mouse to rotate, alt-mouse to pan
