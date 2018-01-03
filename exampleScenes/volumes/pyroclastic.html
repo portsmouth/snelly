@@ -1,0 +1,251 @@
+
+<body onload="onLoad();">
+<script src="https://cdn.rawgit.com/portsmouth/snelly/75aa3e8a/js/compiled/snelly.min.js"></script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                         scene definition                          */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script>
+
+function Scene() {}
+Scene.prototype.init = function(snelly)
+{
+    let renderer  = snelly.getRenderer();
+    let camera    = snelly.getCamera();
+    let controls  = snelly.getControls();
+    let materials = snelly.getMaterials();
+        
+    this.par = {};
+    this.par.R               = 4.283577328152457;
+    this.par.dR              = 0.83;
+    this.par.scale           = 2.254514383238136;
+    this.par.time            = 24.80805562093293;
+    this.par.frequency       = 0.9018057532952541;
+    this.par.amplitude       = 0.5235602389334311;
+    this.par.gain            = 0.7665348903009661;
+    this.par.lacunarity      = 3.2014104241981522;
+    this.par.noiseIterations = 5.630837049240814;
+
+        
+    snelly.showGUI(true);
+
+    /** Camera settings **/
+    camera.fov = 45;
+    camera.aperture = -20;
+    camera.focalDistance = 0.2029756496915401;
+    camera.up.set(0, 1, 0);
+    camera.position.set(12.554360356492802, -0.8964858196334042, 3.2059965511946658);
+    controls.target.set(-0.6285825864256946, 0.2470286252798355, -0.5672577238184755);
+
+    /** Renderer settings **/
+    renderer.renderMode = 'pt';
+    renderer.maxBounces = 10;
+    renderer.maxMarchSteps = 250;
+    renderer.radianceClamp = 1.0603817826273834;
+    renderer.wavelengthSamples = 1024;
+    renderer.skyPower = 0.11477248077274024;
+    renderer.skyTemperature = 6000;
+    renderer.sunLatitude = 81.47008627447394;
+    renderer.sunLongitude = 0;
+    renderer.sunAngularSize = 6.42570281124498;
+    renderer.sunPower = 6.811244979919678;
+    renderer.sunColor = [1, 1, 1];
+    renderer.exposure = 1.6265060240963862;
+    renderer.gamma = 2.3710843373493975;
+    renderer.whitepoint = 2.178313253012048;
+    renderer.envMapVisible = false;
+    renderer.shadowStrength = 1;
+    renderer.maxStepsIsMiss = true;
+    renderer.AA = true;
+
+    /** Material settings **/
+    let surface = materials.loadSurface();
+    surface.roughness = 0.1;
+    surface.ior = 1.5;
+    surface.diffuseAlbedo = [1, 1, 1];
+    surface.specAlbedo = [1, 1, 1];
+
+    let dielectric = materials.loadDielectric('Glass (BK7)');
+    dielectric.absorptionColor = [1, 1, 1];
+    dielectric.absorptionScale = -1; // mfp in multiples of scene scale
+    dielectric.roughness = 0.005;
+
+    let metal = materials.loadMetal('Aluminium');
+    metal.roughness = 0.02;
+
+    let volume = materials.loadVolume();
+    volume.extinction = 8.064627272727275;
+    volume.scatteringColor = [0.359815343913107, 0.39410446851436715, 0.9411719650528528];
+    volume.absorptionColor = [0, 0.1766372930444433, 1];
+    volume.anisotropy = 0.8679880375466822;
+    volume.emission = 0;
+    volume.emissionColor = [1, 1, 1];
+}
+
+Scene.prototype.shader = function()
+{
+    let noiseIterations = this.par.noiseIterations;
+
+    return `
+    uniform float R;
+    uniform float dR;
+    uniform vec3 emissionColor;
+
+    uniform float scale;
+    uniform float time;
+
+    uniform float freq;
+    uniform float amp;
+    uniform float gain;
+    uniform float lacunarity;
+
+    float hash12(vec2 p) {
+        float h = dot(p,vec2(127.1,311.7));
+        return fract(sin(h)*437.545);
+    }
+
+    float noise3d(in vec3 X) {
+        vec3 i = floor(X);
+        vec3 f = fract(X);
+        vec3 u = f*f*(3.0-2.0*f);
+        vec2 ii = i.xy + i.z * vec2(5.0);
+        float a = hash12( ii + vec2(0.0,0.0) );
+        float b = hash12( ii + vec2(1.0,0.0) );
+        float c = hash12( ii + vec2(0.0,1.0) );
+        float d = hash12( ii + vec2(1.0,1.0) );
+        float v1 = mix(mix(a,b,u.x), mix(c,d,u.x), u.y);
+        ii += vec2(5.0);
+        a = hash12( ii + vec2(0.0,0.0) );
+        b = hash12( ii + vec2(1.0,0.0) );
+        c = hash12( ii + vec2(0.0,1.0) );
+        d = hash12( ii + vec2(1.0,1.0) );
+        float v2 = mix(mix(a,b,u.x), mix(c,d,u.x), u.y);
+        return max(mix(v1,v2,u.z),0.0);
+    }
+
+    float fbm3d(vec3 X, float _freq, float _amp, float _gain, float _lacunarity) {
+
+        float noise = 0.0;
+        float a = _amp;
+        const int iter = int(${noiseIterations});
+        vec3 P = X * _freq;
+        for(int i=0; i<iter; i++)
+        {
+            noise += a * noise3d(P);
+            a *= _gain;
+            P *= _lacunarity;
+        }
+        return noise;
+    }
+
+    float sdSphere(vec3 X, float r) { return length(X) - r; }
+    float sdBox(vec3 X, vec3 bmin, vec3 bmax)
+    {
+        vec3 d = abs(X-0.5*(bmin+bmax)) - 0.5*(bmax-bmin);
+        return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
+    }
+
+    float opU(float d1, float d2) { return min(d1,d2); }
+
+    float SDF_VOLUME(vec3 X)
+    {
+        return sdSphere(X, 1.2*R);
+    }
+
+    float VOLUME_EXTINCTION(float extinction_ui, vec3 X)
+    {
+        float noise = clamp(abs(fbm3d(X, freq, amp, gain, lacunarity)), 0.0, 1.0);
+        float modulation = 1.0 - smoothstep(R, 1.2*R, length(X)+noise);
+        return extinction_ui * modulation;
+    }
+
+    float VOLUME_EXTINCTION_MAX(float extinction_ui)
+    {
+        return extinction_ui;
+    }
+
+    vec3 VOLUME_SCATTERING_COLOR(vec3 scattering_color_ui, vec3 X)
+    {
+        return scattering_color_ui;
+    }
+
+    vec3 VOLUME_ABSORPTION_COLOR(vec3 absorption_color_ui, vec3 X)
+    {
+        return absorption_color_ui;
+    }
+
+    vec3 VOLUME_EMISSION(vec3 emission_ui, vec3 X)
+    {
+        float vol = 1.0 - smoothstep(dR, 1.5*dR, length(X));
+        return scale * emission_ui * vol;
+    }
+
+    `;
+}
+
+Scene.prototype.initGenerator = function()
+{
+    return `
+this.par = {};
+this.par.R               = ${this.par.R};
+this.par.dR              = ${this.par.dR};
+this.par.scale           = ${this.par.scale};
+this.par.time            = ${this.par.time};
+this.par.frequency       = ${this.par.frequency};
+this.par.amplitude       = ${this.par.amplitude};
+this.par.gain            = ${this.par.gain};
+this.par.lacunarity      = ${this.par.lacunarity};
+this.par.noiseIterations = ${this.par.noiseIterations};
+
+    `;
+}
+
+Scene.prototype.getName = function() { return 'Pyroclastic noise'; }
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/helloWorld.html"; }
+Scene.prototype.getLengthScale = function()    { return 1.0; }
+Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
+Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
+
+Scene.prototype.envMap = function()
+{ return 'https://cdn.rawgit.com/portsmouth/envmaps/4e256a04/fin4_Bg.jpg'; }
+
+Scene.prototype.initGui = function(gui)
+{
+    gui.addSlider(this.par, {name: 'R', min: 0.0, max: 20.0});
+    gui.addSlider(this.par, {name: 'dR', min: 0.0, max: 20.0});
+	gui.addSlider(this.par, {name: 'scale', min: 0.0, max: 10.0});
+    gui.addSlider(this.par, {name: 'time', min: 0.0, max: 100.0});
+
+    gui.addSlider(this.par, {name: 'frequency', min: 0.0, max: 10.0});
+    gui.addSlider(this.par, {name: 'amplitude', min: -5.0, max: 5.0});
+    gui.addSlider(this.par, {name: 'gain', min: 0.0, max: 1.0});
+    gui.addSlider(this.par, {name: 'lacunarity', min: 0.0, max: 4.0});
+    gui.addSlider(this.par, {name: 'noiseIterations', min: 1, max: 8, step: 1, recompile: true});
+}
+
+Scene.prototype.syncShader = function(snelly, shader)
+{
+    shader.uniformF("R", this.par.R);
+    shader.uniformF("dR", this.par.dR);
+    shader.uniformF("scale", this.par.scale);
+    shader.uniformF("time", this.par.time);
+    shader.uniformF("freq", this.par.frequency);
+    shader.uniformF("amp", this.par.amplitude);
+    shader.uniformF("gain", this.par.gain);
+    shader.uniformF("lacunarity", this.par.lacunarity);
+}
+
+
+</script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                            main loop                              */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+</script>
+
+</body>

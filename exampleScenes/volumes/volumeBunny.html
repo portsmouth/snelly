@@ -1,0 +1,409 @@
+   
+<body onload="onLoad();">
+<script src="https://cdn.rawgit.com/portsmouth/snelly/75aa3e8a/js/compiled/snelly.min.js"></script>
+    
+    <?/* ------------------------------------------------------------------*/?>
+    <?/*                         scene definition                          */?>
+    <?/* ------------------------------------------------------------------*/?>
+    
+    <script>
+    
+    window.Packer = function()
+    {
+        this.VERSION_MAJOR = 1;
+        this.VERSION_MINOR = 0;
+    }
+    
+    window.Packer.prototype = {
+    
+        decode: function(image) {
+    
+            let bitsPerColorComponent = 8;
+            let canvas = document.createElement('canvas');
+            let ctx = canvas.getContext('2d');
+            canvas.width = image.width;
+            canvas.height = image.height;
+            ctx.drawImage(image, 0, 0);
+            let img = ctx.getImageData(0, 0, image.width, image.height);
+    
+            let imgData = img.data;
+            let length = imgData.length;
+            let buf = this.raw_decode = new Uint8Array(image.width * image.height * 3);
+    
+            let i = 0;
+            let j = 0;
+            while(i < length)
+            {
+                buf[j++] = imgData[i++];
+                buf[j++] = imgData[i++];
+                buf[j++] = imgData[i++];
+                i++;
+            }
+    
+            if(buf[0] == 0xbe && buf[1] == 0xef)
+            {
+                let mdSize   = buf[4] | buf[5] << 8 | buf[6] << 16 | buf[7] << 24;
+                let dataSize = buf[8] | buf[9] << 8 | buf[10] << 16 | buf[11] << 24;
+    
+                console.log('mdSize: ', mdSize);
+                console.log('dataSize: ', dataSize);
+                console.log('data in buffer: ', buf.length - mdSize - 12);
+    
+                let mdBuf = buf.subarray(12, 12 + mdSize);
+                let metaData = JSON.parse(this.utf8Decode(mdBuf));
+                console.log('loaded metadata: ', metaData)
+                let pos = 12 + mdSize;
+                var data = new Uint8Array(dataSize);
+                data.set(buf.subarray(pos, pos + dataSize));
+                let dataAsFloat32Array = new Float32Array(data.buffer);
+    
+                let asset = {
+                    metadata: metaData,
+                    data: dataAsFloat32Array };
+                return asset;
+            }
+            else
+            {
+                console.log('corrupt magic number in file!');
+            }
+        },
+    
+        loadImage: function(url, callback)
+        {
+            var imgInfo = {
+                width: 1,
+                height: 1,
+                url: url,
+            };
+            var img = new Image();
+            img.addEventListener('load', function() {
+                callback(img, url);
+            });
+            img.crossOrigin = "";
+            img.src = url;
+            return imgInfo;
+        },
+    
+        utf8Decode: function(uint8array) {
+            var len = uint8array.byteLength;
+            var string = "";
+            var i = 0;
+            while (i < len) {
+                var c = uint8array[i];
+                if (c < 128) {
+                    string += String.fromCharCode(c);
+                    i++;
+                } else if((c > 191) && (c < 224) && (i + 1 < len)) {
+                    string += String.fromCharCode(((c & 31) << 6) | (uint8array[i + 1] & 63));
+                    i += 2;
+                } else if(i + 2 < len) {
+                    string += String.fromCharCode(((c & 15) << 12) | ((uint8array[i + 1] & 63) << 6) | (uint8array[i + 2] & 63));
+                    i += 3;
+                }
+            }
+            return string;
+        }
+    
+    }
+    
+    
+    
+    function Scene() {}
+    Scene.prototype.init = function(snelly)
+    {
+        this.par = {};
+        this.par.expansion = -0.2;
+        this.par.frequency = 0.4;
+        this.par.amplitude = 2.0;
+        this.par.gain = 0.33;
+        this.par.lacunarity = 3.0;
+        this.par.noiseIterations = 4;
+
+        /******* copy-pasted console output on 'O', begin *******/
+    
+        let renderer  = snelly.getRenderer();
+        let camera    = snelly.getCamera();
+        let controls  = snelly.getControls();
+        let materials = snelly.getMaterials();
+            
+        snelly.showGUI(true);
+
+        /** Camera settings **/
+        camera.fov = 45;
+        camera.aperture = -23;
+        camera.focalDistance = 1.6321703214903398;
+        camera.up.set(0, 1, 0);
+        camera.position.set(-9.365100340045199, 72.45157027942152, -116.36571886117551);
+        controls.target.set(-10.022023183005558, 28.861244885932, 21.38461696826417);
+
+        /** Renderer settings **/
+        renderer.renderMode = 'pt';
+        renderer.maxSamplesPerFrame = 1;
+        renderer.maxBounces = 2;
+        renderer.maxScatters = 5;
+        renderer.maxMarchSteps = 270;
+        renderer.maxVolumeSteps = 256;
+        renderer.maxStepsIsMiss = true;
+        renderer.interactive = true;
+        renderer.goalFPS = 20;
+        renderer.minsSPPToRedraw = 1;
+        renderer.radianceClamp = 3;
+        renderer.wavelengthSamples = 256;
+        renderer.exposure = 2.09838591863417;
+        renderer.gamma = 1.8237460019204588;
+        renderer.contrast = 1;
+        renderer.saturation = 1;
+        renderer.skyPower = 0;
+        renderer.skyTemperature = 6000;
+        renderer.envMapRotation = 0;
+        renderer.envMapVisible = false;
+        renderer.sunPower = 4.362330586595704;
+        renderer.sunColor = [1, 0.8, 0.5];
+        renderer.sunAngularSize = 10.102239253169;
+        renderer.sunLatitude = 50;
+        renderer.sunLongitude = 0;
+        renderer.sunVisibleDirectly = true;
+        renderer.shadowStrength = 1;
+
+        /** Material settings **/
+        let volume = materials.loadVolume();
+        volume.extinction = 100;
+        volume.scatteringColor = [0.196078431372549, 0.2433679354094581, 1];
+        volume.absorptionColor = [0.2941176470588235, 0.41868512110726663, 1];
+        volume.anisotropy = 0;
+        volume.emission = 0;
+        volume.emissionColor = [1, 1, 1];
+
+        /******* copy-pasted console output on 'O', end *******/
+        
+        renderer.minsSPPToRedraw = 1;
+    
+        let gl = snelly.getGLContext();
+        this.sdfTexture = gl.createTexture();
+    
+        let texture_unit = snelly.getUserTextureUnitStart();
+        gl.activeTexture(gl.TEXTURE0 + texture_unit);
+        gl.bindTexture(gl.TEXTURE_3D, this.sdfTexture);
+    
+        let type = gl.FLOAT;
+        let internalformat = gl.R32F;
+        let format = gl.RED;
+        gl.texImage3D(gl.TEXTURE_3D, 0, internalformat, 1, 1, 1, 0, format, type, null);
+    
+        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    
+        this.ORIG = [0,0,0];
+        this.EDGE = [1,1,1];
+    
+        // Load SDF texture
+        let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/46aa39d6/assets/bunny.png';
+   
+        var packer = new Packer();
+
+        this.LOADED = false;
+        let SCENE = this;
+        packer.loadImage(imageUrl,
+                        function(img, url)
+                        {
+                            console.log('image loaded from: ', url);
+    
+                            let asset = packer.decode(img);
+                            let md = asset.metadata;
+                            SCENE.ORIG = md.ORIG;
+                            SCENE.EDGE = md.EDGE;
+                            let width  = md.GRES[0];
+                            let height = md.GRES[1];
+                            let depth  = md.GRES[2];
+       
+                            let texture_unit = snelly.getUserTextureUnitStart();
+                            gl.activeTexture(gl.TEXTURE0 + texture_unit);
+                            gl.bindTexture(gl.TEXTURE_3D, SCENE.sdfTexture);
+                            gl.texImage3D(gl.TEXTURE_3D, 0, internalformat, width, height, depth, 0, format, type, asset.data);
+    
+                            snelly.reset();
+                            SCENE.loaded = true;
+                        });
+    }
+    
+
+    Scene.prototype.isReady = function(snelly)            
+    {
+        if (!this.LOADED)
+        {
+            snelly.setStatus("Loading SDF ...");
+        }
+        else
+        {
+            snelly.setStatus("");
+        }
+        return this.LOADED;
+    }
+
+    Scene.prototype.getLengthScale = function()    { return 1.0; }
+    Scene.prototype.getMinLengthScale = function() { return 1.0e-1 * this.getLengthScale(); }
+    Scene.prototype.getMaxLengthScale = function() { return 5.0e2 * this.getLengthScale(); }
+    
+    Scene.prototype.syncShader = function(snelly, shader)
+    {
+        let gl = snelly.getGLContext();
+        let texture_unit = snelly.getUserTextureUnitStart();
+        let program = shader.getProgram();
+        let texture_id = gl.getUniformLocation(program, "sdfTex");
+    
+        gl.activeTexture(gl.TEXTURE0 + texture_unit);
+        gl.bindTexture(gl.TEXTURE_3D, this.sdfTexture);
+        gl.uniform1i(texture_id, texture_unit);
+    
+        shader.uniformF("expansion", this.par.expansion);
+
+        shader.uniform3Fv("O", this.ORIG);
+        shader.uniform3Fv("E", this.EDGE);
+
+        shader.uniformF("freq", this.par.frequency);
+        shader.uniformF("amp", this.par.amplitude);
+        shader.uniformF("gain", this.par.gain);
+        shader.uniformF("lacunarity", this.par.lacunarity);
+    }
+    
+    Scene.prototype.shader = function()
+    {
+        let noiseIterations = this.par.noiseIterations;
+
+        return `
+        uniform float expansion;
+        uniform vec3 O;
+        uniform vec3 E;
+        uniform float freq;
+        uniform float amp;
+        uniform float gain;
+        uniform float lacunarity;
+
+        precision highp sampler3D;
+        uniform sampler3D sdfTex;
+    
+        float sdBox(vec3 X, vec3 bmin, vec3 bmax)
+        {
+            vec3 d = abs(X-0.5*(bmin+bmax)) - 0.5*(bmax-bmin);
+            return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
+        }
+
+        // Noise
+        float hash12(vec2 p) {
+            float h = dot(p,vec2(127.1,311.7));
+            return fract(sin(h)*437.545);
+        }
+
+        float noise3d(in vec3 X) {
+            vec3 i = floor(X);
+            vec3 f = fract(X);
+            vec3 u = f*f*(3.0-2.0*f);
+            vec2 ii = i.xy + i.z * vec2(5.0);
+            float a = hash12( ii + vec2(0.0,0.0) );
+            float b = hash12( ii + vec2(1.0,0.0) );
+            float c = hash12( ii + vec2(0.0,1.0) );
+            float d = hash12( ii + vec2(1.0,1.0) );
+            float v1 = mix(mix(a,b,u.x), mix(c,d,u.x), u.y);
+            ii += vec2(5.0);
+            a = hash12( ii + vec2(0.0,0.0) );
+            b = hash12( ii + vec2(1.0,0.0) );
+            c = hash12( ii + vec2(0.0,1.0) );
+            d = hash12( ii + vec2(1.0,1.0) );
+            float v2 = mix(mix(a,b,u.x), mix(c,d,u.x), u.y);
+            return max(mix(v1,v2,u.z),0.0);
+        }
+
+        float fbm3d(vec3 X, float _freq, float _amp, float _gain, float _lacunarity) {
+            
+            float noise = 0.0;
+            float a = _amp;
+            const int iter = int(${noiseIterations});
+            vec3 P = X * _freq;
+            for(int i=0; i<iter; i++)
+            {
+                noise += a * noise3d(P);
+                a *= _gain;
+                P *= _lacunarity;
+            }
+            return noise;
+        }
+
+        float opU( float d1, float d2 ) { return min(d1,d2); }
+        float opS(float A, float B) { return max(-B, A); }
+        float opI( float d1, float d2 ) { return max(d1,d2); }
+    
+        float opCombine(float d1, float d2, float r)
+        {
+            float m = min(d1, d2);
+            if (d1 < r && d2 < r) return min(m, r - length(r - vec2(d1, d2)));
+            else return m;
+        }
+
+        float MESH(in vec3 X)
+        {
+            X = X.xzy;
+
+            // if X is outside grid, return distance to a slightly embedded grid
+            if ( sdBox(X, O, O+E) > 0.0 )
+            {
+                return sdBox(X, O+0.05*E, O+0.95*E);
+            }
+            vec3 D = X - O;
+            vec3 uvw = vec3(D.x/E.x, D.y/E.y, D.z/E.z);
+            float sdf = texture(sdfTex, uvw.xyz).r;
+            return sdf;
+        }
+    
+        float SDF_VOLUME(vec3 X)
+        {
+            float L = max(max(E.x, E.y), E.z);
+            float mesh = MESH(X.xyz) - 0.05*L*expansion;
+            return mesh;
+        }
+        
+        float VOLUME_EXTINCTION(float extinction_ui, vec3 X)
+        {
+            float s = MESH(X.xyz);
+            float L = max(max(E.x, E.y), E.z);
+            float noise = fbm3d(X, freq, amp, gain, lacunarity);
+            return extinction_ui * (1.0 - step(0.0, noise+s)) / L;
+        }
+
+        float VOLUME_EXTINCTION_MAX(float extinction_ui)
+        {
+            float L = max(max(E.x, E.y), E.z);
+            return extinction_ui/L;
+        }
+        `;
+    }
+    
+    Scene.prototype.getName = function() { return 'Volumetric bunny'; }
+    Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/helloWorld.html"; }
+    Scene.prototype.envMap = function() { return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg'; }
+    
+    Scene.prototype.initGui = function(gui)
+    {
+        gui.addSlider(this.par, {name: 'expansion', min: -1.0, max: 1.0});
+        gui.addSlider(this.par, {name: 'frequency', min: 0.0, max: 10.0});
+        gui.addSlider(this.par, {name: 'amplitude', min: -5.0, max: 5.0});
+        gui.addSlider(this.par, {name: 'gain', min: 0.0, max: 1.0});
+        gui.addSlider(this.par, {name: 'lacunarity', min: 0.0, max: 4.0});
+        gui.addSlider(this.par, {name: 'noiseIterations', min: 1, max: 8, step: 1, recompile: true});
+
+    }
+    
+    
+    </script>
+    
+    <?/* ------------------------------------------------------------------*/?>
+    <?/*                            main loop                              */?>
+    <?/* ------------------------------------------------------------------*/?>
+    
+    <script type="text/javascript">
+    function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+    function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+    </script>
+    
+    </body>

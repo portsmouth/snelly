@@ -1,0 +1,146 @@
+
+<body onload="onLoad();">
+<script src="https://cdn.rawgit.com/portsmouth/snelly/75aa3e8a/js/compiled/snelly.min.js"></script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                         scene definition                          */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script>
+
+function Scene() {}
+Scene.prototype.init = function(snelly)
+{
+    let renderer  = snelly.getRenderer();
+    let camera    = snelly.getCamera();
+    let controls  = snelly.getControls();
+    let materials = snelly.getMaterials();
+        
+    this.par = {};
+    this.par.R               = 2.7061310782241015;
+
+    snelly.showGUI(true);
+
+    /** Camera settings **/
+    camera.fov = 45;
+    camera.aperture = -20;
+    camera.focalDistance = 2;
+    camera.up.set(0, 1, 0);
+    camera.position.set(-4.330085328839285, 2.52898354817844, -3.2885590713977875);
+    controls.target.set(-0.26012057568163716, -0.22349850681740854, 0.2520064965544826);
+
+    /** Renderer settings **/
+    renderer.renderMode = 'pt';
+    renderer.maxBounces = 10;
+    renderer.maxMarchSteps = 250;
+    renderer.radianceClamp = -1.724484384004482;
+    renderer.wavelengthSamples = 1024;
+    renderer.skyPower = 0;
+    renderer.skyTemperature = 6000;
+    renderer.sunLatitude = 71.1766353573781;
+    renderer.sunLongitude = 190.10577503690752;
+    renderer.sunAngularSize = 6.42570281124498;
+    renderer.sunPower = 2.295963466629318;
+    renderer.sunColor = [1, 1, 1];
+    renderer.exposure = 2.028159991918206;
+    renderer.gamma = 2.3710843373493975;
+    renderer.whitepoint = 2.178313253012048;
+    renderer.envMapVisible = false;
+    renderer.shadowStrength = 0.970281124497992;
+    renderer.maxStepsIsMiss = true;
+    renderer.AA = true;
+
+    /** Material settings **/
+    let surface = materials.loadSurface();
+    surface.roughness = 0.1;
+    surface.ior = 1.5;
+    surface.diffuseAlbedo = [1, 1, 1];
+    surface.specAlbedo = [1, 1, 1];
+
+    let dielectric = materials.loadDielectric('Glass (BK7)');
+    dielectric.absorptionColor = [1, 1, 1];
+    dielectric.absorptionScale = -1; // mfp in multiples of scene scale
+    dielectric.roughness = 0.005;
+
+    let metal = materials.loadMetal('Aluminium');
+    metal.roughness = 0.02;
+
+    let volume = materials.loadVolume();
+    volume.extinction = 22.171875;
+    volume.scatteringColor = [0, 1, 0.5294117647058822];
+    volume.absorptionColor = [0.004133025759323322, 0.006801682610760541, 0.009803921568627416];
+    volume.anisotropy = 0.8456659619450317;
+    volume.emission = 0;
+    volume.emissionColor = [0, 0, 0];
+}
+
+Scene.prototype.shader = function()
+{
+    let noiseIterations = this.par.noiseIterations;
+
+    return `
+    uniform float R;
+
+    float sdBox(vec3 X, vec3 bmin, vec3 bmax)
+    {
+        vec3 d = abs(X-0.5*(bmin+bmax)) - 0.5*(bmax-bmin);
+        return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
+    }
+
+    float SDF_VOLUME(vec3 X)
+    {
+        return sdBox(X, vec3(-1.0), vec3(1.0));
+    }
+
+    vec3 VOLUME_SCATTERING_COLOR(vec3 Cin, vec3 X)
+    {
+        float f = 2.0*M_PI*R;
+        vec3 C = vec3(0.0);
+        C += vec3(1.0, Cin.y, Cin.z) * max(0.0, cos(X.x*f));
+        C += vec3(Cin.x, 1.0, Cin.z) * max(0.0, cos(X.y*f));
+        C += vec3(Cin.x, Cin.y, 1.0) * max(0.0, cos(X.z*f));
+        return C;
+    }
+    `;
+}
+
+Scene.prototype.initGenerator = function()
+{
+    return `
+this.par = {};
+this.par.R               = ${this.par.R};
+`;
+}
+
+Scene.prototype.getName = function() { return 'Volumetric scattering checkerboard'; }
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/helloWorld.html"; }
+Scene.prototype.getLengthScale = function()    { return 1.0; }
+Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
+Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
+
+Scene.prototype.envMap = function()
+{ return 'https://cdn.rawgit.com/portsmouth/envmaps/4e256a04/fin4_Bg.jpg'; }
+
+Scene.prototype.initGui = function(gui)
+{
+    gui.addSlider(this.par, {name: 'R', min: 0.0, max: 20.0});
+}
+
+Scene.prototype.syncShader = function(snelly, shader)
+{
+    shader.uniformF("R", this.par.R);
+}
+
+
+</script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                            main loop                              */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+</script>
+
+</body>

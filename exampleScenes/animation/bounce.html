@@ -1,0 +1,283 @@
+   
+<body onload="onLoad();">
+
+<script src="https://cdn.rawgit.com/portsmouth/snelly/75aa3e8a/js/compiled/snelly.min.js"></script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                         scene definition                          */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script>
+
+function Scene() {}
+Scene.prototype.init = function(snelly)
+{
+    this.FPS = 30.0;
+	this.targetSPP = 0.0;
+	this.advanceFrame = false;
+    this.animFrame = 0;
+
+    this.par = {};
+
+    /******* copy-pasted console output on 'O', begin *******/
+    let renderer  = snelly.getRenderer();
+    let camera    = snelly.getCamera();
+    let controls  = snelly.getControls();
+    let materials = snelly.getMaterials();
+        
+    this.playing = true;
+    this.par.ballSize = 0.55;
+    this.par.bounceRate = 1.127554615926709;
+    this.par.bounceHeight = 1.0;
+    this.par.gridSpace = 5.0;
+    this.par.camSpeed = 1;
+        
+    snelly.showGUI(true);
+
+    /** Camera settings **/
+    camera.fov = 45;
+    camera.aperture = -5.0;
+    camera.focalDistance = 1.1395378037905142;
+    camera.up.set(-0.7150442285646916, -0.10309210646584782, -0.6914360192966225);
+    camera.position.set(3.2296072966816123, 5.458482159181951, 539.5128069568301);
+    controls.target.set(-6.234516366353484, 4.031668852780276, 549.5128069568301);
+
+    /** Renderer settings **/
+    renderer.renderMode = 'ao';
+    renderer.maxSamplesPerFrame = 2;
+    renderer.maxBounces = 1;
+    renderer.maxScatters = 1;
+    renderer.maxMarchSteps = 256;
+    renderer.maxVolumeSteps = 256;
+    renderer.maxStepsIsMiss = false;
+    renderer.interactive = false;
+    renderer.goalFPS = 15;
+    renderer.minsSPPToRedraw = 0;
+    renderer.radianceClamp = 3;
+    renderer.wavelengthSamples = 32;
+    renderer.exposure = 1.197713961727973;
+    renderer.gamma = 2.169199886604791;
+    renderer.contrast = 1.4805650019683492;
+    renderer.saturation = 1.2395427923455946;
+    renderer.skyPower = 1.8367707733034542;
+    renderer.skyTemperature = 6000;
+    renderer.envMapRotation = 0;
+    renderer.envMapVisible = true;
+    renderer.sunPower = 11.27554615926709;
+    renderer.sunColor = [1, 0.3840830449826992, 0.12745098039215685];
+    renderer.sunAngularSize = 3.214348853281045;
+    renderer.sunLatitude = 5.052887518453758;
+    renderer.sunLongitude = 0;
+    renderer.sunVisibleDirectly = true;
+    renderer.shadowStrength = 1;
+
+    /** Material settings **/
+    let surface = materials.loadSurface();
+    surface.roughness = 0.06088794926004229;
+    surface.ior = 2.262861169837914;
+    surface.diffuseAlbedo = [1, 1, 1];
+    surface.specAlbedo = [1, 1, 1];
+    /******* copy-pasted console output on 'O', end *******/
+
+    renderer.minsSPPToRedraw = this.targetSPP;
+}
+
+Scene.prototype.preframeCallback = function(snelly, gl)
+{
+    let renderer  = snelly.getRenderer();
+    let camera    = snelly.getCamera();
+    let controls  = snelly.getControls();
+    let materials = snelly.getMaterials();
+    let gui       = snelly.getGUI();
+
+    // Advance scene state to next anim frame, if we have reached the spp count for the previous frame
+    if (this.advanceFrame || this.animFrame == 0)
+    {
+		// animate camera/scene here based on time
+        let time = this.animFrame/this.FPS;
+
+        let orig = new THREE.Vector3(Math.cos(0.232*time)*10. , 6.+3.*Math.cos(0.3*time), this.par.gridSpace*(time/this.par.camSpeed));
+        camera.position.set(orig.x, orig.y, orig.z);
+        
+        let targ = new THREE.Vector3(-Math.sin( 0.232*time) * 10., -2.0+Math.cos(0.23*time), 10.0);
+        targ.add(orig);
+        controls.target.set(targ.x, targ.y, targ.z);
+
+        targ.sub(orig).normalize();
+        let cw = targ;
+        let roll = -0.15*Math.sin(0.5*time);
+        let cp = new THREE.Vector3(Math.sin(roll), Math.cos(roll),0.0 );
+        let up = new THREE.Vector3();
+        up.copy(cw);
+        up.cross(cp).normalize();
+
+        camera.up.set(up.x, up.y, up.z);
+	}
+
+	if (this.advanceFrame)
+	{
+		gui.sync();
+
+		// Tell renderer to restart sampling
+		let no_recompile = true;
+		renderer.reset(no_recompile);
+		this.advanceFrame = false;
+	}
+
+	this.timer_start = performance.now();
+}
+
+Scene.prototype.postframeCallback = function(snelly, gl)
+{
+	// pause if FPS exceeded our goal
+	var timer_end = performance.now();
+	var frame_time_ms = (timer_end - this.timer_start);
+	let goal_ms = Math.min(1.0e3, Math.max(1.0, 1.0e3/this.FPS));
+	if (frame_time_ms<goal_ms)
+	{
+		(function pause(ms) {
+		    var t0 = performance.now(); var t1 = null;
+		    do { t1 = performance.now(); } while (t1-t0 < ms);
+		}(goal_ms-frame_time_ms));
+	}
+
+	let renderer = snelly.getRenderer();
+	if (this.animFrame>=0 && renderer.getSPP()>=this.targetSPP && this.playing)
+	{
+		this.advanceFrame = true;
+		this.animFrame++;
+	}
+}
+
+Scene.prototype.onkeydownCallback = function(event, snelly, gl)
+{
+	var charCode = (event.which) ? event.which : event.keyCode;
+	switch (charCode)
+	{
+		case 32: // toggle pause/play on spacebar
+			this.playing = !this.playing;
+	}
+}
+
+Scene.prototype.shader = function()
+{
+    return `
+    uniform float ballSize;
+    uniform float bounceRate;
+    uniform float bounceHeight;
+    uniform float gridSpace;
+    uniform float animFrame;
+
+    float time;
+    void INIT()
+    {
+        time = bounceRate * animFrame/30.0;
+    }
+
+    float opU(float d1, float d2) { return min(d1,d2); }
+
+    float sdSphere(vec3 X, float r) { return length(X) - r; }
+    float sdBox(vec3 X, vec3 bmin, vec3 bmax)
+    {
+        vec3 d = abs(X-0.5*(bmin+bmax)) - 0.5*(bmax-bmin);
+        return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
+    }
+
+    float hash( const float n ) {
+        return fract(sin(n)*43758.54554213);
+    }
+
+    vec2 hash2( const vec2 n ) {
+	    return fract(sin(vec2( n.x*n.y, n.x+n.y))*vec2(25.1459123,312.3490423));
+    }
+
+    vec3 hash3( const vec2 n ) {
+        return fract(sin(vec3(n.x, n.y, n+2.0))*vec3(36.5453123,43.1459123,11234.3490423));
+    }
+
+    vec3 getSphereColor( const vec2 grid ) {
+	    return 0.8*normalize( hash3( grid+vec2(43.12*grid.y,12.23*grid.x) ) );
+    }
+
+    float SDF_SURFACE(vec3 X)
+    {
+        vec3 Xgrid = floor(X/gridSpace)*gridSpace;
+
+        float s = 0.1+hash( Xgrid.x*1.23114+5.342+74.324231*Xgrid.z );
+        float t = 14.*s + time/s;
+
+        float R = ballSize*0.25*gridSpace;
+        float dmax = gridSpace - 4.0*R; // balls must stay within 1 radius of the grid cell boundary
+        float dy = 2.0*R + dmax * bounceHeight * abs(cos(t));
+        vec2 dxz = vec2(0.0); // (hash2(Xgrid.xz+vec2(43.12,1.23)) - vec2(0.5)) * dmax;
+
+        vec3 sphereCenter = vec3(Xgrid.x + 0.5*gridSpace + dxz.x, dy, Xgrid.z + 0.5*gridSpace + dxz.y);
+        float balls = min(2.0*R, sdSphere(X-sphereCenter, R)); // have to march at most 2 radii to avoid spurious hits
+
+        float L = 1.0e8;
+        float floor = sdBox(X, vec3(-L,0.0,-L), vec3(L, R, L));
+        return opU(balls, floor);
+    }
+
+    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
+    {
+        float R = ballSize*0.25*gridSpace;
+        if (X.y>R+1.0e-1)
+        {
+            vec3 Xgrid = floor(X/gridSpace)*gridSpace;
+            return C * getSphereColor(Xgrid.xz);
+        }
+        return vec3(1.0);
+    }
+    `;
+}
+
+Scene.prototype.getName = function() { return 'Bouncy balls'; }
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/helloWorld.html"; }
+Scene.prototype.getLengthScale = function()    { return 1.0; }
+Scene.prototype.getMinLengthScale = function() { return 5.0e-2 * this.getLengthScale(); }
+Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
+
+Scene.prototype.initGui = function(gui) 
+{ 
+    gui.addSlider(this.par, {name: 'ballSize', min: 0.0, max: 1.0}); 
+    gui.addSlider(this.par, {name: 'bounceRate', min: 0.0, max: 10.0}); 
+    gui.addSlider(this.par, {name: 'bounceHeight', min: 0.0, max: 1.0}); 
+    gui.addSlider(this.par, {name: 'gridSpace', min: 0.0, max: 10.0}); 
+    gui.addSlider(this.par, {name: 'camSpeed', min: 0.0, max: 10.0}); 
+}
+
+Scene.prototype.initGenerator = function()
+{
+    return `
+this.playing = ${this.playing};
+this.par.ballSize = ${this.par.ballSize};
+this.par.bounceRate = ${this.par.bounceRate};
+this.par.bounceHeight = ${this.par.bounceHeight};
+this.par.gridSpace = ${this.par.gridSpace};
+this.par.camSpeed = ${this.par.camSpeed};
+    `;
+}
+
+Scene.prototype.syncShader = function(snelly, shader) 
+{ 
+    shader.uniformF("ballSize", this.par.ballSize);
+    shader.uniformF("bounceRate", this.par.bounceRate);
+    shader.uniformF("bounceHeight", this.par.bounceHeight);
+    shader.uniformF("gridSpace", this.par.gridSpace);
+    shader.uniformF("camSpeed", this.par.camSpeed);
+    shader.uniformF("animFrame", this.animFrame);
+}
+
+</script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                            main loop                              */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+</script>
+
+</body>

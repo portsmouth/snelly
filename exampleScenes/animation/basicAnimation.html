@@ -1,6 +1,6 @@
 
 <body onload="onLoad();">
-<script src="../js/compiled/snelly.min.js"></script>
+<script src="https://cdn.rawgit.com/portsmouth/snelly/75aa3e8a/js/compiled/snelly.min.js"></script>
 
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
@@ -32,41 +32,46 @@ Scene.prototype.init = function(snelly)
 	this.parameters.torusBigRadius = 1.5785764622973923;
 	this.parameters.torusLittleRadius = 0.3269908386187456;
 	this.playing = true;
-	this.animFrame = 10;
-	    
+	this.animFrame = 16;
+		
 	snelly.showGUI(true);
 
+	/** Camera settings **/
 	camera.fov = 45;
+	camera.aperture = -10.839105768149023;
+	camera.focalDistance = 0.6091923284225225;
 	camera.up.set(0, 1, 0);
-	camera.position.set(1.614396152547189, -2.6092488678120556, -4.041094985203925);
-	controls.target.set(-0.6503199189496807, 0.0795761398922718, 0.04285419525116046);
+	camera.position.set(4.872430591630855, -2.224895568102556, -1.7281459372302967);
+	controls.target.set(0.004499996455464244, -0.2567854094564587, -0.5168846775998517);
 
 	/** Renderer settings **/
 	renderer.renderMode = 'pt';
 	renderer.maxBounces = 3;
+	renderer.maxScatters = 2;
 	renderer.maxMarchSteps = 256;
 	renderer.radianceClamp = 3;
-	renderer.skyPower = 1.916842847075405;
+	renderer.wavelengthSamples = 32;
+	renderer.skyPower = 1.8367707733034542;
 	renderer.skyTemperature = 6000;
-	renderer.exposure = 4.510218463706836;
+	renderer.sunLatitude = 3.3615221987314925;
+	renderer.sunLongitude = 267.90697674418607;
+	renderer.sunAngularSize = 10.599013389711065;
+	renderer.sunPower = 0.9183853866517271;
+	renderer.sunColor = [1, 1, 1];
+	renderer.exposure = 1.4286977065620903;
 	renderer.gamma = 2.2;
-	renderer.whitepoint = 2;
+	renderer.contrast = 1;
+	renderer.saturation = 1;
 	renderer.envMapVisible = false;
 	renderer.shadowStrength = 1;
 	renderer.maxStepsIsMiss = true;
-	renderer.AA = true;
 
 	/** Material settings **/
 	let surface = materials.loadSurface();
-	surface.roughness = 0;
-	surface.ior = 1.5;
-	surface.diffuseAlbedo = [0.696078431372549, 0.696078431372549, 0.696078431372549];
-	surface.specAlbedo = [0.019607843137254943, 0.019607843137254943, 0.019607843137254943];
-
-	let dielectric = materials.loadDielectric('Glass (BK7)');
-	dielectric.absorptionColor = [1, 1, 1];
-	dielectric.absorptionScale = -1; // mfp in multiples of scene scale
-	dielectric.roughness = 0.005;
+	surface.roughness = 0.01127554615926709;
+	surface.ior = 2.24031007751938;
+	surface.diffuseAlbedo = [0.4607843137254902, 0.40896600854874826, 0.2846020761245675];
+	surface.specAlbedo = [1, 0.9607843137254902, 0.9607843137254902];
 
 	let metal = materials.loadMetal('Copper');
 	metal.roughness = 0.02;
@@ -90,9 +95,9 @@ Scene.prototype.shader = function()
 		uniform mat4 transformA;
 		uniform mat4 transformB;
 
-		float sdSphere(vec3 X, float r) { return length(X) - r; } 
-		float sdBox(vec3 X, vec3 b) { vec3 d = abs(X)-b; return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0)); } 
-		float sdTorus( vec3 X, vec2 t ) { vec2 q = vec2(length(X.xz)-t.x, X.y); return length(q)-t.y; }  
+		float sdSphere(vec3 X, float r) { return length(X) - r; }
+		float sdBox(vec3 X, vec3 b) { vec3 d = abs(X)-b; return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0)); }
+		float sdTorus( vec3 X, vec2 t ) { vec2 q = vec2(length(X.xz)-t.x, X.y); return length(q)-t.y; }
 		float opU( float d1, float d2 ) { return min(d1,d2); }
 		float opS(float A, float B) { return max(-B, A); }
 		float opI( float d1, float d2 ) { return max(d1,d2); }
@@ -106,15 +111,15 @@ Scene.prototype.shader = function()
 
 		vec3 vertices[4];
 		void INIT()
-		{		
+		{
 			vertices[0] = vec3(1,1,1);
 			vertices[1] = vec3(-1,-1,1);
 			vertices[2] = vec3(1,-1,-1);
 			vertices[3] = vec3(-1,1,-1);
 		}
 
-		float SDF_METAL(in vec3 X)                  
-		{	
+		float SDF_METAL(in vec3 X)
+		{
 			vec4 p; p.xyz = X; p.w = 1.0;
 			vec4 qA = transformA*p;
 			vec4 qB = transformB*p;
@@ -123,10 +128,10 @@ Scene.prototype.shader = function()
 			float sC = boxy(qB.xyz-vertices[2]);
 			float sD = boxy(qB.xyz-vertices[3]);
 			return opU(opU(opU(sA, sB), sC), sD);
-		} 
+		}
 
-		float SDF_SURFACE(in vec3 X)                     
-		{	
+		float SDF_SURFACE(in vec3 X)
+		{
 			float sphere = sdSphere(X, sphereRadius);
 			vec4 p; p.xyz = X; p.w = 1.0;
 			vec4 qA = transformA*p;
@@ -134,7 +139,7 @@ Scene.prototype.shader = function()
 			float torusA = sdTorus(qA.xyz, vec2(torusBigRadius, torusLittleRadius));
 			float torusB = sdTorus(qB.xyz, vec2(torusBigRadius, torusLittleRadius));
 			return opS(opS(sphere, torusA), torusB);
-		} 
+		}
 
 		vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
     	{
@@ -167,7 +172,7 @@ Scene.prototype.preframeCallback = function(snelly, gl)
 
 	if (this.advanceFrame)
 	{
-		gui.sync(); 
+		gui.sync();
 
 		// Tell renderer to restart sampling
 		let no_recompile = true;
@@ -210,13 +215,13 @@ Scene.prototype.onkeydownCallback = function(event, snelly, gl)
 	}
 }
 
-Scene.prototype.initGui = function(gui)            
+Scene.prototype.initGui = function(gui)
 {
 	let ME = this;
-	gui.addSlider(this, {name: 'animFrame', min: 0, max: this.endFrame, step: 1}).onChange( function(value) 
+	gui.addSlider(this, {name: 'animFrame', min: 0, max: this.endFrame, step: 1}).onChange( function(value)
 	{
-	 	ME.advanceFrame = true; 
-	 	snelly.reset(true); 
+	 	ME.advanceFrame = true;
+	 	snelly.reset(true);
 	});
   	gui.addSlider(this.parameters, {name: 'sphereRadius', min: 0.0, max: 5.0});
   	gui.addSlider(this.parameters, {name: 'diskRadius', min: 0.0, max: 1.0});
@@ -236,7 +241,7 @@ this.parameters.torusBigRadius = ${this.parameters.torusBigRadius};
 this.parameters.torusLittleRadius = ${this.parameters.torusLittleRadius};
 this.playing = ${this.playing};
 this.animFrame = ${this.animFrame};
-    `; 
+    `;
 }
 
 Scene.prototype.syncShader = function(snelly, shader)
@@ -293,5 +298,3 @@ function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLo
 </script>
 
 </body>
-
-

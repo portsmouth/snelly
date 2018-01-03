@@ -1,6 +1,6 @@
    
 <body onload="onLoad();">
-<script src="../js/compiled/snelly.min.js"></script>
+<script src="https://cdn.rawgit.com/portsmouth/snelly/75aa3e8a/js/compiled/snelly.min.js"></script>
 
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
@@ -40,7 +40,7 @@ Scene.prototype.init = function(snelly)
 	GDFVectors.push(new THREE.Vector3(-PHI, 1, 0).normalize());
 
 	this.GDFVectorsFlattened = [];
-	for (var n=0; n<GDFVectors.length; n++) 
+	for (var n=0; n<GDFVectors.length; n++)
 	{
 		var v = GDFVectors[n];
 		this.GDFVectorsFlattened.push(v.x);
@@ -75,29 +75,42 @@ Scene.prototype.init = function(snelly)
 		
 	snelly.showGUI(true);
 
+	/** Camera settings **/
 	camera.fov = 45;
+	camera.aperture = -7.571125504250984;
+	camera.focalDistance = 1.1870125638233944;
 	camera.up.set(0, 1, 0);
-	camera.position.set(2.8841911428934295, 16.839293828696754, -29.377578437081013);
-	controls.target.set(-2.380588910682485, 3.6237032217059344, -2.646704278243808);
-	controls.zoomSpeed = 2;
-	controls.keyPanSpeed = 100;
+	camera.position.set(20.44494909741867, 19.623203527141378, -9.418153068053577);
+	controls.target.set(0.8236657246657697, 3.041739733025136, -0.0967413817149283);
 
 	/** Renderer settings **/
 	renderer.renderMode = 'pt';
+	renderer.maxSamplesPerFrame = 1;
 	renderer.maxBounces = 4;
+	renderer.maxScatters = 2;
 	renderer.maxMarchSteps = 485;
-	renderer.radianceClamp = 6; // (log scale)
-	renderer.skyPower = 1;
-	renderer.skyTemperature = 6000;
-	renderer.exposure = 3.382663847780127;
-	renderer.gamma = 2.2;
-	renderer.whitepoint = 0.631430584918957;
+	renderer.maxVolumeSteps = 256;
+	renderer.maxStepsIsMiss = true;
+	renderer.interactive = true;
 	renderer.goalFPS = 20;
 	renderer.minsSPPToRedraw = 0;
+	renderer.radianceClamp = 6;
+	renderer.wavelengthSamples = 256;
+	renderer.exposure = 0.5;
+	renderer.gamma = 2.2;
+	renderer.contrast = 1;
+	renderer.saturation = 1;
+	renderer.skyPower = 1;
+	renderer.skyTemperature = 6000;
+	renderer.envMapRotation = 0;
 	renderer.envMapVisible = false;
+	renderer.sunPower = 1;
+	renderer.sunColor = [1, 0.8, 0.5];
+	renderer.sunAngularSize = 5;
+	renderer.sunLatitude = 50;
+	renderer.sunLongitude = 0;
+	renderer.sunVisibleDirectly = true;
 	renderer.shadowStrength = 1;
-	renderer.maxStepsIsMiss = true;
-	renderer.AA = true;
 
 	/** Material settings **/
 	let surface = materials.loadSurface();
@@ -106,13 +119,13 @@ Scene.prototype.init = function(snelly)
 	surface.diffuseAlbedo = [1, 1, 1];
 	surface.specAlbedo = [0.08823529411764708, 0.08823529411764708, 0.08823529411764708];
 
-	let dielectric = materials.loadDielectric('Glass (SF67)');
-	dielectric.absorptionColor = [1, 0.5980392156862745, 0.5980392156862745];
-	dielectric.absorptionScale = 1000; // mfp in multiples of scene scale
-	dielectric.roughness = 0.004510218463706836;
-
 	let metal = materials.loadMetal('Silver');
 	metal.roughness = 0.006765327695560254;
+
+	let dielectric = materials.loadDielectric('Glass (SF67)');
+	dielectric.absorptionColor = [1, 0.5980392156862745, 0.5980392156862745];
+	dielectric.absorptionScale = 0.1; // mfp in multiples of scene scale
+	dielectric.roughness = 0.004510218463706836;
 
 	/******* copy-pasted console output on 'O', end *******/
 }
@@ -137,7 +150,7 @@ this.parameters.height_d = ${this.parameters.height_d};
 this.parameters.depth_d = ${this.parameters.depth_d};
 this.parameters.offset_d =${this.parameters.offset_d};
 this.parameters.bulge_d = ${this.parameters.bulge_d};
-	`; 
+	`;
 }
 
 Scene.prototype.getName = function() { return 'Metal/Dielectric lattice'; }
@@ -155,23 +168,23 @@ Scene.prototype.shader = function()
 	return `
 		uniform float _size_d;
 		uniform float _spacing_d;
-		uniform float _width_d; 
+		uniform float _width_d;
 		uniform float _height_d;
-		uniform float _depth_d; 
+		uniform float _depth_d;
 		uniform float _offset_d;
 		uniform float _bulge_d;
 
 		uniform float _size_m;
 		uniform float _spacing_m;
-		uniform float _width_m; 
+		uniform float _width_m;
 		uniform float _height_m;
-		uniform float _depth_m; 
+		uniform float _depth_m;
 		uniform float _offset_m;
-		uniform float _bulge_m;     
+		uniform float _bulge_m;
 
 		#define MIN_E 0.025
 
-		// Uses code from HG_SDF library, http://mercury.sexy/hg_sdf/ 
+		// Uses code from HG_SDF library, http://mercury.sexy/hg_sdf/
 		uniform vec3 GDFVectors[19];
 
 		float sdOctahedron(vec3 p, float r, float e) {
@@ -204,30 +217,30 @@ Scene.prototype.shader = function()
 			else         { for (int i = 3; i <= 18; ++i) ${func2}; return ${ret2}; }
 		}
 
-		float sdSphere(vec3 X, float r, float e)                  
-		{                                     
-			return length(X) - r;       
-		}      
+		float sdSphere(vec3 X, float r, float e)
+		{
+			return length(X) - r;
+		}
 
-		float sdCube(vec3 X, float r, float e)               
-		{                                   
+		float sdCube(vec3 X, float r, float e)
+		{
 			vec3 d = abs(X) - vec3(r,r,r);
-			return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));           
-		}  
+			return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
+		}
 
-		float sdBox(vec3 X, vec3 bounds)                     
-		{                                     
+		float sdBox(vec3 X, vec3 bounds)
+		{
 		    vec3 d = abs(X) - bounds;
-		    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-		} 
+		    return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
+		}
 
-		float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-		{                            
+		float sdBox(vec3 X, vec3 bmin, vec3 bmax)
+		{
 			vec3 center = 0.5*(bmin + bmax);
-			vec3 halfExtents = 0.5*(bmax - bmin);         
+			vec3 halfExtents = 0.5*(bmax - bmin);
 			vec3 d = abs(X-center) - halfExtents;
-			return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-		} 
+			return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
+		}
 
 		float lattice_m(vec3 X, float c)
 		{
@@ -245,20 +258,20 @@ Scene.prototype.shader = function()
 
 		float opI( float d1, float d2 ) { return max(d1,d2); }
 
-		float SDF_METAL(vec3 X)                     
+		float SDF_METAL(vec3 X)
 		{
-			return opI( sdBox(X, vec3(_width_m, _height_m, _depth_m)), 
+			return opI( sdBox(X, vec3(_width_m, _height_m, _depth_m)),
 						lattice_m(X, _spacing_m) );
 		}
 
-		float SDF_DIELECTRIC(vec3 X)                     
+		float SDF_DIELECTRIC(vec3 X)
 		{
-			return opI( sdBox(X, vec3(_width_d, _height_d, _depth_d)), 
+			return opI( sdBox(X, vec3(_width_d, _height_d, _depth_d)),
 						lattice_d(X, _spacing_d) );
-		}     
+		}
 
 		float SDF_SURFACE(vec3 X)
-	    {            
+	    {
 	        float L = 1.0e4;
 	        return sdBox(X, vec3(-L,-0.1,-L), vec3(L, 0.0,L));
 	    }
@@ -279,7 +292,7 @@ Scene.prototype.shader = function()
 
 Scene.prototype.getLengthScale = function()    { return 1.0; }
 Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
-Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
+Scene.prototype.getMaxLengthScale = function() { return 1.0e3 * this.getLengthScale(); }
 
 Scene.prototype.syncShader = function(snelly, shader)
 {
@@ -303,12 +316,12 @@ Scene.prototype.syncShader = function(snelly, shader)
 }
 
 // set up gui and callbacks for this scene
-Scene.prototype.initGui = function(gui)            
+Scene.prototype.initGui = function(gui)
 {
 	let sceneFolder = gui.getSceneFolder();
 	let no_recompile = true;
 
-	let metalFolder = sceneFolder.addFolder('Metal lattice');	  
+	let metalFolder = sceneFolder.addFolder('Metal lattice');
 	this.shapetypeItem_m = metalFolder.add(this.parameters, 'shape_m', this.parameters.shapes);
 	this.shapetypeItem_m.onChange( function(value) { snelly.reset(); } );
 	metalFolder.add(this.parameters, 'size_m', 0.0, 10.0).onChange( function(value) { snelly.reset(no_recompile); });

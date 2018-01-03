@@ -1,6 +1,6 @@
 
 <body onload="onLoad();">
-<script src="../js/compiled/snelly.min.js"></script>
+<script src="https://cdn.rawgit.com/portsmouth/snelly/75aa3e8a/js/compiled/snelly.min.js"></script>
 
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
@@ -16,8 +16,8 @@ Scene.prototype.init = function(snelly)
 	this.period = 100.0;
 	this.animFrame = 0;
 	this.advanceFrame = false;
-	this.playing = true;
-		
+	this.playing = false;
+
 	let renderer  = snelly.getRenderer();
 	let camera    = snelly.getCamera();
 	let controls  = snelly.getControls();
@@ -25,54 +25,54 @@ Scene.prototype.init = function(snelly)
 		
 	this.par = {};
 	this.par.scale = 1;
-	this.par.time = 36.166666666666664;
+	this.par.time = 0;
 	this.frame = 0;
 		
 	snelly.showGUI(true);
 
-	/** Camera settings:
-	*		camera is a THREE.PerspectiveCamera object
-	* 		controls is a THREE.OrbitControls object
-	*/
+	/** Camera settings **/
 	camera.fov = 45;
+	camera.aperture = -15.0;
+	camera.focalDistance = -0.016456378644526003;
 	camera.up.set(0, 1, 0);
-	camera.position.set(2.0898485265966222, 0.15104740885024814, -3.3049811713210895);
-	controls.target.set(1.2352263477824712, -0.8505369979388303, 1.1190063465362112);
-	controls.zoomSpeed = 0.3;
-	controls.keyPanSpeed = 1.0;
-	controls.flySpeed = 0.005;
+	camera.position.set(3.439385060918167, 0.6278835776248544, -2.762165364738263);
+	controls.target.set(0.5493359901387922, -0.5154425380007095, 0.6504051784764968);
 
 	/** Renderer settings **/
 	renderer.renderMode = 'firsthit';
+	renderer.maxSamplesPerFrame = 1;
 	renderer.maxBounces = 1;
-	renderer.maxMarchSteps = 831;
-	renderer.radianceClamp = 3; // (log scale)
-	renderer.skyPower = 1;
-	renderer.skyTemperature = 6000;
-	renderer.exposure = 10.0;
-	renderer.gamma = 2.5369978858350954;
-	renderer.whitepoint = 1.9168428470754053;
+	renderer.maxScatters = 2;
+	renderer.maxMarchSteps = 512;
+	renderer.maxVolumeSteps = 256;
+	renderer.maxStepsIsMiss = false;
+	renderer.interactive = true;
 	renderer.goalFPS = 10;
 	renderer.minsSPPToRedraw = 1;
+	renderer.radianceClamp = 3;
+	renderer.wavelengthSamples = 256;
+	renderer.exposure = 3.0;
+	renderer.gamma = 2.2;
+	renderer.contrast = 1;
+	renderer.saturation = 1;
+	renderer.skyPower = 1;
+	renderer.skyTemperature = 6000;
+	renderer.envMapRotation = 0;
 	renderer.envMapVisible = true;
+	renderer.sunPower = 1;
+	renderer.sunColor = [1, 0.8, 0.5];
+	renderer.sunAngularSize = 5;
+	renderer.sunLatitude = 50;
+	renderer.sunLongitude = 0;
+	renderer.sunVisibleDirectly = true;
 	renderer.shadowStrength = 0.5;
-	renderer.maxStepsIsMiss = false;
-	renderer.AA = false;
 
 	/** Material settings **/
 	let surface = materials.loadSurface();
 	surface.roughness = 0.005637773079633545;
 	surface.ior = 2.818886539816772;
 	surface.diffuseAlbedo = [0.6, 0.6, 0.6];
-	surface.specAlbedo = [0,0,0];
-
-	let dielectric = materials.loadDielectric('Glass (BK7)');
-	dielectric.absorptionColor = [0.5, 0.5, 0.5];
-	dielectric.absorptionScale = -1; // mfp in multiples of scene scale
-	dielectric.roughness = 0.005;
-
-	let metal = materials.loadMetal('Aluminium');
-	metal.roughness = 0.02;
+	surface.specAlbedo = [0, 0, 0];
 }
 
 
@@ -87,7 +87,7 @@ this.par = {};
 this.par.scale = ${this.par.scale};
 this.par.time = ${this.par.time};
 this.frame = 0;
-	`; 
+	`;
 }
 
 Scene.prototype.shader = function()
@@ -97,11 +97,11 @@ Scene.prototype.shader = function()
     uniform float scale;
    	uniform float time;
    	vec4 orb;
- 
+
 	float apollonian(vec3 X, float t)
 	{
 		float s = 1.0;
-		orb = vec4(1000.0); 	
+		orb = vec4(1000.0);
 		for (int i=0; i<10; i++)
 		{
 			X = -1.0 + 2.0*fract(0.5*X + 0.5);
@@ -115,7 +115,7 @@ Scene.prototype.shader = function()
 	}
 
     float SDF_SURFACE(vec3 X)
-    {           
+    {
     	const float PI = 3.1415926;
     	float anim = 1.0 + 0.25*cos(0.02*PI*time*(X.z-X.x)/scale);
         return 1.5*apollonian(X, anim);
@@ -137,7 +137,7 @@ Scene.prototype.shader = function()
         brdf += 1.0*vec3(1.00,1.00,1.00)*key*ao;
         brdf += 1.0*vec3(0.40,0.40,0.40)*bac*ao;
 
-        // material		
+        // material
         vec3 rgb = vec3(1.0);
         rgb = mix(rgb, vec3(1.0,0.80,0.2), clamp(6.0*tra.y,0.0,1.0) );
         rgb = mix(rgb, vec3(1.0,0.55,0.0), pow(clamp(1.0-2.0*tra.z,0.0,1.0), 8.0));
@@ -173,7 +173,7 @@ Scene.prototype.preframeCallback = function(snelly, gl)
 
 	if (this.advanceFrame)
 	{
-		gui.sync(); 
+		gui.sync();
 
 		// Tell renderer to restart sampling
 		let no_recompile = true;
@@ -217,14 +217,14 @@ Scene.prototype.onkeydownCallback = function(event, snelly, gl)
 	}
 }
 
-Scene.prototype.initGui = function(gui) 
-{ 
-	gui.addSlider(this.par, {name: 'scale', min: 0.0, max: 10.0}); 
-	gui.addSlider(this.par, {name: 'time', min: 0.0, max: 100.0}); 
+Scene.prototype.initGui = function(gui)
+{
+	gui.addSlider(this.par, {name: 'scale', min: 0.0, max: 10.0});
+	gui.addSlider(this.par, {name: 'time', min: 0.0, max: 100.0});
 }
 
-Scene.prototype.syncShader = function(snelly, shader) 
-{ 
+Scene.prototype.syncShader = function(snelly, shader)
+{
 	shader.uniformF("scale", this.par.scale);
 	shader.uniformF("time", this.par.time);
 }

@@ -1,6 +1,6 @@
 
 <body onload="onLoad();">
-<script src="../js/compiled/snelly.min.js"></script>
+<script src="https://cdn.rawgit.com/portsmouth/snelly/75aa3e8a/js/compiled/snelly.min.js"></script>
 
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
@@ -23,33 +23,45 @@ Scene.prototype.init = function(snelly)
 	this.par.MinRad2 = 0.27061310782241016;
 	this.par.lightDir = [0,0.7058823529411762,1];
 	this.par.lightColor = [0.1470588235294118,0.1470588235294118,0.1470588235294118];
-	    
+		
 	snelly.showGUI(true);
 
+	/** Camera settings **/
 	camera.fov = 45;
+	camera.aperture = -10;
+	camera.focalDistance = 0.17802422239248186;
 	camera.up.set(0, 1, 0);
 	camera.position.set(-1.44961554087542, 0.9438892268882322, 2.8471225959549034);
 	controls.target.set(0.14675304486024776, -0.7036395156993038, -0.8372670727723985);
-	controls.zoomSpeed = 1;
-	controls.keyPanSpeed = 1.0;
-	controls.flySpeed = 0.003;
 
 	/** Renderer settings **/
 	renderer.renderMode = 'pt';
+	renderer.maxSamplesPerFrame = 1;
 	renderer.maxBounces = 1;
+	renderer.maxScatters = 2;
 	renderer.maxMarchSteps = 100;
-	renderer.radianceClamp = 3;
-	renderer.skyPower = 10;
-	renderer.skyTemperature = 6000;
-	renderer.exposure = 5.07399577167019;
-	renderer.gamma = 2.1649048625792813;
-	renderer.whitepoint = 0.7441860465116279;
+	renderer.maxVolumeSteps = 256;
+	renderer.maxStepsIsMiss = false;
+	renderer.interactive = true;
 	renderer.goalFPS = 10;
 	renderer.minsSPPToRedraw = 0;
+	renderer.radianceClamp = 3;
+	renderer.wavelengthSamples = 256;
+	renderer.exposure = 0.5;
+	renderer.gamma = 2.1649048625792813;
+	renderer.contrast = 1;
+	renderer.saturation = 1;
+	renderer.skyPower = 10;
+	renderer.skyTemperature = 6000;
+	renderer.envMapRotation = 0;
 	renderer.envMapVisible = false;
+	renderer.sunPower = 1;
+	renderer.sunColor = [1, 0.8, 0.5];
+	renderer.sunAngularSize = 5;
+	renderer.sunLatitude = 50;
+	renderer.sunLongitude = 0;
+	renderer.sunVisibleDirectly = true;
 	renderer.shadowStrength = 1;
-	renderer.maxStepsIsMiss = false;
-	renderer.AA = true;
 
 	/** Material settings **/
 	let surface = materials.loadSurface();
@@ -57,14 +69,6 @@ Scene.prototype.init = function(snelly)
 	surface.ior = 2.7061310782241015;
 	surface.diffuseAlbedo = [1, 0.11764705882352944, 0.11764705882352944];
 	surface.specAlbedo = [0.06418345885066834, 0.07843137254901966, 0.029988465974625164];
-
-	let dielectric = materials.loadDielectric('Glass (BK7)');
-	dielectric.absorptionColor = [0.5, 0.5, 0.5];
-	dielectric.absorptionScale = -1; // mfp in multiples of scene scale
-	dielectric.roughness = 0.005;
-
-	let metal = materials.loadMetal('Aluminium');
-	metal.roughness = 0.02;
 }
 
 
@@ -82,7 +86,7 @@ this.par.Scale = ${this.par.Scale};
 this.par.MinRad2 = ${this.par.MinRad2};
 this.par.lightDir = [${this.par.lightDir}];
 this.par.lightColor = [${this.par.lightColor}];
-    `; 
+    `;
 }
 
 Scene.prototype.shader = function()
@@ -131,7 +135,7 @@ Scene.prototype.shader = function()
 		vec4 p = vec4(pos,1);
 		vec4 p0 = p;  // p.w is the distance estimate
 		const int Iterations = int(${Iterations});
-		for (int i=0; i<Iterations; i++) 
+		for (int i=0; i<Iterations; i++)
 		{
 			p.xyz *= rot;
 			p.xyz = clamp(p.xyz, -1.0, 1.0)*2.0 - p.xyz;
@@ -144,7 +148,7 @@ Scene.prototype.shader = function()
 	}
 
     float SDF_SURFACE(in vec3 X)
-    {            
+    {
         return mandelbox(X);
     }
 
@@ -182,21 +186,21 @@ Scene.prototype.getLengthScale = function()    { return 1.0; }
 Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
 Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
 
-Scene.prototype.envMap = function() 
+Scene.prototype.envMap = function()
 { return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg'; }
 
-Scene.prototype.initGui = function(gui) 
-{ 
+Scene.prototype.initGui = function(gui)
+{
     gui.addSlider(this.par, {name: 'Iterations', min: 1, max: 10, step: 1, recompile: true});
     gui.addSlider(this.par, {name: 'Scale', min: 0.0, max: 10.0});
-    gui.addSlider(this.par, {name: 'MinRad2', min: 0.0, max: 1.0});	
+    gui.addSlider(this.par, {name: 'MinRad2', min: 0.0, max: 1.0});
 	gui.addColor(this.par, "rotation", 180.0);
 	gui.addColor(this.par, "lightDir");
 	gui.addColor(this.par, "lightColor");
 }
 
-Scene.prototype.syncShader = function(snelly, shader) 
-{ 
+Scene.prototype.syncShader = function(snelly, shader)
+{
 	shader.uniformF("Scale", this.par.Scale);
 	shader.uniformF("MinRad2", this.par.MinRad2);
 	shader.uniform3Fv("RotVector", this.par.rotation);

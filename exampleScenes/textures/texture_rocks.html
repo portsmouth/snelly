@@ -1,0 +1,249 @@
+   
+<body onload="onLoad();">
+<script src="https://cdn.rawgit.com/portsmouth/snelly/75aa3e8a/js/compiled/snelly.min.js"></script>
+
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                         scene definition                          */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+
+
+function Scene() {}
+Scene.prototype.init = function(snelly)
+{
+    ///////////////////////////////
+    let renderer  = snelly.getRenderer();
+    let camera    = snelly.getCamera();
+    let controls  = snelly.getControls();
+    let materials = snelly.getMaterials();
+        
+    this.par = {};
+    this.par.floordepth = 0.7892882311486962;
+    this.par.floorwidth  = 10;
+    this.par.normalsScale  = 1.127554615926709;
+        
+    snelly.showGUI(true);
+
+    /** Camera settings **/
+    camera.fov = 60;
+    camera.aperture = -20;
+    camera.focalDistance = 0.7843162929135455;
+    camera.up.set(0, 1, 0);
+    camera.position.set(0.7776413976462075, 4.06208702671314, 12.730740435185801);
+    controls.target.set(4.8083559569194865, -2.499600375094275, 5.57266210008413);
+
+    /** Renderer settings **/
+    renderer.renderMode = 'pt';
+    renderer.maxBounces = 2;
+    renderer.maxScatters = 2;
+    renderer.maxMarchSteps = 256;
+    renderer.radianceClamp = 3;
+    renderer.wavelengthSamples = 1024;
+    renderer.skyPower = 0.22959634666293177;
+    renderer.skyTemperature = 6000;
+    renderer.sunLatitude = 27.782925838083983;
+    renderer.sunLongitude = 322.3532707147562;
+    renderer.sunAngularSize = 12.168606373135384;
+    renderer.sunPower = 10;
+    renderer.sunColor = [1, 0.8, 0.5];
+    renderer.exposure = 4.0;
+    renderer.gamma = 2.2;
+    renderer.whitepoint = 1.3431386279781508;
+    renderer.envMapVisible = false;
+    renderer.shadowStrength = 1;
+    renderer.maxStepsIsMiss = true;
+
+    /** Material settings **/
+    let surface = materials.loadSurface();
+    surface.roughness = 0.015785764622973927;
+    surface.ior = 1.5;
+    surface.diffuseAlbedo = [1, 1, 1];
+    surface.specAlbedo = [1, 1, 1];
+    ////////////////////////////////
+
+    let SCENE = this;
+    
+    let albedo_url = 'https://cdn.rawgit.com/portsmouth/assets/033ed6bb/Debris_Construction_rmtg21p0_2K_surface_ms/rmtg21p_2K_Albedo.jpg';
+    this.albedoTex = null;
+    GLU.loadImageAndCreateTextureInfo(albedo_url, function(imgInfo) {
+        SCENE.albedoTex = imgInfo.texture; 
+    });
+
+
+    let specular_url = 'https://cdn.rawgit.com/portsmouth/assets/1fb94eaa/Debris_Construction_rmtg21p0_2K_surface_ms/rmtg21p_2K_Specular.jpg';
+    this.specularTex = null;
+    GLU.loadImageAndCreateTextureInfo(specular_url, function(imgInfo) {
+        SCENE.specularTex = imgInfo.texture; 
+    });
+
+    let normals_url = 'https://cdn.rawgit.com/portsmouth/assets/1fb94eaa/Debris_Construction_rmtg21p0_2K_surface_ms/rmtg21p_2K_Normal.jpg';
+    this.normalTex = null;
+    GLU.loadImageAndCreateTextureInfo(normals_url, function(imgInfo) {
+        SCENE.normalTex = imgInfo.texture; 
+    });
+
+    let roughness_url = 'https://cdn.rawgit.com/portsmouth/assets/1fb94eaa/Debris_Construction_rmtg21p0_2K_surface_ms/rmtg21p_2K_Roughness.jpg';
+    this.roughnessTex = null;
+    GLU.loadImageAndCreateTextureInfo(roughness_url, function(imgInfo) {
+        SCENE.roughnessTex = imgInfo.texture; 
+    });
+
+    this.loaded = false;
+}
+
+Scene.prototype.isReady = function(snelly)            
+{
+    let numTexs = 0;
+    if (this.albedoTex) numTexs++;
+    if (this.specularTex) numTexs++;
+    if (this.normalTex) numTexs++;
+    if (this.roughnessTex) numTexs++;
+    if (numTexs<4)
+    {
+        snelly.setStatus('Loading textures... (' + numTexs + '/4)');
+        this.loaded = false;
+        return false;
+    }
+    snelly.setStatus('');
+    this.loaded = true;
+    return true;
+}
+
+
+Scene.prototype.getName = function() { return 'Normal mapping'; }
+
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/gem.html"; }
+
+Scene.prototype.shader = function()
+{
+    return `
+    uniform sampler2D albedoTex;
+    uniform sampler2D specularTex;
+    uniform sampler2D roughnessTex;
+    uniform sampler2D normalTex;
+
+    uniform float _floorwidth;
+    uniform float _floordepth;
+    uniform float _normalsScale;
+
+    float sdBox(vec3 X, vec3 bmin, vec3 bmax)
+    {
+        vec3 d = abs(X-0.5*(bmin+bmax)) - 0.5*(bmax-bmin);
+        return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
+    }
+
+    float sdSphere(vec3 X, float r) { return length(X) - r; }
+
+    float SDF_SURFACE(vec3 X)
+    {
+        float L = _floorwidth;
+        vec2 uv = vec2(X.x/L, X.z/L);
+        float floor = sdBox(X, vec3(0.0,-_floordepth,0.0), vec3(L, 0.0,L));
+        return floor;
+    }
+    
+    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
+    {
+        float L = _floorwidth;
+        vec2 uv = vec2(X.x/L, X.z/L);
+        vec3 albedo = texture(albedoTex, uv).rgb;
+        return C * albedo;
+    }
+
+    vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
+    {
+        float L = _floorwidth;
+        vec2 uv = vec2(X.x/L, X.z/L);
+        vec3 spec = texture(specularTex, uv).rgb;
+        return C * spec;
+    }
+
+    float SURFACE_ROUGHNESS(in float roughness_ui, in vec3 X, in vec3 N)
+    {
+        float L = _floorwidth;
+        vec2 uv = vec2(X.x/L, X.z/L);
+        float roughness = texture(roughnessTex, uv).r;
+        return 10.0 * roughness_ui * roughness;
+    }
+
+    vec3 SURFACE_NORMAL_MAP(in vec3 X)
+    {
+        float L = _floorwidth;
+        vec2 uv = vec2(X.x/L, X.z/L);
+        vec3 nL = _normalsScale * texture(normalTex, uv).rgb;
+        return nL;
+    }
+
+    `;
+}
+
+Scene.prototype.getLengthScale = function()    { return 1.0; }
+Scene.prototype.getMinLengthScale = function() { return 1.0e-5 * this.getLengthScale(); }
+Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
+
+Scene.prototype.envMap = function()
+{ return 'https://cdn.rawgit.com/portsmouth/envmaps/4e256a04/LA_Downtown_Helipad_GoldenHour_8k.jpg'; }
+
+Scene.prototype.initGui = function(gui)
+{
+    gui.addSlider(this.par, {name: 'floordepth', min: 0.0, max: 10.0});
+    gui.addSlider(this.par, {name: 'floorwidth', min: 0.0, max: 200.0});
+    gui.addSlider(this.par, {name: 'normalsScale', min: 0.0, max: 10.0});
+}
+
+Scene.prototype.initGenerator = function()
+{
+    return `
+this.par = {};
+this.par.floordepth = ${this.par.floordepth};
+this.par.floorwidth  = ${this.par.floorwidth};
+this.par.normalsScale  = ${this.par.normalsScale};
+    `;
+}
+
+Scene.prototype.syncShader = function(snelly, shader)
+{
+    if (this.loaded)
+    {
+        let gl = snelly.getGLContext();
+        let texture_unit = snelly.getUserTextureUnitStart();
+        let program = shader.getProgram();
+        
+        gl.activeTexture(gl.TEXTURE0 + texture_unit);
+        gl.bindTexture(gl.TEXTURE_2D, this.albedoTex);
+        gl.uniform1i(gl.getUniformLocation(program, "albedoTex"), texture_unit);
+
+        gl.activeTexture(gl.TEXTURE0 + texture_unit+1);
+        gl.bindTexture(gl.TEXTURE_2D, this.specularTex);
+        gl.uniform1i(gl.getUniformLocation(program, "specularTex"), texture_unit+1);
+        
+        gl.activeTexture(gl.TEXTURE0 + texture_unit+2);
+        gl.bindTexture(gl.TEXTURE_2D, this.roughnessTex);
+        gl.uniform1i(gl.getUniformLocation(program, "roughnessTex"), texture_unit+2);
+
+        gl.activeTexture(gl.TEXTURE0 + texture_unit+3);
+        gl.bindTexture(gl.TEXTURE_2D, this.normalTex);
+        gl.uniform1i(gl.getUniformLocation(program, "normalTex"), texture_unit+3);
+
+        gl.activeTexture(gl.TEXTURE0);
+    }
+
+    shader.uniformF("_floordepth", this.par.floordepth);
+    shader.uniformF("_floorwidth", this.par.floorwidth);
+    shader.uniformF("_normalsScale", this.par.normalsScale);
+}
+
+</script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                            main loop                              */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+</script>
+
+</body>

@@ -1,6 +1,6 @@
    
 <body onload="onLoad();">
-<script src="../js/compiled/snelly.min.js"></script>
+<script src="https://cdn.rawgit.com/portsmouth/snelly/75aa3e8a/js/compiled/snelly.min.js"></script>
 
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
@@ -112,10 +112,8 @@ function Scene() {}
 Scene.prototype.init = function(snelly)
 {
     this.par = {};
-    this.par.foo = 0.5;
-    this.par.bar = 0.0;
-    this.par.size = 1.0;
-    this.par.rotation = [0,0,0];
+    this.par.sdffudge = 0.15;
+    this.par.expansion = 0.0;
 
     /******* copy-pasted console output on 'O', begin *******/
 
@@ -128,43 +126,47 @@ Scene.prototype.init = function(snelly)
 
     /** Camera settings **/
     camera.fov = 45;
-    camera.aperture = 0.2228390613234592;
-    camera.focalDistance = 8.85174560546875;
+    camera.aperture = -11.979375360179276;
+    camera.focalDistance = -0.05812784738431593;
     camera.up.set(0, 1, 0);
-    camera.position.set(-4.416269776089685, 8.670845230306874, -4.774339509754653);
-    controls.target.set(2.3886569095626906, 7.969413254210212, 4.458155634102126);
+    camera.position.set(0.9937909749702702, 0.7632320876155576, 0.5167160658831209);
+    controls.target.set(-0.1697258957396645, 0.4471590071998589, -0.26754130437679696);
 
     /** Renderer settings **/
-    //renderer.width = 400; //3840;
-    //renderer.height = 200; //2160;
     renderer.renderMode = 'pt';
+    renderer.maxSamplesPerFrame = 1;
     renderer.maxBounces = 1;
-    renderer.maxMarchSteps = 439;
+    renderer.maxScatters = 2;
+    renderer.maxMarchSteps = 423;
+    renderer.maxVolumeSteps = 256;
+    renderer.maxStepsIsMiss = true;
+    renderer.interactive = true;
+    renderer.goalFPS = 20;
+    renderer.minsSPPToRedraw = 1;
     renderer.radianceClamp = 3;
+    renderer.wavelengthSamples = 256;
+    renderer.exposure = 2.1174867465508846;
+    renderer.gamma = 2.2;
+    renderer.contrast = 1;
+    renderer.saturation = 1;
     renderer.skyPower = 1;
     renderer.skyTemperature = 6000;
-    renderer.exposure = 4.144877277091952;
-    renderer.gamma = 1.8237460019204588;
-    renderer.whitepoint = 0.6769966219250189;
-    renderer.envMapVisible = true;
+    renderer.envMapRotation = 0;
+    renderer.envMapVisible = false;
+    renderer.sunPower = 1;
+    renderer.sunColor = [1, 0.8, 0.5];
+    renderer.sunAngularSize = 5;
+    renderer.sunLatitude = 50;
+    renderer.sunLongitude = 0;
+    renderer.sunVisibleDirectly = true;
     renderer.shadowStrength = 1;
-    renderer.maxStepsIsMiss = true;
-    renderer.AA = true;
 
     /** Material settings **/
     let surface = materials.loadSurface();
-    surface.roughness = 0.1;
+    surface.roughness = 0.041719520789288235;
     surface.ior = 1.5;
-    surface.diffuseAlbedo = [0.9413043465500945, 0.5089092714104362, 0.4440500831061476];
-    surface.specAlbedo = [0.5304347724007559, 0.44222116159468206, 0.44222116159468206];
-
-    let dielectric = materials.loadDielectric('Glass (BK7)');
-    dielectric.absorptionColor = [1, 1, 1];
-    dielectric.absorptionScale = -1; // mfp in multiples of scene scale
-    dielectric.roughness = 0.005;
-
-    let metal = materials.loadMetal('Aluminium');
-    metal.roughness = 0.02;
+    surface.diffuseAlbedo = [0.2647058823529411, 0.14284637898921335, 0.12456747404844289];
+    surface.specAlbedo = [0.7047289504036909, 0.6862745098039216, 1];
 
     /******* copy-pasted console output on 'O', end *******/
 
@@ -191,11 +193,7 @@ Scene.prototype.init = function(snelly)
     this.EDGE = [1,1,1];
 
     // Load SDF texture
-    //let imageUrl = 'https://cdn.rawgit.com/portsmouth/sdfGen/cd3bc64a/assets/bunny_test.png';
     let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/cf5a1f37/assets/hand_buddha.png';
-    //let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/cf5a1f37/assets/lady_relief.png';
-    //let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/cf5a1f37/assets/head_242.png';
-    //let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/12a8c8cd/assets/eminem.png';
 
     var packer = new Packer();
     let SCENE = this;
@@ -213,34 +211,34 @@ Scene.prototype.init = function(snelly)
                         let height = md.GRES[1];
                         let depth  = md.GRES[2];
 
-                        // reset cam pos to put volume in view
-                        let orig = new THREE.Vector3(SCENE.ORIG[0], SCENE.ORIG[1], SCENE.ORIG[2]);
-                        let edge = new THREE.Vector3(SCENE.EDGE[0], SCENE.EDGE[1], SCENE.EDGE[2]);
-                        edge.multiplyScalar(0.5);
-                        let camera = snelly.getCamera();
-                        let controls  = snelly.getControls();
-                        controls.target.copy(orig);
-                        controls.target.add(edge);
-                        
-                        camera.position.copy(orig);
-                        edge.multiplyScalar(4.0);
-                        camera.position.add(edge);
-
                         let texture_unit = snelly.getUserTextureUnitStart();
                         gl.activeTexture(gl.TEXTURE0 + texture_unit);
                         gl.bindTexture(gl.TEXTURE_3D, SCENE.sdfTexture);
                         gl.texImage3D(gl.TEXTURE_3D, 0, internalformat, width, height, depth, 0, format, type, asset.data);
 
                         snelly.reset();
+                        SCENE.loaded = true;
                     });
 
 }
 
+Scene.prototype.isReady = function(snelly)            
+{
+    if (!this.loaded)
+    {
+        snelly.setStatus('Loading mesh ...');
+    }
+    else
+    {
+        snelly.setStatus('');
+    }
+    return this.loaded;
+}
+
+
 Scene.prototype.getLengthScale = function()    { return 1.0; }
 Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
 Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
-
-
 Scene.prototype.syncShader = function(snelly, shader)  
 {
     let gl = snelly.getGLContext();
@@ -253,11 +251,8 @@ Scene.prototype.syncShader = function(snelly, shader)
     gl.bindTexture(gl.TEXTURE_3D, this.sdfTexture);
     gl.uniform1i(texture_id, texture_unit);
 
-    shader.uniformF("foo", this.par.foo);
-    shader.uniformF("bar", this.par.bar);
-    shader.uniformF("size", this.par.size);
-    shader.uniform3Fv("RotVector", this.par.rotation);
-
+    shader.uniformF("sdffudge", this.par.sdffudge);
+    shader.uniformF("expansion", this.par.expansion);
     shader.uniform3Fv("O", this.ORIG);
     shader.uniform3Fv("E", this.EDGE);
 }
@@ -265,85 +260,19 @@ Scene.prototype.syncShader = function(snelly, shader)
 Scene.prototype.shader = function()
 {
     return `
-    uniform float foo;
-    uniform float bar;
-    uniform float size;
+    uniform float sdffudge;
+    uniform float expansion;
     uniform vec3 O;
     uniform vec3 E;
 
     precision highp sampler3D;
     uniform sampler3D sdfTex;
 
-    uniform vec3 RotVector;
-
-    vec2 rotate2d(vec2 v, float a) 
-    {
-        return vec2(cos(a)*v.x + sin(a)*v.y, -sin(a)*v.x + cos(a)*v.y); 
-    }
-
-    float sdBox(vec3 X, vec3 bounds)                     
-    {                                     
-        vec3 d = abs(X) - bounds;
-        return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-    } 
-
-    float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
+    float sdBox(vec3 X, vec3 bmin, vec3 bmax) 
     {                            
         vec3 d = abs(X-0.5*(bmin+bmax)) - 0.5*(bmax-bmin);
         return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
     } 
-
-    float sdCross( in vec3 p )
-    {
-        float inf = 1.0e6;
-        float da = sdBox(p.xyz, vec3(inf,1.0,1.0));
-        float db = sdBox(p.yzx, vec3(1.0,inf,1.0));
-        float dc = sdBox(p.zxy, vec3(1.0,1.0,inf));
-        return min(da,min(db,dc));
-    }
-
-    mat3 rotationMatrix3(vec3 v, float angle)
-    {
-        float c = cos(radians(angle));
-        float s = sin(radians(angle));
-        return mat3(c + (1.0-c)*v.x*v.x,             (1.0-c)*v.x*v.y - s*v.z,     (1.0-c)*v.x*v.z + s*v.y,
-                        (1.0-c)*v.x*v.y + s*v.z, c + (1.0-c)*v.y*v.y,             (1.0-c)*v.y*v.z - s*v.x,
-                        (1.0-c)*v.x*v.z - s*v.y,     (1.0-c)*v.y*v.z + s*v.x, c + (1.0-c)*v.z*v.z );
-    }
-
-    mat3 rot;
-
-    float opU( float d1, float d2 ) { return min(d1,d2); }
-    float opS(float A, float B) { return max(-B, A); }
-    float opI( float d1, float d2 ) { return max(d1,d2); }
-
-    void INIT()
-    {
-        float angle = length(RotVector);
-        vec3 axis = vec3(0.0, 1.0, 0.0);
-        if (angle>0.0) axis = normalize(RotVector);
-        rot = rotationMatrix3(axis, angle);
-    }
-
-    float menger(vec3 X) 
-    {
-        float sd = sdBox(X-O, E);
-        float s = size;
-        const int iter = 4;
-        for (int i=0; i<iter; i++) 
-        {
-            X.xyz *= rot;
-            vec3 a = mod(X*s, 2.0)-1.0;
-            s *= 3.0;
-            vec3 r = abs(1.0 - 3.0*abs(a));
-            float da = max(r.x,r.y);
-            float db = max(r.y,r.z);
-            float dc = max(r.z,r.x);
-            float c = (min(da,min(db,dc))-1.0)/s;
-            sd = max(sd, c);
-        }
-        return sd;
-    }   
 
     float MESH(in vec3 X, float expand)
     {        
@@ -352,35 +281,29 @@ Scene.prototype.shader = function()
         {
             return sdBox(X, O+0.01*E, O+0.99*E);
         }
-
         vec3 D = X - O;
         vec3 uvw = vec3(D.x/E.x, D.y/E.y, D.z/E.z);
         float sdf = texture(sdfTex, uvw).r;
-        return opS(sdf, menger(X));
+        return sdf;
     }
 
-   
     float SDF_SURFACE(vec3 X)
     {         
-        float expand = 0.01 * max(max(E.x, E.y), E.z);
-        //X.xz = mod((X.xz),size)-vec2(0.5)*size;   
-        return foo*MESH(X, expand) - expand*bar;
+        float expand = 0.01 * max(max(E.x, E.y), E.z); 
+        return sdffudge*MESH(X, expand) - expand*expansion;
     }
 
-  
     `;
 }
 
-Scene.prototype.getName = function() { return 'Hello World'; }
+Scene.prototype.getName = function() { return 'Hand mesh'; }
 Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/helloWorld.html"; }
 Scene.prototype.envMap = function() { return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg'; }
 
 Scene.prototype.initGui = function(gui) 
 { 
-    gui.addSlider(this.par, {name: 'foo', min: 0.0, max: 1.0}); 
-    gui.addSlider(this.par, {name: 'bar', min: -1.0, max: 1.0}); 
-    gui.addSlider(this.par, {name: 'size', min: 0.0, max: 10.0}); 
-    gui.addColor(this.par, "rotation", 180.0);
+    gui.addSlider(this.par, {name: 'sdffudge', min: 0.0, max: 1.0}); 
+    gui.addSlider(this.par, {name: 'expansion', min: -1.0, max: 1.0}); 
 }
 
 

@@ -48,60 +48,72 @@ Scene.prototype.init = function(snelly)
 		this.GDFVectorsFlattened.push(v.z);
 	}
 
+    /******* copy-pasted console output on 'O', begin *******/
+
 	let renderer  = snelly.getRenderer();
 	let camera    = snelly.getCamera();
 	let controls  = snelly.getControls();
 	let materials = snelly.getMaterials();
 		
-	this.parameters.shape = 'Octahedron';
-	this.parameters.size = 2.4806201550387597;
-	this.parameters.spacing = 10.14799154334038;
-	this.parameters.width = 29;
-	this.parameters.height = 21.42353770260747;
-	this.parameters.depth = 21.42353770260747;
-	this.parameters.offset =0;
-	this.parameters.bulge = 0.1916842847075405;
+	this.parameters.shape = 'Dodecahedron';
+	this.parameters.size = 1.8040873854827344;
+	this.parameters.rotation = [0,0,0];
+	this.parameters.bulge = 0.16913319238900634;
+	this.parameters.height = 1;
 		
 	snelly.showGUI(true);
 
+	/** Camera settings **/
 	camera.fov = 45;
+	camera.aperture = -8.645179725245644;
+	camera.focalDistance = 0.7174954174734902;
 	camera.up.set(0, 1, 0);
-	camera.position.set(39.45147669460701, 42.503374179633376, 63.016390696888955);
-	controls.target.set(7.233045284603053, -1.3162757489461403, -1.6103647166050683);
-	controls.zoomSpeed = 2;
-	controls.keyPanSpeed = 100;
+	camera.position.set(-5.907557938895467, 1.4708539245099685, 3.291321370537903);
+	controls.target.set(8.78369797993197, -0.12020094276692239, -3.734560670234669);
 
 	/** Renderer settings **/
 	renderer.renderMode = 'pt';
-	renderer.maxBounces = 5;
-	renderer.maxMarchSteps = 256;
-	renderer.radianceClamp = 6; // (log scale)
-	renderer.skyPower = 1;
-	renderer.skyTemperature = 6000;
-	renderer.exposure = 0.5;
-	renderer.gamma = 2.2;
-	renderer.whitepoint = 0.9245947850599013;
+	renderer.maxSamplesPerFrame = 1;
+	renderer.maxBounces = 7;
+	renderer.maxScatters = 2;
+	renderer.maxMarchSteps = 678;
+	renderer.maxVolumeSteps = 256;
+	renderer.maxStepsIsMiss = true;
+	renderer.interactive = true;
 	renderer.goalFPS = 20;
 	renderer.minsSPPToRedraw = 0;
-	renderer.envMapVisible = false;
+	renderer.radianceClamp = 2.5508817333358325;
+	renderer.wavelengthSamples = 29.504941582431588;
+	renderer.exposure = 0.5013371485834694;
+	renderer.gamma = 2.173243747396636;
+	renderer.contrast = 1;
+	renderer.saturation = 1;
+	renderer.skyPower = 1;
+	renderer.skyTemperature = 6000;
+	renderer.envMapRotation = 0;
+	renderer.envMapVisible = true;
+	renderer.sunPower = 1;
+	renderer.sunColor = [1, 0.8, 0.5];
+	renderer.sunAngularSize = 5;
+	renderer.sunLatitude = 50;
+	renderer.sunLongitude = 0;
+	renderer.sunVisibleDirectly = true;
 	renderer.shadowStrength = 1;
-	renderer.maxStepsIsMiss = true;
-	renderer.AA = true;
 
 	/** Material settings **/
 	let surface = materials.loadSurface();
-	surface.roughness = 0.023678646934460888;
-	surface.ior = 5.525017618040874;
-	surface.diffuseAlbedo = [1, 0, 0];
-	surface.specAlbedo = [0.32352941176470584, 0.32352941176470584, 0.32352941176470584];
+	surface.roughness = 0.018040873854827343;
+	surface.ior = 2.3079633544749827;
+	surface.diffuseAlbedo = [1, 1, 1];
+	surface.specAlbedo = [0, 0, 0];
 
-	let dielectric = materials.loadDielectric('Glass (SF67)');
+	let dielectric = materials.loadDielectric('Proustite');
 	dielectric.absorptionColor = [1, 1, 1];
-	dielectric.absorptionScale = 1000; // mfp in multiples of scene scale
-	dielectric.roughness = 0.002;
+	dielectric.absorptionScale = 0.1; // mfp in multiples of scene scale
+	dielectric.roughness = 0.005;
 
-	let metal = materials.loadMetal('Silver');
-	metal.roughness = 0.02;
+    /******* copy-pasted console output on 'O', end *******/
+    	
 }
 
 Scene.prototype.initGenerator = function()
@@ -109,12 +121,9 @@ Scene.prototype.initGenerator = function()
 	return `
 this.parameters.shape = '${this.parameters.shape}';
 this.parameters.size = ${this.parameters.size};
-this.parameters.spacing = ${this.parameters.spacing};
-this.parameters.width = ${this.parameters.width};
-this.parameters.height = ${this.parameters.height};
-this.parameters.depth = ${this.parameters.depth};
-this.parameters.offset =${this.parameters.offset};
+this.parameters.rotation = [${this.parameters.rotation}];
 this.parameters.bulge = ${this.parameters.bulge};
+this.parameters.height = ${this.parameters.height};
 	`;
 }
 
@@ -132,18 +141,26 @@ Scene.prototype.shader = function()
 	
 	return `
 		uniform float _size;
-		uniform float _spacing;
-		uniform float _width;
 		uniform float _height;
-		uniform float _depth;
-		uniform float _offset;
 		uniform float _bulge;
+        uniform vec3 _RotVector;
 
 		#define MIN_E 0.025
 
 		// Uses code from HG_SDF library, http://mercury.sexy/hg_sdf/
 		uniform vec3 GDFVectors[19];
 
+        mat3 rotationMatrix3(vec3 v, float angle)
+    	{
+    		float c = cos(radians(angle));
+    		float s = sin(radians(angle));
+    		return mat3(c + (1.0-c)*v.x*v.x,             (1.0-c)*v.x*v.y - s*v.z,     (1.0-c)*v.x*v.z + s*v.y,
+    			            (1.0-c)*v.x*v.y + s*v.z, c + (1.0-c)*v.y*v.y,             (1.0-c)*v.y*v.z - s*v.x,
+    			            (1.0-c)*v.x*v.z - s*v.y,     (1.0-c)*v.y*v.z + s*v.x, c + (1.0-c)*v.z*v.z );
+    	}
+
+    	mat3 rot;
+        
 		float sdOctahedron(vec3 p, float r, float e) {
 			float d = 0.0;
 			if (e>MIN_E) { for (int i = 3; i <= 6; ++i) ${func}; return ${ret}; }
@@ -199,19 +216,21 @@ Scene.prototype.shader = function()
 			return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
 		}
 
-		float lattice(vec3 X, float c)
-		{
-			vec3 r = 0.5*vec3(c,c,c);
-			vec3 q = mod(X-(1.0-_offset)*r, c) - r;
-			return sd${this.parameters.shape}(q, _size, _bulge/5.0);
-		}
-
 		float opI( float d1, float d2 ) { return max(d1,d2); }
 
+        void INIT()
+    	{
+    		float angle = length(_RotVector);
+    		vec3 axis = vec3(0.0, 1.0, 0.0);
+    		if (angle>0.0) axis = normalize(_RotVector);
+    		rot = rotationMatrix3(axis, angle);
+    	}
+        
 		float SDF_DIELECTRIC(vec3 X)
 		{
-			return opI( sdBox(X, vec3(_width, _height, _depth)),
-						lattice(X, _spacing) );
+			X.xyz *= rot;
+            X -= vec3(0.0, _height, 0.0);
+			return sd${this.parameters.shape}(X, _size, _bulge/5.0);
 		}
 
 		float SDF_SURFACE(vec3 X)
@@ -225,8 +244,8 @@ Scene.prototype.shader = function()
 			float albedo = 1.0;
 			if (X.y<=0.001)
 			{
-				float ax = 1.0 - pow(0.5*(1.0 + cos(5.0*X.x)), 100.0);
-				float ay = 1.0 - pow(0.5*(1.0 + cos(5.0*X.z)), 100.0);
+				float ax = 1.0 - pow(0.5*(1.0 + cos(20.0*X.x)), 300.0);
+				float ay = 1.0 - pow(0.5*(1.0 + cos(20.0*X.z)), 300.0);
 				albedo = ax*ay;
 			}
 		    return C * vec3(albedo);
@@ -236,19 +255,15 @@ Scene.prototype.shader = function()
 
 Scene.prototype.getLengthScale = function()    { return 1.0; }
 Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
-Scene.prototype.getMaxLengthScale = function() { return 1.0e3 * this.getLengthScale(); }
+Scene.prototype.getMaxLengthScale = function() { return 5.0e2 * this.getLengthScale(); }
 
 Scene.prototype.syncShader = function(snelly, shader)
 {
 	shader.uniform3Fv("GDFVectors", this.GDFVectorsFlattened);
-
 	shader.uniformF("_size",    this.parameters.size);
 	shader.uniformF("_bulge",   Math.max(this.parameters.bulge, 1.0e-5));
-	shader.uniformF("_spacing", this.parameters.spacing);
-	shader.uniformF("_width",   this.parameters.width);
-	shader.uniformF("_height",  this.parameters.height);
-	shader.uniformF("_depth",   this.parameters.depth);
-	shader.uniformF("_offset",  this.parameters.offset);
+    shader.uniformF("_height",    this.parameters.height);
+    shader.uniform3Fv("_RotVector", this.parameters.rotation);
 }
 
   // set up gui and callbacks for this scene
@@ -259,14 +274,11 @@ Scene.prototype.syncShader = function(snelly, shader)
 
 	  	gui.addSlider(this.parameters, {name: 'size', min: 0.0, max: 10.0});
 		gui.addSlider(this.parameters, {name: 'bulge', min: 0.0, max: 1.0});
-		gui.addSlider(this.parameters, {name: 'spacing', min: 0.0, max: 50.0});
-		gui.addSlider(this.parameters, {name: 'width', min: 0.0, max: 100.0});
-		gui.addSlider(this.parameters, {name: 'height', min: 0.0, max: 100.0});
-		gui.addSlider(this.parameters, {name: 'depth', min: 0.0, max: 100.0});
-		gui.addSlider(this.parameters, {name: 'offset', min: 0.0, max: 1.0});
+        gui.addSlider(this.parameters, {name: 'height', min: 0.0, max: 10.0});
+        gui.addColor(this.parameters, "rotation", 360.0);
   }
 
-Scene.prototype.getName = function() { return 'Lattice of dielectric polyhedra'; }
+Scene.prototype.getName = function() { return 'Dielectric polyhedron'; }
 Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/lattice_dielectric.html"; }
 
 Scene.prototype.envMap = function()

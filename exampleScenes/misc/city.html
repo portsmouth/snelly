@@ -1,0 +1,203 @@
+ <body onload="onLoad();">
+<script src="https://cdn.rawgit.com/portsmouth/snelly/75aa3e8a/js/compiled/snelly.min.js"></script>
+
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                         scene definition                          */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script>
+
+function Scene() {}
+Scene.prototype.init = function(snelly)
+{
+    this.par = {};
+    this.par.R = 0.1;
+
+    /******* copy-pasted console output on 'O', begin *******/
+
+    let renderer  = snelly.getRenderer();
+    let camera    = snelly.getCamera();
+    let controls  = snelly.getControls();
+    let materials = snelly.getMaterials();
+        
+    snelly.showGUI(true);
+
+    /** Camera settings **/
+    camera.fov = 45;
+    camera.aperture = -11.430933938107813;
+    camera.focalDistance = 0.9083492094437697;
+    camera.up.set(0, 1, 0);
+    camera.position.set(7.349375496475666, 4.2369159665168645, -1.5052587022862252);
+    controls.target.set(16.241850847946523, -1.3205042636460567, -9.432613526335729);
+
+    /** Renderer settings **/
+    renderer.renderMode = 'firsthit';
+    renderer.maxSamplesPerFrame = 1;
+    renderer.maxBounces = 2;
+    renderer.maxScatters = 2;
+    renderer.maxMarchSteps = 256;
+    renderer.maxVolumeSteps = 256;
+    renderer.maxStepsIsMiss = false;
+    renderer.interactive = true;
+    renderer.goalFPS = 20;
+    renderer.minsSPPToRedraw = 0;
+    renderer.radianceClamp = 3;
+    renderer.wavelengthSamples = 1024;
+    renderer.exposure = -0.5;
+    renderer.gamma = 2.2;
+    renderer.contrast = 1;
+    renderer.saturation = 1;
+    renderer.skyPower = 1.8367707733034542;
+    renderer.skyTemperature = 6000;
+    renderer.envMapRotation = 0;
+    renderer.envMapVisible = true;
+    renderer.sunPower = 11.27554615926709;
+    renderer.sunColor = [1, 0.3840830449826992, 0.12745098039215685];
+    renderer.sunAngularSize = 3.214348853281045;
+    renderer.sunLatitude = 23.624755965012696;
+    renderer.sunLongitude = 260.3039863925746;
+    renderer.sunVisibleDirectly = true;
+    renderer.shadowStrength = 1;
+
+    /** Material settings **/
+    let surface = materials.loadSurface();
+    surface.roughness = 0.06088794926004229;
+    surface.ior = 2.262861169837914;
+    surface.diffuseAlbedo = [1, 1, 1];
+    surface.specAlbedo = [1, 1, 1];
+
+    /******* copy-pasted console output on 'O', end *******/
+}
+
+Scene.prototype.shader = function()
+{
+    // From https://www.shadertoy.com/view/4df3DS by TekF
+    return `
+    uniform float R;
+ 
+    vec2 Rand( const vec2 n ) {
+	    return fract(sin(vec2( n.x*n.y, n.x+n.y))*vec2(25.1459123,312.3490423));
+    }
+
+    vec3 VoronoiPoint(vec2 pos, vec2 delta )
+    {
+        const float randScale = .8; // reduce this to remove axis-aligned hard edged errors
+        vec2 p = floor(pos)+delta;
+        vec2 r = (Rand(p)-.5)*randScale;
+        vec2 c = p+.5+r;
+        float l = length(vec3(c-pos, R));
+        return vec3(c,l);
+    }
+
+    vec3 Voronoi( vec2 pos )
+    {
+        vec3 delta = vec3(-1,0,1);
+        vec3 point[9];
+        point[0] = VoronoiPoint( pos, delta.xx );
+        point[1] = VoronoiPoint( pos, delta.yx );
+        point[2] = VoronoiPoint( pos, delta.zx );
+        point[3] = VoronoiPoint( pos, delta.xy );
+        point[4] = VoronoiPoint( pos, delta.yy );
+        point[5] = VoronoiPoint( pos, delta.zy );
+        point[6] = VoronoiPoint( pos, delta.xz );
+        point[7] = VoronoiPoint( pos, delta.yz );
+        point[8] = VoronoiPoint( pos, delta.zz );
+        vec3 closest;
+        closest.z =
+            min(
+                min(
+                    min(
+                        min( point[0].z, point[1].z ),
+                        min( point[2].z, point[3].z )
+                    ), min(
+                        min( point[4].z, point[5].z ),
+                        min( point[6].z, point[7].z )
+                    )
+                ), point[8].z
+            );
+        closest.xy = point[8].xy;
+        for ( int i=0; i < 8; i++ )
+        {
+            if ( closest.z == point[i].z )
+            {
+                closest = point[i];
+                point[i] = point[8];
+            }
+        }
+        float t;
+        t = min(
+                min(
+                    min( point[0].z, point[1].z ),
+                    min( point[2].z, point[3].z )
+                ), min(
+                    min( point[4].z, point[5].z ),
+                    min( point[6].z, point[7].z )
+                )
+            );
+        return vec3( closest.xy, t-closest.z );
+    }
+
+
+    float DistanceField( vec3 pos, float dist )
+    {
+        vec3 v = Voronoi(pos.xz);
+        vec2 r = Rand(v.xy*4.0); // per-building seed
+        float f = (.2+.3*r.y-v.z)*.5; //.7071; // correct for max gradient of voronoi x+z distance calc
+        
+        // random height
+        float h = r.x; // v.xy is position of cell centre, use it as random seed
+        h = mix(.2,2.0,pow(h,2.0));
+        h = pos.y-h;
+
+        // we get precision problems caused by the discontinuity in height
+        // so clamp it near to the surface and then apply a plane at max height	
+        h = max( min( h, .008*dist ), pos.y-2.0 );
+        if ( f > 0.0 && h > 0.0 )
+            f = sqrt(f*f+h*h); // better distance computation, to reduce errors
+        else
+            f = max(f,h);
+        f = min( f, pos.y ); // ground plane
+        return f;
+    }
+
+    float SDF_SURFACE( vec3 X )
+    {
+        return DistanceField( X, 10.0 );
+    }
+
+    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
+    {
+        vec3 v = Voronoi(X.xz);
+        vec2 r = Rand(v.xy).xy;
+        vec4 albedo = mix( mix( vec4(.4,.2,.0,0), vec4(1,1,1,0), r.x ),
+                            mix( vec4(0,.2,.6,1), vec4(0,0,0,1), r.x ), r.y );
+        if ( fract(X.y*8.0) < .4 ) // floors
+            albedo = mix( vec4(0,0,0,0), vec4(1,1,1,0), r.x );
+        albedo.w = mix ( albedo.w, 0.0, step( .2, N.y ) ); // remove reflection on roofs
+        albedo = mix( vec4(.05,.05,.05,0), albedo, step( .07, abs(v.z-.08) ) );  // roads
+        return albedo.xyz;
+    }
+    `;
+}
+
+Scene.prototype.getName = function() { return 'Hello World'; }
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/helloWorld.html"; }
+Scene.prototype.getLengthScale = function()    { return 1.0; }
+Scene.prototype.getMinLengthScale = function() { return 1.0e-2 * this.getLengthScale(); }
+Scene.prototype.getMaxLengthScale = function() { return 1.0e3 * this.getLengthScale(); }
+Scene.prototype.initGui = function(gui) { gui.addSlider(this.par, {name: 'R', min: 0.0, max: 1.0}); }
+Scene.prototype.syncShader = function(snelly, shader) { shader.uniformF("R", this.par.R); }
+
+</script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                            main loop                              */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+</script>
+
+</body>

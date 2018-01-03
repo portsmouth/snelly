@@ -1,0 +1,227 @@
+   
+<body onload="onLoad();">
+<script src="https://cdn.rawgit.com/portsmouth/snelly/265c6167/js/compiled/snelly.min.js"></script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                          math definition                          */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script>
+
+var SDF_MATH_TEXT = "\\[\\;L(\\omega_o) = L_e(\\omega_o) + \\int_\\Omega L(\\omega_i)\\;f(\\omega_o, \\omega_i)\\;\\cos\\theta_i \\; \\mathrm{d}\\omega_i\\!\\]";
+var SDF_MATH_WIDTH = 2400;
+var SDF_MATH_HEIGHT = 512;
+
+</script>
+
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                         scene definition                          */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script>
+
+var SNELLY = null;
+var SCENE = null;
+var LOADED = false;
+
+function MATHSDF_GENERATED_CALLBACK(sdf_data, W, H)
+{
+    let gl = SNELLY.getGLContext();
+    SCENE.sdfTexture = gl.createTexture();
+    let texture_unit = SNELLY.getUserTextureUnitStart();
+    gl.activeTexture(gl.TEXTURE0 + texture_unit);
+    gl.bindTexture(gl.TEXTURE_2D, SCENE.sdfTexture);
+
+    let type = gl.FLOAT;
+    let internalformat = gl.R32F;
+    let format = gl.RED;
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.activeTexture(gl.TEXTURE0 + texture_unit);
+    gl.bindTexture(gl.TEXTURE_2D, SCENE.sdfTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, internalformat, W, H, 0, format, type, sdf_data);
+
+    SCENE.LOADED = true;
+    SNELLY.setStatus("SDF generation done.");
+}
+
+
+function Scene() {}
+Scene.prototype.init = function(snelly)
+{
+    /******* copy-pasted console output on 'O', begin *******/
+    let renderer  = snelly.getRenderer();
+    let camera    = snelly.getCamera();
+    let controls  = snelly.getControls();
+    let materials = snelly.getMaterials();
+
+    snelly.showGUI(true);
+
+    /** Camera settings **/
+    camera.fov = 45;
+    camera.aperture = -8.910496456180395;
+    camera.focalDistance = 1.1048329429673092;
+    camera.up.set(0, 1, 0);
+    camera.position.set(19.88022310153844, 2.696572929932725, -9.29319298013385);
+    controls.target.set(10.901621710260676, 0.7400746680662765, 5.388660840410976);
+
+    /** Renderer settings **/
+    renderer.renderMode = 'pt';
+    renderer.maxSamplesPerFrame = 1;
+    renderer.maxBounces = 3;
+    renderer.maxScatters = 2;
+    renderer.maxMarchSteps = 256;
+    renderer.maxVolumeSteps = 256;
+    renderer.maxStepsIsMiss = true;
+    renderer.interactive = true;
+    renderer.goalFPS = 20;
+    renderer.minsSPPToRedraw = 0;
+    renderer.radianceClamp = -0.8060989973527548;
+    renderer.wavelengthSamples = 1024;
+    renderer.exposure = 3.724661173191407;
+    renderer.gamma = 2.3763221879613434;
+    renderer.contrast = 1;
+    renderer.saturation = 1.2398202719798315;
+    renderer.skyPower = 0.11479817333146589;
+    renderer.skyTemperature = 6000;
+    renderer.envMapRotation = 0;
+    renderer.envMapVisible = false;
+    renderer.sunPower = 2.984752506618113;
+    renderer.sunColor = [1, 1, 1];
+    renderer.sunAngularSize = 11.020624639820724;
+    renderer.sunLatitude = 13.318355998319305;
+    renderer.sunLongitude = 57.858279359058805;
+    renderer.sunVisibleDirectly = true;
+    renderer.shadowStrength = 1;
+
+    /** Material settings **/
+    let surface = materials.loadSurface();
+    surface.roughness = 0.029316420014094437;
+    surface.ior = 2.7138830162085976;
+    surface.diffuseAlbedo = [0.2647058823529411, 0.12151434968451046, 0.0908304498269896];
+    surface.specAlbedo = [0.12745098039215685, 0.12745098039215685, 0.12745098039215685];
+    /******* copy-pasted console output on 'O', end *******/
+
+    this.textOrigin = [0.0, 0.0, 0.0];
+    this.textWidth = 20.0;
+    this.textHeight = 4.0;
+    this.textThickness = 1.0;
+
+    SNELLY = snelly;
+    SCENE = this;
+    this.LOADED = false;
+
+    let script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.async = true;
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js';
+    document.getElementsByTagName('head')[0].appendChild(script);
+
+}
+
+Scene.prototype.isReady = function(snelly)            
+{
+    if (!this.LOADED)
+    {
+        snelly.setStatus("Generating SDF ...");
+    }
+    else
+    {
+        snelly.setStatus("");
+    }
+    return this.LOADED;
+}
+
+Scene.prototype.shader = function()
+{
+    return `
+    uniform sampler2D sdfTex;
+    uniform float R;
+
+    uniform vec3 textOrigin;
+    uniform float textWidth;
+    uniform float textHeight;
+    uniform float textThickness;
+
+    float sdBox(vec3 X, vec3 bmin, vec3 bmax)
+    {
+        vec3 d = abs(X-0.5*(bmin+bmax)) - 0.5*(bmax-bmin);
+        return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
+    }
+
+    vec3 E;
+    void INIT()
+    {
+        E = vec3(textWidth, textHeight, textThickness);
+    }
+
+    float opI( float d1, float d2 ) { return max(d1,d2); }
+    float opU( float d1, float d2 ) { return min(d1,d2); }
+
+    float SDF_SURFACE(vec3 X)
+    {
+        float embeddedBox = sdBox(X, textOrigin + 0.01*E, textOrigin + 0.99*E);
+        float boundingBox = sdBox(X, textOrigin, textOrigin + E);
+        if ( boundingBox > 0.0 )
+        {
+            return embeddedBox;
+        }
+        vec3 D = X - textOrigin;
+        vec2 uv = vec2(1.0 - D.x/textWidth, 1.0 - D.y/textHeight);
+        float textSdf = textWidth * texture(sdfTex, uv).r;
+        return opI(textSdf, embeddedBox);
+    }
+
+    `;
+}
+
+Scene.prototype.getName = function() { return 'MathJax rendering'; }
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/helloWorld.html"; }
+Scene.prototype.getLengthScale = function()    { return 1.0; }
+Scene.prototype.getMinLengthScale = function() { return 1.0e-3 * this.getLengthScale(); }
+Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
+Scene.prototype.initGui = function(gui) 
+{ 
+    gui.addSlider(this, {name: 'textWidth', min: 0.0, max: 50.0});
+    gui.addSlider(this, {name: 'textHeight', min: 0.0, max: 10.0});
+    gui.addSlider(this, {name: 'textThickness', min: 0.0, max: 10.0});
+}
+
+Scene.prototype.envMap = function() { return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg'; }
+
+
+Scene.prototype.syncShader = function(snelly, shader) 
+{ 
+    if (this.LOADED)
+    {
+        let gl = snelly.getGLContext();
+        let texture_unit = snelly.getUserTextureUnitStart();
+        let program = shader.getProgram();
+        let texture_id = gl.getUniformLocation(program, "sdfTex");
+        gl.activeTexture(gl.TEXTURE0 + texture_unit);
+        gl.bindTexture(gl.TEXTURE_2D, this.sdfTexture);
+        gl.uniform1i(texture_id, texture_unit);
+        gl.activeTexture(gl.TEXTURE0);
+    }
+
+    shader.uniform3Fv("textOrigin", this.textOrigin);
+    shader.uniformF("textWidth", this.textWidth);
+    shader.uniformF("textHeight", this.textHeight);
+    shader.uniformF("textThickness", this.textThickness);
+}
+
+</script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                            main loop                              */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+</script>
+
+</body>

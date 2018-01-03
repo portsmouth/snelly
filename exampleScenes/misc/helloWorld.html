@@ -1,6 +1,6 @@
    
 <body onload="onLoad();">
-<script src="../js/compiled/snelly.min.js"></script>
+<script src="https://cdn.rawgit.com/portsmouth/snelly/75aa3e8a/js/compiled/snelly.min.js"></script>
 
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
@@ -14,67 +14,64 @@ Scene.prototype.init = function(snelly)
     this.par = {};
     this.par.R = 0.3;
 
-let renderer  = snelly.getRenderer();
-let camera    = snelly.getCamera();
-let controls  = snelly.getControls();
-let materials = snelly.getMaterials();
-	
-snelly.showGUI(true);
+    /******* copy-pasted console output on 'O', begin *******/
 
-/** Camera settings **/
-camera.fov = 45;
-camera.aperture = 0.001;
-camera.focalDistance = 4.544073581695557;
-camera.up.set(0, 1, 0);
-camera.position.set(-0.17656228216599557, 2.8945795849187768, -5.514994462063763);
-controls.target.set(0.11089246548458753, -0.44244222502145125, -0.04881751793776906);
+    let renderer  = snelly.getRenderer();
+    let camera    = snelly.getCamera();
+    let controls  = snelly.getControls();
+    let materials = snelly.getMaterials();
+        
+    snelly.showGUI(false);
 
-/** Renderer settings **/
-renderer.renderMode = 'pt';
-renderer.maxBounces = 2;
-renderer.maxMarchSteps = 256;
-renderer.radianceClamp = 3;
-renderer.skyPower = 1.0;
-renderer.skyTemperature = 6000;
-renderer.sunLatitude = 50;
-renderer.sunLongitude = 0;
-renderer.sunAngularSize = 0.1;
-renderer.sunPower = 5.0;
-renderer.sunColor = [1, 0.8, 0.5];
-renderer.exposure = 3;
-renderer.gamma = 2.2;
-renderer.whitepoint = 2;
-renderer.envMapVisible = true;
-renderer.shadowStrength = 1;
-renderer.maxStepsIsMiss = true;
-renderer.AA = true;
+    /** Camera settings **/
+    camera.fov = 45;
+    camera.aperture = -6.0;
+    camera.focalDistance = 0.9569672721150259;
+    camera.up.set(0, 1, 0);
+    camera.position.set(1.4246974654467373, 4.377914706164425, -6.033111507754378);
+    controls.target.set(20.120985683641592, -0.23092356177939166, -1.3607745726171616);
 
-/** Material settings **/
-let surface = materials.loadSurface();
-surface.roughness = 0.003;
-surface.ior = 1.5;
-surface.diffuseAlbedo = [1, 1, 1];
-surface.specAlbedo = [0, 0, 0];
+    /** Renderer settings **/
+    renderer.renderMode = 'firsthit';
+    renderer.maxBounces = 1;
+    renderer.maxMarchSteps = 256;
+    renderer.radianceClamp = 3;
+    renderer.wavelengthSamples = 1024;
+    renderer.skyPower = 1.8367707733034542;
+    renderer.skyTemperature = 6000;
+    renderer.sunLatitude = 5.052887518453758;
+    renderer.sunLongitude = 0;
+    renderer.sunAngularSize = 3.214348853281045;
+    renderer.sunPower = 11.27554615926709;
+    renderer.sunColor = [1, 0.3840830449826992, 0.12745098039215685];
+    renderer.exposure = -0.5;
+    renderer.gamma = 2.2;
+    renderer.whitepoint = 2;
+    renderer.envMapVisible = true;
+    renderer.shadowStrength = 1;
+    renderer.maxStepsIsMiss = true;
+    renderer.AA = true;
 
-let dielectric = materials.loadDielectric('Glass (BK7)');
-dielectric.absorptionColor = [1, 1, 1];
-dielectric.absorptionScale = -1; // mfp in multiples of scene scale
-dielectric.roughness = 0.005;
+    /** Material settings **/
+    let surface = materials.loadSurface();
+    surface.roughness = 0.06088794926004229;
+    surface.ior = 2.262861169837914;
+    surface.diffuseAlbedo = [1, 1, 1];
+    surface.specAlbedo = [1, 1, 1];
 
-let metal = materials.loadMetal('Iron');
-metal.roughness = 0.003;
+    /******* copy-pasted console output on 'O', end *******/
 }
 
 Scene.prototype.shader = function()
 {
     return `
     uniform float R;
-    float sdSphere(vec3 X, float r) { return length(X) - r; }   
-    float sdBox(vec3 X, vec3 bmin, vec3 bmax)                     
-    {                            
+    float sdSphere(vec3 X, float r) { return length(X) - r; }
+    float sdBox(vec3 X, vec3 bmin, vec3 bmax)
+    {
         vec3 d = abs(X-0.5*(bmin+bmax)) - 0.5*(bmax-bmin);
-        return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
-    } 
+        return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
+    }
 
     float balls(vec3 X)
     {
@@ -85,7 +82,7 @@ Scene.prototype.shader = function()
     float opU(float d1, float d2) { return min(d1,d2); }
 
     float SDF_SURFACE(vec3 X)
-    {            
+    {
         float L = 1.0e4;
         float floor = sdBox(X, vec3(-L,-0.1,-L), vec3(L, 0.0,L));
         return opU(balls(X), floor);
@@ -98,11 +95,11 @@ Scene.prototype.shader = function()
             const float gridSize = 0.1;
             float ax = 1.0 - pow(0.5*(1.0 + cos(X.x/gridSize)), 300.0);
             float ay = 1.0 - pow(0.5*(1.0 + cos(X.z/gridSize)), 300.0);
-            return vec3(ax*ay);
+            return 0.5 * vec3(ax*ay);
         }
         else
         {
-            return vec3(abs(cos(X.x)), abs(sin(X.y)), abs(cos(X.z)));
+            return C* vec3(abs(cos(X.x)), abs(sin(X.y)), abs(cos(X.z)));
         }
     }
     `;
@@ -111,9 +108,8 @@ Scene.prototype.shader = function()
 Scene.prototype.getName = function() { return 'Hello World'; }
 Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/helloWorld.html"; }
 Scene.prototype.getLengthScale = function()    { return 1.0; }
-Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
+Scene.prototype.getMinLengthScale = function() { return 1.0e-3 * this.getLengthScale(); }
 Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
-Scene.prototype.envMap = function() { return ''; }
 Scene.prototype.initGui = function(gui) { gui.addSlider(this.par, {name: 'R', min: 0.0, max: 1.0}); }
 Scene.prototype.syncShader = function(snelly, shader) { shader.uniformF("R", this.par.R); }
 

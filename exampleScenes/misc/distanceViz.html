@@ -1,0 +1,181 @@
+   
+<body onload="onLoad();">
+<script src="https://cdn.rawgit.com/portsmouth/snelly/75aa3e8a/js/compiled/snelly.min.js"></script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                         scene definition                          */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script>
+
+function Scene() {}
+Scene.prototype.init = function(snelly)
+{
+    let renderer  = snelly.getRenderer();
+    let camera    = snelly.getCamera();
+    let controls  = snelly.getControls();
+    let materials = snelly.getMaterials();
+        
+    this.par = {"radius":1.6913319238900635,"width":4.171952078928824,"length":0.6765327695560254,"height":0.1,"separation":13.305144467935166,"blend":0.5186751233262861,"offset_x":1.2755461592670887,"offset_z":-2.3326286116983797};
+    snelly.showGUI(true);
+
+    /** Camera settings **/
+    camera.fov = 45;
+    camera.aperture = -10;
+    camera.focalDistance = 1.5222246674889102;
+    camera.up.set(0, 1, 0);
+    camera.position.set(-34.88544799236437, 30.682592449048798, 27.71873673552294);
+    controls.target.set(-2.951494111473539, -3.46846261964871, -1.761313523257833);
+
+    /** Renderer settings **/
+    renderer.renderMode = 'firsthit';
+    renderer.maxSamplesPerFrame = 1;
+    renderer.maxBounces = 1;
+    renderer.maxScatters = 2;
+    renderer.maxMarchSteps = 447;
+    renderer.maxVolumeSteps = 256;
+    renderer.maxStepsIsMiss = true;
+    renderer.interactive = true;
+    renderer.goalFPS = 20;
+    renderer.minsSPPToRedraw = 0;
+    renderer.radianceClamp = 3;
+    renderer.wavelengthSamples = 256;
+    renderer.exposure = 0;
+    renderer.gamma = 2.2;
+    renderer.contrast = 1;
+    renderer.saturation = 1;
+    renderer.skyPower = 1;
+    renderer.skyTemperature = 6000;
+    renderer.envMapRotation = 0;
+    renderer.envMapVisible = true;
+    renderer.sunPower = 1;
+    renderer.sunColor = [1, 0.8, 0.5];
+    renderer.sunAngularSize = 5;
+    renderer.sunLatitude = 50;
+    renderer.sunLongitude = 0;
+    renderer.sunVisibleDirectly = true;
+    renderer.shadowStrength = 1;
+
+    /** Material settings **/
+    let surface = materials.loadSurface();
+    surface.roughness = 0.03;
+    surface.ior = 1.5;
+    surface.diffuseAlbedo = [1, 0.3, 0];
+    surface.specAlbedo = [0.9313725490196079, 0.9313725490196079, 0.9313725490196079];
+}
+
+Scene.prototype.initGenerator = function()
+{
+    return '\nthis.par = ' + JSON.stringify(this.par) + ';';
+}
+
+Scene.prototype.shader = function()
+{
+    return `
+    uniform float radius;
+    uniform float width;
+    uniform float _length;
+    uniform float height;
+    uniform float offset_x;
+    uniform float offset_z;
+    uniform float separation;
+    uniform float blend;
+
+    float sdSphere(vec3 X, float r) { return length(X) - r; }
+
+    float sdBox(vec3 X, vec3 bmin, vec3 bmax)
+    {
+        vec3 d = abs(X-0.5*(bmin+bmax)) - 0.5*(bmax-bmin);
+        return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
+    }
+
+    float opU( float d1, float d2 ) { return min(d1,d2); }
+    float opS(float A, float B) { return max(-B, A); }
+    float opI( float d1, float d2 ) { return max(d1,d2); }
+    
+    float smin(float a, float b, float k)
+    {
+        float h = clamp( 0.5+0.5*(b-a)/k, 0.0, 1.0 );
+        return mix(b, a, h) - k*h*(1.0-h);
+    }
+
+    float shape(vec3 X)
+    {
+        vec3 c = vec3(separation, 0.0, separation);
+        vec3 q = mod(X, c) - 0.5*c;
+        float sphere = sdSphere(q-vec3(offset_x, 0.0, offset_z), radius);
+        float    box = sdBox(q, vec3(-width, 0.0, -_length), vec3(width, height, _length));
+        return smin(sphere, box, blend);
+    }
+
+    float SDF_SURFACE(vec3 X)
+    {
+        float L = 1.0e4;
+        float floor = sdBox(X, vec3(-L,-0.1,-L), vec3(L, 0.0,L));
+        return opU(shape(X), floor);
+    }
+
+    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
+    {
+        if (X.y <= 1.0e-3)
+        {
+            float sdf = shape(X);
+            float r = 1.0 - 0.05*exp(-abs(sdf));
+            float g = 1.0 - 0.95*exp(-abs(sdf/2.0));
+            float b = 1.0 - 0.9*exp(-abs(sdf/3.0));
+            const float gridSize = 1.0;
+            float line = 1.0 - pow(0.5*(1.0 + cos(2.0*M_PI*abs(sdf)/gridSize)), 300.0);
+            return line * vec3(r, g, b);
+        }
+        else
+        {
+            return C;
+        }
+    }
+    `;
+}
+
+Scene.prototype.getName = function() { return 'Distance field visualization'; }
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/helloWorld.html"; }
+Scene.prototype.getLengthScale = function()    { return 1.0; }
+Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
+Scene.prototype.getMaxLengthScale = function() { return 1.0e3 * this.getLengthScale(); }
+Scene.prototype.envMap = function() { return ''; }
+
+Scene.prototype.initGui = function(gui)
+{
+    gui.addSlider(this.par, {name: 'radius', min: 0.0, max: 10.0});
+    gui.addSlider(this.par, {name: 'width', min: 0.0, max: 10.0});
+    gui.addSlider(this.par, {name: 'length', min: 0.0, max: 10.0});
+    gui.addSlider(this.par, {name: 'height', min: 0.0, max: 10.0});
+    gui.addSlider(this.par, {name: 'separation', min: 0.0, max: 20.0});
+    gui.addSlider(this.par, {name: 'blend', min: 0.0, max: 1.0});
+    gui.addSlider(this.par, {name: 'offset_x', min: -10.0, max: 10.0});
+    gui.addSlider(this.par, {name: 'offset_z', min: -10.0, max: 10.0});
+    
+}
+
+Scene.prototype.syncShader = function(snelly, shader)
+{
+    shader.uniformF("radius", this.par.radius);
+    shader.uniformF("width", this.par.width);
+    shader.uniformF("_length", this.par.length);
+    shader.uniformF("height", this.par.height);
+    shader.uniformF("separation", this.par.separation);
+    shader.uniformF("blend", this.par.blend);
+    shader.uniformF("offset_x", this.par.offset_x);
+    shader.uniformF("offset_z", this.par.offset_z);
+}
+
+</script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                            main loop                              */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+</script>
+
+</body>
