@@ -19,7 +19,7 @@ var GLU = {};
         {
             var gl = this.canvas.getContext("webgl2", {preserveDrawingBuffer: true});
         } catch (e) {}
-        if (!gl) this.fail("Could not initialise WebGL");
+        if (!gl) this.fail("Could not initialise WebGL 2");
         this.gl = gl;
 
         //console.log('Supported webGL extensions: ' + gl.getSupportedExtensions());

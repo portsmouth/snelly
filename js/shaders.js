@@ -1489,7 +1489,7 @@ __IOR_FUNC__
 vec3 safe_normalize(vec3 N)
 {
     float l = length(N);
-    return (l==0.0) ? vec3(0.0, 1.0, 0.0) : N/l;
+    return N/max(l, DENOM_TOLERANCE);
 }
 
 float cosTheta2(in vec3 nLocal) { return nLocal.z*nLocal.z; }
@@ -2682,7 +2682,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     // Setup sun basis
     sunBasis = makeBasis(sunDir);
 
-    // Evaluate XYZ color matching functions at the sampled wavelengfth
+    // Evaluate XYZ color matching functions at the sampled wavelength
     vec3 XYZ = texture(WavelengthToXYZ, vec2(w, 0.5)).rgb;
     vec3 RGB = clamp(xyzToRgb(XYZ), 0.0, 1.0);
     

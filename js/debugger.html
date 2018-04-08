@@ -24,22 +24,59 @@
 function Scene() {}
 Scene.prototype.init = function(snelly)
 {
-    this.par = {};
-    this.par.R = 0.3;
-
+    let renderer  = snelly.getRenderer();
+    let camera    = snelly.getCamera();
+    let controls  = snelly.getControls();
     let materials = snelly.getMaterials();
-    let metal = materials.loadMetal('Iron');
-    metal.roughness = 3.0e-3;
-    
+        
+    this.par = {
+    "R": 0.3
+    };
+    snelly.showGUI(true);
+
+    /** Camera settings **/
+    camera.fov = 45;
+    camera.aperture = -10;
+    camera.focalDistance = 0.3925575080018052;
+    camera.up.set(0, 1, 0);
+    camera.position.set(1.8039536038047328, 1.1881141722525341, 2.708161019772014);
+    controls.target.set(0, 0, 0);
+
+    /** Renderer settings **/
+    renderer.renderMode = 'pt';
+    renderer.maxSamplesPerFrame = 1;
+    renderer.maxBounces = 3;
+    renderer.maxScatters = 2;
+    renderer.maxMarchSteps = 256;
+    renderer.maxVolumeSteps = 256;
+    renderer.maxStepsIsMiss = true;
+    renderer.interactive = true;
+    renderer.goalFPS = 20;
+    renderer.minsSPPToRedraw = 0;
+    renderer.radianceClamp = 3;
+    renderer.wavelengthSamples = 256;
+    renderer.exposure = 1.1991013598991573;
+    renderer.gamma = 2.2;
+    renderer.contrast = 1;
+    renderer.saturation = 1;
+    renderer.skyPower = 1;
+    renderer.skyTemperature = 6000;
+    renderer.envMapRotation = 0;
+    renderer.envMapVisible = true;
+    renderer.sunPower = 1;
+    renderer.sunColor = [1, 0.8, 0.5];
+    renderer.sunAngularSize = 5;
+    renderer.sunLatitude = 50;
+    renderer.sunLongitude = 0;
+    renderer.sunVisibleDirectly = true;
+    renderer.shadowStrength = 1;
+
+    /** Material settings **/
     let surface = materials.loadSurface();
     surface.roughness = 0.003;
-    surface.diffuseAlbedo = [1, 1, 1];
-    surface.specAlbedo = [0,0,0];
-
-    let renderer  = snelly.getRenderer();
-    //renderer.width = 3000;
-    //renderer.height = 2100;
-    //renderer.minsSPPToRedraw = 1.0;
+    surface.ior = 1.5;
+    surface.diffuseAlbedo = [0.4411764705882353, 0.4411764705882353, 0.4411764705882353];
+    surface.specAlbedo = [0.5, 0.5, 0.5];
 }
 
 Scene.prototype.shader = function()
@@ -79,17 +116,18 @@ Scene.prototype.shader = function()
         }
         else
         {
-            return vec3(abs(cos(X.x)), abs(sin(X.y)), abs(cos(X.z)));
+            return C*vec3(abs(cos(X.x)), abs(sin(X.y)), abs(cos(X.z)));
         }
-    }
-
-    float SDF_VOLUME(vec3 X)
-    {
-        return sdSphere(X, 1.0);
     }
 
     `;
 }
+
+Scene.prototype.initGenerator = function()
+{
+    return '\nthis.par = ' + JSON.stringify(this.par, null, " ") + ';';
+}
+
 
 Scene.prototype.getName = function() { return 'Hello World'; }
 Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/helloWorld.html"; }
