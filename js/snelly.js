@@ -93,7 +93,7 @@ var Snelly = function(sceneObj)
 */
 Snelly.prototype.getVersion = function()
 {
-    return [1, 5, 1];
+    return [1, 6, 0];
 }
 
 Snelly.prototype.handleEvent = function(event)
@@ -257,6 +257,8 @@ Snelly.prototype.initScene = function()
     this.spectra = [];
     this.addSpectrum( new BlackbodySpectrum("blackbody", "Blackbody spectrum", this.pathtracer.skyTemperature) );
     this.loadSpectrum("blackbody");
+    //this.addSpectrum( new FlatSpectrum("flat", "Flat spectrum", 390.0, 750.0) );
+    //this.loadSpectrum("flat");
     
     // Camera setup
     this.camControls.update();
@@ -706,9 +708,17 @@ Snelly.prototype.onkeydown = function(event)
 
         case 80: // P key: save current image to disk
         {
-               var w = window.open('about:blank', 'Snelly screenshot');
-               let dataURL = this.render_canvas.toDataURL("image/png");
-               w.document.write("<img src='"+dataURL+"' alt='from canvas'/>");
+            var currentdate = new Date(); 
+            var datetime = currentdate.getDate() + "-" + (currentdate.getMonth()+1)  + "-" + currentdate.getFullYear() + "_"  
+                         + currentdate.getHours() + "-" + currentdate.getMinutes() + "-" + currentdate.getSeconds();
+            let filename = `snelly-screenshot-${datetime}.png`;
+            let link = document.createElement('a');
+            link.download = filename;
+            this.render_canvas.toBlob(function(blob){
+                    link.href = URL.createObjectURL(blob);
+                    var event = new MouseEvent('click');
+                    link.dispatchEvent(event);
+                },'image/png', 1);
             break;
         }
 

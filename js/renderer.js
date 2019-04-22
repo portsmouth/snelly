@@ -1,57 +1,3 @@
-
-var PathtracerState = function(width, height)
-{
-    var radianceData = new Float32Array(width*height*4); // Path radiance, and sample count
-    var rngData      = new Float32Array(width*height*4); // Random number seed
-    for (var i=0; i<width*height; ++i)
-    {
-        rngData[i*4 + 0] = Math.random()*4194167.0;
-        rngData[i*4 + 1] = Math.random()*4194167.0;
-        rngData[i*4 + 2] = Math.random()*4194167.0;
-        rngData[i*4 + 3] = Math.random()*4194167.0;
-    }
-    this.radianceTex = new GLU.Texture(width, height, 4, true, false, true, radianceData);
-    this.rngTex      = new GLU.Texture(width, height, 4, true, false, true, rngData);
-}
-
-PathtracerState.prototype.bind = function(shader)
-{
-    this.radianceTex.bind(0);
-    this.rngTex.bind(1);
-    shader.uniformTexture("Radiance", this.radianceTex);
-    shader.uniformTexture("RngData", this.rngTex);
-}
-
-PathtracerState.prototype.attach = function(fbo)
-{
-    var gl = GLU.gl;
-    fbo.attachTexture(this.radianceTex, 0);
-    fbo.attachTexture(this.rngTex, 1);
-    if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) != gl.FRAMEBUFFER_COMPLETE)
-    {
-        GLU.fail("Invalid framebuffer");
-    }
-}
-
-PathtracerState.prototype.detach = function(fbo)
-{
-    var gl = GLU.gl;
-    fbo.detachTexture(0);
-    fbo.detachTexture(1);
-}
-
-PathtracerState.prototype.clear = function(fbo)
-{
-    // clear radiance buffer
-    var gl = GLU.gl;
-    fbo.bind();
-    fbo.drawBuffers(1);
-    fbo.attachTexture(this.radianceTex, 0);
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    fbo.unbind();
-}
-
 /**
 * Interface to the renderer. The rendering modes available are:
 *  - 'pt': pathtracer (uni-directional)
@@ -63,6 +9,7 @@ PathtracerState.prototype.clear = function(fbo)
 * @property {number} height                    - (if not specified, fits to window)
 * @property {String} [renderMode='pt']         - rendering mode (either 'pt', 'ao', 'normals', 'firsthit')
 * @property {number} [maxSamplesPerFrame=1]    - maximum number of per-pixel samples per frame
+* @property {number} [maxSpp=1]                - maximum number of samples-per-pixel, after which the render terminates
 * @property {number} [maxBounces=3]            - maximum number of surface bounces
 * @property {number} [maxScatters=2]           - maximum number of volumetric scatterings
 * @property {number} [maxMarchSteps=256]       - maximum number of raymarching steps per path segment
@@ -123,6 +70,7 @@ var Renderer = function()
     // Default user-adjustable properties
     this.renderMode = 'pt';
     this.maxSamplesPerFrame = 1;
+    this.maxSpp = 1024;
     this.maxBounces = 3;
     this.maxScatters = 2;
     this.maxMarchSteps = 256;
@@ -131,7 +79,7 @@ var Renderer = function()
     this.wavelengthSamples = 256;
     this.skyPower = 1.0;
     this.skyTemperature = 6000.0;
-    this.sunPower = 1.0;
+    this.sunPower = 0.0;
     this.sunAngularSize = 5.0;
     this.sunColor = [1.0,0.8,0.5];
     this.sunLatitude = 50.0;
@@ -215,6 +163,7 @@ Renderer.prototype.createQuadVbo = function()
 Renderer.prototype.reset = function(no_recompile = false)
 {
     this.numSamples = 0;
+    this.spp = 0;
     this.numFramesSinceReset = 0;
     if (!no_recompile) this.compileShaders();
     this.currentState = 0;
@@ -447,6 +396,7 @@ Renderer.prototype.render = function()
     if (!this.loaded) return;
     var sceneObj = snelly.getScene(); if (sceneObj==null) return;
     if (snelly.getSpectra()==null) return;
+    if (this.spp > this.maxSpp) return;
 
     var timer_start = performance.now();
 
@@ -469,7 +419,12 @@ Renderer.prototype.render = function()
         this.numSamples += Math.round(this.maxSamplesPerFrame) * this._width * this._height;
     }
     this.spp = this.numSamples / (this._width * this._height);
-
+    if (this.spp > this.maxSpp)
+    {
+        this.spp = this.maxSpp;
+        return;
+    }
+    
     // Update framebuffer only if we reached the requied SPP threshold for redraw
     if (this.spp >= this.minsSPPToRedraw)
     {
@@ -522,7 +477,7 @@ Renderer.prototype.render = function()
 
     // Pathtracing options
     INTEGRATOR_PROGRAM.uniformF("skyPower", this.skyPower);
-    INTEGRATOR_PROGRAM.uniformF("sunPower", this.sunPower);
+    INTEGRATOR_PROGRAM.uniformF("sunPower", Math.pow(10.0,this.sunPower));
     INTEGRATOR_PROGRAM.uniformF("sunAngularSize", this.sunAngularSize);
     INTEGRATOR_PROGRAM.uniformF("sunLatitude", this.sunLatitude);
     INTEGRATOR_PROGRAM.uniformF("sunLongitude", this.sunLongitude);
@@ -643,4 +598,60 @@ Renderer.prototype.resize = function(width, height)
     this.quadVbo = this.createQuadVbo();
     this.fbo = new GLU.RenderTarget();
     this.reset(true);
+}
+
+
+var PathtracerState = function(width, height)
+{
+    var radianceData = new Float32Array(width*height*4); // Path radiance, and sample count
+    var rngData      = new Float32Array(width*height*4); // Random number seed
+    for (var i=0; i<width*height; ++i)
+    {
+        rngData[i*4 + 0] = Math.random()*4194167.0;
+        rngData[i*4 + 1] = Math.random()*4194167.0;
+        rngData[i*4 + 2] = Math.random()*4194167.0;
+        rngData[i*4 + 3] = Math.random()*4194167.0;
+    }
+    this.radianceTex = new GLU.Texture(width, height, 4, true, false, true, radianceData);
+    this.rngTex      = new GLU.Texture(width, height, 4, true, false, true, rngData);
+}
+
+PathtracerState.prototype.bind = function(shader)
+{
+    this.radianceTex.bind(0);
+    this.rngTex.bind(1);
+    shader.uniformTexture("Radiance", this.radianceTex);
+    shader.uniformTexture("RngData", this.rngTex);
+}
+
+PathtracerState.prototype.attach = function(fbo)
+{
+    var gl = GLU.gl;
+    fbo.attachTexture(this.radianceTex, 0);
+    fbo.attachTexture(this.rngTex, 1);
+    /*
+    if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) != gl.FRAMEBUFFER_COMPLETE)
+    {
+        GLU.fail("Invalid framebuffer");
+    }
+    */
+}
+
+PathtracerState.prototype.detach = function(fbo)
+{
+    var gl = GLU.gl;
+    fbo.detachTexture(0);
+    fbo.detachTexture(1);
+}
+
+PathtracerState.prototype.clear = function(fbo)
+{
+    // clear radiance buffer
+    var gl = GLU.gl;
+    fbo.bind();
+    fbo.drawBuffers(1);
+    fbo.attachTexture(this.radianceTex, 0);
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    fbo.unbind();
 }

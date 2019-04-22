@@ -27,15 +27,15 @@ void main()
     RGB.r =  3.2406*X - 1.5372*Y - 0.4986*Z;
     RGB.g = -0.9689*X + 1.8758*Y + 0.0415*Z;
     RGB.b =  0.0557*X - 0.2040*Y + 1.0570*Z;
-
-    // apply gamma correction to convert linear RGB to sRGB
-    RGB = pow(RGB, vec3(invGamma));
-
+    
     // deal with out-of-gamut RGB.
     float delta = -min(0.0, min(min(RGB.r, RGB.g), RGB.b));
     RGB.r += delta;
     RGB.g += delta;
     RGB.b += delta;
+
+    // apply gamma correction to convert linear RGB to sRGB
+    RGB = pow(RGB, vec3(invGamma));
 
     // apply tonemapping
     RGB *= pow(2.0, exposure);

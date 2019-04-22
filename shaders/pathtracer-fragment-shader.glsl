@@ -160,6 +160,7 @@ vec3 localToWorld(in vec3 vLocal, in Basis basis)
     return basis.tW*vLocal.x + basis.bW*vLocal.y + basis.nW*vLocal.z;
 }
 
+
 vec3 xyzToRgb(vec3 XYZ)
 {
     // (Assuming RGB in sRGB color space)
@@ -167,16 +168,23 @@ vec3 xyzToRgb(vec3 XYZ)
     RGB.r =  3.2404542*XYZ.x - 1.5371385*XYZ.y - 0.4985314*XYZ.z;
     RGB.g = -0.9692660*XYZ.x + 1.8760108*XYZ.y + 0.0415560*XYZ.z;
     RGB.b =  0.0556434*XYZ.x - 0.2040259*XYZ.y + 1.0572252*XYZ.z;
+    // deal with out-of-gamut RGB.
+    float delta = -min(0.0, min(min(RGB.r, RGB.g), RGB.b));
+    RGB.r += delta;
+    RGB.g += delta;
+    RGB.b += delta;
+    // normalize
+    float sum = RGB.r + RGB.g + RGB.b;
+    RGB /= sum;
     return RGB;
 }
 
-vec3 rgbToSpectrum(vec3 RGB)
-{
-    vec3 SPC;
-    SPC.x =  1.48660973*RGB.x - 1.22162347*RGB.y  + 0.06635964*RGB.z;
-    SPC.y = -0.67364598*RGB.x + 2.48197587*RGB.y  - 0.03286052*RGB.z;
-    SPC.z = -0.1875686*RGB.x  + 0.17986238 *RGB.y + 1.08568973*RGB.z;
-    return SPC;
+// Takes RGB of an albedo-like quantity (i.e. desired color), 
+// and the rgb color matching functions at the wavelength of the current monochromatic beam,
+// and returns the corresponding scalar albedo at this wavelength.
+float rgbToAlbedo(in vec3 RGB, in vec3 rgb)
+{    
+    return dot(RGB, rgb);
 }
 
 
@@ -303,6 +311,8 @@ float smithG2(in vec3 woL, in vec3 wiL, in vec3 mLocal, float roughness)
 
 // ****************************        Dielectric        ****************************
 
+#ifdef HAS_DIELECTRIC
+
 /// Compute Fresnel reflectance at a dielectric interface (which has an "interior" and an "exterior").
 /// Here cosi is the cosine to the (interior-to-exterior) normal of the incident ray
 /// direction wi, (where we use the PBRT convention that the light
@@ -355,19 +365,18 @@ bool refraction(in vec3 n, in float eta, in vec3 wt, inout vec3 wi)
     return true;
 }
 
-float DIELECTRIC_SPEC_REFL_EVAL(in vec3 X, in vec3 woL, in Basis basis, in vec3 XYZ)
+float DIELECTRIC_SPEC_REFL_EVAL(in vec3 X, in vec3 woL, in Basis basis, in vec3 rgb)
 {
     vec3 woW = localToWorld(woL, basis);
     vec3 reflRGB = DIELECTRIC_SPECULAR_REFLECTANCE(dieleSpecAlbedoRGB, X, basis.nW, woW);
-    vec3 reflSPC = rgbToSpectrum(reflRGB);
-    return max(dot(XYZ, reflSPC), 0.0);
+    return rgbToAlbedo(reflRGB, rgb);
 }
 
-float evaluateDielectric( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 XYZ )
+float evaluateDielectric( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 rgb )
 {
     float ior = IOR_DIELE(wavelength_nm);
     bool reflected = cosTheta(wiL) * cosTheta(woL) > 0.0;
-    float dielectricAlbedo = DIELECTRIC_SPEC_REFL_EVAL(X, woL, basis, XYZ);
+    float dielectricAlbedo = DIELECTRIC_SPEC_REFL_EVAL(X, woL, basis, rgb);
     float Fr = dielectricAlbedo * fresnelDielectricReflectance(woL.z, ior, 1.0);
     vec3 h;
     float eta; // IOR ratio, et/ei
@@ -401,11 +410,11 @@ float evaluateDielectric( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, i
     return f;
 }
 
-float pdfDielectric( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 XYZ )
+float pdfDielectric( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 rgb )
 {
     float ior = IOR_DIELE(wavelength_nm);
     bool reflected = cosTheta(wiL) * cosTheta(woL) > 0.0;
-    float dielectricAlbedo = DIELECTRIC_SPEC_REFL_EVAL(X, woL, basis, XYZ);
+    float dielectricAlbedo = DIELECTRIC_SPEC_REFL_EVAL(X, woL, basis, rgb);
     float Fr = dielectricAlbedo * fresnelDielectricReflectance(woL.z, ior, 1.0);
     vec3 h;
     float dwh_dwo;
@@ -433,11 +442,11 @@ float pdfDielectric( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in flo
     return abs(pdf * dwh_dwo);
 }
 
-float sampleDielectric( in vec3 X, in Basis basis, in vec3 woL, in float wavelength_nm, in vec3 XYZ,
+float sampleDielectric( in vec3 X, in Basis basis, in vec3 woL, in float wavelength_nm, in vec3 rgb,
                         inout vec3 wiL, inout float pdfOut, inout vec4 rnd )
 {
     float ior = IOR_DIELE(wavelength_nm);
-    float dielectricAlbedo = DIELECTRIC_SPEC_REFL_EVAL(X, woL, basis, XYZ);
+    float dielectricAlbedo = DIELECTRIC_SPEC_REFL_EVAL(X, woL, basis, rgb);
     float Fr = dielectricAlbedo * fresnelDielectricReflectance(woL.z, ior, 1.0);
     float roughness = DIELECTRIC_ROUGHNESS(dieleRoughness, X, basis.nW);
     vec3 m = microfacetSample(rnd, roughness); // Sample microfacet normal m
@@ -497,7 +506,11 @@ float sampleDielectric( in vec3 X, in Basis basis, in vec3 woL, in float wavelen
     }
 }
 
+#endif
+
 // ****************************        Metal        ****************************
+
+#ifdef HAS_METAL
 
 /// cosi is the cosine to the (outward) normal of the incident ray direction wi,
 /// ior is the index of refraction of the metal, and k its absorption coefficient
@@ -513,15 +526,14 @@ float fresnelMetalReflectance(in float cosi, in float ior, in float k)
     return 0.5*(Rparl2 + Rperp2);
 }
 
-float METAL_SPEC_REFL_EVAL(in vec3 X, in vec3 woL, in Basis basis, in vec3 XYZ)
+float METAL_SPEC_REFL_EVAL(in vec3 X, in vec3 woL, in Basis basis, in vec3 rgb)
 {
     vec3 woW = localToWorld(woL, basis);
     vec3 reflRGB = METAL_SPECULAR_REFLECTANCE(metalSpecAlbedoRGB, X, basis.nW, woW);
-    vec3 reflSPC = rgbToSpectrum(reflRGB);
-    return max(dot(XYZ, reflSPC), 0.0);
+    return rgbToAlbedo(reflRGB, rgb);
 }
 
-float evaluateMetal( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 XYZ )
+float evaluateMetal( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 rgb )
 {
     float ior = IOR_METAL(wavelength_nm);
     float k = K_METAL(wavelength_nm);
@@ -530,12 +542,12 @@ float evaluateMetal( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in flo
     float roughness = METAL_ROUGHNESS(metalRoughness, X, basis.nW);
     float D = microfacetEval(h, roughness);
     float G = smithG2(woL, wiL, h, roughness);
-    float specAlbedo = METAL_SPEC_REFL_EVAL(X, woL, basis, XYZ);
+    float specAlbedo = METAL_SPEC_REFL_EVAL(X, woL, basis, rgb);
     float f = specAlbedo * Fr * D * G / max(4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
     return f;
 }
 
-float pdfMetal( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 XYZ )
+float pdfMetal( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 rgb )
 {
     float ior = IOR_DIELE(wavelength_nm);
     float k = K_METAL(wavelength_nm);
@@ -546,7 +558,7 @@ float pdfMetal( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in float wa
     return pdf;
 }
 
-float sampleMetal( in vec3 X, in Basis basis, in vec3 woL, in float wavelength_nm, in vec3 XYZ,
+float sampleMetal( in vec3 X, in Basis basis, in vec3 woL, in float wavelength_nm, in vec3 rgb,
                    inout vec3 wiL, inout float pdfOut, inout vec4 rnd )
 {
     float ior = IOR_METAL(wavelength_nm);
@@ -558,7 +570,7 @@ float sampleMetal( in vec3 X, in Basis basis, in vec3 woL, in float wavelength_n
     if (wiL.z<DENOM_TOLERANCE) wiL.z *= -1.0; // Reflect into positive hemisphere if necessary (ad hoc)
     float D = microfacetEval(m, roughness);
     float G = smithG2(woL, wiL, m, roughness); // Shadow-masking function
-    float specAlbedo = METAL_SPEC_REFL_EVAL(X, woL, basis, XYZ);
+    float specAlbedo = METAL_SPEC_REFL_EVAL(X, woL, basis, rgb);
     float f = specAlbedo * Fr * D * G / max(4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
     float dwh_dwo; // Jacobian of the half-direction mapping
     dwh_dwo = 1.0 / max(abs(4.0*dot(woL, m)), DENOM_TOLERANCE);
@@ -566,21 +578,22 @@ float sampleMetal( in vec3 X, in Basis basis, in vec3 woL, in float wavelength_n
     return f;
 }
 
+#endif
 
 // ****************************        Surface        ****************************
 
-float SURFACE_DIFFUSE_REFL_EVAL(in vec3 X, in vec3 nW, in vec3 woW, in vec3 XYZ)
+#ifdef HAS_SURFACE
+
+float SURFACE_DIFFUSE_REFL_EVAL(in vec3 X, in vec3 nW, in vec3 woW, in vec3 rgb)
 {
     vec3 reflRGB = SURFACE_DIFFUSE_REFLECTANCE(surfaceDiffuseAlbedoRGB, X, nW, woW);
-    vec3 reflSPC = rgbToSpectrum(reflRGB);
-    return max(dot(XYZ, reflSPC), 0.0);
+    return rgbToAlbedo(reflRGB, rgb);
 }
 
-float SURFACE_SPEC_REFL_EVAL(in vec3 X, in vec3 nW, in vec3 woW, in vec3 XYZ)
+float SURFACE_SPEC_REFL_EVAL(in vec3 X, in vec3 nW, in vec3 woW, in vec3 rgb)
 {
     vec3 reflRGB = SURFACE_SPECULAR_REFLECTANCE(surfaceSpecAlbedoRGB, X, nW, woW);
-    vec3 reflSPC = rgbToSpectrum(reflRGB);
-    return max(dot(XYZ, reflSPC), 0.0);
+    return rgbToAlbedo(reflRGB, rgb);
 }
 
 // Fast path for non-transmissive surface
@@ -596,11 +609,11 @@ float fresnelDielectricReflectanceFast(in float cosi, in float ior)
     return 0.5 * (rParallel*rParallel + rPerpendicular*rPerpendicular);
 }
 
-float evaluateSurface(in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in vec3 XYZ)
+float evaluateSurface(in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 rgb)
 {
     vec3 woW = localToWorld(woL, basis);
-    float diffuseAlbedo = SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, woW, XYZ);
-    float    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, woW, XYZ);
+    float diffuseAlbedo = SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, woW, rgb);
+    float    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, woW, rgb);
     float ior = surfaceIor;
     float roughness = SURFACE_ROUGHNESS(surfaceRoughness, X, basis.nW);
     float Fr = fresnelDielectricReflectanceFast(wiL.z, ior);
@@ -612,11 +625,11 @@ float evaluateSurface(in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in ve
     return f;
 }
 
-float pdfSurface(in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in vec3 XYZ)
+float pdfSurface(in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 rgb)
 {
     vec3 woW = localToWorld(woL, basis);
-    float diffuseAlbedo = SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, woW, XYZ);
-    float    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, woW, XYZ);
+    float diffuseAlbedo = SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, woW, rgb);
+    float    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, woW, rgb);
     float ior = surfaceIor;
     float roughness = SURFACE_ROUGHNESS(surfaceRoughness, X, basis.nW);
     float diffusePdf = pdfHemisphere(wiL);
@@ -629,12 +642,12 @@ float pdfSurface(in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in vec3 XY
     return specProb*specularPdf + (1.0-specProb)*diffusePdf;
 }
 
-float sampleSurface(in vec3 X, in Basis basis, in vec3 woL, in vec3 XYZ,
+float sampleSurface(in vec3 X, in Basis basis, in vec3 woL, in float wavelength_nm, in vec3 rgb,
                     inout vec3 wiL, inout float pdfOut, inout vec4 rnd)
 {
     vec3 woW = localToWorld(woL, basis);
-    float diffuseAlbedo = SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, woW, XYZ);
-    float    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, woW, XYZ);
+    float diffuseAlbedo = SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, woW, rgb);
+    float    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, woW, rgb);
     float ior = surfaceIor;
     float roughness = SURFACE_ROUGHNESS(surfaceRoughness, X, basis.nW);
     float sum = max(specAlbedo + diffuseAlbedo, DENOM_TOLERANCE);
@@ -661,46 +674,48 @@ float sampleSurface(in vec3 X, in Basis basis, in vec3 woL, in vec3 XYZ,
     }
 }
 
+#endif
+
 // ****************************        BSDF common interface        ****************************
 
-float evaluateBsdf( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm, in vec3 XYZ,
+float evaluateBsdf( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm, in vec3 rgb,
                     inout vec4 rnd )
 {
 #ifdef HAS_SURFACE
-    if (material==MAT_SURFA) { return    evaluateSurface(X, basis, woL, wiL,                XYZ); }
+    if (material==MAT_SURFA) { return    evaluateSurface(X, basis, woL, wiL, wavelength_nm, rgb); }
 #endif
 #ifdef HAS_METAL
-    if (material==MAT_METAL) { return      evaluateMetal(X, basis, woL, wiL, wavelength_nm, XYZ); }
+    if (material==MAT_METAL) { return      evaluateMetal(X, basis, woL, wiL, wavelength_nm, rgb); }
 #endif
 #ifdef HAS_DIELECTRIC
-    if (material==MAT_DIELE) { return evaluateDielectric(X, basis, woL, wiL, wavelength_nm, XYZ); }
+    if (material==MAT_DIELE) { return evaluateDielectric(X, basis, woL, wiL, wavelength_nm, rgb); }
 #endif
 }
 
-float sampleBsdf( in vec3 X, in Basis basis, in vec3 woL, in int material, in float wavelength_nm, in vec3 XYZ,
+float sampleBsdf( in vec3 X, in Basis basis, in vec3 woL, in int material, in float wavelength_nm, in vec3 rgb,
                   inout vec3 wiL, inout float pdfOut, inout vec4 rnd )
 {
 #ifdef HAS_SURFACE
-    if (material==MAT_SURFA) { return    sampleSurface(X, basis, woL,                XYZ, wiL, pdfOut, rnd); }
+    if (material==MAT_SURFA) { return    sampleSurface(X, basis, woL, wavelength_nm, rgb, wiL, pdfOut, rnd); }
 #endif
 #ifdef HAS_METAL
-    if (material==MAT_METAL) { return      sampleMetal(X, basis, woL, wavelength_nm, XYZ, wiL, pdfOut, rnd); }
+    if (material==MAT_METAL) { return      sampleMetal(X, basis, woL, wavelength_nm, rgb, wiL, pdfOut, rnd); }
 #endif
 #ifdef HAS_DIELECTRIC
-    if (material==MAT_DIELE) { return sampleDielectric(X, basis, woL, wavelength_nm, XYZ, wiL, pdfOut, rnd); }
+    if (material==MAT_DIELE) { return sampleDielectric(X, basis, woL, wavelength_nm, rgb, wiL, pdfOut, rnd); }
 #endif
 }
 
-float pdfBsdf( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm, in vec3 XYZ )
+float pdfBsdf( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm, in vec3 rgb )
 {
 #ifdef HAS_SURFACE
-    if (material==MAT_SURFA) { return    pdfSurface(X, basis, woL, wiL,                XYZ); }
+    if (material==MAT_SURFA) { return    pdfSurface(X, basis, woL, wiL, wavelength_nm, rgb); }
 #endif
 #ifdef HAS_METAL
-    if (material==MAT_METAL) { return      pdfMetal(X, basis, woL, wiL, wavelength_nm, XYZ); }
+    if (material==MAT_METAL) { return      pdfMetal(X, basis, woL, wiL, wavelength_nm, rgb); }
 #endif
 #ifdef HAS_DIELECTRIC
-    if (material==MAT_DIELE) { return pdfDielectric(X, basis, woL, wiL, wavelength_nm, XYZ); }
+    if (material==MAT_DIELE) { return pdfDielectric(X, basis, woL, wiL, wavelength_nm, rgb); }
 #endif
 }
 
@@ -708,23 +723,21 @@ float pdfBsdf( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in int mater
 
 #ifdef HAS_VOLUME
 
-float VOLUME_ALBEDO_EVAL(in vec3 X, in vec3 XYZ)
+float VOLUME_ALBEDO_EVAL(in vec3 X, in vec3 rgb)
 {
     vec3 sigma_s = VOLUME_SCATTERING_COLOR(volumeScatteringColorRGB, X);
     vec3 sigma_a = VOLUME_ABSORPTION_COLOR(volumeAbsorptionColorRGB, X);
-    vec3 albedo = sigma_s / max(sigma_s + sigma_a, 1.0e-8);
-    vec3 albedoSPC = rgbToSpectrum(albedo);
-    return max(dot(albedoSPC, XYZ), 0.0);
+    vec3 albedo_rgb = sigma_s / max(sigma_s + sigma_a, 1.0e-8);
+    return rgbToAlbedo(albedo_rgb, rgb);
 }
 
-float VOLUME_EXTINCTION_EVAL(in vec3 X, in vec3 XYZ)
+float VOLUME_EXTINCTION_EVAL(in vec3 X, in vec3 rgb)
 {
     vec3 sigma_s = VOLUME_SCATTERING_COLOR(volumeScatteringColorRGB, X);
     vec3 sigma_a = VOLUME_ABSORPTION_COLOR(volumeAbsorptionColorRGB, X);
     float extinction = volumeExtinction * VOLUME_EXTINCTION(volumeExtinction, X);
     vec3 sigma_t = extinction * (sigma_s + sigma_a) / lengthScale;
-    vec3 sigmaSPC = rgbToSpectrum(sigma_t);
-    return max(0.0, dot(sigmaSPC, XYZ));
+    return rgbToAlbedo(sigma_t, rgb);
 }
 
 float VOLUME_EXTINCTION_MAX_EVAL()
@@ -732,11 +745,10 @@ float VOLUME_EXTINCTION_MAX_EVAL()
     return VOLUME_EXTINCTION_MAX(volumeExtinction);
 }
 
-float VOLUME_EMISSION_EVAL(in vec3 X, in vec3 XYZ)
+float VOLUME_EMISSION_EVAL(in vec3 X, in vec3 rgb)
 {
     vec3 emission = VOLUME_EMISSION(volumeEmissionColorRGB * volumeEmission, X);
-    vec3 emissionSPC = rgbToSpectrum(emission);
-    return max(0.0, dot(emissionSPC, XYZ));
+    return rgbToAlbedo(emission, rgb);
 }
 
 float VOLUME_ANISOTROPY_EVAL(in vec3 X)
@@ -857,7 +869,7 @@ void perturbNormal(in vec3 X, in Basis basis, int material, inout vec3 nW)
 #endif
 
 // MC-estimates the amount of light transmitted along an infinite ray
-float Visibility(in vec3 pW, in vec3 rayDir, in vec3 XYZ, inout vec4 rnd, bool inVolume)
+float Visibility(in vec3 pW, in vec3 rayDir, in vec3 rgb, inout vec4 rnd, bool inVolume)
 {
     vec3 pW_next;
     int hitMaterial;
@@ -887,7 +899,7 @@ float Visibility(in vec3 pW, in vec3 rayDir, in vec3 XYZ, inout vec4 rnd, bool i
             while (distanceMarched<segmentLength-eps && steps<__MAX_VOLUME_STEPS__)
             {
                 pScatter = pW + distanceMarched*rayDir;
-                sigma_t = VOLUME_EXTINCTION_EVAL(pScatter, XYZ);
+                sigma_t = VOLUME_EXTINCTION_EVAL(pScatter, rgb);
                 interacted = bool(rand(rnd) < sigma_t * inv_sigma_t_max);
                 if (interacted) break;
                 distanceMarched += -log(rand(rnd)) * inv_sigma_t_max;
@@ -952,17 +964,17 @@ vec3 environmentRadianceRGB(in vec3 dir)
 }
 
 
-float environmentRadiance(in vec3 dir, in vec3 XYZ)
+float environmentRadiance(in vec3 dir, in vec3 rgb)
 {
     vec3 RGB_sky = environmentRadianceRGB(dir);
-    vec3 XYZ_spec = rgbToSpectrum(RGB_sky); // convert to radiance at the given wavelength
-    return dot(XYZ, XYZ_spec);
+    return rgbToAlbedo(RGB_sky, rgb);
 }
 
-vec3 sampleSunDir(inout vec4 rnd)
+vec3 sampleSunDir(inout vec4 rnd, inout float pdf)
 {
-    float costhetamax = cos(sunAngularSize * M_PI/180.0);
-    float costheta = 1.0 - rand(rnd)*(1.0-costhetamax);
+    float theta_max = sunAngularSize * M_PI/180.0;
+    float theta = theta_max * sqrt(rand(rnd));
+    float costheta = cos(theta);
     float sintheta = sqrt(max(0.0, 1.0-costheta*costheta));
     float phi = 2.0 * M_PI * rand(rnd);
     float cosphi = cos(phi);
@@ -970,25 +982,26 @@ vec3 sampleSunDir(inout vec4 rnd)
     float x = sintheta * cosphi;
     float y = sintheta * sinphi;
     float z = costheta;
+    float solid_angle = 2.0*M_PI*(1.0 - cos(theta_max));
+    pdf = 1.0/solid_angle;
     return localToWorld(vec3(x, y, z), sunBasis);
 }
 
-float sunRadiance(in vec3 dir, in vec3 XYZ)
+float sunRadiance(in vec3 dir, in vec3 rgb)
 {
     if (dot(dir, sunDir) < cos(sunAngularSize*M_PI/180.0)) return 0.0;
     vec3 RGB_sun = sunPower * sunColor;
-    vec3 XYZ_spec = rgbToSpectrum(RGB_sun); // convert to radiance at the given wavelength
-    return dot(XYZ, XYZ_spec);
+    return rgbToAlbedo(RGB_sun, rgb);
 }
 
 #ifdef HAS_GEOMETRY
 
-float sampleLightAtSurface(Basis basis, in vec3 XYZ, inout vec4 rnd, inout vec3 wiL, inout vec3 wiW, inout float lightPdf)
+float sampleLightAtSurface(Basis basis, in vec3 rgb, inout vec4 rnd, inout vec3 wiL, inout vec3 wiW, inout float lightPdf)
 {
     // Light sampling (choose either sun or sky)
-    vec3 wiW_sun = sampleSunDir(rnd);
+    float sunPdf;
+    vec3 wiW_sun = sampleSunDir(rnd, sunPdf);
     vec3 wiL_sun = worldToLocal(wiW_sun, basis);
-    float sunPdf = 1.0; // convenient to decouple total sun power from its angular size
     float sunWeight = sunPower * max(0.0, wiL_sun.z);
 
     float skyPdf;
@@ -1002,29 +1015,29 @@ float sampleLightAtSurface(Basis basis, in vec3 XYZ, inout vec4 rnd, inout vec3 
         lightPdf = sunPdf * sunProb;
         wiL = wiL_sun;
         wiW = wiW_sun;
-        return sunRadiance(wiW_sun, XYZ);
+        return sunRadiance(wiW_sun, rgb);
     }
     lightPdf = skyPdf * max(PDF_EPSILON, 1.0-sunProb);
     wiL = wiL_sky;
     wiW = localToWorld(wiL_sky, basis);
-    return environmentRadiance(wiW, XYZ);
+    return environmentRadiance(wiW, rgb);
 }
 
 // Estimate direct radiance at the given surface vertex
 float directSurfaceLighting(in vec3 pW, Basis basis, in vec3 woW, in int material,
-                            float wavelength_nm, in vec3 XYZ, inout vec4 rnd, bool inVolume, inout float lightPdf)
+                            float wavelength_nm, in vec3 rgb, inout vec4 rnd, bool inVolume, inout float lightPdf)
 {
     vec3 wiL, wiW; // direction of sampled direct light (*towards* the light)
-    float Li = sampleLightAtSurface(basis, XYZ, rnd, wiL, wiW, lightPdf);
+    float Li = sampleLightAtSurface(basis, rgb, rnd, wiL, wiW, lightPdf);
     vec3 dPw = 3.0*minLengthScale * basis.nW;
-    float V = Visibility(pW+dPw, wiW, XYZ, rnd, inVolume);
+    float V = Visibility(pW+dPw, wiW, rgb, rnd, inVolume);
     Li *= abs(1.0 - shadowStrength*(1.0-V));
 
     // Apply MIS weight with the BSDF pdf for the sampled direction
     vec3 woL = worldToLocal(woW, basis);
-    float bsdfPdf = pdfBsdf(pW, basis, woL, wiL, material, wavelength_nm, XYZ);
+    float bsdfPdf = pdfBsdf(pW, basis, woL, wiL, material, wavelength_nm, rgb);
     if (bsdfPdf<PDF_EPSILON) return 0.0;
-    float f = evaluateBsdf(pW, basis, woL, wiL, material, wavelength_nm, XYZ, rnd);
+    float f = evaluateBsdf(pW, basis, woL, wiL, material, wavelength_nm, rgb, rnd);
     float misWeight = powerHeuristic(lightPdf, bsdfPdf);
     float fOverPdf = min(radianceClamp, f/max(PDF_EPSILON, lightPdf));
     return fOverPdf * Li * abs(dot(wiW, basis.nW)) * misWeight;
@@ -1034,11 +1047,11 @@ float directSurfaceLighting(in vec3 pW, Basis basis, in vec3 woW, in int materia
 
 #ifdef HAS_VOLUME
 
-float sampleLightInVolume(in vec3 XYZ, inout vec4 rnd, inout vec3 wiW, inout float lightPdf)
+float sampleLightInVolume(in vec3 rgb, inout vec4 rnd, inout vec3 wiW, inout float lightPdf)
 {
     // Light sampling (choose either sun or sky)
-    vec3 wiW_sun = sampleSunDir(rnd);
-    float sunPdf = 1.0; // convenient to decouple total sun power from its angular size
+    float sunPdf;
+    vec3 wiW_sun = sampleSunDir(rnd, sunPdf);
     float sunWeight = sunPower * sunPdf;
     float skyPdf;
     vec3 wiW_sky = sampleSphere(rnd, skyPdf);
@@ -1049,20 +1062,20 @@ float sampleLightInVolume(in vec3 XYZ, inout vec4 rnd, inout vec3 wiW, inout flo
     {
         lightPdf = sunPdf * sunProb;
         wiW = wiW_sun;
-        return sunRadiance(wiW_sun, XYZ);
+        return sunRadiance(wiW_sun, rgb);
     }
     lightPdf = skyPdf * max(PDF_EPSILON, 1.0-sunProb);
     wiW = wiW_sky;
-    return environmentRadiance(wiW, XYZ);
+    return environmentRadiance(wiW, rgb);
 }
 
 // Estimate direct radiance at the given volumetric vertex
-float directVolumeLighting(in vec3 pW, in vec3 woW, in vec3 XYZ, inout vec4 rnd, bool inVolume)
+float directVolumeLighting(in vec3 pW, in vec3 woW, in vec3 rgb, inout vec4 rnd, bool inVolume)
 {
     vec3 wiW; // direction of sampled direct light (*towards* the light)
     float lightPdf;
-    float Li = sampleLightInVolume(XYZ, rnd, wiW, lightPdf);
-    float V = Visibility(pW, wiW, XYZ, rnd, inVolume);
+    float Li = sampleLightInVolume(rgb, rnd, wiW, lightPdf);
+    float V = Visibility(pW, wiW, rgb, rnd, inVolume);
     Li *= abs(1.0 - shadowStrength*(1.0-V));
     float f = phaseFunction(dot(woW, -wiW));
     float fOverPdf = min(radianceClamp, f/max(PDF_EPSILON, lightPdf));
@@ -1099,8 +1112,7 @@ void constructPrimaryRay(in vec2 pixel, inout vec4 rnd,
 }
 
 float samplePath(in vec3 primaryStart, in vec3 primaryDir, 
-                 in vec3 XYZ, in vec3 RGB, 
-                 float wavelength_nm, inout vec4 rnd)
+                 float wavelength_nm, in vec3 rgb, inout vec4 rnd)
 {
     // Perform pathtrace to estimate the primary ray radiance, L
     float L = 0.0;
@@ -1156,7 +1168,7 @@ float samplePath(in vec3 primaryStart, in vec3 primaryDir,
                     while (distanceMarched<segmentLength-eps && steps<__MAX_VOLUME_STEPS__)
                     {
                         pScatter = pW + distanceMarched*rayDir;
-                        sigma_t = VOLUME_EXTINCTION_EVAL(pScatter, XYZ);
+                        sigma_t = VOLUME_EXTINCTION_EVAL(pScatter, rgb);
                         interacted = bool(rand(rnd) < sigma_t * inv_sigma_t_max);
                         if (interacted) break;
                         distanceMarched += -log(rand(rnd)) * inv_sigma_t_max;
@@ -1168,8 +1180,8 @@ float samplePath(in vec3 primaryStart, in vec3 primaryDir,
                 if (interacted)
                 {
                     vec3 wiW = samplePhaseFunction(rayDir, rnd); // sample scattered dir (NB, PF is the angle PDF so the MC PDF denom. cancels it in the L estimator)
-                    float emission = VOLUME_EMISSION_EVAL(pScatter, XYZ);
-                    float albedo = VOLUME_ALBEDO_EVAL(pScatter, XYZ);
+                    float emission = VOLUME_EMISSION_EVAL(pScatter, rgb);
+                    float albedo = VOLUME_ALBEDO_EVAL(pScatter, rgb);
                     absorb = (rand(rnd) > albedo);
                     if (absorb)
                     {
@@ -1177,7 +1189,7 @@ float samplePath(in vec3 primaryStart, in vec3 primaryDir,
                         break;
                     }
 
-                    L += throughput * directVolumeLighting(pScatter, -rayDir, XYZ, rnd, inVolume); // add contribution due to direct lighting at vertex
+                    L += throughput * directVolumeLighting(pScatter, -rayDir, rgb, rnd, inVolume); // add contribution due to direct lighting at vertex
                     throughput *= albedo; // update throughput due to scattering
                     if (throughput < THROUGHPUT_EPSILON) break;
                     pW = pScatter; // continue to next vertex
@@ -1222,9 +1234,8 @@ float samplePath(in vec3 primaryStart, in vec3 primaryDir,
         if (!hit)
         {
             float Li = 0.0;
-            bool sunVisible = true; // @todo: parameter
-            if (!(vertex==0 && !envMapVisible))      Li += environmentRadiance(rayDir, XYZ);
-            if (!(vertex==0 && !sunVisibleDirectly)) Li += sunRadiance(rayDir, XYZ);
+            if (!(vertex==0 && !envMapVisible))      Li += environmentRadiance(rayDir, rgb);
+            if (!(vertex==0 && !sunVisibleDirectly)) Li += sunRadiance(rayDir, rgb);
             L += throughput * Li * misWeight;
             break;
         }
@@ -1236,7 +1247,8 @@ float samplePath(in vec3 primaryStart, in vec3 primaryDir,
 #ifdef HAS_DIELECTRIC
         if (inDielectric)
         {
-            throughput *= exp(-rayLength*dot(dieleAbsorptionRGB, RGB));
+            float absorption = rgbToAlbedo(dieleAbsorptionRGB, rgb);
+            throughput *= exp(-rayLength*absorption);
         }
 #endif
 
@@ -1255,7 +1267,7 @@ float samplePath(in vec3 primaryStart, in vec3 primaryDir,
         vec3 woL = worldToLocal(woW, basis);
         vec3 wiL;
         float bsdfPdf;
-        float f = sampleBsdf(pW, basis, woL, hitMaterial, wavelength_nm, XYZ, wiL, bsdfPdf, rnd);
+        float f = sampleBsdf(pW, basis, woL, hitMaterial, wavelength_nm, rgb, wiL, bsdfPdf, rnd);
         vec3 wiW = localToWorld(wiL, basis);
         rayDir = wiW; // Update ray direction
 
@@ -1278,7 +1290,7 @@ float samplePath(in vec3 primaryStart, in vec3 primaryDir,
         if (!inDielectric)
 #endif
         {
-            L += throughput * directSurfaceLighting(pW, basis, woW, hitMaterial, wavelength_nm, XYZ, rnd, inVolume, lightPdf);
+            L += throughput * directSurfaceLighting(pW, basis, woW, hitMaterial, wavelength_nm, rgb, rnd, inVolume, lightPdf);
         }
 
         // Prepare for tracing the bounce ray
@@ -1297,14 +1309,12 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     float xi = 0.1+0.8*(0.5+floor(float(wavelengthSamples)*rand(rnd))) / float(wavelengthSamples);
     float w = texture(ICDF, vec2(xi, 0.5)).r;
     float wavelength_nm = 390.0 + (750.0 - 390.0)*w;
+    vec3 xyz = texture(WavelengthToXYZ, vec2(w, 0.5)).rgb; // xyz CIE color matching functions
+    vec3 rgb = xyzToRgb(xyz); // corresponding normalized rgb color matching functions
 
     // Setup sun basis
     sunBasis = makeBasis(sunDir);
 
-    // Evaluate XYZ color matching functions at the sampled wavelengfth
-    vec3 XYZ = texture(WavelengthToXYZ, vec2(w, 0.5)).rgb;
-    vec3 RGB = clamp(xyzToRgb(XYZ), 0.0, 1.0);
-    
     float L = 0.0;
     for (int n=0; n<__MAX_SAMPLES_PER_FRAME__; ++n)
     {
@@ -1316,12 +1326,12 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         constructPrimaryRay(pixelj, rnd, primaryStart, primaryDir);
 
         // Perform pathtrace to estimate the primary ray radiance, L
-        L += samplePath(primaryStart, primaryDir, XYZ, RGB, wavelength_nm, rnd);
+        L += samplePath(primaryStart, primaryDir, wavelength_nm, rgb, rnd);
     }
     L /= float(__MAX_SAMPLES_PER_FRAME__);
-
+    
     // Compute tristimulus contribution from estimated radiance
-    vec3 colorXYZ = XYZ * L;
+    vec3 colorXYZ = xyz * L;
 
     // Write updated radiance and sample count
     vec4 oldL = texture(Radiance, vTexCoord);
