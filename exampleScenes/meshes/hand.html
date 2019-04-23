@@ -1,6 +1,6 @@
    
 <body onload="onLoad();">
-<script src="https://cdn.jsdelivr.net/gh/portsmouth/snelly@master/js/compiled/snelly.min.js"></script>
+<script src="https://portsmouth.github.io/snelly/js/compiled/snelly.min.js"></script>
 	
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
@@ -193,7 +193,7 @@ Scene.prototype.init = function(snelly)
     this.EDGE = [1,1,1];
 
     // Load SDF texture
-    let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/cf5a1f37/assets/hand_buddha.png';
+    let imageUrl = 'https://cdn.rawgit.com/portsmouth/SDFGen/assets/hand_buddha.png';
 
     var packer = new Packer();
     let SCENE = this;
@@ -298,7 +298,7 @@ Scene.prototype.shader = function()
 
 Scene.prototype.getName = function() { return 'Hand mesh'; }
 Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/meshes/hand.html"; }
-Scene.prototype.envMap = function() { return 'https://cdn.jsdelivr.net/gh/portsmouth/envmaps@master/HDR_112_River_Road_2_Bg.jpg'; }
+Scene.prototype.envMap = function() { return 'https://portsmouth.github.io/envmaps/HDR_112_River_Road_2_Bg.jpg'; }
 
 Scene.prototype.initGui = function(gui) 
 { 
