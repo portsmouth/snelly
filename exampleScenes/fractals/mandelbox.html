@@ -1,6 +1,6 @@
 
 <body onload="onLoad();">
-<script src="https://cdn.jsdelivr.net/gh/portsmouth/snelly@v1.5.2/js/compiled/snelly.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/portsmouth/snelly@master/js/compiled/snelly.min.js"></script>
 
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
@@ -152,33 +152,7 @@ Scene.prototype.shader = function()
         return mandelbox(X);
     }
 
-    // Fake directional light (no shadows)
-	vec3 lightingDiffuse(in vec3 X, in vec3 N, in vec3 V)
-	{
-		float nDotL = max(0.0,dot(N,L));
-		float diffuse = nDotL;
-		return LightColor*diffuse;
-	}
 
-	vec3 lightingSpec(in vec3 X, in vec3 N, in vec3 V)
-	{
-		float nDotL = max(0.0,dot(N,L));
-		vec3 H = normalize(L+V);
-		float hDotN = max(0.,dot(N,H));
-		const float P = 10.0; // specular power
-		float specular = ((P+2.)/8.)*pow(hDotN,P)*(P + (1.-P)*pow(1.0-hDotN,5.0))*nDotL;
-		return LightColor*specular;
-	}
-
-    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
-	{
-		return C * lightingDiffuse(X, N, V);
-	}
-
-	vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
-	{
-		return C * lightingSpec(X, N, V);
-	}
     `;
 }
 
@@ -187,7 +161,7 @@ Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthS
 Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
 
 Scene.prototype.envMap = function()
-{ return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg'; }
+{ return 'https://cdn.jsdelivr.net/gh/portsmouth/envmaps@master/HDR_112_River_Road_2_Bg.jpg'; }
 
 Scene.prototype.initGui = function(gui)
 {

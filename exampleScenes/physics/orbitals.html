@@ -1,0 +1,279 @@
+
+<body onload="onLoad();">
+<script src="https://cdn.jsdelivr.net/gh/portsmouth/snelly@master/js/compiled/snelly.min.js"></script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                         scene definition                          */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script>
+
+function Scene() {}
+Scene.prototype.init = function(snelly)
+{
+    let renderer  = snelly.getRenderer();
+    let camera    = snelly.getCamera();
+    let controls  = snelly.getControls();
+    let materials = snelly.getMaterials();
+        
+    this.par = {};
+    this.par.n_options = ['1', '2', '3', '4'];
+    this.par.lm_options = [       '0,0', 
+                           '1,1', '1,0', '1,-1', 
+                    '2,2', '2,1', '2,0', '2,-1', '2,-2',
+             '3,3', '3,2', '3,1', '2,0', '3,-1', '3,-2', '3,-3' ]
+    this.par.n = 4;
+    this.par.lm = '3,2';
+
+    this.par.R = 1.0;
+    this.par.background = 0.1;
+
+    snelly.showGUI(true);
+
+    /** Material settings **/
+    let volume = materials.loadVolume();
+    volume.extinction = 1.0;
+    volume.scatteringColor = [1, 1, 1];
+    volume.absorptionColor = [1, 1, 1];
+    volume.anisotropy = 0.0;
+    volume.emission = 1.0;
+    volume.emissionColor = [1, 1, 1];
+
+    /** Camera settings **/
+    camera.fov = 45;
+    camera.aperture = -20;
+    camera.focalDistance = 0.2029756496915401;
+    camera.up.set(0, 1, 0);
+    camera.position.set(12.554360356492802, -0.8964858196334042, 3.2059965511946658);
+    controls.target.set(-0.6285825864256946, 0.2470286252798355, -0.5672577238184755);
+
+    /** Renderer settings **/
+    renderer.renderMode = 'pt';
+    renderer.maxBounces = 1;
+    renderer.maxScatters = 1;
+    renderer.maxMarchSteps = 512;
+    renderer.maxVolumeSteps = 512;
+    renderer.radianceClamp = 1.0603817826273834;
+    renderer.wavelengthSamples = 1024;
+    renderer.skyPower = 0.11477248077274024;
+    renderer.skyTemperature = 6000;
+    renderer.sunLatitude = 81.47008627447394;
+    renderer.sunLongitude = 0;
+    renderer.sunAngularSize = 6.42570281124498;
+    renderer.sunPower = 6.811244979919678;
+    renderer.sunColor = [1, 1, 1];
+    renderer.exposure = 1.6265060240963862;
+    renderer.gamma = 2.3710843373493975;
+    renderer.whitepoint = 2.178313253012048;
+    renderer.envMapVisible = false;
+    renderer.shadowStrength = 1;
+    renderer.maxStepsIsMiss = true;
+    renderer.AA = true;
+}
+
+Scene.prototype.shader = function()
+{
+    let n_str = this.par.n;
+    let lm_str = this.par.lm;
+
+    let n = parseInt(n_str);
+    let l_str = lm_str.substr(0, lm_str.indexOf(',')); 
+    let l = parseInt(l_str);
+
+    console.log('n: ', n);
+    console.log('l: ', l);
+    
+    let R_func = 'R' + n_str + l_str;
+    console.log('R_func: ', R_func);
+
+    let Y_func = lm_str.replace(',', '');
+    Y_func = Y_func.replace('-', 'm');
+    Y_func = 'Y' + Y_func;
+    console.log('Y_func: ', Y_func);
+
+    return `
+    uniform float R;
+    uniform float background;
+
+    float sdBox(vec3 X, vec3 bmin, vec3 bmax)
+    {
+        vec3 d = abs(X-0.5*(bmin+bmax)) - 0.5*(bmax-bmin);
+        return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
+    }
+
+    float R10(float r) { float p = 2.0*r/R; return exp(-0.5*p) * 2.0;                                                        }
+    float R20(float r) { float p = 2.0*r/R; return exp(-0.5*p) * 1.0/(2.0*sqrt(2.0))   * (2.0 - p);                          }
+    float R21(float r) { float p = 2.0*r/R; return exp(-0.5*p) * 1.0/(2.0*sqrt(6.0))   * p;                                  }
+    float R30(float r) { float p = 3.0*r/R; return exp(-0.5*p) * 1.0/(9.0*sqrt(3.0))   * (6.0 - 6.0*p + p*p);                }
+    float R31(float r) { float p = 3.0*r/R; return exp(-0.5*p) * 1.0/(9.0*sqrt(6.0))   * (4.0 - p);                          }
+    float R32(float r) { float p = 3.0*r/R; return exp(-0.5*p) * 1.0/(9.0*sqrt(30.0))  * p*p;                                }
+    float R40(float r) { float p = 3.0*r/R; return exp(-0.5*p) * 1.0/(96.0)            * (24.0 - 36.0*p + 12.0*p*p - p*p*p); }
+    float R41(float r) { float p = 3.0*r/R; return exp(-0.5*p) * 1.0/(32.0*sqrt(15.0)) * (20.0 - 10.0*p + p*p)*p;            }
+    float R42(float r) { float p = 3.0*r/R; return exp(-0.5*p) * 1.0/(96.0*sqrt(5.0))  * (6.0 - p)*p*p;                      }
+    float R43(float r) { float p = 3.0*r/R; return exp(-0.5*p) * 1.0/(96.0*sqrt(35.0)) * p*p*p;                              }
+
+    float P00(float x) { return 1.0;                                  }
+    float P11(float x) { return -sqrt(1.0 - x*x);                     }
+    float P10(float x) { return x;                                    }
+    float P22(float x) { return 3.0*(1.0 - x*x);                      }
+    float P21(float x) { return -3.0*x*sqrt(1.0 - x*x);               }
+    float P20(float x) { return (3.0*x*x - 1.0)/2.0;                  }
+    float P33(float x) { return -15.0*pow(sqrt(1.0-x*x), 3.0);        }
+    float P32(float x) { return 15.0*x*(1.0 - x*x);                   }
+    float P31(float x) { return -3.0/2.0*(5.0*x*x-1.0)*sqrt(1.0-x*x); }
+    float P30(float x) { return (5.0*x*x - 3.0)*x/2.0;                }
+
+    // l=0 wavefunction (s-orbital)
+    float Y00_re(float mu, float phi) { return 0.28209479177387814 * P00(mu); }
+    float Y00_im(float mu, float phi) { return 0.0; }
+
+    // l=1 wavefunctions (p-orbitals)
+    float Y11_re(float mu, float phi)  { return -0.3454941494713355 * P11(mu) * cos(phi); }
+    float Y11_im(float mu, float phi)  { return -0.3454941494713355 * P11(mu) * sin(phi); }
+    float Y10_re(float mu, float phi)  { return  0.4886025119029199 * P10(mu); }
+    float Y10_im(float mu, float phi)  { return  0.0; }
+    float Y1m1_re(float mu, float phi) { return -Y11_re(mu, phi); }
+    float Y1m1_im(float mu, float phi) { return  Y11_im(mu, phi); }
+    
+    // l=2 wavefunctions (d-orbitals)
+    float Y22_re(float mu, float phi)  { return  0.12875806734106318 * P22(mu) * cos(2.0*phi); }
+    float Y22_im(float mu, float phi)  { return  0.12875806734106318 * P22(mu) * sin(2.0*phi); }
+    float Y21_re(float mu, float phi)  { return -0.25751613468212636 * P21(mu) * cos(phi); }
+    float Y21_im(float mu, float phi)  { return -0.25751613468212636 * P21(mu) * sin(phi); }
+    float Y20_re(float mu, float phi)  { return  0.6307831305050401  * P20(mu); }
+    float Y20_im(float mu, float phi)  { return  0.0; }
+    float Y2m1_re(float mu, float phi) { return -Y21_re(mu, phi); }
+    float Y2m1_im(float mu, float phi) { return  Y21_im(mu, phi); }
+    float Y2m2_re(float mu, float phi) { return  Y22_re(mu, phi); }
+    float Y2m2_im(float mu, float phi) { return -Y22_im(mu, phi); }
+
+    // l=2 wavefunctions (f-orbitals)
+    float Y33_re(float mu, float phi)  { return -0.027814921575518937 * P33(mu) * cos(3.0*phi); }
+    float Y33_im(float mu, float phi)  { return -0.027814921575518937 * P33(mu) * sin(3.0*phi); }
+    float Y32_re(float mu, float phi)  { return  0.06813236509555216  * P32(mu) * cos(2.0*phi); }
+    float Y32_im(float mu, float phi)  { return  0.06813236509555216  * P32(mu) * sin(2.0*phi); }
+    float Y31_re(float mu, float phi)  { return -0.21545345607610045  * P31(mu) * cos(phi); }
+    float Y31_im(float mu, float phi)  { return -0.21545345607610045  * P31(mu) * sin(phi); }
+    float Y30_re(float mu, float phi)  { return  0.7463526651802308   * P30(mu); }
+    float Y30_im(float mu, float phi)  { return 0.0; }
+    float Y3m1_re(float mu, float phi) { return -Y31_re(mu, phi); }
+    float Y3m1_im(float mu, float phi) { return  Y31_im(mu, phi); }
+    float Y3m2_re(float mu, float phi) { return  Y32_re(mu, phi); }
+    float Y3m2_im(float mu, float phi) { return -Y32_im(mu, phi); }
+    float Y3m3_re(float mu, float phi) { return -Y33_re(mu, phi); }
+    float Y3m3_im(float mu, float phi) { return  Y33_im(mu, phi); }
+    
+    float SDF_VOLUME(vec3 X)
+    {
+        return sdBox(X, vec3(-10.0), vec3(10.0));
+    }
+
+    float VOLUME_EXTINCTION_MAX(float extinction_ui)
+    {
+        return extinction_ui;
+    }
+
+    float VOLUME_EXTINCTION(float extinction_ui, in vec3 X)
+    {
+        return extinction_ui;
+    }
+
+    float colormap_red(float x) {
+    if (x < (5.35651507139080E+02 + 4.75703324808184E-01) / (3.80568385693018E+00 + 4.18112109994712E+00)) {
+        return 3.80568385693018E+00 * x - 4.75703324808184E-01;
+    } else {
+        return -4.18112109994712E+00 * x + 5.35651507139080E+02;
+    }
+}
+
+float colormap_green(float x) {
+    if (x < (7.72815970386039E+02 + 2.57000000000000E+02) / (4.00000000000000E+00 + 4.04283447911158E+00)) {
+        return 4.00000000000000E+00 * x - 2.57000000000000E+02;
+    } else {
+        return -4.04283447911158E+00 * x + 7.72815970386039E+02;
+    }
+}
+
+float colormap_blue(float x) {
+    if (x < (1.03175883256528E+03 + 4.87540173259576E+02) / (3.86517065024528E+00 + 4.04377880184332E+00)) {
+        return 3.86517065024528E+00 * x - 4.87540173259576E+02;
+    } else {
+        return -4.04377880184332E+00 * x + 1.03175883256528E+03;
+    }
+}
+
+vec4 colormap(float x) {
+    float t = x * 255.0;
+    float r = clamp(colormap_red(t) / 255.0, 0.0, 1.0);
+    float g = clamp(colormap_green(t) / 255.0, 0.0, 1.0);
+    float b = clamp(colormap_blue(t) / 255.0, 0.0, 1.0);
+    return vec4(r, g, b, 1.0);
+}
+
+    vec3 VOLUME_EMISSION(in vec3 emission_ui, in vec3 X)
+    {
+        float r = length(X);
+        //if (r > 5.0*R) return vec3(0.0);
+        float mu = X.z / max(r, 1.0e-10);
+        float phi = atan(X.y, X.x); 
+        float R = ${R_func}(r);
+        float psi_re = ${Y_func}_re(mu, phi) * R;
+        float psi_im = ${Y_func}_im(mu, phi) * R; 
+        float phase = atan(psi_im, psi_re);
+        float amplitude = sqrt(psi_re*psi_re + psi_im*psi_im);
+        float t = mod(phase + 2.0*M_PI, 2.0*M_PI) / (2.0*M_PI);
+        return emission_ui * amplitude * colormap(t).rgb;
+    }
+    `;
+}
+
+Scene.prototype.initGenerator = function()
+{
+    return `
+this.par = {};
+this.par.R = '${this.par.R}'
+this.par.n = '${this.par.n}'
+this.par.lm = '${this.par.lm}'
+    `;
+}
+
+Scene.prototype.getName = function() { return 'Hydrogenic wavefunctions'; }
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/volumes/pyroclastic.html"; }
+Scene.prototype.getLengthScale = function()    { return 1.0; }
+Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
+Scene.prototype.getMaxLengthScale = function() { return 5.0e2 * this.getLengthScale(); }
+
+//Scene.prototype.envMap = function()
+//{ return 'https://cdn.jsdelivr.net/gh/portsmouth/envmaps@master/fin4_Bg.jpg'; }
+
+Scene.prototype.initGui = function(gui)
+{
+    this.typeItem = gui.getSceneFolder().add(this.par, 'n', this.par.n_options);
+    this.typeItem.onChange( function(value) { snelly.reset(); } );
+    
+    this.typeItem = gui.getSceneFolder().add(this.par, 'lm', this.par.lm_options);
+    this.typeItem.onChange( function(value) { snelly.reset(); } );
+
+    gui.addSlider(this.par, {name: 'R', min: 0.0, max: 2.0});
+    gui.addSlider(this.par, {name: 'background', min: 0.0, max: 1.0})
+}
+
+Scene.prototype.syncShader = function(snelly, shader)
+{
+    shader.uniformF("R", this.par.R);
+    shader.uniformF("background", this.par.background);
+}
+
+
+</script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                            main loop                              */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+</script>
+
+</body>

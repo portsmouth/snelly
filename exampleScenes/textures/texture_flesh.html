@@ -66,26 +66,26 @@ Scene.prototype.init = function(snelly)
 
     let SCENE = this;
     
-    let albedo_url = 'https://cdn.rawgit.com/portsmouth/assets/33efce65/Creature_Skin_rlptjsp0_2K_surface_ms/rlptjsp_2K_Albedo.jpg';
+    let albedo_url = 'https:///cdn.jsdelivr.net/gh/portsmouth/assets/33efce65/Creature_Skin_rlptjsp0_2K_surface_ms/rlptjsp_2K_Albedo.jpg';
     this.albedoTex = null;
     GLU.loadImageAndCreateTextureInfo(albedo_url, function(imgInfo) {
         SCENE.albedoTex = imgInfo.texture; 
     });
 
 
-    let specular_url = 'https://cdn.rawgit.com/portsmouth/assets/33efce65/Creature_Skin_rlptjsp0_2K_surface_ms/rlptjsp_2K_Specular.jpg';
+    let specular_url = 'https:///cdn.jsdelivr.net/gh/portsmouth/assets/33efce65/Creature_Skin_rlptjsp0_2K_surface_ms/rlptjsp_2K_Specular.jpg';
     this.specularTex = null;
     GLU.loadImageAndCreateTextureInfo(specular_url, function(imgInfo) {
         SCENE.specularTex = imgInfo.texture; 
     });
 
-    let normals_url = 'https://cdn.rawgit.com/portsmouth/assets/33efce65/Creature_Skin_rlptjsp0_2K_surface_ms/rlptjsp_2K_Normal.jpg';
+    let normals_url = 'https:///cdn.jsdelivr.net/gh/portsmouth/assets/33efce65/Creature_Skin_rlptjsp0_2K_surface_ms/rlptjsp_2K_Normal.jpg';
     this.normalTex = null;
     GLU.loadImageAndCreateTextureInfo(normals_url, function(imgInfo) {
         SCENE.normalTex = imgInfo.texture; 
     });
 
-    let roughness_url = 'https://cdn.rawgit.com/portsmouth/assets/33efce65/Creature_Skin_rlptjsp0_2K_surface_ms/rlptjsp_2K_Roughness.jpg';
+    let roughness_url = 'https:///cdn.jsdelivr.net/gh/portsmouth/assets/33efce65/Creature_Skin_rlptjsp0_2K_surface_ms/rlptjsp_2K_Roughness.jpg';
     this.roughnessTex = null;
     GLU.loadImageAndCreateTextureInfo(roughness_url, function(imgInfo) {
         SCENE.roughnessTex = imgInfo.texture; 
@@ -232,7 +232,7 @@ Scene.prototype.getMinLengthScale = function() { return 1.0e-5 * this.getLengthS
 Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
 
 Scene.prototype.envMap = function()
-{ return 'https://cdn.rawgit.com/portsmouth/envmaps/4e256a04/LA_Downtown_Helipad_GoldenHour_8k.jpg'; }
+{ return 'https://cdn.jsdelivr.net/gh/portsmouth/envmaps@master/LA_Downtown_Helipad_GoldenHour_8k.jpg'; }
 
 Scene.prototype.initGui = function(gui)
 {

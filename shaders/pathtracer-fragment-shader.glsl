@@ -999,6 +999,7 @@ float sunRadiance(in vec3 dir, in vec3 rgb)
 float sampleLightAtSurface(Basis basis, in vec3 rgb, inout vec4 rnd, inout vec3 wiL, inout vec3 wiW, inout float lightPdf)
 {
     // Light sampling (choose either sun or sky)
+    // @todo: use one-sample MIS
     float sunPdf;
     vec3 wiW_sun = sampleSunDir(rnd, sunPdf);
     vec3 wiL_sun = worldToLocal(wiW_sun, basis);

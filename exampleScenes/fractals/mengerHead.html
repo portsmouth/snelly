@@ -1,7 +1,7 @@
    
 <body onload="onLoad();">
-<script src="https://cdn.jsdelivr.net/gh/portsmouth/snelly@v1.5.2/js/compiled/snelly.min.js"></script>
-
+<script src="https://cdn.jsdelivr.net/gh/portsmouth/snelly@master/js/compiled/snelly.min.js"></script>
+	
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
 <?/* ------------------------------------------------------------------*/?>
@@ -134,7 +134,7 @@ Scene.prototype.init = function(snelly)
     controls.target.set(0.992931333438378, 6.39860346979134, 2.358986590973719);
 
     /** Renderer settings **/
-    renderer.renderMode = 'firsthit';
+    renderer.renderMode = 'pt';
     renderer.maxBounces = 2;
     renderer.maxMarchSteps = 439;
     renderer.radianceClamp = 3;
@@ -378,7 +378,7 @@ Scene.prototype.shader = function()
 
 Scene.prototype.getName = function() { return 'Hello World'; }
 Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/fractals/mengerHead.html"; }
-Scene.prototype.envMap = function() { return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg'; }
+Scene.prototype.envMap = function() { return 'https://cdn.jsdelivr.net/gh/portsmouth/envmaps@master/HDR_112_River_Road_2_Bg.jpg'; }
 
 Scene.prototype.initGui = function(gui)
 {

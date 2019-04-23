@@ -1,6 +1,6 @@
    
 <body onload="onLoad();">
-<script src="https://cdn.jsdelivr.net/gh/portsmouth/snelly@v1.5.2/js/compiled/snelly.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/portsmouth/snelly@master/js/compiled/snelly.min.js"></script>
 
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
@@ -32,7 +32,7 @@ Scene.prototype.init = function(snelly)
     controls.target.set(20.120985683641592, -0.23092356177939166, -1.3607745726171616);
 
     /** Renderer settings **/
-    renderer.renderMode = 'firsthit';
+    renderer.renderMode = 'pt';
     renderer.maxBounces = 1;
     renderer.maxMarchSteps = 256;
     renderer.radianceClamp = 3;

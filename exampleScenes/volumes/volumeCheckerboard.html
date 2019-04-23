@@ -1,6 +1,6 @@
 
 <body onload="onLoad();">
-<script src="https://cdn.jsdelivr.net/gh/portsmouth/snelly@v1.5.2/js/compiled/snelly.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/portsmouth/snelly@master/js/compiled/snelly.min.js"></script>
 
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
@@ -119,7 +119,7 @@ Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthS
 Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
 
 Scene.prototype.envMap = function()
-{ return 'https://cdn.rawgit.com/portsmouth/envmaps/4e256a04/fin4_Bg.jpg'; }
+{ return 'https://cdn.jsdelivr.net/gh/portsmouth/envmaps@master/fin4_Bg.jpg'; }
 
 Scene.prototype.initGui = function(gui)
 {

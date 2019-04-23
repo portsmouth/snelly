@@ -1,6 +1,6 @@
 
 <body onload="onLoad();">
-<script src="https://cdn.jsdelivr.net/gh/portsmouth/snelly@v1.5.2/js/compiled/snelly.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/portsmouth/snelly@master/js/compiled/snelly.min.js"></script>
 
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
@@ -25,46 +25,46 @@ Scene.prototype.init = function(snelly)
 
 	/** Camera settings **/
 	camera.fov = 45;
-	camera.aperture = -9.285714285714286;
-	camera.focalDistance = 0.31675126013019256;
+	camera.aperture = -20.52035945604034;
+	camera.focalDistance = -0.09775668768615661;
 	camera.up.set(0, 1, 0);
-	camera.position.set(5.810948909323724, -0.9965658314782713, 3.195124400357999);
-	controls.target.set(1.570495134599924, -2.0903466881626795, 1.7365596357408684);
+	camera.position.set(0.6921000121301741, 0.3334712582996284, 6.223232651725933);
+	controls.target.set(1.4231851102377022, 0.07241926590689088, 6.0029339612759705);
 
 	/** Renderer settings **/
-	renderer.renderMode = 'firsthit';
+	renderer.renderMode = 'pt';
 	renderer.maxSamplesPerFrame = 1;
-	renderer.maxBounces = 1;
+	renderer.maxBounces = 2;
 	renderer.maxScatters = 2;
-	renderer.maxMarchSteps = 271;
+	renderer.maxMarchSteps = 341;
 	renderer.maxVolumeSteps = 256;
 	renderer.maxStepsIsMiss = false;
-	renderer.interactive = true;
+	renderer.interactive = false;
 	renderer.goalFPS = 10;
 	renderer.minsSPPToRedraw = 0;
 	renderer.radianceClamp = 3;
 	renderer.wavelengthSamples = 256;
-	renderer.exposure = -0.17847672007843318;
-	renderer.gamma = 2.0319276679669462;
-	renderer.contrast = 1.1314285714285715;
-	renderer.saturation = 1;
-	renderer.skyPower = 1.9428571428571428;
+	renderer.exposure = 2.3470830932138167;
+	renderer.gamma = 1.308699175978711;
+	renderer.contrast = 1.2053808199803917;
+	renderer.saturation = 0.6199101359899157;
+	renderer.skyPower = 10;
 	renderer.skyTemperature = 6000;
 	renderer.envMapRotation = 0;
-	renderer.envMapVisible = false;
-	renderer.sunPower = 0;
+	renderer.envMapVisible = true;
+	renderer.sunPower = 2.0538081998039175;
 	renderer.sunColor = [1, 0.8, 0.5];
-	renderer.sunAngularSize = 5;
-	renderer.sunLatitude = 50;
-	renderer.sunLongitude = 0;
+	renderer.sunAngularSize = 18.597304079697473;
+	renderer.sunLatitude = 21.583824478184837;
+	renderer.sunLongitude = 210.76944623657135;
 	renderer.sunVisibleDirectly = true;
-	renderer.shadowStrength = 0.6742857142857143;
+	renderer.shadowStrength = 1;
 
 	/** Material settings **/
 	let surface = materials.loadSurface();
-	surface.roughness = 0;
+	surface.roughness = 0.024806201550387597;
 	surface.ior = 2.7061310782241015;
-	surface.diffuseAlbedo = [0.10899653979238752, 0.7941176470588236, 0.5120089558314675];
+	surface.diffuseAlbedo = [0.27450980392156865, 0.1607843137254902, 0.08235294117647059];
 	surface.specAlbedo = [1, 1, 1];
 }
 
@@ -104,12 +104,23 @@ Scene.prototype.shader = function()
 		return 0.25*abs(X.y)/(s*scale);
 	}
 
+	float sdBox(vec3 X, vec3 bmin, vec3 bmax)
+	{
+		vec3 d = abs(X-0.5*(bmin+bmax)) - 0.5*(bmax-bmin);
+		return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
+	}
+
+	float opI( float d1, float d2 ) { return max(d1,d2); }
+	
 	float SDF_SURFACE(vec3 X)
 	{
 		const float PI = 3.1415926;
 		float anim = 1.0 + 0.25*cos(0.02*PI*time*(X.z-X.x)/scale);
-		return 1.5*apollonian(X, anim);
+		float fractal = 1.5*apollonian(X, anim);
+		float bounds = sdBox(X, vec3(0.0), vec3(1000.0));
+		return opI(bounds, fractal);
 	}
+	
     `;
 }
 
@@ -118,7 +129,7 @@ Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthS
 Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
 
 Scene.prototype.envMap = function()
-{ return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg'; }
+{ return 'https://cdn.jsdelivr.net/gh/portsmouth/envmaps@master/HDR_112_River_Road_2_Bg.jpg'; }
 
 Scene.prototype.initGui = function(gui)
 {

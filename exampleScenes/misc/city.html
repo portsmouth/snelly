@@ -1,6 +1,6 @@
- <body onload="onLoad();">
-<script src="https://cdn.jsdelivr.net/gh/portsmouth/snelly@v1.5.2/js/compiled/snelly.min.js"></script>
-
+<body onload="onLoad();">
+<script src="https://cdn.jsdelivr.net/gh/portsmouth/snelly@master/js/compiled/snelly.min.js"></script>
+	
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
 <?/* ------------------------------------------------------------------*/?>
@@ -31,7 +31,7 @@ Scene.prototype.init = function(snelly)
     controls.target.set(16.241850847946523, -1.3205042636460567, -9.432613526335729);
 
     /** Renderer settings **/
-    renderer.renderMode = 'firsthit';
+    renderer.renderMode = 'pt';
     renderer.maxSamplesPerFrame = 1;
     renderer.maxBounces = 2;
     renderer.maxScatters = 2;
@@ -51,7 +51,7 @@ Scene.prototype.init = function(snelly)
     renderer.skyTemperature = 6000;
     renderer.envMapRotation = 0;
     renderer.envMapVisible = true;
-    renderer.sunPower = 11.27554615926709;
+    renderer.sunPower = 1.8;
     renderer.sunColor = [1, 0.3840830449826992, 0.12745098039215685];
     renderer.sunAngularSize = 3.214348853281045;
     renderer.sunLatitude = 23.624755965012696;
@@ -175,7 +175,7 @@ Scene.prototype.shader = function()
             albedo = mix( vec4(0,0,0,0), vec4(1,1,1,0), r.x );
         albedo.w = mix ( albedo.w, 0.0, step( .2, N.y ) ); // remove reflection on roofs
         albedo = mix( vec4(.05,.05,.05,0), albedo, step( .07, abs(v.z-.08) ) );  // roads
-        return albedo.xyz;
+        return C * albedo.xyz;
     }
     `;
 }

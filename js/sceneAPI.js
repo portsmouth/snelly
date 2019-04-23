@@ -97,7 +97,7 @@ this.frame = 0;
 */
 Scene.prototype.envMap = function()
 {
-      return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_040_Field_Bg.jpg';
+      return 'https://cdn.jsdelivr.net/gh/portsmouth/envmaps/74e9d389/HDR_040_Field_Bg.jpg';
 }
 
 /**

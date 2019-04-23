@@ -1,7 +1,7 @@
    
 <body onload="onLoad();">
-<script src="https://cdn.jsdelivr.net/gh/portsmouth/snelly@v1.5.2/js/compiled/snelly.min.js"></script>
-
+<script src="https://cdn.jsdelivr.net/gh/portsmouth/snelly@master/js/compiled/snelly.min.js"></script>
+	
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
 <?/* ------------------------------------------------------------------*/?>
@@ -16,19 +16,19 @@ Scene.prototype.init = function(snelly)
     let controls  = snelly.getControls();
     let materials = snelly.getMaterials();
         
-    this.par = {"radius":1.6913319238900635,"width":4.171952078928824,"length":0.6765327695560254,"height":0.1,"separation":13.305144467935166,"blend":0.5186751233262861,"offset_x":1.2755461592670887,"offset_z":-2.3326286116983797};
+    this.par = {"radius":3.4954193093727977,"width":5.637773079633544,"length":2.4806201550387597,"height":0.1,"separation":20,"blend":0.5186751233262861,"offset_x":1.2755461592670887,"offset_z":-2.3326286116983797};
     snelly.showGUI(true);
 
     /** Camera settings **/
     camera.fov = 45;
     camera.aperture = -10;
-    camera.focalDistance = 1.5222246674889102;
+    camera.focalDistance = 1.6193886727103826;
     camera.up.set(0, 1, 0);
-    camera.position.set(-34.88544799236437, 30.682592449048798, 27.71873673552294);
-    controls.target.set(-2.951494111473539, -3.46846261964871, -1.761313523257833);
+    camera.position.set(-45.26381851271172, 37.773625864954745, -42.12108376770033);
+    controls.target.set(-0.19011409411563798, -3.8632040592824355, 1.337424298060945);
 
     /** Renderer settings **/
-    renderer.renderMode = 'firsthit';
+    renderer.renderMode = 'pt';
     renderer.maxSamplesPerFrame = 1;
     renderer.maxBounces = 1;
     renderer.maxScatters = 2;
@@ -41,27 +41,27 @@ Scene.prototype.init = function(snelly)
     renderer.radianceClamp = 3;
     renderer.wavelengthSamples = 256;
     renderer.exposure = 0;
-    renderer.gamma = 2.2;
+    renderer.gamma = 1.2742597239792715;
     renderer.contrast = 1;
     renderer.saturation = 1;
-    renderer.skyPower = 1;
+    renderer.skyPower = 4.936321453253033;
     renderer.skyTemperature = 6000;
     renderer.envMapRotation = 0;
     renderer.envMapVisible = true;
-    renderer.sunPower = 1;
+    renderer.sunPower = -10;
     renderer.sunColor = [1, 0.8, 0.5];
-    renderer.sunAngularSize = 5;
-    renderer.sunLatitude = 50;
-    renderer.sunLongitude = 0;
+    renderer.sunAngularSize = 13.775780799775905;
+    renderer.sunLatitude = 33.98202719798314;
+    renderer.sunLongitude = 132.2474956778487;
     renderer.sunVisibleDirectly = true;
     renderer.shadowStrength = 1;
 
     /** Material settings **/
     let surface = materials.loadSurface();
-    surface.roughness = 0.03;
-    surface.ior = 1.5;
-    surface.diffuseAlbedo = [1, 0.3, 0];
-    surface.specAlbedo = [0.9313725490196079, 0.9313725490196079, 0.9313725490196079];
+    surface.roughness = 0.01127554615926709;
+    surface.ior = 2.330514446793517;
+    surface.diffuseAlbedo = [0.45098039215686275, 0.6274509803921569, 0.03529411764705882];
+    surface.specAlbedo = [1, 1, 1];
 }
 
 Scene.prototype.initGenerator = function()

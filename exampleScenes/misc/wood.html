@@ -18,10 +18,10 @@ Scene.prototype.init = function(snelly)
         
     this.par = {};
     this.par.radius = 0.8343904157857647;
-    this.par.frequency = 5.299506694855532;
-    this.par.amplitude = -0.23326286116983797;
-    this.par.gain = 0.25933756166314303;
-    this.par.lacunarity = 3.2022551092318534;
+    this.par.frequency = 1.014799154334038;
+    this.par.amplitude = -0.8195912614517266;
+    this.par.gain = 0.37209302325581395;
+    this.par.lacunarity = 2.7061310782241015;
     this.par.noiseIterations = 3.604651162790698;
         
     snelly.showGUI(true);
@@ -29,17 +29,17 @@ Scene.prototype.init = function(snelly)
     /** Camera settings **/
     camera.fov = 42.60394644115575;
     camera.aperture = -12;
-    camera.focalDistance = 0.5080461037915477;
+    camera.focalDistance = 0.6946998047188937;
     camera.up.set(0, 1, 0);
-    camera.position.set(0.6933156031378508, 2.822463865330437, 3.5575637947460907);
-    controls.target.set(-0.055148159442831066, 0.5162873426213358, -0.30950278062849873);
+    camera.position.set(1.1891333814806342, 3.7769740652759167, 5.4981293963086735);
+    controls.target.set(0.2197717753330132, 0.7952491979123878, 0.13871694143980415);
 
     /** Renderer settings **/
     renderer.renderMode = 'pt';
     renderer.maxSamplesPerFrame = 1;
     renderer.maxBounces = 1;
     renderer.maxScatters = 2;
-    renderer.maxMarchSteps = 150;
+    renderer.maxMarchSteps = 400;
     renderer.maxVolumeSteps = 256;
     renderer.maxStepsIsMiss = false;
     renderer.interactive = true;
@@ -51,13 +51,13 @@ Scene.prototype.init = function(snelly)
     renderer.gamma = 1.1365019159815122;
     renderer.contrast = 1;
     renderer.saturation = 1;
-    renderer.skyPower = 0;
+    renderer.skyPower = 8.035872133202611;
     renderer.skyTemperature = 6000;
     renderer.envMapRotation = 0;
     renderer.envMapVisible = false;
-    renderer.sunPower = 2.570399979795514;
+    renderer.sunPower = -10;
     renderer.sunColor = [1, 0.8, 0.5];
-    renderer.sunAngularSize = 5;
+    renderer.sunAngularSize = 14.923762533090565;
     renderer.sunLatitude = 50;
     renderer.sunLongitude = 0;
     renderer.sunVisibleDirectly = true;
@@ -67,11 +67,11 @@ Scene.prototype.init = function(snelly)
     let surface = materials.loadSurface();
     surface.roughness = 0.016913319238900635;
     surface.ior = 2.142353770260747;
-    surface.diffuseAlbedo = [0.8529411764705882, 0.6271626297577856, 0.4264705882352941];
+    surface.diffuseAlbedo = [0.4470588235294118, 0.2823529411764706, 0.12941176470588237];
     surface.specAlbedo = [1, 1, 1];
 }
 
-Scene.prototype.getName = function() { return 'Rock'; }
+Scene.prototype.getName = function() { return 'Wood'; }
 
 Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/misc/rock.html"; }
 
@@ -158,7 +158,7 @@ Scene.prototype.shader = function()
         else
         {
             float r = length(X);
-            return C;
+            return C * min(pow(sin(100.0*r/R), 0.5), 1.0);
         }
     }
 

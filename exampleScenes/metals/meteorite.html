@@ -1,8 +1,7 @@
    
 <body onload="onLoad();">
-<script src="https://cdn.jsdelivr.net/gh/portsmouth/snelly@v1.5.2/js/compiled/snelly.min.js"></script>
-
-
+<script src="https://cdn.jsdelivr.net/gh/portsmouth/snelly@master/js/compiled/snelly.min.js"></script>
+	
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
 <?/* ------------------------------------------------------------------*/?>
@@ -50,7 +49,7 @@ Scene.prototype.init = function(snelly)
     renderer.minsSPPToRedraw = 0;
     renderer.radianceClamp = 3;
     renderer.wavelengthSamples = 256;
-    renderer.exposure = 0;
+    renderer.exposure = 1.8878903998879526;
     renderer.gamma = 2.0972515856236784;
     renderer.contrast = 1;
     renderer.saturation = 1;
@@ -179,7 +178,7 @@ Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthS
 Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
 
 Scene.prototype.envMap = function()
-{ return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg'; }
+{ return 'https://cdn.jsdelivr.net/gh/portsmouth/envmaps@master/HDR_112_River_Road_2_Bg.jpg'; }
 
 Scene.prototype.initGui = function(gui)
 {

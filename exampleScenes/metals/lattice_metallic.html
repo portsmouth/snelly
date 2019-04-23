@@ -1,7 +1,7 @@
    
 <body onload="onLoad();">
-<script src="https://cdn.jsdelivr.net/gh/portsmouth/snelly@v1.5.2/js/compiled/snelly.min.js"></script>
-
+<script src="https://cdn.jsdelivr.net/gh/portsmouth/snelly@master/js/compiled/snelly.min.js"></script>
+	
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
 <?/* ------------------------------------------------------------------*/?>
@@ -93,7 +93,7 @@ Scene.prototype.init = function(snelly)
 	renderer.skyTemperature = 6000;
 	renderer.envMapRotation = 0;
 	renderer.envMapVisible = false;
-	renderer.sunPower = 4.936321453253033;
+	renderer.sunPower = 2.9;
 	renderer.sunColor = [1, 0.8, 0.5];
 	renderer.sunAngularSize = 5;
 	renderer.sunLatitude = 42.24749567784869;
@@ -106,7 +106,7 @@ Scene.prototype.init = function(snelly)
 	surface.roughness = 0.010147991543340382;
 	surface.ior = 5.525017618040874;
 	surface.diffuseAlbedo = [0.6274509803921569, 0.6274509803921569, 0.6274509803921569];
-	surface.specAlbedo = [0.08823529411764708, 0.08823529411764708, 0.08823529411764708];
+	surface.specAlbedo = [0.0, 0.0, 0.0];
 
 	let metal = materials.loadMetal('Gold');
 	metal.roughness = 0.02;
@@ -279,7 +279,7 @@ Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snel
 
 Scene.prototype.envMap = function()
 {
-  	return 'https://cdn.rawgit.com/portsmouth/envmaps/74e9d389/HDR_112_River_Road_2_Bg.jpg';
+  	return 'https://cdn.jsdelivr.net/gh/portsmouth/envmaps@master/HDR_112_River_Road_2_Bg.jpg';
 }
 
 </script>
