@@ -1298,7 +1298,7 @@ RadianceType sampleDielectric( in vec3 X, in Basis basis, in vec3 woL, in float 
         if ( !refraction(ni, eta, woL, wiL) ) return RadianceType(0.0); // total internal reflection occurred
         wiL = -wiL; // As refract() computes the incident beam direction, and wiL is defined to be opposite to that.
         float cosi = dot(wiL, m);
-        float Frm = fresnelDielectricReflectance(cosi, ior, 1.0);
+        RadianceType Frm = RadianceType(fresnelDielectricReflectance(cosi, ior, 1.0));
         RadianceType Trm = RadianceType(1.0) - dielectricAlbedo * Frm;  // Fresnel transmittance
         // Evaluate microfacet distribution for the sampled half direction
         vec3 wh = m; // refraction half-vector = m
