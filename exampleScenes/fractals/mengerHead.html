@@ -1,7 +1,7 @@
    
 <body onload="onLoad();">
 <script src="https://portsmouth.github.io/snelly/js/compiled/snelly.min.js"></script>
-	
+    
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
 <?/* ------------------------------------------------------------------*/?>
@@ -203,7 +203,7 @@ Scene.prototype.init = function(snelly)
     this.EDGE = [1,1,1];
 
     // Load SDF texture
-    let imageUrl = 'https://portsmouth.github.io/SDFGen/assets/eminem.png';
+    let imageUrl = 'https://portsmouth.github.io/SDFGen/assets/head-of-david.png';
 
     var packer = new Packer();
     let SCENE = this;
@@ -246,7 +246,7 @@ Scene.prototype.isReady = function(snelly)
     return this.loaded;
 }
 
-Scene.prototype.getLengthScale = function()    { return 1.0; }
+Scene.prototype.getLengthScale = function()    { return 100.0; }
 Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
 Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
 
@@ -354,6 +354,8 @@ Scene.prototype.shader = function()
 
     float MESH(in vec3 X, float expand)
     {
+        X = X.zxy;
+
         // if X is outside grid, return distance to a slightly embedded grid
         if ( sdBox(X, O, O+E) > 0.0 )
         {

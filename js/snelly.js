@@ -299,7 +299,9 @@ controls.target.set(${controls.target.x}, ${controls.target.y}, ${controls.targe
 
 /** Renderer settings **/
 renderer.renderMode = '${renderer.renderMode}';
+renderer.dispersive = ${renderer.dispersive};
 renderer.maxSamplesPerFrame = ${renderer.maxSamplesPerFrame};
+renderer.maxSpp = ${renderer.maxSpp};
 renderer.maxBounces = ${renderer.maxBounces};
 renderer.maxScatters = ${renderer.maxScatters};
 renderer.maxMarchSteps = ${renderer.maxMarchSteps};
@@ -315,7 +317,7 @@ renderer.gamma = ${renderer.gamma};
 renderer.contrast = ${renderer.contrast};
 renderer.saturation = ${renderer.saturation};
 renderer.skyPower = ${renderer.skyPower};
-renderer.skyTemperature = ${renderer.skyTemperature};
+renderer.skyTint = [${renderer.skyTint[0]}, ${renderer.skyTint[1]}, ${renderer.skyTint[2]}];
 renderer.envMapRotation = ${renderer.envMapRotation};
 renderer.envMapVisible = ${renderer.envMapVisible};
 renderer.sunPower = ${renderer.sunPower};

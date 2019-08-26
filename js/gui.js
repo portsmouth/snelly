@@ -64,7 +64,8 @@ GUI.prototype.createRendererSettings = function()
     // raymarching folder
     this.raymarchingFolder = this.rendererFolder.addFolder('Raymarcher');
     this.raymarchingFolder.add(pathtracer, 'renderMode', renderModes).onChange( function(renderMode) { pathtracer.renderMode = renderMode; pathtracer.reset(); });
-    this.raymarchingFolder.add(pathtracer, 'maxBounces', 1, 20, 1).onChange( function(value) { pathtracer.maxBounces = Math.floor(value); pathtracer.reset(); });
+    this.raymarchingFolder.add(pathtracer, 'dispersive').onChange( function(value) { pathtracer.reset(); } );
+    this.raymarchingFolder.add(pathtracer, 'maxBounces', 0, 20, 1).onChange( function(value) { pathtracer.maxBounces = Math.floor(value); pathtracer.reset(); });
     this.raymarchingFolder.add(pathtracer, 'maxScatters', 0, 20, 1).onChange( function(value) { pathtracer.maxScatters = Math.floor(value); pathtracer.reset(); });
     this.raymarchingFolder.add(pathtracer, 'maxSamplesPerFrame', 1, 16, 1).onChange( function(value) { pathtracer.maxBounces = Math.floor(value); pathtracer.reset(); });
     this.raymarchingFolder.add(pathtracer, 'maxSpp', 1, 10000, 1).onChange( function(value) { pathtracer.maxSpp = Math.floor(value); pathtracer.reset(); });
@@ -94,16 +95,33 @@ GUI.prototype.createRendererSettings = function()
     // lighting folder
     this.lightingFolder = this.rendererFolder.addFolder('Lighting');
     
-    var skyPowerItem = this.lightingFolder.add(pathtracer, 'skyPower', 0.0, 10.0).onChange( function(value) { pathtracer.reset(true); } );
-    
-    // init gui for spectrum
+    // sky-lighting
+    var skyPowerItem = this.lightingFolder.add(pathtracer, 'skyPower', -6.0, 6.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.lightingFolder.skyTint = [pathtracer.skyTint[0]*255.0, pathtracer.skyTint[1]*255.0, pathtracer.skyTint[2]*255.0];
+    var skyTintItem = this.lightingFolder.addColor(this.lightingFolder, 'skyTint');
+    skyTintItem.onChange( function(C) {
+                            if (typeof C==='string' || C instanceof String)
+                            {
+                                var color = hexToRgb(C);
+                                pathtracer.skyTint[0] = color.r / 255.0;
+                                pathtracer.skyTint[1] = color.g / 255.0;
+                                pathtracer.skyTint[2] = color.b / 255.0;
+                            }
+                            else
+                            {
+                                pathtracer.skyTint[0] = C[0] / 255.0;
+                                pathtracer.skyTint[1] = C[1] / 255.0;
+                                pathtracer.skyTint[2] = C[2] / 255.0;
+                            }
+                            snelly.reset(true);
+                        } );
     spectrumObj = snelly.getLoadedSpectrum();
     spectrumObj.initGui(this.lightingFolder);
-
     this.lightingFolder.add(pathtracer, 'envMapRotation', 0.0, 360.0).onChange( function(value) { pathtracer.reset(true); } );
     this.lightingFolder.add(pathtracer, 'envMapVisible').onChange( function(value) { pathtracer.reset(true); } );
-    
-    this.lightingFolder.add(pathtracer, 'sunPower', -10.0, 5.0).onChange( function(value) { pathtracer.reset(true); } );
+
+    // sun-lighting
+    this.lightingFolder.add(pathtracer, 'sunPower', -6.0, 6.0).onChange( function(value) { pathtracer.reset(true); } );
     this.lightingFolder.sunColor = [pathtracer.sunColor[0]*255.0, pathtracer.sunColor[1]*255.0, pathtracer.sunColor[2]*255.0];
     var sunColorItem = this.lightingFolder.addColor(this.lightingFolder, 'sunColor');
     sunColorItem.onChange( function(C) {

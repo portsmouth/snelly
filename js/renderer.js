@@ -3,11 +3,11 @@
 *  - 'pt': pathtracer (uni-directional)
 *  - 'ao': ambient occlusion, colored via {@link Surface} material diffuse albedo modulated by the `SURFACE_DIFFUSE_REFLECTANCE` shader function
 *  - 'normals': view normal at first hit as a color
-*  - 'firsthit': first-hit only, and {@link Surface} material only
 * @constructor
 * @property {number} width                     - (if not specified, fits to window)
 * @property {number} height                    - (if not specified, fits to window)
-* @property {String} [renderMode='pt']         - rendering mode (either 'pt', 'ao', 'normals', 'firsthit')
+* @property {String} [renderMode='pt']         - rendering mode (either 'pt', 'ao', 'normals')
+* @property {number} [dispersive=false]        - enable dispersive (i.e. spectral) rendering
 * @property {number} [maxSamplesPerFrame=1]    - maximum number of per-pixel samples per frame
 * @property {number} [maxSpp=1]                - maximum number of samples-per-pixel, after which the render terminates
 * @property {number} [maxBounces=3]            - maximum number of surface bounces
@@ -25,7 +25,8 @@
 * @property {number} [contrast=1.0]            - tonemapping contrast
 * @property {number} [saturation=1.0]          - tonemapping saturation
 * @property {number} [skyPower=4.0]            - sky power (arbitrary units)
-* @property {number} [skyTemperature=6000]     - sky temperature (in Kelvin)
+* @property {number} [skyTemperature=6000]     - sky emission blackbody temperature (in Kelvin), used in dispersive mode only
+* @property {Array}  [skyTint]                 - sky color tint
 * @property {number} [envMapRotation=0.0]      - env map rotation about pole in degrees (0 to 360)
 * @property {number} [envMapVisible=true]      - whether env map is visible to primary rays (otherwise black)
 * @property {number} [sunPower=1.0]            - sun power (arbitrary units)
@@ -54,7 +55,6 @@ var Renderer = function()
     this.fbo == null;
     this.aoProgram           = null;
     this.normalsProgram      = null;
-    this.firsthitProgram     = null;
     this.pathtraceAllProgram = null;
     this.tonemapProgram      = null;
     this.pickProgram         = null;
@@ -69,6 +69,7 @@ var Renderer = function()
 
     // Default user-adjustable properties
     this.renderMode = 'pt';
+    this.dispersive = false;
     this.maxSamplesPerFrame = 1;
     this.maxSpp = 1024;
     this.maxBounces = 3;
@@ -79,6 +80,7 @@ var Renderer = function()
     this.wavelengthSamples = 256;
     this.skyPower = 1.0;
     this.skyTemperature = 6000.0;
+    this.skyTint = [1.0,1.0,1.0];
     this.sunPower = 0.0;
     this.sunAngularSize = 5.0;
     this.sunColor = [1.0,0.8,0.5];
@@ -102,7 +104,6 @@ var Renderer = function()
         'pathtracer': {'v': 'pathtracer-vertex-shader', 'f': 'pathtracer-fragment-shader'},
         'ao':         {'v': 'ao-vertex-shader',         'f': 'ao-fragment-shader'        },
         'normals':    {'v': 'normals-vertex-shader',    'f': 'normals-fragment-shader'   },
-        'firsthit':   {'v': 'firsthit-vertex-shader',   'f': 'firsthit-fragment-shader'  },
         'tonemapper': {'v': 'tonemapper-vertex-shader', 'f': 'tonemapper-fragment-shader'},
         'pick':       {'v': 'pick-vertex-shader',       'f': 'pick-fragment-shader'}
     });
@@ -248,6 +249,7 @@ Renderer.prototype.compileShaders = function()
     replacements.__MAX_SAMPLES_PER_FRAME__  = Math.round(this.maxSamplesPerFrame); 
 
     replacements.__DEFINES__ = '';
+
     if (hasSurface)    replacements.__DEFINES__ += '\n#define HAS_SURFACE\n';
     if (hasMetal)      replacements.__DEFINES__ += '\n#define HAS_METAL\n';
     if (hasDielectric) replacements.__DEFINES__ += '\n#define HAS_DIELECTRIC\n';
@@ -260,6 +262,7 @@ Renderer.prototype.compileShaders = function()
     if (hasDielectricNM) replacements.__DEFINES__ += '\n#define HAS_DIELECTRIC_NORMALMAP\n';
 
     if (this.interactive) replacements.__DEFINES__ += '\n#define INTERACTIVE_MODE\n';
+    if (this.dispersive) replacements.__DEFINES__  += '\n#define DISPERSION_ENABLED\n';
 
     // Compile pathtracer with different entry point according to mode.
     // Here shaderSources is a dict from name (e.g. "trace")
@@ -271,13 +274,6 @@ Renderer.prototype.compileShaders = function()
             break;
         case 'normals':
             this.normalsProgram = new GLU.Shader('normals', this.shaderSources, replacements);
-            break;
-        case 'firsthit':
-            if (!hasSurface) 
-            {
-                GLU.fail('"firsthit" shader requires definition of SDF_SURFACE'); 
-            }
-            this.firsthitProgram = new GLU.Shader('firsthit', this.shaderSources, replacements);
             break;
         case 'pt':
         default:
@@ -441,7 +437,6 @@ Renderer.prototype.render = function()
     {
         case 'ao':       INTEGRATOR_PROGRAM = this.aoProgram;           break;
         case 'normals':  INTEGRATOR_PROGRAM = this.normalsProgram;      break;
-        case 'firsthit': INTEGRATOR_PROGRAM = this.firsthitProgram;     break;
         case 'pt':
         default:         INTEGRATOR_PROGRAM = this.pathtraceAllProgram; break;
     }
@@ -467,7 +462,7 @@ Renderer.prototype.render = function()
     INTEGRATOR_PROGRAM.uniform2Fv("resolution", [this._width, this._height]);
 
     // Read wavelength -> XYZ table
-    if (this.renderMode=='pt' || this.renderMode=='ao' || this.renderMode=='firsthit')
+    if (this.renderMode=='pt' || this.renderMode=='ao')
     {
         snelly.wavelengthToXYZ.bind(2);
         INTEGRATOR_PROGRAM.uniformTexture("WavelengthToXYZ", snelly.wavelengthToXYZ);
@@ -476,7 +471,8 @@ Renderer.prototype.render = function()
     }
 
     // Pathtracing options
-    INTEGRATOR_PROGRAM.uniformF("skyPower", this.skyPower);
+    INTEGRATOR_PROGRAM.uniformF("skyPower", Math.pow(10.0,this.skyPower));
+    INTEGRATOR_PROGRAM.uniform3Fv("skyTint", this.skyTint);
     INTEGRATOR_PROGRAM.uniformF("sunPower", Math.pow(10.0,this.sunPower));
     INTEGRATOR_PROGRAM.uniformF("sunAngularSize", this.sunAngularSize);
     INTEGRATOR_PROGRAM.uniformF("sunLatitude", this.sunLatitude);

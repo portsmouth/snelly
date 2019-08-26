@@ -57,20 +57,20 @@ java -jar closure-compiler/compiler.jar --js %s -O WHITESPACE_ONLY --js_output_f
 os.system(cmd)
 
 
-#print '\n******************\nbuild documentation via jsdoc2md ...'
-#jsSources = [
-#'../js/snelly.js', 
-#'../js/sceneAPI.js', 
-#'../js/renderer.js', 
-#'../js/materials.js', 
-#'../js/gui.js', 
-#'../js/gl.js', 
-#'../js/gui.js'
-#]
-#api_files = ' '.join(jsSources)
-#cmd = '''
-#jsdoc2md --template ../docs/API.hbs --files %s > ../docs/API.md''' % api_files
-#os.system(cmd)
+print '\n******************\nbuild documentation via jsdoc2md ...'
+jsSources = [
+'../js/snelly.js', 
+'../js/sceneAPI.js', 
+'../js/renderer.js', 
+'../js/materials.js', 
+'../js/gui.js', 
+'../js/gl.js', 
+'../js/gui.js'
+]
+api_files = ' '.join(jsSources)
+cmd = '''
+jsdoc2md --template ../docs/API.hbs --files %s > ../docs/API.md''' % api_files
+os.system(cmd)
 
 
 
