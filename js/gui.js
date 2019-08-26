@@ -59,7 +59,7 @@ GUI.prototype.createRendererSettings = function()
     var camera = snelly.getCamera();
 
     // @todo: add a basic AO and normals mode as well, useful for scene debugging.
-    var renderModes = ['pt', 'ao', 'normals', 'firsthit'];
+    var renderModes = ['pt', 'ao', 'normals'];
     
     // raymarching folder
     this.raymarchingFolder = this.rendererFolder.addFolder('Raymarcher');

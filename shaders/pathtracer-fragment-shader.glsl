@@ -553,7 +553,7 @@ RadianceType sampleDielectric( in vec3 X, in Basis basis, in vec3 woL, in float 
             ni = -m;
         }
         // Compute incident direction corresponding to known transmitted direction
-        if ( !refraction(ni, eta, woL, wiL) ) return 0.0; // total internal reflection occurred
+        if ( !refraction(ni, eta, woL, wiL) ) return RadianceType(0.0); // total internal reflection occurred
         wiL = -wiL; // As refract() computes the incident beam direction, and wiL is defined to be opposite to that.
         float cosi = dot(wiL, m);
         float Frm = fresnelDielectricReflectance(cosi, ior, 1.0);
@@ -569,7 +569,7 @@ RadianceType sampleDielectric( in vec3 X, in Basis basis, in vec3 woL, in float 
             float sqrtDenom = im + eta*om;
             dwh_dwo = eta*eta * abs(om) / max(sqrtDenom*sqrtDenom, DENOM_TOLERANCE);
         }
-        RadianceType f = abs(im) * dwh_dwo * Trm * G * D / max(abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
+        RadianceType f = RadianceType(abs(im) * dwh_dwo * Trm * G * D) / max(abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
         pdfOut = (1.0-reflectProb) * microPDF * abs(dwh_dwo);
         return f;
     }
