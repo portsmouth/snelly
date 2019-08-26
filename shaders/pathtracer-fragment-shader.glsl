@@ -1187,14 +1187,12 @@ RadianceType sampleLightInVolume(in vec3 rgb, inout vec4 rnd, inout vec3 wiW, in
     if (chooseSun)
     {
         wiW = sampleSunDir(rnd, sunPdf);
-        wiL = worldToLocal(wiW, basis);
         lightPdf = sunProb*sunPdf;
         Li += sunRadiance(wiW, rgb);
     }
     else
     {
-        wiL = sampleHemisphere(rnd, skyPdf);
-        wiW = localToWorld(wiL, basis);
+        wiW = sampleSphere(rnd, skyPdf);
         lightPdf = skyProb*skyPdf;
         Li += environmentRadiance(wiW, rgb);
     }
