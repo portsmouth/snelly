@@ -16,7 +16,7 @@ Scene.prototype.init = function(snelly)
     let controls  = snelly.getControls();
     let materials = snelly.getMaterials();
         
-    this.par = {"radius":3.4954193093727977,"width":5.637773079633544,"length":2.4806201550387597,"height":0.1,"separation":20,"blend":0.5186751233262861,"offset_x":1.2755461592670887,"offset_z":-2.3326286116983797};
+    this.par = {"radius":1.7,"width":5.637773079633544,"length":2.4806201550387597,"height":0.1,"separation":20,"blend":0.5186751233262861,"offset_x":1.2755461592670887,"offset_z":-2.3326286116983797};
     snelly.showGUI(true);
 
     /** Camera settings **/
@@ -44,7 +44,7 @@ Scene.prototype.init = function(snelly)
     renderer.gamma = 1.2742597239792715;
     renderer.contrast = 1;
     renderer.saturation = 1;
-    renderer.skyPower = 4.936321453253033;
+    renderer.skyPower = 0.3;
     renderer.skyTemperature = 6000;
     renderer.envMapRotation = 0;
     renderer.envMapVisible = true;
