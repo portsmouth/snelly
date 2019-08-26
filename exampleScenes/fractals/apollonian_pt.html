@@ -11,6 +11,8 @@
 function Scene() {}
 Scene.prototype.init = function(snelly)
 {
+	/******* copy-pasted console output on 'O', begin *******/
+
 	let renderer  = snelly.getRenderer();
 	let camera    = snelly.getCamera();
 	let controls  = snelly.getControls();
@@ -21,19 +23,21 @@ Scene.prototype.init = function(snelly)
 	this.par.time = 2.255109231853418;
 	this.frame = 0;
 		
-	snelly.showGUI(true);
+	snelly.showGUI(false);
 
 	/** Camera settings **/
 	camera.fov = 45;
 	camera.aperture = -20.52035945604034;
-	camera.focalDistance = -0.09775668768615661;
+	camera.focalDistance = -0.15285404615689405;
 	camera.up.set(0, 1, 0);
-	camera.position.set(0.6921000121301741, 0.3334712582996284, 6.223232651725933);
+	camera.position.set(0.7539272480019151, 0.354034498706831, 5.6508659977920646);
 	controls.target.set(1.4231851102377022, 0.07241926590689088, 6.0029339612759705);
 
 	/** Renderer settings **/
 	renderer.renderMode = 'pt';
+	renderer.dispersive = false;
 	renderer.maxSamplesPerFrame = 1;
+	renderer.maxSpp = 1024;
 	renderer.maxBounces = 2;
 	renderer.maxScatters = 2;
 	renderer.maxMarchSteps = 341;
@@ -48,11 +52,11 @@ Scene.prototype.init = function(snelly)
 	renderer.gamma = 1.308699175978711;
 	renderer.contrast = 1.2053808199803917;
 	renderer.saturation = 0.6199101359899157;
-	renderer.skyPower = 10;
-	renderer.skyTemperature = 6000;
+	renderer.skyPower = 0.04507704038522853;
+	renderer.skyTint = [1, 1, 1];
 	renderer.envMapRotation = 0;
 	renderer.envMapVisible = true;
-	renderer.sunPower = 2.0538081998039175;
+	renderer.sunPower = 1.1441819568189073;
 	renderer.sunColor = [1, 0.8, 0.5];
 	renderer.sunAngularSize = 18.597304079697473;
 	renderer.sunLatitude = 21.583824478184837;
@@ -66,6 +70,8 @@ Scene.prototype.init = function(snelly)
 	surface.ior = 2.7061310782241015;
 	surface.diffuseAlbedo = [0.27450980392156865, 0.1607843137254902, 0.08235294117647059];
 	surface.specAlbedo = [1, 1, 1];
+
+	/******* copy-pasted console output on 'O', end *******/
 }
 
 

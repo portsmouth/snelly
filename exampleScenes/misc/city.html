@@ -25,14 +25,16 @@ Scene.prototype.init = function(snelly)
     /** Camera settings **/
     camera.fov = 45;
     camera.aperture = -11.430933938107813;
-    camera.focalDistance = 0.9083492094437697;
+    camera.focalDistance = 1.312886979964541;
     camera.up.set(0, 1, 0);
-    camera.position.set(7.349375496475666, 4.2369159665168645, -1.5052587022862252);
-    controls.target.set(16.241850847946523, -1.3205042636460567, -9.432613526335729);
+    camera.position.set(-18.561438587643337, 12.737883620630866, 31.9491422029636);
+    controls.target.set(13.725140425465627, -11.303342367877681, -5.928840909024188);
 
     /** Renderer settings **/
     renderer.renderMode = 'pt';
+    renderer.dispersive = false;
     renderer.maxSamplesPerFrame = 1;
+    renderer.maxSpp = 1024;
     renderer.maxBounces = 2;
     renderer.maxScatters = 2;
     renderer.maxMarchSteps = 256;
@@ -44,18 +46,18 @@ Scene.prototype.init = function(snelly)
     renderer.radianceClamp = 3;
     renderer.wavelengthSamples = 1024;
     renderer.exposure = -0.5;
-    renderer.gamma = 2.2;
+    renderer.gamma = 1.3431386279781508;
     renderer.contrast = 1;
     renderer.saturation = 1;
-    renderer.skyPower = 1.8367707733034542;
-    renderer.skyTemperature = 6000;
+    renderer.skyPower = 1.4389216318789888;
+    renderer.skyTint = [1, 1, 1];
     renderer.envMapRotation = 0;
     renderer.envMapVisible = true;
-    renderer.sunPower = 1.8;
+    renderer.sunPower = 2.403226287863303;
     renderer.sunColor = [1, 0.3840830449826992, 0.12745098039215685];
-    renderer.sunAngularSize = 3.214348853281045;
-    renderer.sunLatitude = 23.624755965012696;
-    renderer.sunLongitude = 260.3039863925746;
+    renderer.sunAngularSize = 6.42869770656209;
+    renderer.sunLatitude = 31.91566007801677;
+    renderer.sunLongitude = 24.79640543959663;
     renderer.sunVisibleDirectly = true;
     renderer.shadowStrength = 1;
 

@@ -48,6 +48,8 @@ Scene.prototype.init = function(snelly)
 		this.GDFVectorsFlattened.push(v.z);
 	}
 
+	/******* copy-pasted console output on 'O', begin *******/
+
 	let renderer  = snelly.getRenderer();
 	let camera    = snelly.getCamera();
 	let controls  = snelly.getControls();
@@ -64,44 +66,58 @@ Scene.prototype.init = function(snelly)
 		
 	snelly.showGUI(true);
 
+	/** Camera settings **/
 	camera.fov = 45;
+	camera.aperture = -10;
+	camera.focalDistance = 1.9636457599248567;
 	camera.up.set(0, 1, 0);
-	camera.position.set(39.45147669460701, 42.503374179633376, 63.016390696888955);
-	controls.target.set(7.233045284603053, -1.3162757489461403, -1.6103647166050683);
-	controls.zoomSpeed = 2;
-	controls.keyPanSpeed = 100;
+	camera.position.set(-69.1934309887038, 40.20206146372988, -49.77451979963582);
+	controls.target.set(-3.2370642418683446, -0.9476201759852462, 2.3420046112476287);
 
 	/** Renderer settings **/
 	renderer.renderMode = 'pt';
+	renderer.dispersive = true;
+	renderer.maxSamplesPerFrame = 1;
+	renderer.maxSpp = 1024;
 	renderer.maxBounces = 5;
+	renderer.maxScatters = 2;
 	renderer.maxMarchSteps = 256;
-	renderer.radianceClamp = 6; // (log scale)
-	renderer.skyPower = 1;
-	renderer.skyTemperature = 6000;
-	renderer.exposure = 0.5;
-	renderer.gamma = 2.2;
-	renderer.whitepoint = 0.9245947850599013;
+	renderer.maxVolumeSteps = 256;
+	renderer.maxStepsIsMiss = true;
+	renderer.interactive = true;
 	renderer.goalFPS = 20;
 	renderer.minsSPPToRedraw = 0;
+	renderer.radianceClamp = 6;
+	renderer.wavelengthSamples = 256;
+	renderer.exposure = 0.5;
+	renderer.gamma = 2.2;
+	renderer.contrast = 1.170941367980952;
+	renderer.saturation = 1;
+	renderer.skyPower = 1.3011638238812306;
+	renderer.skyTint = [1, 1, 1];
+	renderer.envMapRotation = 0;
 	renderer.envMapVisible = false;
+	renderer.sunPower = 2.9542575198543393;
+	renderer.sunColor = [1, 0.8, 0.5];
+	renderer.sunAngularSize = 5;
+	renderer.sunLatitude = 50;
+	renderer.sunLongitude = 0;
+	renderer.sunVisibleDirectly = true;
 	renderer.shadowStrength = 1;
-	renderer.maxStepsIsMiss = true;
-	renderer.AA = true;
 
 	/** Material settings **/
 	let surface = materials.loadSurface();
-	surface.roughness = 0.023678646934460888;
+	surface.roughness = 0.014658210007047218;
 	surface.ior = 5.525017618040874;
-	surface.diffuseAlbedo = [1, 0, 0];
+	surface.diffuseAlbedo = [1, 1, 1];
 	surface.specAlbedo = [0.32352941176470584, 0.32352941176470584, 0.32352941176470584];
 
 	let dielectric = materials.loadDielectric('Glass (SF67)');
-	dielectric.absorptionColor = [1, 1, 1];
-	dielectric.absorptionScale = 1000; // mfp in multiples of scene scale
+	dielectric.absorptionColor = [0.8627450980392157, 0.49903883121876197, 0.6274057489200988];
+	dielectric.absorptionScale = 0.7892882311486962; // mfp in multiples of scene scale
 	dielectric.roughness = 0.002;
 
-	let metal = materials.loadMetal('Silver');
-	metal.roughness = 0.02;
+	/******* copy-pasted console output on 'O', end *******/
 }
 
 Scene.prototype.initGenerator = function()

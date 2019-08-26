@@ -11,6 +11,8 @@
 function Scene() {}
 Scene.prototype.init = function(snelly)
 {
+	/******* copy-pasted console output on 'O', begin *******/
+
 	let renderer  = snelly.getRenderer();
 	let camera    = snelly.getCamera();
 	let controls  = snelly.getControls();
@@ -21,22 +23,22 @@ Scene.prototype.init = function(snelly)
 	this.par.rotation = [71.72399755750051,74.11764705882354,69.03114186851211];
 	this.par.Scale = 2.818886539816772;
 	this.par.MinRad2 = 0.27061310782241016;
-	this.par.lightDir = [0,0.7058823529411762,1];
-	this.par.lightColor = [0.1470588235294118,0.1470588235294118,0.1470588235294118];
 		
 	snelly.showGUI(true);
 
 	/** Camera settings **/
 	camera.fov = 45;
 	camera.aperture = -10;
-	camera.focalDistance = 0.17802422239248186;
+	camera.focalDistance = 0.45995806856170385;
 	camera.up.set(0, 1, 0);
-	camera.position.set(-1.44961554087542, 0.9438892268882322, 2.8471225959549034);
-	controls.target.set(0.14675304486024776, -0.7036395156993038, -0.8372670727723985);
+	camera.position.set(-3.317792688241468, 2.573886057965879, -2.3232869810621244);
+	controls.target.set(0.22293316198773833, 0.27007237081735647, 0.9248158372417498);
 
 	/** Renderer settings **/
 	renderer.renderMode = 'pt';
+	renderer.dispersive = false;
 	renderer.maxSamplesPerFrame = 1;
+	renderer.maxSpp = 1024;
 	renderer.maxBounces = 1;
 	renderer.maxScatters = 2;
 	renderer.maxMarchSteps = 100;
@@ -51,8 +53,8 @@ Scene.prototype.init = function(snelly)
 	renderer.gamma = 2.1649048625792813;
 	renderer.contrast = 1;
 	renderer.saturation = 1;
-	renderer.skyPower = 10;
-	renderer.skyTemperature = 6000;
+	renderer.skyPower = 1.024075823291703;
+	renderer.skyTint = [1, 1, 1];
 	renderer.envMapRotation = 0;
 	renderer.envMapVisible = false;
 	renderer.sunPower = 1;
@@ -67,8 +69,10 @@ Scene.prototype.init = function(snelly)
 	let surface = materials.loadSurface();
 	surface.roughness = 0.020295983086680763;
 	surface.ior = 2.7061310782241015;
-	surface.diffuseAlbedo = [1, 0.11764705882352944, 0.11764705882352944];
-	surface.specAlbedo = [0.06418345885066834, 0.07843137254901966, 0.029988465974625164];
+	surface.diffuseAlbedo = [0.7842972051937939, 0.46556641231842244, 0.1075968087178024];
+	surface.specAlbedo = [0.7646878602114116, 0.7646878602114116, 0.7646878602114116];
+
+	/******* copy-pasted console output on 'O', end *******/
 }
 
 
@@ -84,8 +88,6 @@ this.par.Iterations = ${this.par.Iterations};
 this.par.rotation = [${this.par.rotation}];
 this.par.Scale = ${this.par.Scale};
 this.par.MinRad2 = ${this.par.MinRad2};
-this.par.lightDir = [${this.par.lightDir}];
-this.par.lightColor = [${this.par.lightColor}];
     `;
 }
 
@@ -96,8 +98,6 @@ Scene.prototype.shader = function()
 
     return `
 	uniform vec3 RotVector;
-	uniform vec3 LightDir;
-	uniform vec3 LightColor;
 	uniform float Scale;
 	uniform float MinRad2;
 
@@ -126,8 +126,6 @@ Scene.prototype.shader = function()
 		absScalem1 = abs(Scale - 1.0);
 		const int Iterations = int(${Iterations});
 		AbsScaleRaisedTo1mIters = pow(abs(Scale), float(1-Iterations));
-		if (length(LightDir)<1.0e-3) L = vec3(0,1,0);
-		else L = normalize(LightDir);
 	}
 
 	float mandelbox(vec3 pos)
@@ -169,8 +167,6 @@ Scene.prototype.initGui = function(gui)
     gui.addSlider(this.par, {name: 'Scale', min: 0.0, max: 10.0});
     gui.addSlider(this.par, {name: 'MinRad2', min: 0.0, max: 1.0});
 	gui.addColor(this.par, "rotation", 180.0);
-	gui.addColor(this.par, "lightDir");
-	gui.addColor(this.par, "lightColor");
 }
 
 Scene.prototype.syncShader = function(snelly, shader)
@@ -178,8 +174,6 @@ Scene.prototype.syncShader = function(snelly, shader)
 	shader.uniformF("Scale", this.par.Scale);
 	shader.uniformF("MinRad2", this.par.MinRad2);
 	shader.uniform3Fv("RotVector", this.par.rotation);
-	shader.uniform3Fv("LightDir", this.par.lightDir);
-	shader.uniform3Fv("LightColor", this.par.lightColor);
 }
 
 </script>

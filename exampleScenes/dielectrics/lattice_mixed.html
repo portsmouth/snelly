@@ -65,27 +65,29 @@ Scene.prototype.init = function(snelly)
 	this.parameters.bulge_m = 0.14923762533090565;
 
 	this.parameters.shape_d = 'Octahedron';
-	this.parameters.size_d = 0.9183853866517271;
-	this.parameters.spacing_d = 5;
-	this.parameters.width_d = 11;
+	this.parameters.size_d = 1.4923762533090565;
+	this.parameters.spacing_d = 6.313899533230624;
+	this.parameters.width_d = 11.479817333146588;
 	this.parameters.height_d = 13;
-	this.parameters.depth_d = 6;
+	this.parameters.depth_d = 3.4439451999439763;
 	this.parameters.offset_d =1;
-	this.parameters.bulge_d = 0.1836770773303454;
+	this.parameters.bulge_d = 0.6199101359899157;
 		
 	snelly.showGUI(true);
 
 	/** Camera settings **/
 	camera.fov = 45;
-	camera.aperture = -7.571125504250984;
-	camera.focalDistance = 1.1870125638233944;
+	camera.aperture = -5.0914849602913215;
+	camera.focalDistance = 1.3375957368534197;
 	camera.up.set(0, 1, 0);
-	camera.position.set(20.44494909741867, 19.623203527141378, -9.418153068053577);
-	controls.target.set(0.8236657246657697, 3.041739733025136, -0.0967413817149283);
+	camera.position.set(26.189475340306203, 21.94599252803385, 13.360864826598863);
+	controls.target.set(2.504251438265561, 3.2276908381958878, -1.2801572310264229);
 
 	/** Renderer settings **/
 	renderer.renderMode = 'pt';
+	renderer.dispersive = true;
 	renderer.maxSamplesPerFrame = 1;
+	renderer.maxSpp = 1024;
 	renderer.maxBounces = 4;
 	renderer.maxScatters = 2;
 	renderer.maxMarchSteps = 485;
@@ -100,15 +102,15 @@ Scene.prototype.init = function(snelly)
 	renderer.gamma = 2.2;
 	renderer.contrast = 1;
 	renderer.saturation = 1;
-	renderer.skyPower = 1;
-	renderer.skyTemperature = 6000;
+	renderer.skyPower = 0.8878903998879535;
+	renderer.skyTint = [1, 1, 1];
 	renderer.envMapRotation = 0;
 	renderer.envMapVisible = false;
-	renderer.sunPower = 1;
+	renderer.sunPower = 3.3675309438476155;
 	renderer.sunColor = [1, 0.8, 0.5];
-	renderer.sunAngularSize = 5;
-	renderer.sunLatitude = 50;
-	renderer.sunLongitude = 0;
+	renderer.sunAngularSize = 8.265468479865543;
+	renderer.sunLatitude = 15.384723118285677;
+	renderer.sunLongitude = 169.44210383724365;
 	renderer.sunVisibleDirectly = true;
 	renderer.shadowStrength = 1;
 
@@ -120,7 +122,7 @@ Scene.prototype.init = function(snelly)
 	surface.specAlbedo = [0.08823529411764708, 0.08823529411764708, 0.08823529411764708];
 
 	let metal = materials.loadMetal('Silver');
-	metal.roughness = 0.006765327695560254;
+	metal.roughness = 0.0021;
 
 	let dielectric = materials.loadDielectric('Glass (SF67)');
 	dielectric.absorptionColor = [1, 0.5980392156862745, 0.5980392156862745];

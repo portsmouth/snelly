@@ -707,91 +707,94 @@ vec3 hash3( vec2 p ){
 
 Scene.prototype.init = function(snelly)
 {
-    let renderer  = snelly.getRenderer();
-let camera    = snelly.getCamera();
-let controls  = snelly.getControls();
-let materials = snelly.getMaterials();
+	this.par = {};
+	this.par.a = 2.8186386426338266;
+	this.par.b = 2.480402005517768;
+	this.par.c = 3.2;
+	this.par.d = 2.480402005517768;
+	this.par.e = 1.8039287312856491;
+	this.par.f = 3.720603008276652;
+	this.par.g = 7.6666971079640085;
+	this.par.h = 4.171585191098064;
+	this.par.i = 1.4002713025648714;
+	this.par.j = 1;
+	this.par.X = 1;
+	this.par.Y = 1;
+	this.par.W = 1;
+	this.par.Z = 1;
     
-/*
-this.par = {};
-this.par.a = 1;
-this.par.b = 2.1;
-this.par.c = 0.6765327695560254;
-this.par.d = 3.7209302325581395;
-this.par.e = 1;
-this.par.f = 1;
-this.par.g = 4.688408379123453;
-this.par.h = 5.299506694855532;
-this.par.i = 1.4002713025648714;
-this.par.j = 1;
-this.par.X = 1;
-this.par.Y = 1;
-this.par.W = 1;
-this.par.Z = 1;
-*/
+	/******* copy-pasted console output on 'O', begin *******/
 
-this.par = {};
-this.par.a = 2.8186386426338266;
-this.par.b = 2.480402005517768;
-this.par.c = 3.2;
-this.par.d = 2.480402005517768;
-this.par.e = 1.8039287312856491;
-this.par.f = 3.720603008276652;
-this.par.g = 7.6666971079640085;
-this.par.h = 4.171585191098064;
-this.par.i = 1.4002713025648714;
-this.par.j = 1;
-this.par.X = 1;
-this.par.Y = 1;
-this.par.W = 1;
-this.par.Z = 1;
-    
-    
-snelly.showGUI(true);
+	let renderer  = snelly.getRenderer();
+	let camera    = snelly.getCamera();
+	let controls  = snelly.getControls();
+	let materials = snelly.getMaterials();
+		
+	this.par = {};
+	this.par.a = 2.8186386426338266;
+	this.par.b = 2.480402005517768;
+	this.par.c = 3.2;
+	this.par.d = 2.480402005517768;
+	this.par.e = 1.8039287312856491;
+	this.par.f = 3.720603008276652;
+	this.par.g = 7.6666971079640085;
+	this.par.h = 4.171585191098064;
+	this.par.i = 1.4002713025648714;
+	this.par.j = 1;
+	this.par.X = 1;
+	this.par.Y = 1;
+	this.par.W = 1;
+	this.par.Z = 1;
+		
+	snelly.showGUI(true);
 
-/** Camera settings **/
-camera.fov = 45;
-camera.aperture = -12.13305964742817;
-camera.focalDistance = 2.7997973274886556;
-camera.up.set(0, 1, 0);
-camera.position.set(4319.567481138579, 461.2879088478121, -3469.763406782769);
-controls.target.set(1191.12086752288, -2648.6304745010993, -36.630484892214156);
+	/** Camera settings **/
+	camera.fov = 45;
+	camera.aperture = -2.6118444163316568;
+	camera.focalDistance = 2.8745903457657893;
+	camera.up.set(0, 1, 0);
+	camera.position.set(6079.653703442249, 475.4309390387043, 3519.19364594538);
+	controls.target.set(1566.4687991228272, -2921.2989975068845, -378.3027886486874);
 
-/** Renderer settings **/
-renderer.renderMode = 'ao';
-renderer.maxSamplesPerFrame = 1;
-renderer.maxBounces = 1;
-renderer.maxScatters = 2;
-renderer.maxMarchSteps = 500;
-renderer.maxVolumeSteps = 256;
-renderer.maxStepsIsMiss = false;
-renderer.interactive = true;
-renderer.goalFPS = 20;
-renderer.minsSPPToRedraw = 0;
-renderer.radianceClamp = 12;
-renderer.wavelengthSamples = 1024;
-renderer.exposure = 0.0;
-renderer.gamma = 1.5293265749456915;
-renderer.contrast = 1.3;
-renderer.saturation = 1.3207820419985516;
-renderer.skyPower = 10;
-renderer.skyTemperature = 6000;
-renderer.envMapRotation = 263.31432392770205;
-renderer.envMapVisible = true;
-renderer.sunPower = -10;
-renderer.sunColor = [0.7843137254901961, 0.7598887305787367, 0.5767012687427913];
-renderer.sunAngularSize = 9.371428571428572;
-renderer.sunLatitude = 39.56736574220261;
-renderer.sunLongitude = 148.74513508147137;
-renderer.sunVisibleDirectly = true;
-renderer.shadowStrength = 1;
+	/** Renderer settings **/
+	renderer.renderMode = 'pt';
+	renderer.dispersive = false;
+	renderer.maxSamplesPerFrame = 1;
+	renderer.maxSpp = 1024;
+	renderer.maxBounces = 2;
+	renderer.maxScatters = 2;
+	renderer.maxMarchSteps = 500;
+	renderer.maxVolumeSteps = 256;
+	renderer.maxStepsIsMiss = false;
+	renderer.interactive = true;
+	renderer.goalFPS = 20;
+	renderer.minsSPPToRedraw = 0;
+	renderer.radianceClamp = 12;
+	renderer.wavelengthSamples = 1024;
+	renderer.exposure = 0;
+	renderer.gamma = 1.5293265749456915;
+	renderer.contrast = 1.3;
+	renderer.saturation = 1.3207820419985516;
+	renderer.skyPower = -6;
+	renderer.skyTint = [1, 1, 1];
+	renderer.envMapRotation = 263.31432392770205;
+	renderer.envMapVisible = true;
+	renderer.sunPower = 3.5052887518453737;
+	renderer.sunColor = [0.7647058823529411, 0.7532397041861727, 0.6672433679354094];
+	renderer.sunAngularSize = 3.6735415466069083;
+	renderer.sunLatitude = 17.451090238252064;
+	renderer.sunLongitude = 132.2474956778487;
+	renderer.sunVisibleDirectly = true;
+	renderer.shadowStrength = 1;
 
-/** Material settings **/
-let surface = materials.loadSurface();
-surface.roughness = 0.009018057532952543;
-surface.ior = 1.2930868698209577;
-surface.diffuseAlbedo = [0.8333205676497498, 0.8044502382813904, 0.7516162151899565];
-surface.specAlbedo = [0.6176177728435437, 0.6176177728435437, 0.6176177728435437];
+	/** Material settings **/
+	let surface = materials.loadSurface();
+	surface.roughness = 0.041719520789288235;
+	surface.ior = 1.2930868698209577;
+	surface.diffuseAlbedo = [0.8529411764705882, 0.7790716246718478, 0.6438869665513264];
+	surface.specAlbedo = [0, 0, 0];
+
+	/******* copy-pasted console output on 'O', end *******/
 }
 
 

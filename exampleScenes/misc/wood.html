@@ -11,6 +11,8 @@
 function Scene() {}
 Scene.prototype.init = function(snelly)
 {
+    /******* copy-pasted console output on 'O', begin *******/
+
     let renderer  = snelly.getRenderer();
     let camera    = snelly.getCamera();
     let controls  = snelly.getControls();
@@ -24,19 +26,21 @@ Scene.prototype.init = function(snelly)
     this.par.lacunarity = 2.7061310782241015;
     this.par.noiseIterations = 3.604651162790698;
         
-    snelly.showGUI(true);
+    snelly.showGUI(false);
 
     /** Camera settings **/
     camera.fov = 42.60394644115575;
     camera.aperture = -12;
     camera.focalDistance = 0.6946998047188937;
     camera.up.set(0, 1, 0);
-    camera.position.set(1.1891333814806342, 3.7769740652759167, 5.4981293963086735);
+    camera.position.set(-0.7154415477680405, 3.2056821169732914, 5.783965930858473);
     controls.target.set(0.2197717753330132, 0.7952491979123878, 0.13871694143980415);
 
     /** Renderer settings **/
     renderer.renderMode = 'pt';
+    renderer.dispersive = false;
     renderer.maxSamplesPerFrame = 1;
+    renderer.maxSpp = 1024;
     renderer.maxBounces = 1;
     renderer.maxScatters = 2;
     renderer.maxMarchSteps = 400;
@@ -47,15 +51,15 @@ Scene.prototype.init = function(snelly)
     renderer.minsSPPToRedraw = 0;
     renderer.radianceClamp = 3;
     renderer.wavelengthSamples = 256;
-    renderer.exposure = 0.5;
+    renderer.exposure = -1.5560548000560237;
     renderer.gamma = 1.1365019159815122;
     renderer.contrast = 1;
     renderer.saturation = 1;
-    renderer.skyPower = 8.035872133202611;
-    renderer.skyTemperature = 6000;
+    renderer.skyPower = 1.4389216318789888;
+    renderer.skyTint = [1, 1, 1];
     renderer.envMapRotation = 0;
     renderer.envMapVisible = false;
-    renderer.sunPower = -10;
+    renderer.sunPower = 1.3011638238812306;
     renderer.sunColor = [1, 0.8, 0.5];
     renderer.sunAngularSize = 14.923762533090565;
     renderer.sunLatitude = 50;
@@ -69,6 +73,8 @@ Scene.prototype.init = function(snelly)
     surface.ior = 2.142353770260747;
     surface.diffuseAlbedo = [0.4470588235294118, 0.2823529411764706, 0.12941176470588237];
     surface.specAlbedo = [1, 1, 1];
+
+    /******* copy-pasted console output on 'O', end *******/
 }
 
 Scene.prototype.getName = function() { return 'Wood'; }

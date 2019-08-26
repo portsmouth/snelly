@@ -129,15 +129,17 @@ Scene.prototype.init = function(snelly)
 
     /** Camera settings **/
     camera.fov = 45;
-    camera.aperture = -12.805922208165828;
-    camera.focalDistance = 0.1650289445013309;
+    camera.aperture = -10.877312896197202;
+    camera.focalDistance = 0.42476966402214583;
     camera.up.set(0, 1, 0);
-    camera.position.set(50.99169203910682, 110.62318223155039, -112.0301916863734);
-    controls.target.set(26.567907717655125, 29.170251317437373, 52.4164287753542);
+    camera.position.set(243.31134288613572, 213.2097103276805, -157.9206362350755);
+    controls.target.set(61.7869216568168, 66.48766704466988, 62.60033933782519);
 
     /** Renderer settings **/
     renderer.renderMode = 'pt';
+    renderer.dispersive = false;
     renderer.maxSamplesPerFrame = 1;
+    renderer.maxSpp = 1024;
     renderer.maxBounces = 2;
     renderer.maxScatters = 2;
     renderer.maxMarchSteps = 512;
@@ -152,24 +154,24 @@ Scene.prototype.init = function(snelly)
     renderer.gamma = 2.169199886604788;
     renderer.contrast = 1;
     renderer.saturation = 1;
-    renderer.skyPower = 0.9183853866517271;
-    renderer.skyTemperature = 6000;
+    renderer.skyPower = 1.3011638238812306;
+    renderer.skyTint = [1, 1, 1];
     renderer.envMapRotation = 0;
     renderer.envMapVisible = false;
-    renderer.sunPower = 1.8367707733034542;
-    renderer.sunColor = [1, 0.8, 0.5];
-    renderer.sunAngularSize = 10.561431946494862;
-    renderer.sunLatitude = 0.9201532785209849;
-    renderer.sunLongitude = 0;
+    renderer.sunPower = 2.540984095861063;
+    renderer.sunColor = [0.6470588235294117, 0.4745098039215686, 0.21568627450980393];
+    renderer.sunAngularSize = 9.872642906506066;
+    renderer.sunLatitude = 62.91116687751256;
+    renderer.sunLongitude = 132.2474956778487;
     renderer.sunVisibleDirectly = true;
     renderer.shadowStrength = 1;
 
     /** Material settings **/
     let surface = materials.loadSurface();
-    surface.roughness = 0.029316420014094437;
-    surface.ior = 3;
-    surface.diffuseAlbedo = [0.5980392156862745, 0.4280084582852749, 0.4280084582852749];
-    surface.specAlbedo = [1, 1, 1];
+    surface.roughness = 0.027061310782241017;
+    surface.ior = 2.4658210007047217;
+    surface.diffuseAlbedo = [0.044405997693194935, 0.21568627450980393, 0.04440599769319501];
+    surface.specAlbedo = [0.06862745098039214, 0.06862745098039214, 0.06862745098039214];
 
     /******* copy-pasted console output on 'O', end *******/
     
@@ -385,12 +387,12 @@ Scene.prototype.shader = function()
     {
         float L = max(max(E.x, E.y), E.z);
         float expand = 0.01 * L;
-        float bunny = MESH(X.xzy, L);
+        float mesh = MESH(X.xyz, L);
 
         float D = 1.0e4;
         float floor = sdBox(X, vec3(-D,-0.1,-D), vec3(D, 0.0,D));
 
-        return opU(bunny, floor);
+        return opU(mesh, floor);
     }
 
     vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)

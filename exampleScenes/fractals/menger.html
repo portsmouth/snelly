@@ -12,32 +12,36 @@
 function Scene() {}
 Scene.prototype.init = function(snelly)
 {
+	/******* copy-pasted console output on 'O', begin *******/
+
 	let renderer  = snelly.getRenderer();
 	let camera    = snelly.getCamera();
 	let controls  = snelly.getControls();
 	let materials = snelly.getMaterials();
 		
 	this.par = {};
-	this.par.scale = 2.3678646934460885;
-	this.par.size = 3.2699083861874563;
+	this.par.scale = 1.122544854086007;
+	this.par.size = 4.153415960118226;
 	this.par.R = undefined;
 	this.par.mfp = undefined;
 	this.par.rotation = [0,0,0];
-	this.par.numIterations = 1;
+	this.par.numIterations = 3.9298420691644784;
 		
 	snelly.showGUI(true);
 
 	/** Camera settings **/
 	camera.fov = 45;
 	camera.aperture = -11.42834412818824;
-	camera.focalDistance = 0.9002546511192846;
+	camera.focalDistance = 0.5419990209096843;
 	camera.up.set(0, 1, 0);
-	camera.position.set(-6.958553261749948, 7.056161017608761, 7.0637767110663985);
-	controls.target.set(0.6843555252239044, 0.6849718180242153, 0.16630396852081888);
+	camera.position.set(5.4173121741940875, 6.189582703659616, 5.505036874355571);
+	controls.target.set(-0.3116092387055897, 2.2069934291487936, -0.019914896467494857);
 
 	/** Renderer settings **/
 	renderer.renderMode = 'pt';
+	renderer.dispersive = false;
 	renderer.maxSamplesPerFrame = 1;
+	renderer.maxSpp = 1024;
 	renderer.maxBounces = 2;
 	renderer.maxScatters = 2;
 	renderer.maxMarchSteps = 128;
@@ -52,13 +56,13 @@ Scene.prototype.init = function(snelly)
 	renderer.gamma = 2.238564379963585;
 	renderer.contrast = 1.033183559983193;
 	renderer.saturation = 1;
-	renderer.skyPower = 0.45919269332586354;
-	renderer.skyTemperature = 6000;
+	renderer.skyPower = 0.9942857142857147;
+	renderer.skyTint = [1, 1, 1];
 	renderer.envMapRotation = 0;
 	renderer.envMapVisible = false;
-	renderer.sunPower = 3.6735415466069083;
-	renderer.sunColor = [1, 0.8, 0.5];
-	renderer.sunAngularSize = 0.45919269332586354;
+	renderer.sunPower = 4.5600000000000005;
+	renderer.sunColor = [0.8235294117647058, 0.78800461361015, 0.734717416378316];
+	renderer.sunAngularSize = 3.8857142857142857;
 	renderer.sunLatitude = 21.583824478184837;
 	renderer.sunLongitude = 227.30038319630245;
 	renderer.sunVisibleDirectly = true;
@@ -66,10 +70,12 @@ Scene.prototype.init = function(snelly)
 
 	/** Material settings **/
 	let surface = materials.loadSurface();
-	surface.roughness = 0.006765327695560254;
+	surface.roughness = 0.02694107649806417;
 	surface.ior = 2.7061310782241015;
-	surface.diffuseAlbedo = [1, 0.23529411764705865, 0];
+	surface.diffuseAlbedo = [0.4218569780853518, 0.5589931474319833, 0.7549019607843137];
 	surface.specAlbedo = [0.5392156862745099, 0.5392156862745099, 0.5392156862745099];
+
+	/******* copy-pasted console output on 'O', end *******/
 }
 
 

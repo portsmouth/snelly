@@ -31,14 +31,16 @@ Scene.prototype.init = function(snelly)
     /** Camera settings **/
     camera.fov = 42.60394644115575;
     camera.aperture = -13.356953440156866;
-    camera.focalDistance = 0.43320234188976225;
+    camera.focalDistance = 0.6606345834313816;
     camera.up.set(0, 1, 0);
-    camera.position.set(-2.7783291369243672, 2.753429078306641, -1.3832397179811609);
+    camera.position.set(-3.9466553155723925, 3.45934115811563, -2.8151034143581914);
     controls.target.set(0.0018428614534252898, 0.8426433164720692, 0.17896421489442735);
 
     /** Renderer settings **/
     renderer.renderMode = 'pt';
+    renderer.dispersive = true;
     renderer.maxSamplesPerFrame = 1;
+    renderer.maxSpp = 1024;
     renderer.maxBounces = 2;
     renderer.maxScatters = 2;
     renderer.maxMarchSteps = 128;
@@ -53,11 +55,11 @@ Scene.prototype.init = function(snelly)
     renderer.gamma = 2.0972515856236784;
     renderer.contrast = 1;
     renderer.saturation = 1;
-    renderer.skyPower = 2.9316420014094433;
-    renderer.skyTemperature = 6000;
+    renderer.skyPower = 0.7501325918901944;
+    renderer.skyTint = [1, 1, 1];
     renderer.envMapRotation = 0;
     renderer.envMapVisible = false;
-    renderer.sunPower = 1;
+    renderer.sunPower = 0.47461697589467633;
     renderer.sunColor = [1, 0.8, 0.5];
     renderer.sunAngularSize = 5;
     renderer.sunLatitude = 50;

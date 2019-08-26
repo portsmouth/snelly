@@ -21,11 +21,11 @@ Scene.prototype.init = function(snelly)
     let controls  = snelly.getControls();
     let materials = snelly.getMaterials();
         
-    snelly.showGUI(false);
+    snelly.showGUI(true);
 
     /** Camera settings **/
     camera.fov = 45;
-    camera.aperture = -6.0;
+    camera.aperture = -6;
     camera.focalDistance = 0.9569672721150259;
     camera.up.set(0, 1, 0);
     camera.position.set(1.4246974654467373, 4.377914706164425, -6.033111507754378);
@@ -33,24 +33,34 @@ Scene.prototype.init = function(snelly)
 
     /** Renderer settings **/
     renderer.renderMode = 'pt';
+    renderer.dispersive = false;
+    renderer.maxSamplesPerFrame = 1;
+    renderer.maxSpp = 1024;
     renderer.maxBounces = 1;
+    renderer.maxScatters = 2;
     renderer.maxMarchSteps = 256;
+    renderer.maxVolumeSteps = 256;
+    renderer.maxStepsIsMiss = true;
+    renderer.interactive = true;
+    renderer.goalFPS = 20;
+    renderer.minsSPPToRedraw = 0;
     renderer.radianceClamp = 3;
     renderer.wavelengthSamples = 1024;
-    renderer.skyPower = 1.8367707733034542;
-    renderer.skyTemperature = 6000;
-    renderer.sunLatitude = 5.052887518453758;
-    renderer.sunLongitude = 0;
-    renderer.sunAngularSize = 3.214348853281045;
-    renderer.sunPower = 0.0;
-    renderer.sunColor = [1, 0.3840830449826992, 0.12745098039215685];
     renderer.exposure = -0.5;
     renderer.gamma = 2.2;
-    renderer.whitepoint = 2;
+    renderer.contrast = 1;
+    renderer.saturation = 1.033183559983193;
+    renderer.skyPower = 1.0256482078857116;
+    renderer.skyTint = [1, 1, 1];
+    renderer.envMapRotation = 0;
     renderer.envMapVisible = true;
+    renderer.sunPower = 1.1634060158834707;
+    renderer.sunColor = [1, 0.3840830449826992, 0.12745098039215685];
+    renderer.sunAngularSize = 3.214348853281045;
+    renderer.sunLatitude = 5.052887518453758;
+    renderer.sunLongitude = 0;
+    renderer.sunVisibleDirectly = true;
     renderer.shadowStrength = 1;
-    renderer.maxStepsIsMiss = true;
-    renderer.AA = true;
 
     /** Material settings **/
     let surface = materials.loadSurface();

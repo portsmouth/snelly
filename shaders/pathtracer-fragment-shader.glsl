@@ -1177,23 +1177,28 @@ RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 woW, in int 
 RadianceType sampleLightInVolume(in vec3 rgb, inout vec4 rnd, inout vec3 wiW, inout float lightPdf)
 {
     // Light sampling (choose either sun or sky)
-    float sunPdf;
-    vec3 wiW_sun = sampleSunDir(rnd, sunPdf);
-    float sunWeight = sunPower * sunPdf;
-    float skyPdf;
-    vec3 wiW_sky = sampleSphere(rnd, skyPdf);
-    float skyWeight = skyPower * skyPdf;
+    float sunWeight = sunPower;
+    float skyWeight = skyPower;
     float sunProb = clamp(max(sunWeight, DENOM_TOLERANCE) / max(skyWeight+sunWeight, DENOM_TOLERANCE), 0.0, 1.0);
+    float skyProb = max(PDF_EPSILON, 1.0-sunProb);
     bool chooseSun = (rand(rnd) <= sunProb);
+    float skyPdf, sunPdf;
+    RadianceType Li = RadianceType(0.0);
     if (chooseSun)
     {
-        lightPdf = sunPdf * sunProb;
-        wiW = wiW_sun;
-        return sunRadiance(wiW_sun, rgb);
+        wiW = sampleSunDir(rnd, sunPdf);
+        wiL = worldToLocal(wiW, basis);
+        lightPdf = sunProb*sunPdf;
+        Li += sunRadiance(wiW, rgb);
     }
-    lightPdf = skyPdf * max(PDF_EPSILON, 1.0-sunProb);
-    wiW = wiW_sky;
-    return environmentRadiance(wiW, rgb);
+    else
+    {
+        wiL = sampleHemisphere(rnd, skyPdf);
+        wiW = localToWorld(wiL, basis);
+        lightPdf = skyProb*skyPdf;
+        Li += environmentRadiance(wiW, rgb);
+    }
+    return Li;
 }
 
 // Estimate direct radiance at the given volumetric vertex

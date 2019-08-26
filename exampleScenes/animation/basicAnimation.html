@@ -31,46 +31,55 @@ Scene.prototype.init = function(snelly)
 	this.parameters.diskThickness = 0.04510218463706836;
 	this.parameters.torusBigRadius = 1.5785764622973923;
 	this.parameters.torusLittleRadius = 0.3269908386187456;
-	this.playing = true;
-	this.animFrame = 16;
+	this.playing = false;
+	this.animFrame = 111;
 		
 	snelly.showGUI(true);
 
 	/** Camera settings **/
 	camera.fov = 45;
 	camera.aperture = -10.839105768149023;
-	camera.focalDistance = 0.6091923284225225;
+	camera.focalDistance = 0.6738420655447428;
 	camera.up.set(0, 1, 0);
-	camera.position.set(4.872430591630855, -2.224895568102556, -1.7281459372302967);
-	controls.target.set(0.004499996455464244, -0.2567854094564587, -0.5168846775998517);
+	camera.position.set(-5.99402574565529, 1.9924954054495683, -0.4866275945592162);
+	controls.target.set(0.1631618771988729, -0.29868162580460544, 0.29357461583136324);
 
 	/** Renderer settings **/
 	renderer.renderMode = 'pt';
+	renderer.dispersive = true;
+	renderer.maxSamplesPerFrame = 1;
+	renderer.maxSpp = 1024;
 	renderer.maxBounces = 3;
 	renderer.maxScatters = 2;
 	renderer.maxMarchSteps = 256;
+	renderer.maxVolumeSteps = 256;
+	renderer.maxStepsIsMiss = true;
+	renderer.interactive = true;
+	renderer.goalFPS = 20;
+	renderer.minsSPPToRedraw = 0;
 	renderer.radianceClamp = 3;
 	renderer.wavelengthSamples = 32;
-	renderer.skyPower = 1.8367707733034542;
-	renderer.skyTemperature = 6000;
-	renderer.sunLatitude = 3.3615221987314925;
-	renderer.sunLongitude = 267.90697674418607;
-	renderer.sunAngularSize = 10.599013389711065;
-	renderer.sunPower = 0.9183853866517271;
-	renderer.sunColor = [1, 1, 1];
 	renderer.exposure = 1.4286977065620903;
 	renderer.gamma = 2.2;
 	renderer.contrast = 1;
 	renderer.saturation = 1;
+	renderer.skyPower = 0.7501325918901944;
+	renderer.skyTint = [1, 1, 1];
+	renderer.envMapRotation = 0;
 	renderer.envMapVisible = false;
+	renderer.sunPower = 0.47461697589467633;
+	renderer.sunColor = [1, 1, 1];
+	renderer.sunAngularSize = 10.599013389711065;
+	renderer.sunLatitude = 3.3615221987314925;
+	renderer.sunLongitude = 267.90697674418607;
+	renderer.sunVisibleDirectly = true;
 	renderer.shadowStrength = 1;
-	renderer.maxStepsIsMiss = true;
 
 	/** Material settings **/
 	let surface = materials.loadSurface();
 	surface.roughness = 0.01127554615926709;
 	surface.ior = 2.24031007751938;
-	surface.diffuseAlbedo = [0.4607843137254902, 0.40896600854874826, 0.2846020761245675];
+	surface.diffuseAlbedo = [0.8725490196078431, 0.8247450075762716, 0.7100153787004998];
 	surface.specAlbedo = [1, 0.9607843137254902, 0.9607843137254902];
 
 	let metal = materials.loadMetal('Copper');
