@@ -116,7 +116,7 @@ __IOR_FUNC__
 vec3 safe_normalize(vec3 N)
 {
     float l = length(N);
-    return (l==0.0) ? vec3(0.0, 1.0, 0.0) : N/l;
+    return N/max(l, DENOM_TOLERANCE);
 }
 
 float cosTheta2(in vec3 nLocal) { return nLocal.z*nLocal.z; }

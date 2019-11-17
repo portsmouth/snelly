@@ -52,7 +52,7 @@ var Renderer = function()
     this.currentState = 0;
     this.pathStates = [new PathtracerState(this._width, this._height),
                        new PathtracerState(this._width, this._height)];
-    this.fbo == null;
+    this.fbo = null;
     this.aoProgram           = null;
     this.normalsProgram      = null;
     this.pathtraceAllProgram = null;

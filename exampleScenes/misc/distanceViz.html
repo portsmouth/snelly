@@ -72,6 +72,7 @@ Scene.prototype.initGenerator = function()
 Scene.prototype.shader = function()
 {
     return `
+    uniform float distanceInterval;
     uniform float radius;
     uniform float width;
     uniform float _length;
@@ -123,8 +124,7 @@ Scene.prototype.shader = function()
             float r = 1.0 - 0.05*exp(-abs(sdf));
             float g = 1.0 - 0.95*exp(-abs(sdf/2.0));
             float b = 1.0 - 0.9*exp(-abs(sdf/3.0));
-            const float gridSize = 1.0;
-            float line = 1.0 - pow(0.5*(1.0 + cos(2.0*M_PI*abs(sdf)/gridSize)), 300.0);
+            float line = 1.0 - pow(0.5*(1.0 + cos(2.0*M_PI*abs(sdf)/distanceInterval)), 300.0);
             return line * vec3(r, g, b);
         }
         else
@@ -144,6 +144,7 @@ Scene.prototype.envMap = function() { return ''; }
 
 Scene.prototype.initGui = function(gui)
 {
+    gui.addSlider(this.par, {name: 'distanceInterval', min: 0.0, max: 10.0});
     gui.addSlider(this.par, {name: 'radius', min: 0.0, max: 10.0});
     gui.addSlider(this.par, {name: 'width', min: 0.0, max: 10.0});
     gui.addSlider(this.par, {name: 'length', min: 0.0, max: 10.0});
@@ -157,6 +158,7 @@ Scene.prototype.initGui = function(gui)
 
 Scene.prototype.syncShader = function(snelly, shader)
 {
+    shader.uniformF("distanceInterval", this.par.distanceInterval);
     shader.uniformF("radius", this.par.radius);
     shader.uniformF("width", this.par.width);
     shader.uniformF("_length", this.par.length);
