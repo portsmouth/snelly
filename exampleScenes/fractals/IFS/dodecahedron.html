@@ -1,0 +1,238 @@
+
+<body onload="onLoad();">
+    <script src="https://portsmouth.github.io/snelly/js/compiled/snelly.min.js"></script>
+    
+    <?/* ------------------------------------------------------------------*/?>
+    <?/*                         scene definition                          */?>
+    <?/* ------------------------------------------------------------------*/?>
+    
+    <script type="text/javascript">
+    
+    function Scene() {}
+    Scene.prototype.init = function(snelly)
+    {
+        /******* copy-pasted console output on 'O', begin *******/
+
+        let renderer  = snelly.getRenderer();
+        let camera    = snelly.getCamera();
+        let controls  = snelly.getControls();
+        let materials = snelly.getMaterials();
+            
+            this.par = {};
+            this.par.scale = 2.025477926600127;
+            this.par.offset = [1.9591419290485281,0,0];
+            this.par.Phi = 1.421195980072742;
+            this.par.time = undefined;
+            this.par.numIterations = 15;
+            this.par.bailout = 9.0;
+            this.par.angle1 = 32.58002792573821;
+            this.par.angle2 = 72.91720535760456;
+            this.par.rot1 = [235.76470588235293,131.2941176470588,131.2941176470588]
+            this.par.rot2 = [176.47058823529414,176.47058823529414,176.47058823529414]
+            this.frame = 0;
+                
+        snelly.showGUI(true);
+
+        /** Camera settings **/
+        camera.fov = 31.361031518624642;
+        camera.aperture = -8.97134670487106;
+        camera.focalDistance = 0.9473183657052598;
+        camera.up.set(0, 1, 0);
+        camera.position.set(5.051520042503843, 4.743978730253702, 7.672137126520249);
+        controls.target.set(-0.1310533113404744, -0.27139065570849813, -0.14051198047665925);
+
+        /** Renderer settings **/
+        renderer.renderMode = 'pt';
+        renderer.dispersive = false;
+        renderer.maxSamplesPerFrame = 1;
+        renderer.maxSpp = 1024;
+        renderer.maxBounces = 2;
+        renderer.maxScatters = 2;
+        renderer.maxMarchSteps = 341;
+        renderer.maxVolumeSteps = 256;
+        renderer.maxStepsIsMiss = false;
+        renderer.interactive = false;
+        renderer.goalFPS = 10;
+        renderer.minsSPPToRedraw = 0;
+        renderer.radianceClamp = 3;
+        renderer.wavelengthSamples = 201.55359527923872;
+        renderer.exposure = -1.2682681292741331;
+        renderer.gamma = 1.67927934182664;
+        renderer.contrast = 1.2299937368417078;
+        renderer.saturation = 1.1715902384837025;
+        renderer.skyPower = 2.3896848137535827;
+        renderer.skyTint = [1, 1, 1];
+        renderer.envMapRotation = 0;
+        renderer.envMapVisible = false;
+        renderer.sunPower = 2.8136974517246305;
+        renderer.sunColor = [0.7745098039215687, 0.722875816993464, 0.6454248366013072];
+        renderer.sunAngularSize = 20;
+        renderer.sunLatitude = 65.29614174357266;
+        renderer.sunLongitude = 53.425494827234914;
+        renderer.sunVisibleDirectly = false;
+        renderer.shadowStrength = 1;
+
+        /** Material settings **/
+        let surface = materials.loadSurface();
+        surface.roughness = 0.0015032093519664477;
+        surface.ior = 2.5282628411658887;
+        surface.diffuseAlbedo = [0.5784313725490196, 0.38929031820340587, 0.1190888119953864];
+        surface.specAlbedo = [0.05882352941176472, 0.05882352941176472, 0.05882352941176472];
+
+        /******* copy-pasted console output on 'O', end *******/
+    }
+    
+    Scene.prototype.getName = function() { return 'Apollonian sphere packing (reflective)'; }
+    
+    Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/fractals/apollonian_pt.html"; }
+    
+    Scene.prototype.initGenerator = function()
+    {
+        return `
+    this.par = {};
+    this.par.scale = ${this.par.scale};
+    this.par.offset = [${this.par.offset}];
+    this.par.Phi = ${this.par.Phi};
+    this.par.time = ${this.par.time};
+    this.par.bailout = ${this.par.bailout};
+    this.par.numIterations = ${this.par.numIterations};
+    this.par.angle1 = ${this.par.angle1};
+    this.par.angle2 = ${this.par.angle2};
+    this.par.rot1 = [${this.par.rot1}]
+    this.par.rot2 = [${this.par.rot2}]
+    this.frame = 0;
+        `;
+    }
+    
+    Scene.prototype.shader = function()
+    {
+        let numIterations = this.par.numIterations;
+
+        // based on https://www.shadertoy.com/view/4ds3zn by iq
+        return `
+        uniform float scale;
+        uniform float bailout;
+            
+        uniform float angle1;
+        uniform float angle2;
+        uniform vec3 rot1;
+        uniform vec3 rot2;
+        uniform float Phi;
+        
+        mat3 fracRotation2;
+        mat3 fracRotation1;
+
+        vec3 n1;
+        vec3 n2;
+        vec3 n3;
+        vec3 offset;
+
+        mat3 rotationMatrix3(vec3 v, float angle)
+        {
+            float c = cos(radians(angle));
+            float s = sin(radians(angle));
+            return mat3(c + (1.0-c)*v.x*v.x,             (1.0-c)*v.x*v.y - s*v.z,     (1.0-c)*v.x*v.z + s*v.y,
+                            (1.0-c)*v.x*v.y + s*v.z, c + (1.0-c)*v.y*v.y,             (1.0-c)*v.y*v.z - s*v.x,
+                            (1.0-c)*v.x*v.z - s*v.y,     (1.0-c)*v.y*v.z + s*v.x, c + (1.0-c)*v.z*v.z );
+        }
+    
+        float bailout2;
+
+        void INIT()
+        {
+            fracRotation2 = rotationMatrix3(normalize(rot2), angle2);
+            fracRotation1 = rotationMatrix3(normalize(rot1), angle1);
+            bailout2 = pow(10.0, bailout);
+            offset = vec3(1.0,1.0,1.0);
+
+            n1 = normalize(vec3(-1.0,Phi-1.0,1.0/(Phi-1.0)));
+            n2 = normalize(vec3(Phi-1.0,1.0/(Phi-1.0),-1.0));
+            n3 = normalize(vec3(1.0/(Phi-1.0),-1.0,Phi-1.0));
+        }
+
+        float DE(vec3 z)
+        {
+            float r;
+            
+            // Prefolds.
+            float t;
+            // Iterate to compute the distance estimator.
+            int n = 0;
+            const int Iterations = int(${numIterations});
+            while (n < Iterations) {
+                z *= fracRotation1;
+                // t =dot(z,n1); if (t<0.0) { z-=2.0*t*n1; } <- this form is a bit slower	
+                z-=2.0 * min(0.0, dot(z, n1)) * n1;
+                z-=	2.0 * min(0.0, dot(z, n2)) * n2;
+                z-=	2.0 * min(0.0, dot(z, n3)) * n3;
+                z-=2.0 * min(0.0, dot(z, n1)) * n1;
+                z-=	2.0 * min(0.0, dot(z, n2)) * n2;
+                z-=	2.0 * min(0.0, dot(z, n3)) * n3;
+                z-=2.0 * min(0.0, dot(z, n1)) * n1;
+                z-=	2.0 * min(0.0, dot(z, n2)) * n2;
+                z-=	2.0 * min(0.0, dot(z, n3)) * n3;
+                z = z*scale - offset*(scale-1.0);
+                z *= fracRotation2;
+                r = dot(z, z);
+                //orbitTrap = min(orbitTrap, abs(vec4(0.0,0.0,0.0,r)));
+                if (r > bailout2) break;
+                n++;
+            }
+            
+            // Works better when subtracting -1
+            return (length(z) ) * pow(scale,  float(-n-1));
+        }
+
+        float SDF_SURFACE(vec3 X)
+        {
+            float fractal = DE(X);
+            return fractal;
+        }
+        
+        `;
+    }
+    
+    Scene.prototype.getLengthScale = function()    { return 1.0; }
+    Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
+    Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
+    
+    Scene.prototype.envMap = function()
+    { return 'https://portsmouth.github.io/envmaps/HDR_112_River_Road_2_Bg.jpg'; }
+    
+    Scene.prototype.initGui = function(gui)
+    {
+        gui.addSlider(this.par, {name: 'scale', min: 0.0, max: 10.0});
+        gui.addSlider(this.par, {name: 'Phi', min: -5.0, max: 5.0});
+        gui.addSlider(this.par, {name: 'bailout', min: 4.0, max: 12.0});
+        gui.addSlider(this.par, {name: 'angle1', min: 0.0, max: 360.0});
+        gui.addColor(this.par, "rot1", 360.0);
+        gui.addSlider(this.par, {name: 'angle2', min: 0.0, max: 360.0});
+        gui.addColor(this.par, "rot2", 360.0);
+        gui.addSlider(this.par, {name: 'numIterations', min: 1, max: 20, step: 1, recompile: true});
+    }
+    
+    Scene.prototype.syncShader = function(snelly, shader)
+    {
+        shader.uniformF("scale", this.par.scale);
+        shader.uniformF("Phi", this.par.Phi);
+        shader.uniformF("bailout", this.par.bailout);
+        shader.uniformF("angle1", this.par.angle1);
+        shader.uniformF("angle2", this.par.angle2);
+        shader.uniform3Fv("rot1", this.par.rot1);
+        shader.uniform3Fv("rot2", this.par.rot2);
+        
+    }
+    
+    </script>
+    
+    <?/* ------------------------------------------------------------------*/?>
+    <?/*                            main loop                              */?>
+    <?/* ------------------------------------------------------------------*/?>
+    
+    <script type="text/javascript">
+    function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+    function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+    </script>
+    
+    </body>
+    
