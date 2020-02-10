@@ -81,9 +81,8 @@
         /******* copy-pasted console output on 'O', end *******/
     }
     
-    Scene.prototype.getName = function() { return 'Apollonian sphere packing (reflective)'; }
-    
-    Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/fractals/apollonian_pt.html"; }
+    Scene.prototype.getName = function() { return 'Icosahedral "kaleidoscopic" IFS'; }
+    Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/fractals/IFS/icosahedron.html"; }
     
     Scene.prototype.initGenerator = function()
     {
@@ -106,12 +105,12 @@
     {
         let numIterations = this.par.numIterations;
 
-        // based on https://www.shadertoy.com/view/4ds3zn by iq
+        // based on original code by Knighty, 
+        // https://github.com/Syntopia/Fragmentarium/blob/master/Fragmentarium-Source/Examples/Kaleidoscopic%20IFS/Octahedron.frag
         return `
         uniform float scale;
         uniform vec3 offset;
         uniform float time;
-            
         uniform float angle1;
         uniform float angle2;
         uniform vec3 rot1;
@@ -154,7 +153,6 @@
             n1 = normalize(vec3(-Phi,Phi-1.0,1.0));
             n2 = normalize(vec3(1.0,-Phi,Phi+1.0));
             n3 = normalize(vec3(0.0,0.0,-1.0));
-
             mat4 fracRotation2 = rotationMatrix(normalize(rot2), angle2);
             mat4 fracRotation1 = rotationMatrix(normalize(rot1), angle1);
             M = fracRotation2 * translate(offset) * scale4(scale) * translate(-offset) * fracRotation1;
@@ -182,9 +180,7 @@
                 // Rotate, scale, rotate (we need to cast to a 4-component vector).
                 z = (M*vec4(z,1.0)).xyz;
                 n++;
-                //if (n < ColorIterations) orbitTrap = min(orbitTrap, abs(vec4(z,dot(z,z))));
             }
-            
             return length(z) * pow(scale,  float(-n));
         }
 
