@@ -1,0 +1,398 @@
+
+<body onload="onLoad();">
+
+    <script src="../../js/thirdparty/jquery-1.11.3.min.js"></script>
+    <script src="../../js/thirdparty/three/three.min.js"></script>
+    <script src="../../js/thirdparty/three/libs/stats.min.js"></script>
+    <script src="../../js/thirdparty/three/libs/dat.gui.min.js"></script>
+    <script src="../../js/thirdparty/three/controls/OrbitControls.js"></script>
+    <script src="../../js/gl.js"></script>
+    <script src="../../js/gui.js"></script>
+    <script src="../../js/shaders.js"></script>
+    <script src="../../js/color.js"></script>
+    <script src="../../js/materials.js"></script>
+    <script src="../../js/spectra.js"></script>
+    <script src="../../js/renderer.js"></script>
+    <script src="../../js/snelly.js"></script>
+
+    <?/* ------------------------------------------------------------------*/?>
+    <?/*                         scene definition                          */?>
+    <?/* ------------------------------------------------------------------*/?>
+    
+    <script type="text/javascript">
+    
+    function Scene() {}
+    Scene.prototype.init = function(snelly)
+    {
+        this.FPS = 24.0;
+        this.targetSPP = 1;
+        this.period = 100.0;
+        this.animFrame = 0;
+        this.advanceFrame = false;
+        this.playing = false;
+    
+        /******* copy-pasted console output on 'O', begin *******/
+
+        let renderer  = snelly.getRenderer();
+        let camera    = snelly.getCamera();
+        let controls  = snelly.getControls();
+        let materials = snelly.getMaterials();
+            
+            this.par = {};
+            this.par.scale = 10.0;
+            this.par.time = 0;
+            this.par.P = 50;
+            this.par.Q = 8;
+            this.par.R = 1;
+            this.par.SRadScl = 1;
+            this.frame = 0;
+                
+        snelly.showGUI(true);
+
+        /** Camera settings **/
+        camera.fov = 45;
+        camera.aperture = -23;
+        camera.focalDistance = 0.4035889530482345;
+        camera.up.set(0, 1, 0);
+        camera.position.set(1.3042008669107796, 1.1389185772001738, 2.183103759653582);
+        controls.target.set(-0.08663778255349777, -0.6875521134611196, -0.7941245187902152);
+
+        /** Renderer settings **/
+        renderer.renderMode = 'pt';
+        renderer.dispersive = false;
+        renderer.maxSamplesPerFrame = 1;
+        renderer.maxSpp = 1024;
+        renderer.maxBounces = 7;
+        renderer.maxScatters = 2;
+        renderer.maxMarchSteps = 512;
+        renderer.maxVolumeSteps = 256;
+        renderer.maxStepsIsMiss = false;
+        renderer.interactive = true;
+        renderer.goalFPS = 10;
+        renderer.minsSPPToRedraw = 1;
+        renderer.radianceClamp = 3;
+        renderer.wavelengthSamples = 256;
+        renderer.exposure = 3;
+        renderer.gamma = 2.2;
+        renderer.contrast = 1;
+        renderer.saturation = 1;
+        renderer.skyPower = -0.35192987209187887;
+        renderer.skyTint = [1, 1, 1];
+        renderer.envMapRotation = 0;
+        renderer.envMapVisible = true;
+        renderer.sunPower = 1.1634060158834707;
+        renderer.sunColor = [0.892156862745098, 0.8641676278354479, 0.8221837754709727];
+        renderer.sunAngularSize = 4.362330586595704;
+        renderer.sunLatitude = 81.50847095721002;
+        renderer.sunLongitude = 198.37124351677303;
+        renderer.sunVisibleDirectly = true;
+        renderer.shadowStrength = 1;
+
+        /** Material settings **/
+        let surface = materials.loadSurface();
+        surface.roughness = 0.0507399577167019;
+        surface.ior = 2.6011275546159265;
+        surface.diffuseAlbedo = [1, 1, 1];
+        surface.specAlbedo = [0.16666666666666663, 0.16666666666666663, 0.16666666666666663];
+
+        /******* copy-pasted console output on 'O', end *******/
+    }
+    
+    
+    Scene.prototype.getName = function() { return 'Doyle sphere packing'; }
+
+    Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/fractals/apollonian_firsthit.html"; }
+    
+    Scene.prototype.initGenerator = function()
+    {
+        return `
+    this.par = {};
+    this.par.scale = ${this.par.scale};
+    this.par.time = ${this.par.time};
+    this.par.P = ${this.par.P};
+    this.par.Q = ${this.par.Q};
+    this.par.R = ${this.par.R};
+    this.par.SRadScl = ${this.par.SRadScl};
+    this.frame = 0;
+        `;
+    }
+    
+    Scene.prototype.shader = function()
+    {
+        // based on https://www.shadertoy.com/view/4ds3zn by iq
+        return `
+        uniform float scale;
+        uniform float time;
+
+        uniform float P;
+        uniform float Q;
+        uniform float R;
+        uniform float SRadScl;
+
+         mat2 Mat,iMat;
+         vec4 rads, xps, yps;
+         vec2 ns;
+         vec3 InvCenter;
+         float InvRadius;
+         bool DoInversion;
+    
+        #define PI  3.14159265358979323846264
+
+        vec2 solve(vec2 z)
+        {
+            //Newton-Raphson method
+            float k=float(P)/float(Q);
+            for(int i=0; i<2;i++){//2 iterations are usually sufficient: the convergence is very fast. especially when P o=and/or Q are relatively big
+                float lb=z.x*k, tb=z.y*k+2.*PI/float(Q);
+                float ra=exp(z.x),rb=exp(lb),ca=cos(z.y),cb=cos(tb),cab=cos(z.y-tb);
+                //compute function values
+                vec3 v=vec3((ra*ra-2.*ra*ca+1.)/((ra+1.)*(ra+1.)),
+                                (rb*rb-2.*rb*cb+1.)/((rb+1.)*(rb+1.)),
+                                (ra*ra-2.*ra*rb*cab+rb*rb)/((ra+rb)*(ra+rb)));
+                vec2 f=v.xy-v.yz;
+                //compute jacobian
+                vec3 c=2.*vec3( ra/((ra+1.)*(ra+1.)), k*rb/((rb+1.)*(rb+1.)), (1.-k)*ra*rb/((ra+rb)*(ra+rb)) );
+                vec3 v0= c*vec3( (1.+ca)*(ra-1.)/(ra+1.), (1.+cb)*(rb-1.)/(rb+1.), (1.+cab)*(ra-rb)/(ra+rb) );
+                vec3 v1= c*sin(vec3(z.y,tb,z.y-tb));
+                mat2 J = mat2(0.);
+                J[0]=v0.xy-v0.yz; J[1]=v1.xy-v1.yz;
+                //compute inverse of J
+                float idet=1./(J[0][0]*J[1][1]-J[0][1]*J[1][0]);
+                mat2 iJ=-J;
+                iJ[0][0]=J[1][1];
+                iJ[1][1]=J[0][0];
+                //next value
+                z-=idet*( iJ*f);
+            }
+            return z;
+        }
+
+        void INIT()
+    	{
+            DoInversion = true;
+            InvCenter = vec3(-0.11112,-0.57778,0.44444); 
+            InvRadius = 1.0;
+
+            //find estimate
+            //notice that for big P and/or Q the packing will look just like hexagonal one
+            //if we take the centers of all packed circles in log-polar plane we will get almost a triangular array
+            //That's why I'm using log-polar plane
+            //notice also the link to drost effect ;)
+            //Someone already noticed that before: http://gimpchat.com/viewtopic.php?f=10&t=3941
+            vec2 v=vec2(-float(P)+float(Q)*0.5,float(Q)*sqrt(3.)*0.5);
+            float vd=1./length(v);
+            float scl=2.*PI*vd;
+            vec2 z=scl*vd*v.yx;
+            z=solve(z);
+            float k=float(P)/float(Q);
+            vec2 zt=vec2(z.x*k,z.y*k+2.*PI/float(Q));
+            Mat[0]=z;Mat[1]=zt;
+            iMat=-Mat;
+            iMat[0][0]=Mat[1][1]; iMat[1][1]=Mat[0][0];
+            iMat*=1./(Mat[0][0]*Mat[1][1]-Mat[0][1]*Mat[1][0]);
+            float ra=exp(z.x),rb=exp(zt.x),ca=cos(z.y);
+            float rs=sqrt((ra*ra-2.*ra*ca+1.)/((ra+1.)*(ra+1.)));//radius of the circle centered at (1,0)
+            rs*=SRadScl;//for some variations
+            rads=rs*vec4(1., ra, rb, ra*rb);//radius for the 4 circles in the fundamental domain
+            xps=vec4(1.,ra*ca,rb*cos(zt.y),ra*rb*cos(z.y+zt.y));//Their x coordinates
+            yps=vec4(0.,ra*sin(z.y),rb*sin(zt.y),ra*rb*sin(z.y+zt.y));//y
+            ns=vec2(-rs,sqrt(1.-rs*rs));//defines bounding cone
+        }
+    
+        vec3 CDoyle(vec3 z)
+        {
+            vec2 p=z.xy;
+            //transform to the plane log-polar
+            p=vec2(log(length(p)), atan(p.y,p.x));
+            //transform into the "oblique" base (defined by z and zt in vinit() function above)
+            vec2 pl=iMat*p;
+            //go to the losange defined by z and zt (as defined in vinit())
+            vec2 ip=floor(pl);
+            pl=pl-ip;
+            //back to log-polar plane
+            pl=Mat*pl;
+            //scale and delta-angle
+            float scl=exp(pl.x-p.x),angle=pl.y-p.y;
+            //the original z is scaled and rotated using scl and angle
+            z*=scl;
+            float c=cos(angle),s=sin(angle);
+            z.xy=z.xy*mat2(vec2(c,-s),vec2(s,c));//tourner z
+            //distances to the spheres that are inside the fundamental fundamental domain
+            vec4 vx=vec4(z.x)-xps;
+            vec4 vy=vec4(z.y)-yps;
+            vec4 vz=vec4(z.z);
+            vec4 dists=sqrt(vx*vx+vy*vy+vz*vz)-rads;
+            //take the minimal distance
+            float mindist=min(min(dists.x,dists.y),min(dists.z,dists.w));
+            //which is the nearest sphere
+            bvec4 bvhit=equal(dists,vec4(mindist));
+            int mindex=int(dot(vec4(bvhit),vec4(0.,1.,2.,3.)));
+            const mat4 set=mat4(vec4(0.,0.,0.,0.),vec4(1.,0.,1.,0.),vec4(0.,1.,1.,0.),vec4(1.,1.,2.,0.));
+            vec3 minprop=set[mindex].xyz;
+            vec3 bc=vec3(ip,ip.x+ip.y)+minprop;
+            bc=bc/vec3(ivec3(P,Q,Q-P));
+            bc-=floor(bc);
+            return bc;//serves for the coloring
+        }
+
+        float Doyle(vec3 z)
+        {
+            //find the nearest point on the bounding cone to z
+            //if z is inside the cone we don't change anything
+            //normal to the line defining the (upper) cone in (r,z) plane is given by ns
+            z.z=abs(z.z);
+            vec2 p=vec2(length(z.xy),abs(z.z));
+            float r=p.x;
+            p-=ns*max(0.,dot(ns,p));
+            p=z.xy*p.x/r;
+            //transformer vers le plan log-polaire
+            p=vec2(log(length(p)), atan(p.y,p.x));
+            //transformer dans la base 'presque' triangulaire
+            vec2 pl=iMat*p;
+            //ramener vers le losange de base
+            pl=pl-floor(pl);
+            //transformation inverse
+            pl=Mat*pl;
+            float scl=exp(pl.x-p.x),angle=pl.y-p.y;
+            z*=scl;//mettre z a l'echelle
+            float c=cos(angle),s=sin(angle);
+            z.xy=z.xy*mat2(vec2(c,-s),vec2(s,c));//tourner z
+            //calculer les distances vers les spheres qui sont dans le domaine fondamental
+            vec4 vx=vec4(z.x)-xps;
+            vec4 vy=vec4(z.y)-yps;
+            vec4 vz=vec4(z.z);
+            vec4 dists=sqrt(vx*vx+vy*vy+vz*vz)-rads;
+            //prendre la distance minimale
+            return min(min(dists.x,dists.y),min(dists.z,dists.w))/scl;
+        }
+
+        float SDF_SURFACE(vec3 p)
+        {
+            float sdf_surface;
+            if (DoInversion)
+            {
+                p=p-InvCenter;
+                float r=length(p);
+                float r2=r*r;
+                p=(InvRadius/r2)*p+InvCenter;
+                float de=Doyle(p);
+                de=r2*de/(InvRadius+r*de);
+                sdf_surface = de;
+            }
+            return sdf_surface;
+        }
+    
+        vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
+        {
+            if(DoInversion)
+            {
+                X=X-InvCenter;
+                float r2=dot(X,X);
+                X=(InvRadius/r2)*X+InvCenter;
+            }
+            return C * sin(2.*PI*CDoyle(X)+2.)*0.5+0.5;
+        }
+        `;
+    }
+    
+    Scene.prototype.getLengthScale = function()    { return 1.0; }
+    Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
+    Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
+    
+    Scene.prototype.preframeCallback = function(snelly, gl)
+    {
+        let renderer  = snelly.getRenderer();
+        let camera    = snelly.getCamera();
+        let controls  = snelly.getControls();
+        let materials = snelly.getMaterials();
+        let gui       = snelly.getGUI();
+    
+        let time = this.animFrame/this.FPS;
+        this.endFrame = this.period * this.FPS;
+        if (this.animFrame > this.endFrame) this.animFrame = 0;
+    
+        // Advance scene state to next anim frame, if we have reached the spp count for the previous frame
+        if (this.advanceFrame || this.animFrame == 0)
+        {
+            // animate scene
+            this.par.time = time;
+        }
+    
+        if (this.advanceFrame)
+        {
+            gui.sync();
+    
+            // Tell renderer to restart sampling
+            let no_recompile = true;
+            renderer.reset(no_recompile);
+            this.advanceFrame = false;
+        }
+    
+        this.timer_start = performance.now();
+    }
+    
+    Scene.prototype.postframeCallback = function(snelly, gl)
+    {
+        // pause if FPS exceeded our goal
+        var timer_end = performance.now();
+        var frame_time_ms = (timer_end - this.timer_start);
+        let goal_ms = Math.min(1.0e3, Math.max(1.0, 1.0e3/this.FPS));
+        if (frame_time_ms<goal_ms)
+        {
+            (function pause(ms) {
+                var t0 = performance.now(); var t1 = null;
+                do { t1 = performance.now(); } while (t1-t0 < ms);
+            }(goal_ms-frame_time_ms));
+        }
+    
+        let renderer = snelly.getRenderer();
+        if (this.animFrame>=0 && renderer.getSPP()>=this.targetSPP && this.animFrame<=this.endFrame && this.playing)
+        {
+            this.advanceFrame = true;
+            this.animFrame++;
+        }
+    }
+    
+    Scene.prototype.onkeydownCallback = function(event, snelly, gl)
+    {
+        var charCode = (event.which) ? event.which : event.keyCode;
+        switch (charCode)
+        {
+            case 32: // toggle pause/play on spacebar
+                this.playing = !this.playing;
+                break;
+        }
+    }
+    
+    Scene.prototype.initGui = function(gui)
+    {
+        gui.addSlider(this.par, {name: 'scale', min: 0.0, max: 100.0});
+        gui.addSlider(this.par, {name: 'SRadScl', min: 0.0, max: 10.0});
+        gui.addSlider(this.par, {name: 'time', min: 0.0, max: 100.0});
+        gui.addSlider(this.par, {name: 'P', min: 0.0, max: 50.0});
+        gui.addSlider(this.par, {name: 'Q', min: 0.0, max: 50.0});
+        gui.addSlider(this.par, {name: 'R', min: 0.0, max: 5.0});
+    }
+    
+    Scene.prototype.syncShader = function(snelly, shader)
+    {
+        shader.uniformF("scale", this.par.scale);
+        shader.uniformF("time", this.par.time);
+        shader.uniformF("P", this.par.P);
+        shader.uniformF("Q", this.par.Q);
+        shader.uniformF("R", this.par.R);
+        shader.uniformF("SRadScl", this.par.SRadScl);
+    }
+    
+    </script>
+    
+    <?/* ------------------------------------------------------------------*/?>
+    <?/*                            main loop                              */?>
+    <?/* ------------------------------------------------------------------*/?>
+    
+    <script type="text/javascript">
+    function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+    function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+    </script>
+    
+    </body>

@@ -215,13 +215,14 @@ Renderer.prototype.compileShaders = function()
     if (shader.indexOf("DIELECTRIC_NORMAL_MAP(")            > -1) { hasDielectricNM = true; }
 
     let hasVolume = true;
+    let hasVolumeEmission = true;
     if (shader.indexOf("SDF_VOLUME(")                      == -1) { hasVolume= false; }
     if (shader.indexOf("VOLUME_EXTINCTION(")               == -1) { shader += `\n float VOLUME_EXTINCTION(float extinction_ui, vec3 X) { return extinction_ui; }\n`; }
     if (shader.indexOf("VOLUME_EXTINCTION_MAX(")           == -1) { shader += `\n float VOLUME_EXTINCTION_MAX(float extinction_ui) { return extinction_ui; }\n`; }
     if (shader.indexOf("VOLUME_SCATTERING_COLOR(")         == -1) { shader += `\n vec3 VOLUME_SCATTERING_COLOR(vec3 scattering_color_ui, vec3 X) { return scattering_color_ui; }\n`; }
     if (shader.indexOf("VOLUME_ABSORPTION_COLOR(")         == -1) { shader += `\n vec3 VOLUME_ABSORPTION_COLOR(vec3 absorption_color_ui, vec3 X) { return absorption_color_ui; }\n`; }
-    if (shader.indexOf("VOLUME_EMISSION(")                 == -1) { shader += `\n vec3 VOLUME_EMISSION(vec3 emission, vec3 X) { return emission; }\n`; }
     if (shader.indexOf("VOLUME_ANISOTROPY(")               == -1) { shader += `\n float VOLUME_ANISOTROPY(float anisotropy, vec3 X) { return anisotropy; }\n`; }
+    if (shader.indexOf("VOLUME_EMISSION(")                 == -1) { hasVolumeEmission = false; shader += `\n vec3 VOLUME_EMISSION(vec3 emission, vec3 X) { return emission; }\n`; }
 
     let hasGeometry = (hasSurface || hasMetal || hasDielectric);
     if ( !(hasGeometry || hasVolume) )
@@ -250,11 +251,12 @@ Renderer.prototype.compileShaders = function()
 
     replacements.__DEFINES__ = '';
 
-    if (hasSurface)    replacements.__DEFINES__ += '\n#define HAS_SURFACE\n';
-    if (hasMetal)      replacements.__DEFINES__ += '\n#define HAS_METAL\n';
-    if (hasDielectric) replacements.__DEFINES__ += '\n#define HAS_DIELECTRIC\n';
-    if (hasVolume)     replacements.__DEFINES__ += '\n#define HAS_VOLUME\n';
-    if (hasGeometry)   replacements.__DEFINES__ += '\n#define HAS_GEOMETRY\n';
+    if (hasSurface)        replacements.__DEFINES__ += '\n#define HAS_SURFACE\n';
+    if (hasMetal)          replacements.__DEFINES__ += '\n#define HAS_METAL\n';
+    if (hasDielectric)     replacements.__DEFINES__ += '\n#define HAS_DIELECTRIC\n';
+    if (hasVolume)         replacements.__DEFINES__ += '\n#define HAS_VOLUME\n';
+    if (hasGeometry)       replacements.__DEFINES__ += '\n#define HAS_GEOMETRY\n';
+    if (hasVolumeEmission) replacements.__DEFINES__ += '\n#define HAS_VOLUME_EMISSION\n';
 
     if (hasNM)           replacements.__DEFINES__ += '\n#define HAS_NORMALMAP\n';
     if (hasSurfaceNM)    replacements.__DEFINES__ += '\n#define HAS_SURFACE_NORMALMAP\n';

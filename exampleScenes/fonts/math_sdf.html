@@ -1,6 +1,21 @@
 <body onload="onLoad();">
-<script src="https://portsmouth.github.io/snelly/js/compiled/snelly.min.js"></script>
-	
+    <script src="../../js/thirdparty/jquery-1.11.3.min.js"></script>
+    <script src="../../js/thirdparty/three/three.min.js"></script>
+    <script src="../../js/thirdparty/three/libs/stats.min.js"></script>
+    <script src="../../js/thirdparty/three/libs/dat.gui.min.js"></script>
+    <script src="../../js/thirdparty/three/controls/OrbitControls.js"></script>
+    <script src="../../js/gl.js"></script>
+    <script src="../../js/gui.js"></script>
+    <script src="../../js/shaders.js"></script>
+    <script src="../../js/color.js"></script>
+    <script src="../../js/materials.js"></script>
+    <script src="../../js/spectra.js"></script>
+    <script src="../../js/renderer.js"></script>
+    <script src="../../js/snelly.js"></script>
+    <script src="../../js/thirdparty/tiny-sdf.js"></script>
+    <script src="../../js/thirdparty/math-sdf.js"></script>
+
+    
 <?/* ------------------------------------------------------------------*/?>
 <?/*                          math definition                          */?>
 <?/* ------------------------------------------------------------------*/?>
@@ -26,6 +41,7 @@ var LOADED = false;
 
 function MATHSDF_GENERATED_CALLBACK(sdf_data, W, H)
 {
+    console.log('MATHSDF_GENERATED_CALLBACK');
     let gl = SNELLY.getGLContext();
     SCENE.sdfTexture = gl.createTexture();
     let texture_unit = SNELLY.getUserTextureUnitStart();

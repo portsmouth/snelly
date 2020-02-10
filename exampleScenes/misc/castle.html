@@ -686,7 +686,6 @@ vec3 hash3( vec2 p ){
         return 0.5*building(p);
     }
 
-
     float SDF_SURFACE(vec3 p)
     {
         float L = 1.0e4;
@@ -694,9 +693,7 @@ vec3 hash3( vec2 p ){
         q.y -= 5.0*wall_thickness;
         float floor = fBox(q, vec3(L, 1.0,L));
         return min(scene(p), floor);
-    }
-
-
+	}
 
     vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 p, in vec3 N, in vec3 V)
     {

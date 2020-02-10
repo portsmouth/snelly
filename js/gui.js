@@ -358,7 +358,8 @@ GUI.prototype.createMaterialSettings = function()
     }
 
     // Volume settings
-    if (shader.indexOf("SDF_VOLUME(") !== -1)
+    if ((shader.indexOf("SDF_VOLUME(") !== -1)    ||
+        (shader.indexOf("VOLUME_EMISSION(") !== -1))
     {
         this.volumeFolder = this.gui.addFolder('Volume properties');
         var volumeObj = snelly.getVolume();

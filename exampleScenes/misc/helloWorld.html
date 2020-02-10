@@ -1,6 +1,19 @@
    
 <body onload="onLoad();">
-<script src="https://portsmouth.github.io/snelly/js/compiled/snelly.min.js"></script>
+
+<script src="../../js/thirdparty/jquery-1.11.3.min.js"></script>
+<script src="../../js/thirdparty/three/three.min.js"></script>
+<script src="../../js/thirdparty/three/libs/stats.min.js"></script>
+<script src="../../js/thirdparty/three/libs/dat.gui.min.js"></script>
+<script src="../../js/thirdparty/three/controls/OrbitControls.js"></script>
+<script src="../../js/gl.js"></script>
+<script src="../../js/gui.js"></script>
+<script src="../../js/shaders.js"></script>
+<script src="../../js/color.js"></script>
+<script src="../../js/materials.js"></script>
+<script src="../../js/spectra.js"></script>
+<script src="../../js/renderer.js"></script>
+<script src="../../js/snelly.js"></script>
 
 <?/* ------------------------------------------------------------------*/?>
 <?/*                         scene definition                          */?>
@@ -111,6 +124,17 @@ Scene.prototype.shader = function()
         {
             return C* vec3(abs(cos(X.x)), abs(sin(X.y)), abs(cos(X.z)));
         }
+    }
+
+    vec3 VOLUME_EMISSION(in vec3 emission_ui, in vec3 X)
+    {
+        X.xz = mod((X.xz),1.0)-vec2(0.5);
+        float sdf = sdSphere(X-vec3(0,R,0), R);
+        if (sdf<0.01)
+        {
+            return emission_ui;
+        }
+        return vec3(0.0);
     }
     `;
 }

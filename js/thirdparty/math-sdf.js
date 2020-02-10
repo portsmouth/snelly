@@ -71,6 +71,7 @@ window.MathJax = {
             mjOut.setAttribute("xmlns", "http://www.w3.org/2000/svg");
             // thanks, https://spin.atomicobject.com/2014/01/21/convert-svg-to-png/
             output.svg = mjOut.outerHTML;
+            console.log(output.svg);
             output.svg.width = 512;
             output.svg.height = 128;
             var image = new Image();

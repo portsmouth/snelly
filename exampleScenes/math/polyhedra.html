@@ -1,0 +1,911 @@
+<body onload="onLoad();">
+
+    <script src="../../js/thirdparty/jquery-1.11.3.min.js"></script>
+    <script src="../../js/thirdparty/three/three.min.js"></script>
+    <script src="../../js/thirdparty/three/libs/stats.min.js"></script>
+    <script src="../../js/thirdparty/three/libs/dat.gui.min.js"></script>
+    <script src="../../js/thirdparty/three/controls/OrbitControls.js"></script>
+    <script src="../../js/gl.js"></script>
+    <script src="../../js/gui.js"></script>
+    <script src="../../js/shaders.js"></script>
+    <script src="../../js/color.js"></script>
+    <script src="../../js/materials.js"></script>
+    <script src="../../js/spectra.js"></script>
+    <script src="../../js/renderer.js"></script>
+    <script src="../../js/snelly.js"></script>
+
+    <?/* ------------------------------------------------------------------*/?>
+    <?/*                         scene definition                          */?>
+    <?/* ------------------------------------------------------------------*/?>
+    
+    <script type="text/javascript">
+    
+    function Scene() {}
+    Scene.prototype.init = function(snelly)
+    {
+        this.FPS = 24.0;
+        this.targetSPP = 1;
+        this.period = 100.0;
+        this.animFrame = 0;
+        this.advanceFrame = false;
+        this.playing = false;
+    
+        /******* copy-pasted console output on 'O', begin *******/
+
+let renderer  = snelly.getRenderer();
+let camera    = snelly.getCamera();
+let controls  = snelly.getControls();
+let materials = snelly.getMaterials();
+    
+    this.par = {};
+    this.par.displayFaces = true;
+    this.par.displaySegments = true;
+    this.par.displayVertices = true;
+    this.par.U = 1;
+    this.par.V = 0.4284707540521494;
+    this.par.W = 0.2142353770260747;
+    this.par.symmetry_group = "Symmetry group 5";
+    this.par.SRadius = 0.003;
+    this.par.VRadius = 0.006765327695560254;
+    this.par.height = 1;
+    this.par.showGrid = false;
+    this.par.gridSize = 0.03946441155743482;
+    this.par.face0Color = [1,1,1];
+    this.par.face1Color = [1,1,1];
+    this.par.face2Color = [1,1,1];
+    this.par.segmentsColor = [1,1,1];
+    this.par.verticesColor = [1,1,1];
+    this.par.groundColor = [0.11534025374855827,0.23529411764705888,0.12239636338964657];
+    this.par.var_a = 1.6913319238900635;
+    this.par.var_b = 2.5933756166314303;
+    this.par.var_c = 0.6765327695560254;
+    this.par.var_d = 0.5637773079633545;
+    this.par.var_e = 4.171952078928824;
+    this.par.var_f = 6.878083157152925;
+    this.par.var_g = 1.014799154334038;
+    this.par.var_h = 2.255109231853418;
+    this.par.var_i = 1;
+    this.par.var_j = 1;
+
+    this.frame = 0;
+    
+snelly.showGUI(true);
+
+/** Camera settings **/
+camera.fov = 45;
+camera.aperture = -13.907984672147903;
+camera.focalDistance = 0.5492686463564044;
+camera.up.set(0, 1, 0);
+camera.position.set(-18.101922757894478, 3.1069598151560704, -1.2523943060866651);
+controls.target.set(-4.416604576170856, -6.250347161921397, 4.400487226473013);
+
+/** Renderer settings **/
+renderer.renderMode = 'pt';
+renderer.dispersive = false;
+renderer.maxSamplesPerFrame = 1;
+renderer.maxSpp = 1024;
+renderer.maxBounces = 3;
+renderer.maxScatters = 2;
+renderer.maxMarchSteps = 512;
+renderer.maxVolumeSteps = 256;
+renderer.maxStepsIsMiss = true;
+renderer.interactive = true;
+renderer.goalFPS = 10;
+renderer.minsSPPToRedraw = 1;
+renderer.radianceClamp = 1;
+renderer.wavelengthSamples = 256;
+renderer.exposure = 3.297486734938964;
+renderer.gamma = 2.2;
+renderer.contrast = 1.462977924318186;
+renderer.saturation = 0.8297486734938966;
+renderer.skyPower = -0.6721400965128748;
+renderer.skyTint = [1, 1, 1];
+renderer.envMapRotation = 0;
+renderer.envMapVisible = true;
+renderer.sunPower = -6;
+renderer.sunColor = [0.892156862745098, 0.8641676278354479, 0.8221837754709727];
+renderer.sunAngularSize = 1.7468393126187296;
+renderer.sunLatitude = 21.361006179444004;
+renderer.sunLongitude = 290.84874555101845;
+renderer.sunVisibleDirectly = true;
+renderer.shadowStrength = 1;
+
+/** Material settings **/
+let surface = materials.loadSurface();
+surface.roughness = 0.03453634950785704;
+surface.ior = 2.0792609221205325;
+surface.diffuseAlbedo = [0.13725490196078427, 0.12728136237193835, 0.10899653979238752];
+surface.specAlbedo = [0.6666666666666667, 0.6666666666666667, 0.6666666666666667];
+
+/******* copy-pasted console output on 'O', end *******/
+
+    }
+    
+    Scene.prototype.getName = function() { return 'Simple polyhedron renderer'; }
+
+    Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/fractals/apollonian_firsthit.html"; }
+    
+    Scene.prototype.initGenerator = function()
+    {
+        return `
+    this.par = {};
+    this.par.displayFaces = ${this.par.displayFaces};
+    this.par.displaySegments = ${this.par.displaySegments};
+    this.par.displayVertices = ${this.par.displayVertices};
+    this.par.U = ${this.par.U};
+    this.par.V = ${this.par.V};
+    this.par.W = ${this.par.W};
+    this.par.symmetry_group = "${this.par.symmetry_group}";
+    this.par.SRadius = ${this.par.SRadius};
+    this.par.VRadius = ${this.par.VRadius};
+    this.par.height = ${this.par.height};
+    this.par.showGrid = ${this.par.showGrid};
+    this.par.gridSize = ${this.par.gridSize};
+    this.par.face0Color = [${this.par.face0Color}];
+    this.par.face1Color = [${this.par.face1Color}];
+    this.par.face2Color = [${this.par.face2Color}];
+    this.par.segmentsColor = [${this.par.segmentsColor}];
+    this.par.verticesColor = [${this.par.verticesColor}];
+    this.par.groundColor = [${this.par.groundColor}];
+    this.par.var_a = ${this.par.var_a};
+    this.par.var_b = ${this.par.var_b};
+    this.par.var_c = ${this.par.var_c};
+    this.par.var_d = ${this.par.var_d};
+    this.par.var_e = ${this.par.var_e};
+    this.par.var_f = ${this.par.var_f};
+    this.par.var_g = ${this.par.var_g};
+    this.par.var_h = ${this.par.var_h};
+    this.par.var_i = ${this.par.var_i};
+    this.par.var_j = ${this.par.var_j};
+
+    this.frame = 0;
+    `;
+    }
+    
+    Scene.prototype.initGui = function(gui)
+    {
+        gui.getGUI().add(this.par, 'displayFaces');
+        gui.getGUI().add(this.par, 'displaySegments');
+        gui.getGUI().add(this.par, 'displayVertices');
+        gui.addSlider(this.par, {name: 'U', min: 0.0, max: 1.0});
+        gui.addSlider(this.par, {name: 'V', min: 0.0, max: 1.0});
+        gui.addSlider(this.par, {name: 'W', min: 0.0, max: 1.0});
+
+        this.typeItem = gui.getSceneFolder().add(this.par, 'symmetry_group',  ['Symmetry group 3', 'Symmetry group 4', 'Symmetry group 5']);
+		this.typeItem.onChange( function(value) { snelly.reset(); } );
+        
+        gui.addSlider(this.par, {name: 'VRadius', min: 0.0, max: 0.1});
+        gui.addSlider(this.par, {name: 'SRadius', min: 0.0, max: 0.1});
+        gui.addSlider(this.par, {name: 'height', min: 0.0, max: 5.0});
+        gui.getGUI().add(this.par, 'showGrid');
+        gui.addSlider(this.par, {name: 'gridSize', min: 0.0, max: 0.1});
+        gui.addColor(this.par, "face0Color");
+        gui.addColor(this.par, "face1Color");
+        gui.addColor(this.par, "face2Color");
+        gui.addColor(this.par, "segmentsColor");
+        gui.addColor(this.par, "verticesColor");
+        gui.addColor(this.par, "groundColor");
+
+        gui.addSlider(this.par, {name: 'var_a', min: 0.0, max: 10.0});
+        gui.addSlider(this.par, {name: 'var_b', min: 0.0, max: 10.0});
+        gui.addSlider(this.par, {name: 'var_c', min: 0.0, max: 10.0});
+        gui.addSlider(this.par, {name: 'var_d', min: 0.0, max: 10.0});
+        gui.addSlider(this.par, {name: 'var_e', min: 0.0, max: 10.0});
+        gui.addSlider(this.par, {name: 'var_f', min: 0.0, max: 10.0});
+        gui.addSlider(this.par, {name: 'var_g', min: 0.0, max: 10.0});
+        gui.addSlider(this.par, {name: 'var_h', min: 0.0, max: 10.0});
+        gui.addSlider(this.par, {name: 'var_i', min: 0.0, max: 10.0});
+        gui.addSlider(this.par, {name: 'var_j', min: 0.0, max: 10.0});
+    }
+    
+    Scene.prototype.syncShader = function(snelly, shader)
+    {
+        shader.uniformF("displayFaces", this.par.displayFaces);
+        shader.uniformF("displaySegments", this.par.displaySegments);
+        shader.uniformF("displayVertices", this.par.displayVertices);
+        shader.uniformF("U", this.par.U);
+        shader.uniformF("V", this.par.V);
+        shader.uniformF("W", this.par.W);
+        shader.uniformF("VRadius", this.par.VRadius);
+        shader.uniformF("SRadius", this.par.SRadius);
+        shader.uniformF("height", this.par.height);
+        shader.uniformF("gridSize", this.par.gridSize);
+        shader.uniformF("showGrid", this.par.showGrid);        
+        shader.uniform3Fv("face0Color", this.par.face0Color);
+        shader.uniform3Fv("face1Color", this.par.face1Color);
+        shader.uniform3Fv("face2Color", this.par.face2Color);
+        shader.uniform3Fv("segmentsColor", this.par.segmentsColor);
+        shader.uniform3Fv("verticesColor", this.par.verticesColor);
+        shader.uniform3Fv("groundColor", this.par.groundColor);
+        shader.uniformF("var_a", this.par.var_a);
+        shader.uniformF("var_b", this.par.var_b);
+        shader.uniformF("var_c", this.par.var_c);
+        shader.uniformF("var_d", this.par.var_d);
+        shader.uniformF("var_e", this.par.var_e);
+        shader.uniformF("var_f", this.par.var_f);
+        shader.uniformF("var_g", this.par.var_g);
+        shader.uniformF("var_h", this.par.var_h);
+        shader.uniformF("var_i", this.par.var_i);
+        shader.uniformF("var_j", this.par.var_j);
+    }
+
+    Scene.prototype.shader = function()
+    {
+        let symm_map = {'Symmetry group 3':3, 'Symmetry group 4':4, 'Symmetry group 5':5} 
+        let symm_numeric = symm_map[this.par.symmetry_group];
+
+        return `
+
+        // 'barycentric' coordinates for the 'principal' node
+        uniform float U;
+        uniform float V;
+        uniform float W;
+
+        // vertex radius
+        uniform float VRadius;
+
+        // segments radius
+        uniform float SRadius;
+
+        uniform float height;
+        uniform float gridSize;
+        uniform bool showGrid;
+
+        uniform bool displayFaces;
+        uniform bool displaySegments;
+        uniform bool displayVertices;
+
+        uniform vec3 face0Color;
+        uniform vec3 face1Color;
+        uniform vec3 face2Color;
+        uniform vec3 segmentsColor;
+        uniform vec3 verticesColor;
+        uniform vec3 groundColor;
+
+        uniform float var_a;
+        uniform float var_b;
+        uniform float var_c;
+        uniform float var_d;
+        uniform float var_e;
+        uniform float var_f;
+        uniform float var_g;
+        uniform float var_h;
+        uniform float var_i;
+        uniform float var_j;
+
+        float sdSphere(vec3 X, float r) { return length(X) - r; }
+        float sdBox(vec3 X, vec3 bmin, vec3 bmax) { vec3 d = abs(X-0.5*(bmin+bmax)) - 0.5*(bmax-bmin); return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0)); }
+		float sdTorus( vec3 X, vec2 t ) { vec2 q = vec2(length(X.xz)-t.x, X.y); return length(q)-t.y; }
+		float opU( float d1, float d2 ) { return min(d1,d2); }
+		float opS(float A, float B) { return max(-B, A); }
+        float opI( float d1, float d2 ) { return max(d1,d2); }
+        
+        vec3 nc,p_global,pab,pbc,pca;
+        int Type;
+
+        ////////////////////////////////////////////////////////////////
+        //             HELPER FUNCTIONS/MACROS
+        ////////////////////////////////////////////////////////////////
+
+        #define PI 3.14159265
+        #define TAU (2.0*PI)
+        #define PHI (sqrt(5.0)*0.5 + 0.5)
+
+        // Clamp to [0,1] - this operation is free under certain circumstances.
+        #define saturate(x) clamp(x, 0.0, 1.0)
+
+        // Sign function that doesn't return 0
+        float sgn(float x) {
+            return (x<0.0)?-1.0:1.0;
+        }
+
+        vec2 sgn(vec2 v) {
+            return vec2((v.x<0.0)?-1.0:1.0, (v.y<0.0)?-1.0:1.0);
+        }
+
+        float square (float x) {
+            return x*x;
+        }
+
+        vec2 square (vec2 x) {
+            return x*x;
+        }
+
+        vec3 square (vec3 x) {
+            return x*x;
+        }
+
+        float lengthSqr(vec3 x) {
+            return dot(x, x);
+        }
+
+
+        // Maximum/minumum elements of a vector
+        float vmax(vec2 v) {
+            return max(v.x, v.y);
+        }
+
+        float vmax(vec3 v) {
+            return max(max(v.x, v.y), v.z);
+        }
+
+        float vmax(vec4 v) {
+            return max(max(v.x, v.y), max(v.z, v.w));
+        }
+
+        float vmin(vec2 v) {
+            return min(v.x, v.y);
+        }
+
+        float vmin(vec3 v) {
+            return min(min(v.x, v.y), v.z);
+        }
+
+        float vmin(vec4 v) {
+            return min(min(v.x, v.y), min(v.z, v.w));
+        }
+
+        ////////////////////////////////////////////////////////////////
+        //                DOMAIN MANIPULATION OPERATORS
+        ////////////////////////////////////////////////////////////////
+
+        // Rotate around a coordinate axis (i.e. in a plane perpendicular to that axis) by angle <a>.
+        // Read like this: R(p.xz, a) rotates "x towards z".
+        // This is fast if <a> is a compile-time constant and slower (but still practical) if not.
+        void pR(inout vec2 p, float a) {
+            p = cos(a)*p + sin(a)*vec2(p.y, -p.x);
+        }
+
+        // Shortcut for 45-degrees rotation
+        void pR45(inout vec2 p) {
+            p = (p + vec2(p.y, -p.x))*sqrt(0.5);
+        }
+
+        // Repeat space along one axis. Use like this to repeat along the x axis:
+        // <float cell = pMod1(p.x,5);> - using the return value is optional.
+        float pMod1(inout float p, float size) {
+            float halfsize = size*0.5;
+            float c = floor((p + halfsize)/size);
+            p = mod(p + halfsize, size) - halfsize;
+            return c;
+        }
+
+        // Same, but mirror every second cell so they match at the boundaries
+        float pModMirror1(inout float p, float size) {
+            float halfsize = size*0.5;
+            float c = floor((p + halfsize)/size);
+            p = mod(p + halfsize,size) - halfsize;
+            p *= mod(c, 2.0)*2.0 - 1.0;
+            return c;
+        }
+
+        // Repeat the domain only in positive direction. Everything in the negative half-space is unchanged.
+        float pModSingle1(inout float p, float size) {
+            float halfsize = size*0.5;
+            float c = floor((p + halfsize)/size);
+            if (p >= 0.0)
+                p = mod(p + halfsize, size) - halfsize;
+            return c;
+        }
+
+        // Repeat only a few times: from indices <start> to <stop> (similar to above, but more flexible)
+        float pModInterval1(inout float p, float size, float start, float stop) {
+            float halfsize = size*0.5;
+            float c = floor((p + halfsize)/size);
+            p = mod(p+halfsize, size) - halfsize;
+            if (c > stop) { //yes, this might not be the best thing numerically.
+                p += size*(c - stop);
+                c = stop;
+            }
+            if (c <start) {
+                p += size*(c - start);
+                c = start;
+            }
+            return c;
+        }
+
+        // Repeat around the origin by a fixed angle.
+        // For easier use, num of repetitions is use to specify the angle.
+        float pModPolar(inout vec2 p, float repetitions) {
+            float angle = 2.0*PI/repetitions;
+            float a = atan(p.y, p.x) + angle/2.;
+            float r = length(p);
+            float c = floor(a/angle);
+            a = mod(a,angle) - angle/2.0;
+            p = vec2(cos(a), sin(a))*r;
+            // For an odd number of repetitions, fix cell index of the cell in -x direction
+            // (cell index would be e.g. -5 and 5 in the two halves of the cell):
+            if (abs(c) >= (repetitions/2.0)) c = abs(c);
+            return c;
+        }
+
+        // Repeat in two dimensions
+        vec2 pMod2(inout vec2 p, vec2 size) {
+            vec2 c = floor((p + size*0.5)/size);
+            p = mod(p + size*0.5,size) - size*0.5;
+            return c;
+        }
+
+        // Same, but mirror every second cell so all boundaries match
+        vec2 pModMirror2(inout vec2 p, vec2 size) {
+            vec2 halfsize = size*0.5;
+            vec2 c = floor((p + halfsize)/size);
+            p = mod(p + halfsize, size) - halfsize;
+            p *= mod(c,vec2(2.0))*2.0 - vec2(1.0);
+            return c;
+        }
+
+        // Same, but mirror every second cell at the diagonal as well
+        vec2 pModGrid2(inout vec2 p, vec2 size) {
+            vec2 c = floor((p + size*0.5)/size);
+            p = mod(p + size*0.5, size) - size*0.5;
+            p *= mod(c,vec2(2.0))*2.0 - vec2(1.0);
+            p -= size/2.0;
+            if (p.x > p.y) p.xy = p.yx;
+            return floor(c/2.0);
+        }
+
+        // Repeat in three dimensions
+        vec3 pMod3(inout vec3 p, vec3 size) {
+            vec3 c = floor((p + size*0.5)/size);
+            p = mod(p + size*0.5, size) - size*0.5;
+            return c;
+        }
+
+        // Mirror at an axis-aligned plane which is at a specified distance <dist> from the origin.
+        float pMirror (inout float p, float dist) {
+            float s = sgn(p);
+            p = abs(p)-dist;
+            return s;
+        }
+
+        // Mirror in both dimensions and at the diagonal, yielding one eighth of the space.
+        // translate by dist before mirroring.
+        vec2 pMirrorOctant (inout vec2 p, vec2 dist) {
+            vec2 s = sgn(p);
+            pMirror(p.x, dist.x);
+            pMirror(p.y, dist.y);
+            if (p.y > p.x)
+                p.xy = p.yx;
+            return s;
+        }
+
+        // Reflect space at a plane
+        float pReflect(inout vec3 p, vec3 planeNormal, float offset) {
+            float t = dot(p, planeNormal)+offset;
+            if (t < 0.0) {
+                p = p - (2.0*t)*planeNormal;
+            }
+            return sgn(t);
+        }
+        
+        ////////////////////////////////////////////////////////////////
+        //
+        //             OBJECT COMBINATION OPERATORS
+        //
+        ////////////////////////////////////////////////////////////////
+        //
+        // We usually need the following boolean operators to combine two objects:
+        // Union: OR(a,b)
+        // Intersection: AND(a,b)
+        // Difference: AND(a,!b)
+        // (a and b being the distances to the objects).
+        //
+        // The trivial implementations are min(a,b) for union, max(a,b) for intersection
+        // and max(a,-b) for difference. To combine objects in more interesting ways to
+        // produce rounded edges, chamfers, stairs, etc. instead of plain sharp edges we
+        // can use combination operators. It is common to use some kind of "smooth minimum"
+        // instead of min(), but we don't like that because it does not preserve Lipschitz
+        // continuity in many cases.
+        //
+        // Naming convention: since they return a distance, they are called fOpSomething.
+        // The different flavours usually implement all the boolean operators above
+        // and are called fOpUnionRound, fOpIntersectionRound, etc.
+        //
+        // The basic idea: Assume the object surfaces intersect at a right angle. The two
+        // distances <a> and <b> constitute a new local two-dimensional coordinate system
+        // with the actual intersection as the origin. In this coordinate system, we can
+        // evaluate any 2D distance function we want in order to shape the edge.
+        //
+        // The operators below are just those that we found useful or interesting and should
+        // be seen as examples. There are infinitely more possible operators.
+        //
+        // They are designed to actually produce correct distances or distance bounds, unlike
+        // popular "smooth minimum" operators, on the condition that the gradients of the two
+        // SDFs are at right angles. When they are off by more than 30 degrees or so, the
+        // Lipschitz condition will no longer hold (i.e. you might get artifacts). The worst
+        // case is parallel surfaces that are close to each other.
+        //
+        // Most have a float argument <r> to specify the radius of the feature they represent.
+        // This should be much smaller than the object size.
+        //
+        // Some of them have checks like "if ((-a < r) && (-b < r))" that restrict
+        // their influence (and computation cost) to a certain area. You might
+        // want to lift that restriction or enforce it. We have left it as comments
+        // in some cases.
+        //
+        // usage example:
+        //
+        // float fTwoBoxes(vec3 p) {
+        //   float box0 = fBox(p, vec3(1));
+        //   float box1 = fBox(p-vec3(1), vec3(1));
+        //   return fOpUnionChamfer(box0, box1, 0.2);
+        // }
+        //
+        ////////////////////////////////////////////////////////////////
+
+
+        // The "Chamfer" flavour makes a 45-degree chamfered edge (the diagonal of a square of size <r>):
+        float fOpUnionChamfer(float a, float b, float r) {
+            return min(min(a, b), (a - r + b)*sqrt(0.5));
+        }
+
+        // Intersection has to deal with what is normally the inside of the resulting object
+        // when using union, which we normally don't care about too much. Thus, intersection
+        // implementations sometimes differ from union implementations.
+        float fOpIntersectionChamfer(float a, float b, float r) {
+            return max(max(a, b), (a + r + b)*sqrt(0.5));
+        }
+
+        // Difference can be built from Intersection or Union:
+        float fOpDifferenceChamfer (float a, float b, float r) {
+            return fOpIntersectionChamfer(a, -b, r);
+        }
+
+        // The "Round" variant uses a quarter-circle to join the two objects smoothly:
+        float fOpUnionRound(float a, float b, float r) {
+            vec2 u = max(vec2(r - a,r - b), vec2(0));
+            return max(r, min (a, b)) - length(u);
+        }
+
+        float fOpIntersectionRound(float a, float b, float r) {
+            vec2 u = max(vec2(r + a,r + b), vec2(0));
+            return min(-r, max (a, b)) + length(u);
+        }
+
+        float fOpDifferenceRound (float a, float b, float r) {
+            return fOpIntersectionRound(a, -b, r);
+        }
+
+        // The "Columns" flavour makes n-1 circular columns at a 45 degree angle:
+        float fOpUnionColumns(float a, float b, float r, float n) {
+            if ((a < r) && (b < r)) {
+                vec2 p = vec2(a, b);
+                float columnradius = r*sqrt(2.0)/((n-1.0)*2.0+sqrt(2.0));
+                pR45(p);
+                p.x -= sqrt(2.0)/2.0*r;
+                p.x += columnradius*sqrt(2.0);
+                if (mod(n,2.0) == 1.0) {
+                    p.y += columnradius;
+                }
+                // At this point, we have turned 45 degrees and moved at a point on the
+                // diagonal that we want to place the columns on.
+                // Now, repeat the domain along this direction and place a circle.
+                pMod1(p.y, columnradius*2.0);
+                float result = length(p) - columnradius;
+                result = min(result, p.x);
+                result = min(result, a);
+                return min(result, b);
+            } else {
+                return min(a, b);
+            }
+        }
+
+        float fOpDifferenceColumns(float a, float b, float r, float n) {
+            a = -a;
+            float m = min(a, b);
+            //avoid the expensive computation where not needed (produces discontinuity though)
+            if ((a < r) && (b < r)) {
+                vec2 p = vec2(a, b);
+                float columnradius = r*sqrt(2.0)/n/2.0;
+                columnradius = r*sqrt(2.0)/((n-1.0)*2.0+sqrt(2.0));
+
+                pR45(p);
+                p.y += columnradius;
+                p.x -= sqrt(2.0)/2.0*r;
+                p.x += -columnradius*sqrt(2.0)/2.0;
+
+                if (mod(n,2.0) == 1.0) {
+                    p.y += columnradius;
+                }
+                pMod1(p.y,columnradius*2.0);
+
+                float result = -length(p) + columnradius;
+                result = max(result, p.x);
+                result = min(result, a);
+                return -min(result, b);
+            } else {
+                return -m;
+            }
+        }
+
+        float fOpIntersectionColumns(float a, float b, float r, float n) {
+            return fOpDifferenceColumns(a,-b,r, n);
+        }
+
+        // The "Stairs" flavour produces n-1 steps of a staircase:
+        // much less stupid version by paniq
+        float fOpUnionStairs(float a, float b, float r, float n) {
+            float s = r/n;
+            float u = b-r;
+            return min(min(a,b), 0.5 * (u + a + abs ((mod (u - a + s, 2.0 * s)) - s)));
+        }
+
+        // We can just call Union since stairs are symmetric.
+        float fOpIntersectionStairs(float a, float b, float r, float n) {
+            return -fOpUnionStairs(-a, -b, r, n);
+        }
+
+        float fOpDifferenceStairs(float a, float b, float r, float n) {
+            return -fOpUnionStairs(-a, b, r, n);
+        }
+
+
+        // Similar to fOpUnionRound, but more lipschitz-y at acute angles
+        // (and less so at 90 degrees). Useful when fudging around too much
+        // by MediaMolecule, from Alex Evans' siggraph slides
+        float fOpUnionSoft(float a, float b, float r) {
+            float e = max(r - abs(a - b), 0.0);
+            return min(a, b) - e*e*0.25/r;
+        }
+
+
+        // produces a cylindical pipe that runs along the intersection.
+        // No objects remain, only the pipe. This is not a boolean operator.
+        float fOpPipe(float a, float b, float r) {
+            return length(vec2(a, b)) - r;
+        }
+
+        // first object gets a v-shaped engraving where it intersect the second
+        float fOpEngrave(float a, float b, float r) {
+            return max(a, (a + r - abs(b))*sqrt(0.5));
+        }
+
+        // first object gets a capenter-style groove cut out
+        float fOpGroove(float a, float b, float ra, float rb) {
+            return max(a, min(a + ra, rb - abs(b)));
+        }
+
+        // first object gets a carpenter-style tongue attached
+        float fOpTongue(float a, float b, float ra, float rb) {
+            return min(a, max(a - ra, abs(b) - rb));
+        }
+
+
+        /////////////////////////////////////////////////////////
+
+        void INIT() 
+        {
+            Type = int(${symm_numeric}); // Symmetry group type.
+            float cospin=cos(PI/float(Type)), scospin=sqrt(0.75-cospin*cospin);
+            nc=vec3(-0.5,-cospin,scospin);
+            pab=vec3(0.,0.,1.);
+            pbc=normalize(vec3(scospin,0.,0.5));
+            pca=normalize(vec3(0.,scospin,cospin));
+            p_global=normalize((U*pab+V*pbc+W*pca));
+        }
+
+        vec3 fold(vec3 pos) 
+        {
+            for(int i=0;i<Type;i++){
+                pos.xy=abs(pos.xy);
+                float t=-2.*min(0.,dot(pos,nc));
+                pos+=t*nc;
+            }
+            return pos;
+        }
+
+        float D2Planes(vec3 pos) {
+            float d0=dot(pos,pab)-dot(pab,p_global);
+            float d1=dot(pos,pbc)-dot(pbc,p_global);
+            float d2=dot(pos,pca)-dot(pca,p_global);
+            return max(max(d0,d1),d2);
+        }
+
+        float D2Segments(vec3 pos) {
+            pos -= p_global;
+            float dla=length(pos-min(0.,pos.x)*vec3(1.,0.,0.));
+            float dlb=length(pos-min(0.,pos.y)*vec3(0.,1.,0.));
+            float dlc=length(pos-min(0.,dot(pos,nc))*nc);
+            return min(min(dla,dlb),dlc)-SRadius;//max(max(dla,dlb),max(dlc,dlp))-SRadius;
+        }
+
+        float D2Vertices(vec3 pos) {
+            return length(pos-p_global)-VRadius;
+        }
+
+        float polyhedron(vec3 pos)
+        {
+            pos=fold(pos);
+            float d=1.0e6;
+            if(displayFaces) d=min(d,D2Planes(pos));
+            if(displaySegments) 
+             d=min(d,D2Segments(pos));
+            if(displayVertices) 
+             d=min(d,D2Vertices(pos));
+            return d;
+        }
+
+        vec3 hash3( vec2 p )
+        {
+            vec3 q = vec3( dot(p,vec2(127.1,311.7)), 
+                        dot(p,vec2(269.5,183.3)), 
+                        dot(p,vec2(419.2,371.9)) );
+            return fract(sin(q)*43758.5453);
+        }
+
+
+        vec3 FoldSpace1(vec3 X)
+        {
+            vec3 p = X;
+            vec2 cell = pMod2(p.xz, vec2(var_a, var_b));
+            pMirror(p.x, var_c);
+            pMirror(p.z, var_d);
+            return p;
+        }
+
+        vec3 FoldSpace2(vec3 X)
+        {
+            vec3 p = X;
+            vec2 cell = pMod2(p.xz, vec2(var_e, var_f));
+            pMirror(p.x, var_g);
+            pMirror(p.z, var_h);
+            return p;
+        }
+
+        float DE(vec3 p) 
+        {
+            float A = 0.5*polyhedron(FoldSpace1(p));
+            float B = 0.5*polyhedron(FoldSpace2(p));
+
+            return opU(A, B);
+        }
+
+        vec3 color(vec3 pos, vec3 normal)
+        {
+            pos=fold(pos);
+            float d0=1.0e6,d1=1.0e6,d2=1.0e6,dv=1.0e6,ds=1.0e6;
+            if(displayFaces){
+                d0=abs(dot(pos,pab)-dot(pab,p_global));
+                d1=abs(dot(pos,pbc)-dot(pbc,p_global));
+                d2=abs(dot(pos,pca)-dot(pca,p_global));
+            }
+            if(displaySegments) ds=D2Segments(pos);
+            if(displayVertices) dv=D2Vertices(pos);
+            float d=min(min(d0,min(d1,d2)),min(ds,dv));
+            vec3 col=face0Color;
+            if(d==d1) col=face1Color;
+            if(d==d2) col=face2Color;
+            if(d==ds) col=segmentsColor;
+            if(d==dv) col=verticesColor;
+            return col;
+        }
+
+        float SDF_SURFACE(vec3 X)
+        {
+            float L = 1.0e8;
+            float dR = 10.0;
+            float floor = sdBox(X + vec3(0, height, 0), vec3(-L,-dR,-L), vec3(L,0.0,L));
+            float sdf_surface = DE(X);
+            return sdf_surface;//opU(sdf_surface, floor);
+        }
+
+        vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
+        {
+            if (X.y <= -height+1.0e-3)
+            {
+                vec3 color = groundColor;
+                if (showGrid) 
+                {
+                    float ax = 1.0 - pow(0.5*(1.0 + cos(X.x/gridSize)), 300.0);
+                    float ay = 1.0 - pow(0.5*(1.0 + cos(X.z/gridSize)), 300.0);
+                    color *= ax*ay;
+                }
+                return color;
+            }
+            return C * 0.5*(color(FoldSpace1(X), N) + color(FoldSpace2(X), N));
+        }
+
+        vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
+        {
+            if (X.y <= -height+1.0e-3)
+            {
+                vec3 color = groundColor;
+                if (showGrid) 
+                {
+                    float ax = 1.0 - pow(0.5*(1.0 + cos(X.x/gridSize)), 300.0);
+                    float ay = 1.0 - pow(0.5*(1.0 + cos(X.z/gridSize)), 300.0);
+                    color *= ax*ay;
+                }
+                return color;
+            }
+            return C * 0.5*(color(FoldSpace1(X), N) + color(FoldSpace2(X), N));
+        }
+    
+        `;
+    }
+    
+    Scene.prototype.getLengthScale = function()    { return 1.0; }
+    Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
+    Scene.prototype.getMaxLengthScale = function() { return 1.0e3 * this.getLengthScale(); }
+    
+    Scene.prototype.envMap = function() { return 'https://portsmouth.github.io/envmaps/good_evening.jpg'; }
+
+    Scene.prototype.preframeCallback = function(snelly, gl)
+    {
+        let renderer  = snelly.getRenderer();
+        let camera    = snelly.getCamera();
+        let controls  = snelly.getControls();
+        let materials = snelly.getMaterials();
+        let gui       = snelly.getGUI();
+    
+        let time = this.animFrame/this.FPS;
+        this.endFrame = this.period * this.FPS;
+        if (this.animFrame > this.endFrame) this.animFrame = 0;
+    
+        // Advance scene state to next anim frame, if we have reached the spp count for the previous frame
+        if (this.advanceFrame || this.animFrame == 0)
+        {
+            // animate scene
+            this.par.time = time;
+        }
+    
+        if (this.advanceFrame)
+        {
+            gui.sync();
+    
+            // Tell renderer to restart sampling
+            let no_recompile = true;
+            renderer.reset(no_recompile);
+            this.advanceFrame = false;
+        }
+    
+        this.timer_start = performance.now();
+    }
+    
+    Scene.prototype.postframeCallback = function(snelly, gl)
+    {
+        // pause if FPS exceeded our goal
+        var timer_end = performance.now();
+        var frame_time_ms = (timer_end - this.timer_start);
+        let goal_ms = Math.min(1.0e3, Math.max(1.0, 1.0e3/this.FPS));
+        if (frame_time_ms<goal_ms)
+        {
+            (function pause(ms) {
+                var t0 = performance.now(); var t1 = null;
+                do { t1 = performance.now(); } while (t1-t0 < ms);
+            }(goal_ms-frame_time_ms));
+        }
+    
+        let renderer = snelly.getRenderer();
+        if (this.animFrame>=0 && renderer.getSPP()>=this.targetSPP && this.animFrame<=this.endFrame && this.playing)
+        {
+            this.advanceFrame = true;
+            this.animFrame++;
+        }
+    }
+    
+    Scene.prototype.onkeydownCallback = function(event, snelly, gl)
+    {
+        var charCode = (event.which) ? event.which : event.keyCode;
+        switch (charCode)
+        {
+            case 32: // toggle pause/play on spacebar
+                this.playing = !this.playing;
+                break;
+        }
+    }
+
+    
+    </script>
+    
+    <?/* ------------------------------------------------------------------*/?>
+    <?/*                            main loop                              */?>
+    <?/* ------------------------------------------------------------------*/?>
+    
+    <script type="text/javascript">
+    function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+    function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+    </script>
+    
+    </body>

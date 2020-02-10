@@ -1,0 +1,334 @@
+
+<body onload="onLoad();">
+<script src="https://portsmouth.github.io/snelly/js/compiled/snelly.min.js"></script>
+    
+    <?/* ------------------------------------------------------------------*/?>
+    <?/*                         scene definition                          */?>
+    <?/* ------------------------------------------------------------------*/?>
+    
+    <script type="text/javascript">
+    
+    function Scene() {}
+    Scene.prototype.init = function(snelly)
+    {
+        this.FPS = 24.0;
+        this.targetSPP = 1;
+        this.period = 100.0;
+        this.animFrame = 0;
+        this.advanceFrame = false;
+        this.playing = false;
+    
+        this.par = {};
+        this.par.scale = 1;
+        this.par.time = 0;
+        this.frame = 0;
+
+        this.par.CR = 0.0;
+        this.par.CG = 0.4;
+        this.par.CB = 0.7;
+
+        this.par.numIterations = 9;
+        this.par.Bailout = 128;
+        this.par.Slope = -2.0;
+
+        this.par.Julia = false;
+        this.par.JuliaX = -0.6;
+        this.par.JuliaY = 1.3;
+
+        /******* copy-pasted console output on 'O', begin *******/
+
+        let renderer  = snelly.getRenderer();
+        let camera    = snelly.getCamera();
+        let controls  = snelly.getControls();
+        let materials = snelly.getMaterials();
+            
+            this.par = {};
+            this.par.numIterations = 28.07258632840028;
+            this.par.scale = 1;
+            this.par.time = 0;
+            this.par.CR = 1;
+            this.par.CG = 0.3157152924594785;
+            this.par.CB = 0.12403100775193798;
+            this.par.Bailout = 1024;
+            this.par.Slope = -20.62015503875969;
+            this.par.Julia = false;
+            this.par.JuliaX = -0.6;
+            this.par.JuliaY = 1.3;
+            this.frame = 0;
+                
+        snelly.showGUI(false);
+
+        /** Camera settings **/
+        camera.fov = 45;
+        camera.aperture = -15.83659398411653;
+        camera.focalDistance = 0.22797512085532762;
+        camera.up.set(0, 1, 0);
+        camera.position.set(-0.5419282251161479, 0.9345565755983063, -3.2728953883790943);
+        controls.target.set(-0.057537196912448005, -1.099869378144397, -0.19377900305966342);
+
+        /** Renderer settings **/
+        renderer.renderMode = 'pt';
+        renderer.dispersive = false;
+        renderer.maxSamplesPerFrame = 1;
+        renderer.maxSpp = 1024;
+        renderer.maxBounces = 3;
+        renderer.maxScatters = 2;
+        renderer.maxMarchSteps = 1024;
+        renderer.maxVolumeSteps = 256;
+        renderer.maxStepsIsMiss = false;
+        renderer.interactive = true;
+        renderer.goalFPS = 10;
+        renderer.minsSPPToRedraw = 1;
+        renderer.radianceClamp = 3;
+        renderer.wavelengthSamples = 256;
+        renderer.exposure = 3;
+        renderer.gamma = 2.2;
+        renderer.contrast = 1;
+        renderer.saturation = 1;
+        renderer.skyPower = -6;
+        renderer.skyTint = [1, 1, 1];
+        renderer.envMapRotation = 0;
+        renderer.envMapVisible = true;
+        renderer.sunPower = -0.07641425609635988;
+        renderer.sunColor = [0.6176470588235294, 0.5013840830449827, 0.32698961937716264];
+        renderer.sunAngularSize = 17.908515039708675;
+        renderer.sunLatitude = 19.517457358218465;
+        renderer.sunLongitude = 202.5039777567058;
+        renderer.sunVisibleDirectly = true;
+        renderer.shadowStrength = 1;
+
+        /** Material settings **/
+        let surface = materials.loadSurface();
+        surface.roughness = 0.07216349541930937;
+        surface.ior = 2.6011275546159265;
+        surface.diffuseAlbedo = [0.9803921568627451, 0.9803921568627451, 0.9803921568627451];
+        surface.specAlbedo = [0.1568627450980392, 0.1568627450980392, 0.1568627450980392];
+
+        /******* copy-pasted console output on 'O', end *******/
+    }
+    
+    
+    Scene.prototype.getName = function() { return 'Mandelbrot set as a heightfield'; }
+    
+    Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/fractals/apollonian_firsthit.html"; }
+    
+    Scene.prototype.initGenerator = function()
+    {
+        return `
+    this.par = {};
+    this.par.numIterations = ${this.par.numIterations};
+    this.par.scale = ${this.par.scale};
+    this.par.time = ${this.par.time};
+    this.par.CR = ${this.par.CR};
+    this.par.CG = ${this.par.CG};
+    this.par.CB = ${this.par.CB};
+    this.par.Bailout = ${this.par.Bailout};
+    this.par.Slope = ${this.par.Slope};
+    this.par.Julia = ${this.par.Julia};
+    this.par.JuliaX = ${this.par.JuliaX};
+    this.par.JuliaY = ${this.par.JuliaY};
+    this.frame = 0;
+        `;
+    }
+    
+    Scene.prototype.shader = function()
+    {
+        let numIterations = this.par.numIterations;
+
+        // based on https://www.shadertoy.com/view/4ds3zn by iq
+        return `
+        uniform float scale;
+        uniform float time;
+
+        uniform float CR;
+        uniform float CG; 
+        uniform float CB;
+        uniform float Bailout;
+        uniform float Slope;
+
+        uniform bool Julia;
+        uniform float JuliaX;
+        uniform float JuliaY;
+
+        vec2 c2;
+        float k;
+
+        void INIT()
+    	{
+            k=1./sqrt(1.+Slope*Slope);
+            c2 = vec2(JuliaX,JuliaY);
+        }
+    
+        vec3 baseColor(vec3 pos, vec3 n) 
+        {
+            const int iter = int(${numIterations});
+
+            vec2 z = Julia ?  pos.xy : vec2(0.0,0.0);
+            
+            vec2 z0=z;
+            float r2=dot(z,z);
+            vec2 dz=vec2(1.,0.);
+            int i=0;
+            for(i=0;i<iter && r2<Bailout;i++){
+                dz=2.*vec2(dz.x*z.x-dz.y*z.y+1.,dz.x*z.y+dz.y*z.x);
+                z=vec2(z.x*z.x-z.y*z.y,z.x*z.y*2.)+ (Julia ? c2 : pos.xy);
+                r2=dot(z,z);
+            }
+            if (i < iter) {
+                // The color scheme here is based on one
+                // from Inigo Quilez's Shader Toy:
+                float co =  float( i) + 1.0 - log2(.5*log2(dot(z,z)));
+                co = sqrt(co/256.0);
+                return vec3(1.0) - vec3( .5+.5*cos(6.2831*co+CR),
+                    .5+.5*cos(6.2831*co + CG),
+                    .5+.5*cos(6.2831*co +CB) );
+            }  else {
+                return vec3(1.0);
+            }
+        }
+
+        float DE(vec3 pos) 
+        {
+            const int iter = int(${numIterations});
+
+            vec2 z = Julia ?  pos.xy : vec2(0.0,0.0);
+            vec2 z0=z;
+            float r2=dot(z,z);
+            vec2 dz=vec2(1.,0.);
+            int i=0;
+            for(i=0;i<iter && r2<Bailout;i++){
+                dz=2.*vec2(dz.x*z.x-dz.y*z.y+1.,dz.x*z.y+dz.y*z.x);
+                z=vec2(z.x*z.x-z.y*z.y,z.x*z.y*2.)+ (Julia ? c2 : pos.xy);
+                r2=dot(z,z);
+            }
+            float r=sqrt(r2);
+            float dr=length(dz);
+            dr=0.4*r*log(r)/dr;
+            // if (i == iter) dr = 0;
+            if(r2<4.) dr=0.;
+            return 0.5*(pos.z-Slope*dr)*k;
+        }
+
+        float SDF_SURFACE(vec3 p)
+        {
+            return DE(p.zxy);
+        }
+    
+        vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
+        {
+            return C * baseColor(X.zxy, N);
+        }
+        `;
+    }
+    
+    Scene.prototype.getLengthScale = function()    { return 1.0; }
+    Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
+    Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
+    
+    Scene.prototype.preframeCallback = function(snelly, gl)
+    {
+        let renderer  = snelly.getRenderer();
+        let camera    = snelly.getCamera();
+        let controls  = snelly.getControls();
+        let materials = snelly.getMaterials();
+        let gui       = snelly.getGUI();
+    
+        let time = this.animFrame/this.FPS;
+        this.endFrame = this.period * this.FPS;
+        if (this.animFrame > this.endFrame) this.animFrame = 0;
+    
+        // Advance scene state to next anim frame, if we have reached the spp count for the previous frame
+        if (this.advanceFrame || this.animFrame == 0)
+        {
+            // animate scene
+            this.par.time = time;
+        }
+    
+        if (this.advanceFrame)
+        {
+            gui.sync();
+    
+            // Tell renderer to restart sampling
+            let no_recompile = true;
+            renderer.reset(no_recompile);
+            this.advanceFrame = false;
+        }
+    
+        this.timer_start = performance.now();
+    }
+    
+    Scene.prototype.postframeCallback = function(snelly, gl)
+    {
+        // pause if FPS exceeded our goal
+        var timer_end = performance.now();
+        var frame_time_ms = (timer_end - this.timer_start);
+        let goal_ms = Math.min(1.0e3, Math.max(1.0, 1.0e3/this.FPS));
+        if (frame_time_ms<goal_ms)
+        {
+            (function pause(ms) {
+                var t0 = performance.now(); var t1 = null;
+                do { t1 = performance.now(); } while (t1-t0 < ms);
+            }(goal_ms-frame_time_ms));
+        }
+    
+        let renderer = snelly.getRenderer();
+        if (this.animFrame>=0 && renderer.getSPP()>=this.targetSPP && this.animFrame<=this.endFrame && this.playing)
+        {
+            this.advanceFrame = true;
+            this.animFrame++;
+        }
+    }
+    
+    Scene.prototype.onkeydownCallback = function(event, snelly, gl)
+    {
+        var charCode = (event.which) ? event.which : event.keyCode;
+        switch (charCode)
+        {
+            case 32: // toggle pause/play on spacebar
+                this.playing = !this.playing;
+                break;
+        }
+    }
+    
+    Scene.prototype.initGui = function(gui)
+    {
+        this.typeItem = gui.getSceneFolder().add(this.par, 'Julia');
+        this.typeItem.onChange( function(value) { snelly.reset(); } );
+        
+        gui.addSlider(this.par, {name: 'numIterations', min: 1, max: 50, step: 1, recompile: true});
+        gui.addSlider(this.par, {name: 'CR', min: 0.0, max: 1.0});
+        gui.addSlider(this.par, {name: 'CG', min: 0.0, max: 1.0});
+        gui.addSlider(this.par, {name: 'CB', min: 0.0, max: 1.0});
+        gui.addSlider(this.par, {name: 'Bailout', min: 0.0, max: 1024.0});
+        gui.addSlider(this.par, {name: 'Slope', min: -100.0, max: 10.0});
+        gui.addSlider(this.par, {name: 'JuliaX', min: -2.0, max: 2.0});
+        gui.addSlider(this.par, {name: 'JuliaY', min: -2.0, max: 2.0});
+    }
+    
+    Scene.prototype.syncShader = function(snelly, shader)
+    {
+        shader.uniformF("scale", this.par.scale);
+        shader.uniformF("time", this.par.time);
+        shader.uniformF("CR", this.par.CR);
+        shader.uniformF("CG", this.par.CG);
+        shader.uniformF("CB", this.par.CB);
+        shader.uniformF("Bailout", this.par.Bailout);
+        shader.uniformF("Slope", this.par.Slope);
+        shader.uniformI("Julia", this.par.Julia);
+        shader.uniformF("JuliaX", this.par.JuliaX);
+        shader.uniformF("JuliaY", this.par.JuliaY);
+    }
+    
+    </script>
+    
+    <?/* ------------------------------------------------------------------*/?>
+    <?/*                            main loop                              */?>
+    <?/* ------------------------------------------------------------------*/?>
+    
+    <script type="text/javascript">
+    function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+    function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+    </script>
+    
+    </body>
+    

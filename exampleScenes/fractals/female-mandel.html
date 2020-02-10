@@ -1,0 +1,930 @@
+   
+<body onload="onLoad();">
+
+    <script src="../../js/thirdparty/jquery-1.11.3.min.js"></script>
+    <script src="../../js/thirdparty/three/three.min.js"></script>
+    <script src="../../js/thirdparty/three/libs/stats.min.js"></script>
+    <script src="../../js/thirdparty/three/libs/dat.gui.min.js"></script>
+    <script src="../../js/thirdparty/three/controls/OrbitControls.js"></script>
+    <script src="../../js/gl.js"></script>
+    <script src="../../js/gui.js"></script>
+    <script src="../../js/shaders.js"></script>
+    <script src="../../js/color.js"></script>
+    <script src="../../js/materials.js"></script>
+    <script src="../../js/spectra.js"></script>
+    <script src="../../js/renderer.js"></script>
+    <script src="../../js/snelly.js"></script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                         scene definition                          */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script>
+
+window.Packer = function()
+{
+    this.VERSION_MAJOR = 1;
+    this.VERSION_MINOR = 0;
+}
+
+window.Packer.prototype = {
+
+    decode: function(image) {
+
+        let bitsPerColorComponent = 8;
+        let canvas = document.createElement('canvas');
+        let ctx = canvas.getContext('2d');
+        canvas.width = image.width;
+        canvas.height = image.height;
+        ctx.drawImage(image, 0, 0);
+        let img = ctx.getImageData(0, 0, image.width, image.height);
+
+        let imgData = img.data;
+        let length = imgData.length;
+        let buf = this.raw_decode = new Uint8Array(image.width * image.height * 3);
+
+        let i = 0;
+        let j = 0;
+        while(i < length) 
+        {
+            buf[j++] = imgData[i++];
+            buf[j++] = imgData[i++];
+            buf[j++] = imgData[i++];
+            i++;
+        }
+
+        if(buf[0] == 0xbe && buf[1] == 0xef) 
+        {
+            let mdSize   = buf[4] | buf[5] << 8 | buf[6] << 16 | buf[7] << 24;
+            let dataSize = buf[8] | buf[9] << 8 | buf[10] << 16 | buf[11] << 24;
+
+            console.log('mdSize: ', mdSize);
+            console.log('dataSize: ', dataSize);
+            console.log('data in buffer: ', buf.length - mdSize - 12);
+
+            let mdBuf = buf.subarray(12, 12 + mdSize);
+            let metaData = JSON.parse(this.utf8Decode(mdBuf));
+            console.log('loaded metadata: ', metaData)
+            let pos = 12 + mdSize;
+            var data = new Uint8Array(dataSize);
+            data.set(buf.subarray(pos, pos + dataSize));
+            let dataAsFloat32Array = new Float32Array(data.buffer);
+
+            let asset = {
+                metadata: metaData,
+                data: dataAsFloat32Array };
+            return asset;
+        }
+        else
+        {
+            console.log('corrupt magic number in file!');
+        }
+    },
+
+    loadImage: function(url, callback) 
+    {
+        var imgInfo = {
+            width: 1,
+            height: 1,
+            url: url,
+        };
+        var img = new Image();
+        img.addEventListener('load', function() {
+            callback(img, url);
+        });
+        img.crossOrigin = "";
+        img.src = url;
+        return imgInfo;
+    },
+
+    utf8Decode: function(uint8array) {
+        var len = uint8array.byteLength;
+        var string = "";
+        var i = 0;
+        while (i < len) {
+            var c = uint8array[i];
+            if (c < 128) {
+                string += String.fromCharCode(c);
+                i++;
+            } else if((c > 191) && (c < 224) && (i + 1 < len)) {
+                string += String.fromCharCode(((c & 31) << 6) | (uint8array[i + 1] & 63));
+                i += 2;
+            } else if(i + 2 < len) {
+                string += String.fromCharCode(((c & 15) << 12) | ((uint8array[i + 1] & 63) << 6) | (uint8array[i + 2] & 63));
+                i += 3;
+            }
+        }
+        return string;
+    }
+
+}
+
+
+
+function Scene() {}
+Scene.prototype.init = function(snelly)
+{
+    this.par = {};
+    this.par.var_a = 41.7;
+    this.par.var_b = 23.7;
+    this.par.var_c = 63.1;
+    this.par.var_d = 0.12;
+    this.par.var_e = 1;
+    this.par.var_f = 1;
+    this.par.var_g = 1;
+    this.par.var_h = 1;
+    this.par.var_i = 1;
+    this.par.var_j = 1;
+	this.par.Iterations = 3;
+	this.par.rotation = [0,0,0];
+	this.par.Scale = 2.818886539816772;
+	this.par.MinRad2 = 0.01;
+		
+    /******* copy-pasted console output on 'O', begin *******/
+
+    let renderer  = snelly.getRenderer();
+let camera    = snelly.getCamera();
+let controls  = snelly.getControls();
+let materials = snelly.getMaterials();
+    
+this.par = {};
+this.par.var_a = 35.921435330752225;
+this.par.var_b = 43.70067607516515;
+this.par.var_c = 21.207681036477204;
+this.par.var_d = 0.03367634562258021;
+this.par.var_e = 10;
+this.par.var_f = 10;
+this.par.var_g = 10;
+this.par.var_h = 0.21328352227634134;
+this.par.var_i = 3.3;
+this.par.var_j = 3.19925283414512;
+this.par.Iterations = 17.022551092318533;
+this.par.rotation = [0,0,0];
+this.par.Scale = 2.0205807373548126;
+this.par.MinRad2 = 0.2694107649806417;
+this.frame = 0;
+
+snelly.showGUI(true);
+
+/** Camera settings **/
+camera.fov = 45;
+camera.aperture = -8.188571428571429;
+camera.focalDistance = 1.210218644838713;
+camera.up.set(0, 1, 0);
+camera.position.set(225.23520643789192, 68.91638969160425, -124.52772096507111);
+controls.target.set(96.90964011590243, 56.445811971418294, -0.6065840386105743);
+
+/** Renderer settings **/
+renderer.renderMode = 'pt';
+renderer.dispersive = false;
+renderer.maxSamplesPerFrame = 1;
+renderer.maxSpp = 4096;
+renderer.maxBounces = 3;
+renderer.maxScatters = 2;
+renderer.maxMarchSteps = 482;
+renderer.maxVolumeSteps = 256;
+renderer.maxStepsIsMiss = true;
+renderer.interactive = true;
+renderer.goalFPS = 20;
+renderer.minsSPPToRedraw = 1;
+renderer.radianceClamp = 1;
+renderer.wavelengthSamples = 256;
+renderer.exposure = 0.7142857142857135;
+renderer.gamma = 1.8171428571428572;
+renderer.contrast = 1.2685714285714287;
+renderer.saturation = 0.72;
+renderer.skyPower = 1.1678537342310484;
+renderer.skyTint = [1, 1, 1];
+renderer.envMapRotation = 135.77142857142857;
+renderer.envMapVisible = true;
+renderer.sunPower = 1.6799999999999997;
+renderer.sunColor = [1, 0.5, 0.9117647058823528];
+renderer.sunAngularSize = 18.309191603742352;
+renderer.sunLatitude = 31.91566007801677;
+renderer.sunLongitude = 218.05714285714288;
+renderer.sunVisibleDirectly = false;
+renderer.shadowStrength = 1;
+
+/** Material settings **/
+let surface = materials.loadSurface();
+surface.roughness = 0.08082322949419252;
+surface.ior = 1.5;
+surface.diffuseAlbedo = [0.7647058823529411, 0.3148788927335641, 0.12745098039215683];
+surface.specAlbedo = [0.7941176470588236, 0.6155098717687767, 0.5605536332179931];
+
+let metal = materials.loadMetal('Chromium');
+metal.roughness = 0.05388215299612834;
+
+    /******* copy-pasted console output on 'O', end *******/
+
+    renderer.minsSPPToRedraw = 1;
+
+    let gl = snelly.getGLContext();
+    let texture_unit = snelly.getUserTextureUnitStart();
+
+    let type = gl.FLOAT;
+    let internalformat = gl.R32F;
+    let format = gl.RED;   
+
+    this.sdfTexture0 = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0 + texture_unit);
+    gl.bindTexture(gl.TEXTURE_3D, this.sdfTexture0);
+    gl.texImage3D(gl.TEXTURE_3D, 0, internalformat, 1, 1, 1, 0, format, type, null);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    this.sdfTexture1 = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE1 + texture_unit);
+    gl.bindTexture(gl.TEXTURE_3D, this.sdfTexture1);
+    gl.texImage3D(gl.TEXTURE_3D, 0, internalformat, 1, 1, 1, 0, format, type, null);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    this.sdfTexture2 = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE2 + texture_unit);
+    gl.bindTexture(gl.TEXTURE_3D, this.sdfTexture2);
+    gl.texImage3D(gl.TEXTURE_3D, 0, internalformat, 1, 1, 1, 0, format, type, null);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    // Load SDF textures
+    let imageUrl0 = 'https://portsmouth.github.io/SDFGen/assets/female-body-pose1.png';
+    let imageUrl1 = 'https://portsmouth.github.io/SDFGen/assets/female-body-pose2.png';
+    let imageUrl2 = 'https://portsmouth.github.io/SDFGen/assets/female-body-pose3.png';
+
+    var packer = new Packer();
+    let SCENE = this;
+
+    packer.loadImage(imageUrl0, function(img, url)
+                                {
+                                    console.log('image loaded from: ', url);
+                                    let asset = packer.decode(img);
+                                    let md = asset.metadata;
+                                    SCENE.ORIG0 = md.ORIG;
+                                    SCENE.EDGE0 = md.EDGE;
+                                    let width  = md.GRES[0];
+                                    let height = md.GRES[1];
+                                    let depth  = md.GRES[2];
+                                    let texture_unit = snelly.getUserTextureUnitStart();
+                                    gl.activeTexture(gl.TEXTURE0 + texture_unit);
+                                    gl.bindTexture(gl.TEXTURE_3D, SCENE.sdfTexture0);
+                                    gl.texImage3D(gl.TEXTURE_3D, 0, internalformat, width, height, depth, 0, format, type, asset.data);
+                                    snelly.reset();
+                                });
+
+    packer.loadImage(imageUrl1, function(img, url)
+                                {
+                                    console.log('image loaded from: ', url);
+                                    let asset = packer.decode(img);
+                                    let md = asset.metadata;
+                                    SCENE.ORIG1 = md.ORIG;
+                                    SCENE.EDGE1 = md.EDGE;
+                                    let width  = md.GRES[0];
+                                    let height = md.GRES[1];
+                                    let depth  = md.GRES[2];
+                                    let texture_unit = snelly.getUserTextureUnitStart();
+                                    gl.activeTexture(gl.TEXTURE1 + texture_unit);
+                                    gl.bindTexture(gl.TEXTURE_3D, SCENE.sdfTexture1);
+                                    gl.texImage3D(gl.TEXTURE_3D, 0, internalformat, width, height, depth, 0, format, type, asset.data);
+                                    snelly.reset();
+                                });
+
+    packer.loadImage(imageUrl2, function(img, url)
+                                {
+                                    console.log('image loaded from: ', url);
+                                    let asset = packer.decode(img);
+                                    let md = asset.metadata;
+                                    SCENE.ORIG2 = md.ORIG;
+                                    SCENE.EDGE2 = md.EDGE;
+                                    let width  = md.GRES[0];
+                                    let height = md.GRES[1];
+                                    let depth  = md.GRES[2];
+                                    let texture_unit = snelly.getUserTextureUnitStart();
+                                    gl.activeTexture(gl.TEXTURE2 + texture_unit);
+                                    gl.bindTexture(gl.TEXTURE_3D, SCENE.sdfTexture2);
+                                    gl.texImage3D(gl.TEXTURE_3D, 0, internalformat, width, height, depth, 0, format, type, asset.data);
+                                    snelly.reset();
+                                });
+}
+
+Scene.prototype.getName = function() { return 'mesh'; }
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/meshes/hand.html"; }
+Scene.prototype.envMap = function() { return 'https://portsmouth.github.io/envmaps/good_evening.jpg'; }
+
+
+Scene.prototype.initGui = function(gui) 
+{ 
+    gui.addSlider(this.par, {name: 'var_a', min: 0.0, max: 100.0});
+    gui.addSlider(this.par, {name: 'var_b', min: 0.0, max: 100.0});
+    gui.addSlider(this.par, {name: 'var_c', min: 0.0, max: 100.0});
+    gui.addSlider(this.par, {name: 'var_d', min: 0.0, max: 1.0});
+    gui.addSlider(this.par, {name: 'var_e', min: 0.0, max: 10.0});
+    gui.addSlider(this.par, {name: 'var_f', min: 0.0, max: 10.0});
+    gui.addSlider(this.par, {name: 'var_g', min: 0.0, max: 10.0});
+    gui.addSlider(this.par, {name: 'var_h', min: 0.0, max: 1.0});
+    gui.addSlider(this.par, {name: 'var_i', min: 0.0, max: 10.0});
+    gui.addSlider(this.par, {name: 'var_j', min: 0.0, max: 15.0});
+
+    gui.addSlider(this.par, {name: 'Iterations', min: 1, max: 30, step: 1, recompile: true});
+    gui.addSlider(this.par, {name: 'Scale', min: 0.0, max: 10.0});
+    gui.addSlider(this.par, {name: 'MinRad2', min: 0.0, max: 1.0});
+	gui.addColor(this.par, "rotation", 180.0);
+}
+
+Scene.prototype.initGenerator = function()
+{
+    return `
+this.par = {};
+this.par.var_a = ${this.par.var_a};
+this.par.var_b = ${this.par.var_b};
+this.par.var_c = ${this.par.var_c};
+this.par.var_d = ${this.par.var_d};
+this.par.var_e = ${this.par.var_e};
+this.par.var_f = ${this.par.var_f};
+this.par.var_g = ${this.par.var_g};
+this.par.var_h = ${this.par.var_h};
+this.par.var_i = ${this.par.var_i};
+this.par.var_j = ${this.par.var_j};
+this.par.Iterations = ${this.par.Iterations};
+this.par.rotation = [${this.par.rotation}];
+this.par.Scale = ${this.par.Scale};
+this.par.MinRad2 = ${this.par.MinRad2};
+this.frame = 0;
+`;
+}
+
+Scene.prototype.isReady = function(snelly)            
+{
+    return this.ORIG0 && this.ORIG1 && this.ORIG2;
+}
+
+
+Scene.prototype.getLengthScale = function()    { return 10.0; }
+Scene.prototype.getMinLengthScale = function() { return 1.0e-3 * this.getLengthScale(); }
+Scene.prototype.getMaxLengthScale = function() { return 2.0e2 * this.getLengthScale(); }
+Scene.prototype.syncShader = function(snelly, shader)  
+{
+    let gl = snelly.getGLContext();
+    let texture_unit = snelly.getUserTextureUnitStart();
+
+    let program = shader.getProgram();
+
+    let texture_id0 = gl.getUniformLocation(program, "sdfTex0");
+    gl.activeTexture(gl.TEXTURE0 + texture_unit);
+    gl.bindTexture(gl.TEXTURE_3D, this.sdfTexture0);
+    gl.uniform1i(texture_id0, texture_unit + 0);
+
+    let texture_id1 = gl.getUniformLocation(program, "sdfTex1");
+    gl.activeTexture(gl.TEXTURE1 + texture_unit);
+    gl.bindTexture(gl.TEXTURE_3D, this.sdfTexture1);
+    gl.uniform1i(texture_id1, texture_unit + 1);
+
+    let texture_id2 = gl.getUniformLocation(program, "sdfTex2");
+    gl.activeTexture(gl.TEXTURE2 + texture_unit);
+    gl.bindTexture(gl.TEXTURE_3D, this.sdfTexture2);
+    gl.uniform1i(texture_id2, texture_unit + 2);
+
+    shader.uniform3Fv("O0", this.ORIG0);
+    shader.uniform3Fv("O1", this.ORIG1);
+    shader.uniform3Fv("O2", this.ORIG2);
+    shader.uniform3Fv("E0", this.EDGE0);
+    shader.uniform3Fv("E1", this.EDGE1);
+    shader.uniform3Fv("E2", this.EDGE2);
+
+    shader.uniformF("var_a", this.par.var_a);
+    shader.uniformF("var_b", this.par.var_b);
+    shader.uniformF("var_c", this.par.var_c);
+    shader.uniformF("var_d", this.par.var_d);
+    shader.uniformF("var_e", this.par.var_e);
+    shader.uniformF("var_f", this.par.var_f);
+    shader.uniformF("var_g", this.par.var_g);
+    shader.uniformF("var_h", this.par.var_h);
+    shader.uniformF("var_i", this.par.var_i);
+    shader.uniformF("var_j", this.par.var_j);
+
+	shader.uniformF("Scale", this.par.Scale);
+	shader.uniformF("MinRad2", this.par.MinRad2);
+	shader.uniform3Fv("RotVector", this.par.rotation);
+}
+
+Scene.prototype.shader = function()
+{
+    let Iterations = this.par.Iterations;
+    
+    return `
+    uniform vec3 O0, O1, O2;
+    uniform vec3 E0, E1, E2;
+
+    uniform float var_a;
+    uniform float var_b;
+    uniform float var_c;
+    uniform float var_d;
+    uniform float var_e;
+    uniform float var_f;
+    uniform float var_g;
+    uniform float var_h;
+    uniform float var_i;
+    uniform float var_j;
+
+    precision highp sampler3D;
+    uniform sampler3D sdfTex0;
+    uniform sampler3D sdfTex1;
+    uniform sampler3D sdfTex2;
+
+	uniform vec3 RotVector;
+	uniform float Scale;
+	uniform float MinRad2;
+
+	mat3 rot;
+	vec4 scale;
+	float absScalem1;
+	float AbsScaleRaisedTo1mIters;
+	vec3 L;
+
+	mat3 rotationMatrix3(vec3 v, float angle)
+	{
+		float c = cos(radians(angle));
+		float s = sin(radians(angle));
+		return mat3(c + (1.0-c)*v.x*v.x,             (1.0-c)*v.x*v.y - s*v.z,     (1.0-c)*v.x*v.z + s*v.y,
+			            (1.0-c)*v.x*v.y + s*v.z, c + (1.0-c)*v.y*v.y,             (1.0-c)*v.y*v.z - s*v.x,
+			            (1.0-c)*v.x*v.z - s*v.y,     (1.0-c)*v.y*v.z + s*v.x, c + (1.0-c)*v.z*v.z );
+	}
+
+	void INIT()
+	{
+		float angle = length(RotVector);
+		vec3 axis = vec3(0.0, 1.0, 0.0);
+		if (angle>0.0) axis = normalize(RotVector);
+		rot = rotationMatrix3(axis, angle);
+		scale = vec4(Scale, Scale, Scale, abs(Scale)) / MinRad2;
+		absScalem1 = abs(Scale - 1.0);
+		const int Iterations = int(${Iterations});
+		AbsScaleRaisedTo1mIters = pow(abs(Scale), float(1-Iterations));
+	}
+
+	float mandelbox(vec3 pos)
+	{
+		vec4 p = vec4(pos,1);
+		vec4 p0 = p;  // p.w is the distance estimate
+		const int Iterations = int(${Iterations});
+		for (int i=0; i<Iterations; i++)
+		{
+			p.xyz *= rot;
+			p.xyz = clamp(p.xyz, -1.0, 1.0)*2.0 - p.xyz;
+			float r2 = dot(p.xyz, p.xyz);
+			p *= clamp(max(MinRad2/r2, MinRad2), 0.0, 1.0);
+			p = p*scale + p0;
+	        if (r2>1000.0) break;
+		}
+		return ((length(p.xyz) - absScalem1) / p.w - AbsScaleRaisedTo1mIters);
+	}
+
+    ////////////////////////////////////////////////////////////////
+        //             HELPER FUNCTIONS/MACROS
+        ////////////////////////////////////////////////////////////////
+
+        #define PI 3.14159265
+        #define TAU (2.0*PI)
+        #define PHI (sqrt(5.0)*0.5 + 0.5)
+
+        // Clamp to [0,1] - this operation is free under certain circumstances.
+        #define saturate(x) clamp(x, 0.0, 1.0)
+
+        // Sign function that doesn't return 0
+        float sgn(float x) {
+            return (x<0.0)?-1.0:1.0;
+        }
+
+        vec2 sgn(vec2 v) {
+            return vec2((v.x<0.0)?-1.0:1.0, (v.y<0.0)?-1.0:1.0);
+        }
+
+        float square (float x) {
+            return x*x;
+        }
+
+        vec2 square (vec2 x) {
+            return x*x;
+        }
+
+        vec3 square (vec3 x) {
+            return x*x;
+        }
+
+        float lengthSqr(vec3 x) {
+            return dot(x, x);
+        }
+
+
+        // Maximum/minumum elements of a vector
+        float vmax(vec2 v) {
+            return max(v.x, v.y);
+        }
+
+        float vmax(vec3 v) {
+            return max(max(v.x, v.y), v.z);
+        }
+
+        float vmax(vec4 v) {
+            return max(max(v.x, v.y), max(v.z, v.w));
+        }
+
+        float vmin(vec2 v) {
+            return min(v.x, v.y);
+        }
+
+        float vmin(vec3 v) {
+            return min(min(v.x, v.y), v.z);
+        }
+
+        float vmin(vec4 v) {
+            return min(min(v.x, v.y), min(v.z, v.w));
+        }
+
+        ////////////////////////////////////////////////////////////////
+        //                DOMAIN MANIPULATION OPERATORS
+        ////////////////////////////////////////////////////////////////
+
+        // Rotate around a coordinate axis (i.e. in a plane perpendicular to that axis) by angle <a>.
+        // Read like this: R(p.xz, a) rotates "x towards z".
+        // This is fast if <a> is a compile-time constant and slower (but still practical) if not.
+        void pR(inout vec2 p, float a) {
+            p = cos(a)*p + sin(a)*vec2(p.y, -p.x);
+        }
+
+        // Shortcut for 45-degrees rotation
+        void pR45(inout vec2 p) {
+            p = (p + vec2(p.y, -p.x))*sqrt(0.5);
+        }
+
+        // Repeat space along one axis. Use like this to repeat along the x axis:
+        // <float cell = pMod1(p.x,5);> - using the return value is optional.
+        float pMod1(inout float p, float size) {
+            float halfsize = size*0.5;
+            float c = floor((p + halfsize)/size);
+            p = mod(p + halfsize, size) - halfsize;
+            return c;
+        }
+
+        // Same, but mirror every second cell so they match at the boundaries
+        float pModMirror1(inout float p, float size) {
+            float halfsize = size*0.5;
+            float c = floor((p + halfsize)/size);
+            p = mod(p + halfsize,size) - halfsize;
+            p *= mod(c, 2.0)*2.0 - 1.0;
+            return c;
+        }
+
+        // Repeat the domain only in positive direction. Everything in the negative half-space is unchanged.
+        float pModSingle1(inout float p, float size) {
+            float halfsize = size*0.5;
+            float c = floor((p + halfsize)/size);
+            if (p >= 0.0)
+                p = mod(p + halfsize, size) - halfsize;
+            return c;
+        }
+
+        // Repeat only a few times: from indices <start> to <stop> (similar to above, but more flexible)
+        float pModInterval1(inout float p, float size, float start, float stop) {
+            float halfsize = size*0.5;
+            float c = floor((p + halfsize)/size);
+            p = mod(p+halfsize, size) - halfsize;
+            if (c > stop) { //yes, this might not be the best thing numerically.
+                p += size*(c - stop);
+                c = stop;
+            }
+            if (c <start) {
+                p += size*(c - start);
+                c = start;
+            }
+            return c;
+        }
+
+        // Repeat around the origin by a fixed angle.
+        // For easier use, num of repetitions is use to specify the angle.
+        float pModPolar(inout vec2 p, float repetitions) {
+            float angle = 2.0*PI/repetitions;
+            float a = atan(p.y, p.x) + angle/2.;
+            float r = length(p);
+            float c = floor(a/angle);
+            a = mod(a,angle) - angle/2.0;
+            p = vec2(cos(a), sin(a))*r;
+            // For an odd number of repetitions, fix cell index of the cell in -x direction
+            // (cell index would be e.g. -5 and 5 in the two halves of the cell):
+            if (abs(c) >= (repetitions/2.0)) c = abs(c);
+            return c;
+        }
+
+        // Repeat in two dimensions
+        vec2 pMod2(inout vec2 p, vec2 size) {
+            vec2 c = floor((p + size*0.5)/size);
+            p = mod(p + size*0.5,size) - size*0.5;
+            return c;
+        }
+
+        // Same, but mirror every second cell so all boundaries match
+        vec2 pModMirror2(inout vec2 p, vec2 size) {
+            vec2 halfsize = size*0.5;
+            vec2 c = floor((p + halfsize)/size);
+            p = mod(p + halfsize, size) - halfsize;
+            p *= mod(c,vec2(2.0))*2.0 - vec2(1.0);
+            return c;
+        }
+
+        // Same, but mirror every second cell at the diagonal as well
+        vec2 pModGrid2(inout vec2 p, vec2 size) {
+            vec2 c = floor((p + size*0.5)/size);
+            p = mod(p + size*0.5, size) - size*0.5;
+            p *= mod(c,vec2(2.0))*2.0 - vec2(1.0);
+            p -= size/2.0;
+            if (p.x > p.y) p.xy = p.yx;
+            return floor(c/2.0);
+        }
+
+        // Repeat in three dimensions
+        vec3 pMod3(inout vec3 p, vec3 size) {
+            vec3 c = floor((p + size*0.5)/size);
+            p = mod(p + size*0.5, size) - size*0.5;
+            return c;
+        }
+
+        // Mirror at an axis-aligned plane which is at a specified distance <dist> from the origin.
+        float pMirror (inout float p, float dist) {
+            float s = sgn(p);
+            p = abs(p)-dist;
+            return s;
+        }
+
+        // Mirror in both dimensions and at the diagonal, yielding one eighth of the space.
+        // translate by dist before mirroring.
+        vec2 pMirrorOctant (inout vec2 p, vec2 dist) {
+            vec2 s = sgn(p);
+            pMirror(p.x, dist.x);
+            pMirror(p.y, dist.y);
+            if (p.y > p.x)
+                p.xy = p.yx;
+            return s;
+        }
+
+        // Reflect space at a plane
+        float pReflect(inout vec3 p, vec3 planeNormal, float offset) {
+            float t = dot(p, planeNormal)+offset;
+            if (t < 0.0) {
+                p = p - (2.0*t)*planeNormal;
+            }
+            return sgn(t);
+        }
+        
+        ////////////////////////////////////////////////////////////////
+        //
+        //             OBJECT COMBINATION OPERATORS
+        //
+        ////////////////////////////////////////////////////////////////
+        //
+        // We usually need the following boolean operators to combine two objects:
+        // Union: OR(a,b)
+        // Intersection: AND(a,b)
+        // Difference: AND(a,!b)
+        // (a and b being the distances to the objects).
+        //
+        // The trivial implementations are min(a,b) for union, max(a,b) for intersection
+        // and max(a,-b) for difference. To combine objects in more interesting ways to
+        // produce rounded edges, chamfers, stairs, etc. instead of plain sharp edges we
+        // can use combination operators. It is common to use some kind of "smooth minimum"
+        // instead of min(), but we don't like that because it does not preserve Lipschitz
+        // continuity in many cases.
+        //
+        // Naming convention: since they return a distance, they are called fOpSomething.
+        // The different flavours usually implement all the boolean operators above
+        // and are called fOpUnionRound, fOpIntersectionRound, etc.
+        //
+        // The basic idea: Assume the object surfaces intersect at a right angle. The two
+        // distances <a> and <b> constitute a new local two-dimensional coordinate system
+        // with the actual intersection as the origin. In this coordinate system, we can
+        // evaluate any 2D distance function we want in order to shape the edge.
+        //
+        // The operators below are just those that we found useful or interesting and should
+        // be seen as examples. There are infinitely more possible operators.
+        //
+        // They are designed to actually produce correct distances or distance bounds, unlike
+        // popular "smooth minimum" operators, on the condition that the gradients of the two
+        // SDFs are at right angles. When they are off by more than 30 degrees or so, the
+        // Lipschitz condition will no longer hold (i.e. you might get artifacts). The worst
+        // case is parallel surfaces that are close to each other.
+        //
+        // Most have a float argument <r> to specify the radius of the feature they represent.
+        // This should be much smaller than the object size.
+        //
+        // Some of them have checks like "if ((-a < r) && (-b < r))" that restrict
+        // their influence (and computation cost) to a certain area. You might
+        // want to lift that restriction or enforce it. We have left it as comments
+        // in some cases.
+        //
+        // usage example:
+        //
+        // float fTwoBoxes(vec3 p) {
+        //   float box0 = fBox(p, vec3(1));
+        //   float box1 = fBox(p-vec3(1), vec3(1));
+        //   return fOpUnionChamfer(box0, box1, 0.2);
+        // }
+        //
+        ////////////////////////////////////////////////////////////////
+
+
+        // The "Chamfer" flavour makes a 45-degree chamfered edge (the diagonal of a square of size <r>):
+        float fOpUnionChamfer(float a, float b, float r) {
+            return min(min(a, b), (a - r + b)*sqrt(0.5));
+        }
+
+        // Intersection has to deal with what is normally the inside of the resulting object
+        // when using union, which we normally don't care about too much. Thus, intersection
+        // implementations sometimes differ from union implementations.
+        float fOpIntersectionChamfer(float a, float b, float r) {
+            return max(max(a, b), (a + r + b)*sqrt(0.5));
+        }
+
+        // Difference can be built from Intersection or Union:
+        float fOpDifferenceChamfer (float a, float b, float r) {
+            return fOpIntersectionChamfer(a, -b, r);
+        }
+
+        // The "Round" variant uses a quarter-circle to join the two objects smoothly:
+        float fOpUnionRound(float a, float b, float r) {
+            vec2 u = max(vec2(r - a,r - b), vec2(0));
+            return max(r, min (a, b)) - length(u);
+        }
+
+        float fOpIntersectionRound(float a, float b, float r) {
+            vec2 u = max(vec2(r + a,r + b), vec2(0));
+            return min(-r, max (a, b)) + length(u);
+        }
+
+        float fOpDifferenceRound (float a, float b, float r) {
+            return fOpIntersectionRound(a, -b, r);
+        }
+
+        // The "Columns" flavour makes n-1 circular columns at a 45 degree angle:
+        float fOpUnionColumns(float a, float b, float r, float n) {
+            if ((a < r) && (b < r)) {
+                vec2 p = vec2(a, b);
+                float columnradius = r*sqrt(2.0)/((n-1.0)*2.0+sqrt(2.0));
+                pR45(p);
+                p.x -= sqrt(2.0)/2.0*r;
+                p.x += columnradius*sqrt(2.0);
+                if (mod(n,2.0) == 1.0) {
+                    p.y += columnradius;
+                }
+                // At this point, we have turned 45 degrees and moved at a point on the
+                // diagonal that we want to place the columns on.
+                // Now, repeat the domain along this direction and place a circle.
+                pMod1(p.y, columnradius*2.0);
+                float result = length(p) - columnradius;
+                result = min(result, p.x);
+                result = min(result, a);
+                return min(result, b);
+            } else {
+                return min(a, b);
+            }
+        }
+
+        float fOpDifferenceColumns(float a, float b, float r, float n) {
+            a = -a;
+            float m = min(a, b);
+            //avoid the expensive computation where not needed (produces discontinuity though)
+            if ((a < r) && (b < r)) {
+                vec2 p = vec2(a, b);
+                float columnradius = r*sqrt(2.0)/n/2.0;
+                columnradius = r*sqrt(2.0)/((n-1.0)*2.0+sqrt(2.0));
+
+                pR45(p);
+                p.y += columnradius;
+                p.x -= sqrt(2.0)/2.0*r;
+                p.x += -columnradius*sqrt(2.0)/2.0;
+
+                if (mod(n,2.0) == 1.0) {
+                    p.y += columnradius;
+                }
+                pMod1(p.y,columnradius*2.0);
+
+                float result = -length(p) + columnradius;
+                result = max(result, p.x);
+                result = min(result, a);
+                return -min(result, b);
+            } else {
+                return -m;
+            }
+        }
+
+        float fOpIntersectionColumns(float a, float b, float r, float n) {
+            return fOpDifferenceColumns(a,-b,r, n);
+        }
+
+        // The "Stairs" flavour produces n-1 steps of a staircase:
+        // much less stupid version by paniq
+        float fOpUnionStairs(float a, float b, float r, float n) {
+            float s = r/n;
+            float u = b-r;
+            return min(min(a,b), 0.5 * (u + a + abs ((mod (u - a + s, 2.0 * s)) - s)));
+        }
+
+        // We can just call Union since stairs are symmetric.
+        float fOpIntersectionStairs(float a, float b, float r, float n) {
+            return -fOpUnionStairs(-a, -b, r, n);
+        }
+
+        float fOpDifferenceStairs(float a, float b, float r, float n) {
+            return -fOpUnionStairs(-a, b, r, n);
+        }
+
+
+        // Similar to fOpUnionRound, but more lipschitz-y at acute angles
+        // (and less so at 90 degrees). Useful when fudging around too much
+        // by MediaMolecule, from Alex Evans' siggraph slides
+        float fOpUnionSoft(float a, float b, float r) {
+            float e = max(r - abs(a - b), 0.0);
+            return min(a, b) - e*e*0.25/r;
+        }
+
+
+        // produces a cylindical pipe that runs along the intersection.
+        // No objects remain, only the pipe. This is not a boolean operator.
+        float fOpPipe(float a, float b, float r) {
+            return length(vec2(a, b)) - r;
+        }
+
+        // first object gets a v-shaped engraving where it intersect the second
+        float fOpEngrave(float a, float b, float r) {
+            return max(a, (a + r - abs(b))*sqrt(0.5));
+        }
+
+        // first object gets a capenter-style groove cut out
+        float fOpGroove(float a, float b, float ra, float rb) {
+            return max(a, min(a + ra, rb - abs(b)));
+        }
+
+        // first object gets a carpenter-style tongue attached
+        float fOpTongue(float a, float b, float ra, float rb) {
+            return min(a, max(a - ra, abs(b) - rb));
+        }
+
+    float sdBox(vec3 X, vec3 bmin, vec3 bmax) 
+    {                            
+        vec3 d = abs(X-0.5*(bmin+bmax)) - 0.5*(bmax-bmin);
+        return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));     
+    } 
+
+    float MESH(in vec3 X, vec3 O, vec3 E, in sampler3D S)
+    {        
+        // if X is outside grid, return distance to a slightly embedded grid
+        if ( sdBox(X, O, O+E) > 0.0 )
+        {
+            return sdBox(X, O+0.02*E, O+0.98*E);
+        }
+        vec3 D = X - O;
+        vec3 uvw = vec3(D.x/E.x, D.y/E.y, D.z/E.z);
+        float sdf = texture(S, uvw).r;
+        return sdf;
+    }
+
+    float SDF_SURFACE(vec3 X)
+    {         
+        float mesh1 = MESH(X.xzy, O1, E1, sdfTex1);
+        return mesh1;
+    }
+
+    float SDF_METAL(vec3 X)
+    { 
+        float mesh0 = MESH(X.xzy, O1, E1, sdfTex1) - var_j;
+        vec3 p = (X.xzy-O1-vec3(var_a, var_b, var_c))/(var_d*E1);
+
+        vec3 q = p;
+        pMod3(q, vec3(var_e, var_f, var_g));
+        float fractal = mandelbox(q);
+        
+        return fOpIntersectionRound(mesh0, fractal, var_i);
+    }
+
+    `;
+}
+
+
+
+
+</script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                            main loop                              */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+</script>
+
+</body>

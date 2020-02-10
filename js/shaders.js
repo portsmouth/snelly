@@ -1564,19 +1564,22 @@ RadianceType VOLUME_EXTINCTION_MAX_EVAL()
     return RadianceType(VOLUME_EXTINCTION_MAX(volumeExtinction));
 }
 
+float VOLUME_ANISOTROPY_EVAL(in vec3 X)
+{
+    return VOLUME_ANISOTROPY(volumeAnisotropy, X);
+}
+
+#endif // HAS_VOLUME
+
+#ifdef HAS_VOLUME_EMISSION
+
 RadianceType VOLUME_EMISSION_EVAL(in vec3 X, in vec3 rgb)
 {
     vec3 emission = VOLUME_EMISSION(volumeEmissionColorRGB * volumeEmission, X);
     return rgbToAlbedo(emission, rgb);
 }
 
-float VOLUME_ANISOTROPY_EVAL(in vec3 X)
-{
-    return VOLUME_ANISOTROPY(volumeAnisotropy, X);
-}
-
-#endif
-
+#endif // HAS_VOLUME_EMISSION
 
 ///////////////////////////////////////////////////////////////////////////////////
 // SDF raymarcher
@@ -1901,7 +1904,6 @@ RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 woW, in int 
     vec3 dPw = 3.0*minLengthScale * basis.nW;
     RadianceType V = Visibility(pW+dPw, wiW, rgb, rnd, inVolume);
     Li *= abs(RadianceType(1.0) - shadowStrength*(RadianceType(1.0)-V));
-
     // Apply MIS weight with the BSDF pdf for the sampled direction
     vec3 woL = worldToLocal(woW, basis);
     float bsdfPdf = pdfBsdf(pW, basis, woL, wiL, material, wavelength_nm, rgb);
@@ -2072,7 +2074,6 @@ RadianceType samplePath(in vec3 primaryStart, in vec3 primaryDir,
                 // Absorption/scattering event
                 if (interacted)
                 {
-                    RadianceType emission = VOLUME_EMISSION_EVAL(pScatter, rgb);
                     RadianceType albedo = VOLUME_ALBEDO_EVAL(pScatter, rgb);
 #ifdef DISPERSION_ENABLED
                     absorb = (rand(rnd) > albedo);
@@ -2082,7 +2083,10 @@ RadianceType samplePath(in vec3 primaryStart, in vec3 primaryDir,
 #endif
                     if (absorb)
                     {
+#ifdef HAS_VOLUME_EMISSION
+                        RadianceType emission = VOLUME_EMISSION_EVAL(pScatter, rgb);
                         L += throughput * emission; // add volume emission term
+#endif
 #ifndef DISPERSION_ENABLED
                         setChannel(throughput, volume_channel, 0.0);
 #endif
@@ -2177,6 +2181,11 @@ RadianceType samplePath(in vec3 primaryStart, in vec3 primaryDir,
         {
             inDielectric = !inDielectric;
         }
+#endif
+
+#ifdef HAS_VOLUME_EMISSION
+        // Add volumetric emission at the surface point, if present (treating it as isotropic radiance field)
+        L += throughput * VOLUME_EMISSION_EVAL(pW, rgb);
 #endif
 
         // Update path throughput
