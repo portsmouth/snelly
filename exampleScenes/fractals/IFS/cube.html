@@ -141,6 +141,7 @@ volume.emissionColor =  [1, 1, 1];
         uniform float floor_height;
         
         mat4 M;
+        mat4 fracRotation1;
         vec3 n1;
         vec3 n2;
         vec3 n3;
@@ -173,32 +174,24 @@ volume.emissionColor =  [1, 1, 1];
 
         void INIT()
         {
-            n1 = normalize(vec3(-Phi,Phi-1.0,1.0));
-            n2 = normalize(vec3(1.0,-Phi,Phi+1.0));
-            n3 = normalize(vec3(0.0,0.0,-1.0));
             mat4 fracRotation2 = rotationMatrix(normalize(rot2), angle2);
-            mat4 fracRotation1 = rotationMatrix(normalize(rot1), angle1);
+            fracRotation1 = rotationMatrix(normalize(rot1), angle1);
             M = fracRotation2 * translate(offset) * scale4(scale) * translate(-offset) * fracRotation1;
         }
 
         float DE(vec3 z)
         {
             float t;
-            // Prefolds.
-            z = abs(z);
-            t = dot(z,n1); if (t>0.0) { z-=2.0*t*n1; }
-            t = dot(z,n2); if (t>0.0) { z-=2.0*t*n2; }
-            t = dot(z,n3); if (t>0.0) { z-=2.0*t*n3; }
-            t = dot(z,n2); if (t>0.0) { z-=2.0*t*n2; }
-            
+
             // Iterate to compute the distance estimator.
             int n = 0;
             const int Iterations = int(${numIterations});
             while (n < Iterations) 
             {
                 // Fold
-                z = abs(z);
-                t =dot(z,n1); if (t>0.0) { z-=2.0*t*n1; }
+                z.x=abs(z.x);
+                z.y=abs(z.y);
+                z.z=abs(z.z);
                 // Rotate, scale, rotate (we need to cast to a 4-component vector).
                 z = (M*vec4(z,1.0)).xyz;
                 n++;
@@ -239,20 +232,15 @@ volume.emissionColor =  [1, 1, 1];
             float t;
             vec4 orbitTrap = vec4(100.0, 100.0, 100.0, 100.0);
 
-            // Prefolds.
-            z = abs(z);
-            t=dot(z,n1); if (t>0.0) { z-=2.0*t*n1; }
-            t=dot(z,n2); if (t>0.0) { z-=2.0*t*n2; }
-            t=dot(z,n3); if (t>0.0) { z-=2.0*t*n3; }
-            t=dot(z,n2); if (t>0.0) { z-=2.0*t*n2; }
-
             int n = 0;
             const int ColorIterations = int(${colorIterations});
             while (n < ColorIterations) 
             {
                 // Fold
-                z = abs(z);
-                t = dot(z,n1); if (t>0.0) { z-=2.0*t*n1; }
+                z.x=abs(z.x);
+                z.y=abs(z.y);
+                z.z=abs(z.z);
+
                 // Rotate, scale, rotate (we need to cast to a 4-component vector).
                 z = (M*vec4(z,1.0)).xyz;
                 orbitTrap = min(orbitTrap * threshold1, abs(vec4(z,dot(z,z))));
@@ -261,7 +249,6 @@ volume.emissionColor =  [1, 1, 1];
             orbitTrap -= vec4(threshold2);
             orbitTrap = max(vec4(0.0), orbitTrap);
             return emission_ui * (emit1*orbitTrap.r + emit2*orbitTrap.g + emit3*orbitTrap.b);
-
         }
         
         vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 refl_ui, in vec3 X, in vec3 N, in vec3 V)

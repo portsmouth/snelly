@@ -1,0 +1,541 @@
+
+<body onload="onLoad();">
+    <script src="https://portsmouth.github.io/snelly/js/compiled/snelly.min.js"></script>
+
+    <?/* ------------------------------------------------------------------*/?>
+    <?/*                         scene definition                          */?>
+    <?/* ------------------------------------------------------------------*/?>
+
+    <script>
+
+window.Packer = function()
+{
+    this.VERSION_MAJOR = 1;
+    this.VERSION_MINOR = 0;
+}
+
+window.Packer.prototype = {
+
+    decode: function(image) {
+
+        let bitsPerColorComponent = 8;
+        let canvas = document.createElement('canvas');
+        let ctx = canvas.getContext('2d');
+        canvas.width = image.width;
+        canvas.height = image.height;
+        ctx.drawImage(image, 0, 0);
+        let img = ctx.getImageData(0, 0, image.width, image.height);
+
+        let imgData = img.data;
+        let length = imgData.length;
+        let buf = this.raw_decode = new Uint8Array(image.width * image.height * 3);
+
+        let i = 0;
+        let j = 0;
+        while(i < length)
+        {
+            buf[j++] = imgData[i++];
+            buf[j++] = imgData[i++];
+            buf[j++] = imgData[i++];
+            i++;
+        }
+
+        if(buf[0] == 0xbe && buf[1] == 0xef)
+        {
+            let mdSize   = buf[4] | buf[5] << 8 | buf[6] << 16 | buf[7] << 24;
+            let dataSize = buf[8] | buf[9] << 8 | buf[10] << 16 | buf[11] << 24;
+
+            console.log('mdSize: ', mdSize);
+            console.log('dataSize: ', dataSize);
+            console.log('data in buffer: ', buf.length - mdSize - 12);
+
+            let mdBuf = buf.subarray(12, 12 + mdSize);
+            let metaData = JSON.parse(this.utf8Decode(mdBuf));
+            console.log('loaded metadata: ', metaData)
+            let pos = 12 + mdSize;
+            var data = new Uint8Array(dataSize);
+            data.set(buf.subarray(pos, pos + dataSize));
+            let dataAsFloat32Array = new Float32Array(data.buffer);
+
+            let asset = {
+                metadata: metaData,
+                data: dataAsFloat32Array };
+            return asset;
+        }
+        else
+        {
+            console.log('corrupt magic number in file!');
+        }
+    },
+
+    loadImage: function(url, callback)
+    {
+        var imgInfo = {
+            width: 1,
+            height: 1,
+            url: url,
+        };
+        var img = new Image();
+        img.addEventListener('load', function() {
+            callback(img, url);
+        });
+        img.crossOrigin = null;
+        img.src = url;
+        return imgInfo;
+    },
+
+    utf8Decode: function(uint8array) {
+        var len = uint8array.byteLength;
+        var string = "";
+        var i = 0;
+        while (i < len) {
+            var c = uint8array[i];
+            if (c < 128) {
+                string += String.fromCharCode(c);
+                i++;
+            } else if((c > 191) && (c < 224) && (i + 1 < len)) {
+                string += String.fromCharCode(((c & 31) << 6) | (uint8array[i + 1] & 63));
+                i += 2;
+            } else if(i + 2 < len) {
+                string += String.fromCharCode(((c & 15) << 12) | ((uint8array[i + 1] & 63) << 6) | (uint8array[i + 2] & 63));
+                i += 3;
+            }
+        }
+        return string;
+    }
+
+}
+
+    function Scene() {}
+    Scene.prototype.init = function(snelly)
+    {
+        /******* copy-pasted console output on 'O', begin *******/
+
+        let renderer  = snelly.getRenderer();
+let camera    = snelly.getCamera();
+let controls  = snelly.getControls();
+let materials = snelly.getMaterials();
+    
+this.par = {};
+    this.par.mesh_expansion = -0.1657074181012188;
+    this.par.scale = 0.9357605986162005;
+    this.par.offset = [6.861267735980733,7.940755859878281,1.7893061320938417];
+    this.par.offset_scale = -10;
+    this.par.Phi = -1.3922482944917567;
+    this.par.time = 6.5139071918546065;
+    this.par.numIterations = 7.912417741158846;
+    this.par.colorIterations = 22.52576512623613;
+    this.par.angle1 = 0;
+    this.par.angle2 = 0;
+    this.par.rot1 = [119.95096880866825,99.95505641076376,99.95505641076376]
+    this.par.rot2 = [0.24494381528870324,0.1969058042132443,0.1969058042132443]
+    this.par.threshold1 = 1.6911336119569889;
+    this.par.threshold2 = 0.033775073770390254;
+    this.frame = 0;
+    this.par.emit1 = [10,5.369088811995386,2.843137254901961]
+    this.par.emit2 = [3.1045751633986938,9.313725490196079,3.835063437139562]
+    this.par.emit3 = [10,2.156862745098039,2.156862745098039]
+    this.par.floor_height = 0.13252213111707434;
+
+        
+snelly.showGUI(true);
+
+/** Camera settings **/
+camera.fov = 31.361031518624642;
+camera.aperture = -23;
+camera.focalDistance = 1.4617761868958057;
+camera.up.set(0, 1, 0);
+camera.position.set(-19.911432001227688, 18.365095067113103, 67.71079379885589);
+controls.target.set(23.774953547910386, -10.810373255136616, -38.01785142526864);
+
+/** Renderer settings **/
+renderer.renderMode = 'pt';
+renderer.dispersive = false;
+renderer.maxSamplesPerFrame = 1;
+renderer.maxSpp = 100;
+renderer.maxBounces = 3;
+renderer.maxScatters = 2;
+renderer.maxMarchSteps = 1024;
+renderer.maxVolumeSteps = 256;
+renderer.maxStepsIsMiss = false;
+renderer.interactive = false;
+renderer.goalFPS = 10;
+renderer.minsSPPToRedraw = 0;
+renderer.radianceClamp = 3;
+renderer.wavelengthSamples = 201.55359527923872;
+renderer.exposure = 1;
+renderer.gamma = 1.44;
+renderer.contrast = 1.0976055937233227;
+renderer.saturation = 0.9146713281027687;
+renderer.skyPower = 0.33591361119528607;
+renderer.skyTint = [1, 1, 1];
+renderer.envMapRotation = 0;
+renderer.envMapVisible = false;
+renderer.sunPower = 1.7132861353681745;
+renderer.sunColor = [1, 1, 1];
+renderer.sunAngularSize = 20;
+renderer.sunLatitude = 27.765350816781947;
+renderer.sunLongitude = 28.924823007630653;
+renderer.sunVisibleDirectly = false;
+renderer.shadowStrength = 1;
+
+/** Material settings **/
+let surface = materials.loadSurface();
+surface.roughness = 0.05073400835870967;
+surface.ior = 2.5282628411658887;
+surface.diffuseAlbedo = [0.666598567789817, 0.6273788765173967, 0.6273788765173967];
+surface.specAlbedo = [0.2841675131957836, 0.2590887866374388, 0.2590887866374388]
+
+        /******* copy-pasted console output on 'O', end *******/
+
+
+        let gl = snelly.getGLContext();
+        this.sdfTexture = gl.createTexture();
+
+        let texture_unit = snelly.getUserTextureUnitStart();
+        gl.activeTexture(gl.TEXTURE0 + texture_unit);
+        gl.bindTexture(gl.TEXTURE_3D, this.sdfTexture);
+
+        let type = gl.FLOAT;
+        let internalformat = gl.R32F;
+        let format = gl.RED;
+        gl.texImage3D(gl.TEXTURE_3D, 0, internalformat, 1, 1, 1, 0, format, type, null);
+
+        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        this.ORIG = [0,0,0];
+        this.EDGE = [1,1,1];
+
+        // Load SDF texture
+        //let imageUrl = 'https://portsmouth.github.io/SDFGen/assets/head-of-david.png';
+        //let imageUrl = 'file:///C:/Users/jamportz/dev/SDFGen/assets/hand_buddha.png'; 
+        let imageUrl = 'file://D:/Assets/Models/Architecture/house.sdf.png';
+
+        var packer = new Packer();
+        let SCENE = this;
+        packer.loadImage(imageUrl,
+                        function(img, url)
+                        {
+                            console.log('image loaded from: ', url);
+
+                            let asset = packer.decode(img);
+
+                            let md = asset.metadata;
+                            SCENE.ORIG = md.ORIG;
+                            SCENE.EDGE = md.EDGE;
+                            let width  = md.GRES[0];
+                            let height = md.GRES[1];
+                            let depth  = md.GRES[2];
+
+                            let texture_unit = snelly.getUserTextureUnitStart();
+                            gl.activeTexture(gl.TEXTURE0 + texture_unit);
+                            gl.bindTexture(gl.TEXTURE_3D, SCENE.sdfTexture);
+                            gl.texImage3D(gl.TEXTURE_3D, 0, internalformat, width, height, depth, 0, format, type, asset.data);
+
+                            snelly.reset();
+                            SCENE.loaded = true;
+                        });
+    }
+
+    Scene.prototype.getName = function() { return 'Icosahedral "kaleidoscopic" IFS'; }
+    Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/fractals/IFS/icosahedron.html"; }
+
+    Scene.prototype.initGenerator = function()
+    {
+        return `
+    this.par = {};
+    this.par.mesh_expansion = ${this.par.mesh_expansion};
+    this.par.scale = ${this.par.scale};
+    this.par.offset = [${this.par.offset}];
+    this.par.offset_scale = ${this.par.offset_scale};
+    this.par.Phi = ${this.par.Phi};
+    this.par.time = ${this.par.time};
+    this.par.numIterations = ${this.par.numIterations};
+    this.par.colorIterations = ${this.par.colorIterations};
+    this.par.angle1 = ${this.par.angle1};
+    this.par.angle2 = ${this.par.angle2};
+    this.par.rot1 = [${this.par.rot1}]
+    this.par.rot2 = [${this.par.rot2}]
+    this.par.threshold1 = ${this.par.threshold1};
+    this.par.threshold2 = ${this.par.threshold2};
+    this.frame = 0;
+    this.par.emit1 = [${this.par.emit1}]
+    this.par.emit2 = [${this.par.emit2}]
+    this.par.emit3 = [${this.par.emit3}]
+    this.par.floor_height = ${this.par.floor_height};
+
+        `;
+    }
+
+    Scene.prototype.isReady = function(snelly)
+    {
+        if (!this.loaded)
+        {
+            snelly.setStatus("Loading SDF ...");
+        }
+        else
+        {
+            snelly.setStatus("");
+        }
+        return this.loaded;
+    }
+
+    // Launch Chrome with access to local SDFs via:
+    //
+    // /c/Program\ Files\ \(x86\)/Google/Chrome/Application/chrome.exe  --allow-file-access-from-files --disable-web-security
+    //
+
+    Scene.prototype.shader = function()
+    {
+        let numIterations = this.par.numIterations;
+        let colorIterations = this.par.colorIterations;
+
+        // based on original code by Knighty, 
+        // https://github.com/Syntopia/Fragmentarium/blob/master/Fragmentarium-Source/Examples/Kaleidoscopic%20IFS/Octahedron.frag
+        return `
+        uniform float scale;
+        uniform vec3 offset;
+        uniform float offset_scale;
+        uniform float time;
+        uniform float angle1;
+        uniform float angle2;
+        uniform vec3 rot1;
+        uniform vec3 rot2;
+        uniform float Phi;
+        uniform float threshold1;
+        uniform float threshold2;
+        uniform vec3 emit1;
+        uniform vec3 emit2;
+        uniform vec3 emit3;
+        uniform float floor_height;
+
+        uniform vec3 O;
+        uniform vec3 E;
+        uniform float mesh_expansion;
+        precision highp sampler3D;
+        uniform sampler3D sdfTex;
+
+        mat4 M;
+        mat4 fracRotation1;
+        vec3 n1;
+        vec3 n2;
+        vec3 n3;
+
+        mat4 rotationMatrix(vec3 v, float angle)
+        {
+            float c = cos(radians(angle));
+            float s = sin(radians(angle));
+            return mat4(c + (1.0 - c) * v.x * v.x, (1.0 - c) * v.x * v.y - s * v.z, (1.0 - c) * v.x * v.z + s * v.y, 0.0,
+                (1.0 - c) * v.x * v.y + s * v.z, c + (1.0 - c) * v.y * v.y, (1.0 - c) * v.y * v.z - s * v.x, 0.0,
+                (1.0 - c) * v.x * v.z - s * v.y, (1.0 - c) * v.y * v.z + s * v.x, c + (1.0 - c) * v.z * v.z, 0.0,
+                0.0, 0.0, 0.0, 1.0);
+        }
+
+        mat4 translate(vec3 v)
+        {
+            return mat4(1.0,0.0,0.0,0.0,
+                0.0,1.0,0.0,0.0,
+                0.0,0.0,1.0,0.0,
+                v.x,v.y,v.z,1.0);
+        }
+
+        mat4 scale4(float s)
+        {
+            return mat4(s,0.0,0.0,0.0,
+                0.0,s,0.0,0.0,
+                0.0,0.0,s,0.0,
+                0.0,0.0,0.0,1.0);
+        }
+
+        void INIT()
+        {
+            n1 = normalize(vec3(-Phi,Phi-1.0,1.0));
+            n2 = normalize(vec3(1.0,-Phi,Phi+1.0));
+            n3 = normalize(vec3(0.0,0.0,-1.0));
+            mat4 fracRotation2 = rotationMatrix(normalize(rot2), angle2);
+            fracRotation1 = rotationMatrix(normalize(rot1), angle1);
+            M = fracRotation2 * translate(offset*offset_scale) * scale4(scale) * translate(-offset*offset_scale) * fracRotation1;
+        }
+
+        float opU( float d1, float d2 ) { return min(d1,d2); }
+        float opI( float d1, float d2 ) { return max(d1,d2); }
+        float opS(float A, float B) { return max(-B, A); }
+
+        float sdBox(vec3 X, vec3 bmin, vec3 bmax)
+        {
+            vec3 center = 0.5*(bmin + bmax);
+            vec3 halfExtents = 0.5*(bmax - bmin);
+            vec3 d = abs(X-center) - halfExtents;
+            return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
+        }
+
+        float sdBox(vec3 X, vec3 bounds)
+        {
+            vec3 d = abs(X) - bounds;
+            return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
+        }
+
+        float sdCross( in vec3 p )
+        {
+            float inf = 1.0e6;
+            float da = sdBox(p.xyz, vec3(inf,1.0,1.0));
+            float db = sdBox(p.yzx, vec3(1.0,inf,1.0));
+            float dc = sdBox(p.zxy, vec3(1.0,1.0,inf));
+            return min(da,min(db,dc));
+        }
+
+        float MESH(in vec3 X, in vec3 bmin, in vec3 bmax)
+        {
+            X = X.zxy;
+
+            vec3 El = bmax - bmin;
+            vec3 Ol = bmin;
+
+            // if X is outside grid, return distance to a slightly embedded grid
+            if ( sdBox(X, Ol, Ol+El) > 0.0 )
+            {
+                return sdBox(X, Ol+0.01*El, Ol+0.99*El);
+            }
+
+            vec3 D = X - Ol;
+            vec3 uvw = vec3(D.x/El.x, D.y/El.y, D.z/El.z);
+            float sdf = texture(sdfTex, uvw).r;
+            float expand = 0.01 * max(max(El.x, El.y), El.z);
+            float mesh = 0.5*sdf - expand*mesh_expansion;
+
+            return mesh;
+        }
+
+        float MESH_FIT(in vec3 X)
+        {
+            float mesh_w = 10.0;
+            float mesh_h = mesh_w * threshold1;
+            return MESH(X, vec3(0.0), vec3(mesh_w, mesh_w, mesh_h));
+        }
+
+        float fOpIntersection(float a, float b)
+        {
+            vec2 u = max(vec2(a, b), vec2(0));
+            return min(0.0, max (a, b)) + length(u);
+        }
+
+        ////////////////////////////////////////////////////////////////////////////////////////
+        // For a clue, see:
+        //  http://blog.hvidtfeldts.net/index.php/2012/05/distance-estimated-3d-fractals-part-viii-epilogue/
+        // in particular  "for instance, using a cylinder-function for trap(z) results in an image like this:"
+        // -> can swap in a mesh in place of the cylinder function
+        ////////////////////////////////////////////////////////////////////////////////////////
+
+
+        float DE(vec3 z)
+        {
+            return threshold2*MESH_FIT(z.yzx);
+            /*
+            // Prefolds.
+            z = abs(z);
+            float t;
+            t = dot(z,n1); if (t>0.0) { z-=2.0*t*n1; }
+            t = dot(z,n2); if (t>0.0) { z-=2.0*t*n2; }
+            t = dot(z,n3); if (t>0.0) { z-=2.0*t*n3; }
+            t = dot(z,n2); if (t>0.0) { z-=2.0*t*n2; }
+
+            float s = scale;
+            float sdf = 1000.0;
+            const int Iterations = int(${numIterations});
+            int n = 0;
+            while (n < Iterations)
+            {
+                // Fold
+                z = abs(z);
+                t = dot(z,n1); if (t>0.0) { z-=2.0*t*n1; }
+                // Rotate, scale, rotate (we need to cast to a 4-component vector).
+                z = (M*vec4(z,1.0)).xyz;
+                sdf = min(sdf, MESH_FIT(z.xyz) * pow(scale, float(-n)));
+                n++;
+            }
+            return threshold2*sdf;
+            */
+        }
+
+        float SDF_SURFACE(vec3 X)
+        {
+            float D = 1.0e3;
+            float floor = sdBox(X, vec3(-D,-floor_height,-D), vec3(D, floor_height,D));
+            return min(floor, DE(X));
+        }
+        `;
+    }
+
+    Scene.prototype.getLengthScale = function()    { return 1.0; }
+    Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
+    Scene.prototype.getMaxLengthScale = function() { return 5.0e2 * this.getLengthScale(); }
+
+    Scene.prototype.envMap = function() { return ''; }
+    Scene.prototype.initGui = function(gui)
+    {
+        gui.addSlider(this.par, {name: 'mesh_expansion', min: -1.0, max: 1.0});
+        gui.addSlider(this.par, {name: 'scale', min: 0.0, max: 1.0});
+        gui.addSlider(this.par, {name: 'Phi', min: -5.0, max: 5.0});
+        gui.addColor(this.par, "offset", 10.0);
+        gui.addSlider(this.par, {name: 'offset_scale', min: -10.0, max: 10.0});
+        gui.addSlider(this.par, {name: 'time', min: 0.0, max: 100.0});
+        gui.addSlider(this.par, {name: 'angle1', min: 0.0, max: 360.0});
+        gui.addColor(this.par, "rot1", 360.0);
+        gui.addSlider(this.par, {name: 'angle2', min: 0.0, max: 360.0});
+        gui.addColor(this.par, "rot2", 1.0);
+        gui.addColor(this.par, "emit1", 10.0);
+        gui.addColor(this.par, "emit2", 10.0);
+        gui.addColor(this.par, "emit3", 10.0);
+        gui.addSlider(this.par, {name: 'threshold1', min: 0.0, max: 10.0});
+        gui.addSlider(this.par, {name: 'threshold2', min: 0.0, max: 1.5});
+        gui.addSlider(this.par, {name: 'numIterations', min: 1, max: 20, step: 1, recompile: true});
+        gui.addSlider(this.par, {name: 'colorIterations', min: 1, max: 30, step: 1, recompile: true});
+        gui.addSlider(this.par, {name: 'floor_height', min: -10.0, max: 10.0});
+    }
+
+    Scene.prototype.syncShader = function(snelly, shader)
+    {
+        let gl = snelly.getGLContext();
+        let texture_unit = snelly.getUserTextureUnitStart();
+        let program = shader.getProgram();
+        let texture_id = gl.getUniformLocation(program, "sdfTex");
+
+        gl.activeTexture(gl.TEXTURE0 + texture_unit);
+        gl.bindTexture(gl.TEXTURE_3D, this.sdfTexture);
+        gl.uniform1i(texture_id, texture_unit);
+        shader.uniform3Fv("O", this.ORIG);
+        shader.uniform3Fv("E", this.EDGE);
+        shader.uniformF("mesh_expansion", this.par.mesh_expansion);
+
+        shader.uniformF("scale", this.par.scale);
+        shader.uniform3Fv("offset", this.par.offset);
+        shader.uniformF("offset_scale", this.par.offset_scale);
+        shader.uniformF("Phi", this.par.Phi);
+        shader.uniformF("time", this.par.time);
+        shader.uniformF("angle1", this.par.angle1);
+        shader.uniformF("angle2", this.par.angle2);
+        shader.uniformF("threshold1", this.par.threshold1);
+        shader.uniformF("threshold2", this.par.threshold2);
+        shader.uniform3Fv("rot1", this.par.rot1);
+        shader.uniform3Fv("rot2", this.par.rot2);
+        shader.uniform3Fv("emit1", this.par.emit1);
+        shader.uniform3Fv("emit2", this.par.emit2);
+        shader.uniform3Fv("emit3", this.par.emit3);
+        shader.uniformF("floor_height", this.par.floor_height);
+    }
+
+    </script>
+
+    <?/* ------------------------------------------------------------------*/?>
+    <?/*                            main loop                              */?>
+    <?/* ------------------------------------------------------------------*/?>
+
+    <script type="text/javascript">
+    function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+    function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+    </script>
+
+    </body>

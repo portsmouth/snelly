@@ -28,9 +28,6 @@ uniform float camFocalDistance;
 uniform float minLengthScale;
 uniform float maxLengthScale;
 uniform float skyPower;
-uniform bool haveEnvMap;
-uniform bool envMapVisible;
-uniform float envMapRotation;
 uniform float radianceClamp;
 uniform float skipProbability;
 uniform float shadowStrength;
@@ -778,9 +775,12 @@ uniform bool sunVisibleDirectly;
 
 uniform bool haveEnvMap;
 uniform bool envMapVisible;
-uniform float envMapRotation;
+uniform float envMapPhiRotation;
+uniform float envMapThetaRotation;
+uniform float envMapTransitionAngle;
 uniform float skyPower;
-uniform vec3 skyTint;
+uniform vec3 skyTintUp;
+uniform vec3 skyTintDown;
 
 uniform float radianceClamp;
 uniform float skipProbability;
@@ -1793,22 +1793,23 @@ RadianceType Visibility(in vec3 pW, in vec3 rayDir, in vec3 rgb, inout vec4 rnd,
 
 vec3 environmentRadianceRGB(in vec3 dir)
 {
-    float phi = atan(dir.x, dir.z) + M_PI + M_PI*envMapRotation/180.0;
+    float rot_phi = M_PI*envMapPhiRotation/180.0;
+    float rot_theta = M_PI*envMapThetaRotation/180.0;
+    float phi = atan(dir.x, dir.z) + M_PI + rot_phi;
     phi -= 2.0*M_PI*floor(phi/(2.0*M_PI)); // wrap phi to [0, 2*pi]
-    float theta = acos(dir.y);             // theta in [0, pi]
+    float theta = mod(acos(dir.y) + rot_theta, M_PI);             // theta in [0, pi]
     float u = phi/(2.0*M_PI);
     float v = theta/M_PI;
-    vec3 RGB;
+    vec3 RGB = vec3(1.0);
     if (haveEnvMap)
     {
         RGB = texture(envMap, vec2(u,v)).rgb;
-        RGB *= skyPower;
     }
-    else
-    {
-        RGB = skyPower * vec3(1.0);
-    }
-    RGB *= skyTint;
+    float St = sin(rot_theta);
+    vec3 color_pole = vec3(cos(rot_phi)*St, cos(rot_theta), sin(rot_phi)*St);
+    float t = dot(dir, color_pole);
+    float tt = envMapTransitionAngle/180.0;
+    RGB *= skyPower * mix(skyTintDown, skyTintUp, smoothstep(-tt, tt, t));
     return RGB;
 }
 
@@ -1820,7 +1821,7 @@ RadianceType environmentRadiance(in vec3 dir, in vec3 rgb)
 
 float skyPowerEstimate()
 {
-    return 2.0*M_PI * skyPower * maxComponent(skyTint);
+    return 2.0*M_PI * skyPower * 0.5*(maxComponent(skyTintUp) + maxComponent(skyTintDown));
 }
 
 vec3 sampleSunDir(inout vec4 rnd, inout float pdf)
@@ -1868,6 +1869,9 @@ float sunPowerEstimate(Basis basis)
 
 RadianceType sampleLightAtSurface(Basis basis, in vec3 rgb, inout vec4 rnd, inout vec3 wiL, inout vec3 wiW, inout float lightPdf)
 {
+    if (sunPower<RADIANCE_EPSILON && skyPower<RADIANCE_EPSILON) 
+        return RadianceType(0.0);
+    
     // Light sampling (choose either sun or sky)
     float sunWeight = sunPower;
     float skyWeight = skyPower;

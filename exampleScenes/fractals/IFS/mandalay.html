@@ -1,0 +1,301 @@
+
+<body onload="onLoad();">
+    <script src="https://portsmouth.github.io/snelly/js/compiled/snelly.min.js"></script>
+
+    <?/* ------------------------------------------------------------------*/?>
+    <?/*                         scene definition                          */?>
+    <?/* ------------------------------------------------------------------*/?>
+
+    <script>
+
+    function Scene() {}
+    Scene.prototype.init = function(snelly)
+    {
+        /******* copy-pasted console output on 'O', begin *******/
+        
+        let renderer  = snelly.getRenderer();
+        let camera    = snelly.getCamera();
+        let controls  = snelly.getControls();
+        let materials = snelly.getMaterials();
+            
+                    this.par = {};
+                    this.par.Scale = -2.617336152219873;
+                    this.par.RotAngle = 0;
+                    this.par.RotVector = [187.05882352941174,0,0]
+                    this.par.g = [0.1312730397810797,0.18627450980392157,0.12783544790465207]
+                    this.par.fo = [8.626406275671696,3.9984621299500187,12.745098039215685]
+                    this.par.MinRad2 = 0.5863284002818887;
+                    this.par.numIterations = 20;
+                    this.par.colorIterations = 3.9429175475687104;
+                    this.par.floor_height = -1.6560958421423528;
+                
+        snelly.showGUI(true);
+
+        /** Camera settings **/
+        camera.fov = 31.361031518624642;
+        camera.aperture = -23;
+        camera.focalDistance = 1.2766985866359675;
+        camera.up.set(0, 1, 0);
+        camera.position.set(171.94062102718163, 149.37342355532485, 180.4030380464407);
+        controls.target.set(4.585574323474708, -15.745594460670398, 1.7375833124539124);
+
+        /** Renderer settings **/
+        renderer.renderMode = 'pt';
+        renderer.dispersive = false;
+        renderer.maxSamplesPerFrame = 1;
+        renderer.maxSpp = 400;
+        renderer.maxBounces = 3;
+        renderer.maxScatters = 2;
+        renderer.maxMarchSteps = 1024;
+        renderer.maxVolumeSteps = 256;
+        renderer.maxStepsIsMiss = false;
+        renderer.interactive = false;
+        renderer.goalFPS = 10;
+        renderer.minsSPPToRedraw = 0;
+        renderer.radianceClamp = 3;
+        renderer.wavelengthSamples = 201.55359527923872;
+        renderer.exposure = 2.576679439876748;
+        renderer.gamma = 1.44;
+        renderer.contrast = 1.614504433016959;
+        renderer.saturation = 0.7576679439876749;
+        renderer.skyPower = 0.8878903998879535;
+        renderer.skyTint = [0.8725229818019888, 0.6842933035984649, 0.6842933035984649];
+        renderer.envMapRotation = 0;
+        renderer.envMapVisible = true;
+        renderer.sunPower = -6;
+        renderer.sunColor = [1, 1, 1];
+        renderer.sunAngularSize = 20;
+        renderer.sunLatitude = 27.782925838083983;
+        renderer.sunLongitude = 194.2385092768403;
+        renderer.sunVisibleDirectly = false;
+        renderer.shadowStrength = 1;
+
+        /** Material settings **/
+        let surface = materials.loadSurface();
+        surface.roughness = 0.020243666262917993;
+        surface.ior = 2.5282628411658887;
+        surface.diffuseAlbedo = [0.06487889273356404, 0.0841135762263383, 0.08823529411764708];
+        surface.specAlbedo = [0.0490196078431373, 0.0490196078431373, 0.0490196078431373];
+
+        /******* copy-pasted console output on 'O', end *******/
+
+    }
+
+    Scene.prototype.getName = function() { return 'Icosahedral "kaleidoscopic" IFS'; }
+    Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/fractals/IFS/icosahedron.html"; }
+
+    Scene.prototype.initGenerator = function()
+    {
+        return `
+            this.par = {};
+            this.par.Scale = ${this.par.Scale};
+            this.par.RotAngle = ${this.par.RotAngle};
+            this.par.RotVector = [${this.par.RotVector}]
+            this.par.g = [${this.par.g}]
+            this.par.fo = [${this.par.fo}]
+            this.par.MinRad2 = ${this.par.MinRad2};
+            this.par.numIterations = ${this.par.numIterations};
+            this.par.colorIterations = ${this.par.colorIterations};
+            this.par.floor_height = ${this.par.floor_height};
+        `;
+    }
+
+
+    Scene.prototype.shader = function()
+    {
+        let numIterations = this.par.numIterations;
+        let colorIterations = this.par.colorIterations;
+
+        return `
+        uniform float Scale;
+        uniform float RotAngle;
+        uniform vec3 RotVector;
+        uniform vec3 g;
+        uniform vec3 fo;
+        uniform float MinRad2;
+        uniform float floor_height;
+
+        mat4 M;
+        mat4 fracRotation1;
+        vec3 n1;
+        vec3 n2;
+        vec3 n3;
+
+        mat3 rotationMatrix3(vec3 v, float angle)
+        {
+            float c = cos(radians(angle));
+            float s = sin(radians(angle));
+            return mat3(c + (1.0-c)*v.x*v.x,             (1.0-c)*v.x*v.y - s*v.z,     (1.0-c)*v.x*v.z + s*v.y,
+                            (1.0-c)*v.x*v.y + s*v.z, c + (1.0-c)*v.y*v.y,             (1.0-c)*v.y*v.z - s*v.x,
+                            (1.0-c)*v.x*v.z - s*v.y,     (1.0-c)*v.y*v.z + s*v.x, c + (1.0-c)*v.z*v.z );
+        }
+
+        mat3 rot;
+        float sr;
+
+        void INIT()
+        {
+            rot = rotationMatrix3(normalize(RotVector), RotAngle);
+            sr = 30.0;
+        }
+
+        float DBFold(vec3 p, float fo, float g)
+        {
+            if (p.z>p.y)
+                p.yz = p.zy; //Diagonal fold
+            float vx = p.x - 2.0*fo;
+            float vy = p.y - 4.0*fo;
+            float v = max(abs(vx+fo)-fo, vy);
+            float v1 = max(vx-g, p.y);
+            v = min(v,v1);
+            return min(v, p.x);
+        }
+
+        vec3 DBFoldParallel(vec3 p, vec3 fo, vec3 g)
+        {
+            vec3 p1 = p;
+            p.x = DBFold(p1,     fo.x, g.x);
+            p.y = DBFold(p1.yzx, fo.y, g.y);
+            p.z = DBFold(p1.zxy, fo.z, g.z);
+            return p;
+        }
+
+        vec3 DBFoldSerial(vec3 p, vec3 fo, vec3 g)
+        {
+            p.x = DBFold(p,     fo.x, g.x);
+            p.y = DBFold(p.yzx, fo.y, g.y);
+            p.z = DBFold(p.zxy, fo.z, g.z);
+            return p;
+        }
+
+        float sdBox(vec3 X, vec3 bmin, vec3 bmax)
+        {
+            vec3 center = 0.5*(bmin + bmax);
+            vec3 halfExtents = 0.5*(bmax - bmin);
+            vec3 d = abs(X-center) - halfExtents;
+            return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
+        }
+
+        float opI( float d1, float d2 ) { return max(d1,d2); }
+        float opU( float d1, float d2 ) { return min(d1,d2); }
+
+        float DE(vec3 X)
+        {
+            vec3 p = X;
+            vec4 JC = vec4(p, 1.0);
+            float r2 = dot(p, p);
+            float dd = 1.0;
+
+            const int Iterations = int(${numIterations});
+            for (int i = 0; i<Iterations && r2<10000.0; i++)
+            {
+                // Apply pull transformation
+                vec3 signs = sign(p);
+                p = abs(p);
+                p = DBFoldParallel(p, fo, g); //DBFoldSerial(p, fo, g);
+                p *= signs;
+
+                // Sphere fold
+                r2 = dot(p,p);
+                float t = clamp(1.0/r2, 1.0, 1.0/MinRad2);
+                p *= t; dd *= t;
+
+                // Scale and shift
+                p = p*Scale + JC.xyz;
+                dd = dd*Scale + JC.w;
+                p = rot*p;
+
+                // For coloring and bailout
+                r2 = dot(p,p);
+                //orbitTrap = min(orbitTrap, abs(vec4(p.x,p.y,p.z,r2)));
+            }
+            dd = abs(dd);
+            float sdf = (sqrt(r2) - sr) / dd; //bounding volume is a sphere
+            return 0.5*sdf;
+        }
+
+        float SDF_SURFACE(vec3 X)
+        {
+            float D = 1.0e4;
+            float floor = sdBox(X, vec3(-D,floor_height-1.0,-D), vec3(D, floor_height,D));
+            return min(floor, DE(X));
+        }
+
+        vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 refl_ui, in vec3 X, in vec3 N, in vec3 V)
+        {
+            vec3 z = X;
+            vec4 orbitTrap = vec4(1.0, 1.0, 1.0, 1.0);
+
+            vec3 p = X;
+            vec4 JC = vec4(p, 1.0);
+            float r2 = dot(p, p);
+
+            const int Iterations = int(${colorIterations});
+            for (int i = 0; i<Iterations && r2<10000.0; i++)
+            {
+                // Apply pull transformation
+                vec3 signs = sign(p);
+                p = abs(p);
+                p = DBFoldParallel(p, fo, g); //DBFoldSerial(p, fo, g);
+                p *= signs;
+
+                // Sphere fold
+                r2 = dot(p,p);
+                float t = clamp(1.0/r2, 1.0, 1.0/MinRad2);
+                p *= t;
+
+                // Scale and shift
+                p = p*Scale + JC.xyz;
+                p = rot*p;
+
+                // For coloring and bailout
+                r2 = dot(p,p);
+                orbitTrap = min(orbitTrap, abs(vec4(p.x,p.y,p.z,r2)));
+            }
+
+            return refl_ui * orbitTrap.grb;
+        }
+        `;
+    }
+
+    Scene.prototype.getLengthScale = function()    { return 10.0; }
+    Scene.prototype.getMinLengthScale = function() { return 1.0e-3 * this.getLengthScale(); }
+    Scene.prototype.getMaxLengthScale = function() { return 2.0e4 * this.getLengthScale(); }
+
+    Scene.prototype.envMap = function() { return ''; }
+    Scene.prototype.initGui = function(gui)
+    {
+        gui.addSlider(this.par, {name: 'Scale', min: -6.0, max: 6.0});
+        gui.addSlider(this.par, {name: 'RotAngle', min: 0.0, max: 360.0});
+        gui.addColor(this.par, "RotVector", 360.0);
+        gui.addColor(this.par, "g", 1.0);
+        gui.addColor(this.par, "fo", 100.0);
+        gui.addSlider(this.par, {name: 'MinRad2', min: 0.0, max: 2.0});
+        gui.addSlider(this.par, {name: 'numIterations', min: 1, max: 20, step: 1, recompile: true});
+        gui.addSlider(this.par, {name: 'colorIterations', min: 1, max: 30, step: 1, recompile: true});
+        gui.addSlider(this.par, {name: 'floor_height', min: -10.0, max: 10.0});
+    }
+
+    Scene.prototype.syncShader = function(snelly, shader)
+    {
+        shader.uniformF("Scale", this.par.Scale);
+        shader.uniformF("RotAngle", this.par.RotAngle);
+        shader.uniform3Fv("RotVector", this.par.RotVector);
+        shader.uniform3Fv("g", this.par.g);
+        shader.uniform3Fv("fo", this.par.fo);
+        shader.uniformF("MinRad2", this.par.MinRad2);
+        shader.uniformF("floor_height", this.par.floor_height);
+    }
+
+    </script>
+
+    <?/* ------------------------------------------------------------------*/?>
+    <?/*                            main loop                              */?>
+    <?/* ------------------------------------------------------------------*/?>
+
+    <script type="text/javascript">
+    function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+    function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+    </script>
+
+    </body>

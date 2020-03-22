@@ -6,7 +6,7 @@ abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
 os.chdir(dname)
 
-print '******************\ncompile shaders into JS source ...'
+print('******************\ncompile shaders into JS source ...')
 ShaderDir = '../shaders'
 src = "var Shaders = {\n\n"
 for f in os.listdir(ShaderDir):
@@ -28,7 +28,7 @@ for f in os.listdir(ShaderDir):
 src += "}"
 open("../js/shaders.js", 'w').write(src)
 
-print '\n******************\nminify code into snelly.min.js ...'
+print('\n******************\nminify code into snelly.min.js ...')
 # Construct the command for Google Closure Compiler, to generate minified code
 jsDestPath = "../js/compiled/snelly.min.js"
 jsSources = [ 
@@ -57,7 +57,7 @@ java -jar closure-compiler/compiler.jar --js %s -O WHITESPACE_ONLY --js_output_f
 os.system(cmd)
 
 
-print '\n******************\nbuild documentation via jsdoc2md ...'
+print('\n******************\nbuild documentation via jsdoc2md ...')
 jsSources = [
 '../js/snelly.js', 
 '../js/sceneAPI.js', 

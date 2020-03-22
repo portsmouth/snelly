@@ -317,7 +317,8 @@ renderer.gamma = ${renderer.gamma};
 renderer.contrast = ${renderer.contrast};
 renderer.saturation = ${renderer.saturation};
 renderer.skyPower = ${renderer.skyPower};
-renderer.skyTint = [${renderer.skyTint[0]}, ${renderer.skyTint[1]}, ${renderer.skyTint[2]}];
+renderer.skyTintUp = [${renderer.skyTintUp[0]}, ${renderer.skyTintUp[1]}, ${renderer.skyTintUp[2]}];
+renderer.skyTintDown = [${renderer.skyTintDown[0]}, ${renderer.skyTintDown[1]}, ${renderer.skyTintDown[2]}];
 renderer.envMapRotation = ${renderer.envMapRotation};
 renderer.envMapVisible = ${renderer.envMapVisible};
 renderer.sunPower = ${renderer.sunPower};
@@ -358,7 +359,7 @@ dielectric.absorptionScale = ${materials.getLoadedDielectric().absorptionScale};
 dielectric.roughness = ${materials.getLoadedDielectric().roughness};
 `;
     }
-    if (shader.indexOf("SDF_VOLUME(") != -1)
+    if (shader.indexOf("SDF_VOLUME(") != -1 || shader.indexOf("VOLUME_EMISSION(") != -1)
     {
         code += `
 let volume = materials.loadVolume();

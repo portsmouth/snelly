@@ -1,7 +1,18 @@
 
 <body onload="onLoad();">
-    <script src="https://portsmouth.github.io/snelly/js/compiled/snelly.min.js"></script>
-    
+    <script src="../../../js/thirdparty/jquery-1.11.3.min.js"></script>
+    <script src="../../../js/thirdparty/three/three.min.js"></script>
+    <script src="../../../js/thirdparty/three/libs/stats.min.js"></script>
+    <script src="../../../js/thirdparty/three/libs/dat.gui.min.js"></script>
+    <script src="../../../js/thirdparty/three/controls/OrbitControls.js"></script>
+    <script src="../../../js/gl.js"></script>
+    <script src="../../../js/gui.js"></script>
+    <script src="../../../js/shaders.js"></script>
+    <script src="../../../js/color.js"></script>
+    <script src="../../../js/materials.js"></script>
+    <script src="../../../js/spectra.js"></script>
+    <script src="../../../js/renderer.js"></script>
+    <script src="../../../js/snelly.js"></script>
     <?/* ------------------------------------------------------------------*/?>
     <?/*                         scene definition                          */?>
     <?/* ------------------------------------------------------------------*/?>
@@ -19,25 +30,25 @@
         let materials = snelly.getMaterials();
             
             this.par = {};
-            this.par.scale = 1.6722123653018768;
-            this.par.offset = [3.2339121110286397,2.5679706545982013,2.5679706545982013]
+            this.par.scale = 2.480329297536917;
+            this.par.offset = [4.508682293008752,0.6622558622242385,0.6622558622242385]
             this.par.time = 9.919903861960286;
             this.par.numIterations = 20;
-            this.par.angle1 = 129.58228701966408;
-            this.par.angle2 = 340.79121153202993;
-            this.par.rot1 = [102.3003047504821,84.24362162847383,84.24362162847383]
-            this.par.rot2 = [62.76498150749285,94.35562033971435,116.42083599703103]
+            this.par.angle1 = 0;
+            this.par.angle2 = 0;
+            this.par.rot1 = [317.6384062603532,202.39309202005953,202.39309202005953]
+            this.par.rot2 = [120.10241516794228,165.7383863227339,197.61389066468735]
             this.frame = 0;
                 
         snelly.showGUI(true);
 
         /** Camera settings **/
         camera.fov = 31.361031518624642;
-        camera.aperture = -22.034115347756206;
-        camera.focalDistance = 1.3185878103535638;
+        camera.aperture = -4.7366922857956055;
+        camera.focalDistance = 1.2001428533729177;
         camera.up.set(0, 1, 0);
-        camera.position.set(18.60153713675121, -14.804459844244102, -4.465148350196003);
-        controls.target.set(-0.3032029585908921, -0.5243758565766563, 0.2563323374989256);
+        camera.position.set(-7.039919704324404, 4.431131298684091, 18.391845456927406);
+        controls.target.set(-0.20308429822640572, 0.017614515921597736, 0.47670404923330556);
 
         /** Renderer settings **/
         renderer.renderMode = 'pt';
@@ -57,25 +68,26 @@
         renderer.exposure = -0.975480615650854;
         renderer.gamma = 1.8940394352593168;
         renderer.contrast = 1.2299937368417078;
-        renderer.saturation = 1.0866202337742694;
-        renderer.skyPower = 3.1457203009334354;
-        renderer.skyTint = [1, 1, 1];
+        renderer.saturation = 1.0674637062339885;
+        renderer.skyPower = 1.851023387785463;
+        renderer.skyTintUp = [0.25996821525234604, 0.32339121110286395, 0.28976859999017246];
+        renderer.skyTintDown = [0.019141123426086013, 0.04011108751563429, 0.04882532575330145];
         renderer.envMapRotation = 0;
-        renderer.envMapVisible = false;
-        renderer.sunPower = 2.8136974517246305;
-        renderer.sunColor = [0.7745098039215687, 0.722875816993464, 0.6454248366013072];
-        renderer.sunAngularSize = 20;
-        renderer.sunLatitude = 65.29614174357266;
-        renderer.sunLongitude = 53.425494827234914;
+        renderer.envMapVisible = true;
+        renderer.sunPower = 2.264235145037329;
+        renderer.sunColor = [0.7352400391272076, 0.59104587320763, 0.37475462432826345];
+        renderer.sunAngularSize = 15.15109776590177;
+        renderer.sunLatitude = 15.368998099225948;
+        renderer.sunLongitude = 360;
         renderer.sunVisibleDirectly = false;
         renderer.shadowStrength = 1;
 
         /** Material settings **/
         let surface = materials.loadSurface();
-        surface.roughness = 0.0015032093519664477;
+        surface.roughness = 0.020293603343483867;
         surface.ior = 2.5282628411658887;
-        surface.diffuseAlbedo = [0.41164453139379475, 0.32465861234605325, 0.11697600280681833];
-        surface.specAlbedo = [0.13707864604423226, 0.13707864604423226, 0.13707864604423226];
+        surface.diffuseAlbedo = [1, 1, 1];
+        surface.specAlbedo = [0, 0, 0];
 
         /******* copy-pasted console output on 'O', end *******/
     }
@@ -116,41 +128,73 @@
         uniform vec3 rot1;
         uniform vec3 rot2;
         
-        mat3 fracRotation2;
-        mat3 fracRotation1;
+        mat4 M;
 
-        mat3 rotationMatrix3(vec3 v, float angle)
+        mat4 rotationMatrix(vec3 v, float angle)
         {
             float c = cos(radians(angle));
             float s = sin(radians(angle));
-            return mat3(c + (1.0-c)*v.x*v.x,             (1.0-c)*v.x*v.y - s*v.z,     (1.0-c)*v.x*v.z + s*v.y,
-                            (1.0-c)*v.x*v.y + s*v.z, c + (1.0-c)*v.y*v.y,             (1.0-c)*v.y*v.z - s*v.x,
-                            (1.0-c)*v.x*v.z - s*v.y,     (1.0-c)*v.y*v.z + s*v.x, c + (1.0-c)*v.z*v.z );
+            return mat4(c + (1.0 - c) * v.x * v.x, (1.0 - c) * v.x * v.y - s * v.z, (1.0 - c) * v.x * v.z + s * v.y, 0.0,
+                (1.0 - c) * v.x * v.y + s * v.z, c + (1.0 - c) * v.y * v.y, (1.0 - c) * v.y * v.z - s * v.x, 0.0,
+                (1.0 - c) * v.x * v.z - s * v.y, (1.0 - c) * v.y * v.z + s * v.x, c + (1.0 - c) * v.z * v.z, 0.0,
+                0.0, 0.0, 0.0, 1.0);
         }
-    
+
+        mat4 translate(vec3 v) 
+        {
+            return mat4(1.0,0.0,0.0,0.0,
+                0.0,1.0,0.0,0.0,
+                0.0,0.0,1.0,0.0,
+                v.x,v.y,v.z,1.0);
+        }
+
+        mat4 scale4(float s) 
+        {
+            return mat4(s,0.0,0.0,0.0,
+                0.0,s,0.0,0.0,
+                0.0,0.0,s,0.0,
+                0.0,0.0,0.0,1.0);
+        }
+
         void INIT()
         {
-            fracRotation2 = rotationMatrix3(normalize(rot2), angle2);
-            fracRotation1 = rotationMatrix3(normalize(rot1), angle1);
+            mat4 fracRotation2 = rotationMatrix(normalize(rot2), angle2);
+            mat4 fracRotation1 = rotationMatrix(normalize(rot1), angle1);
+            M = fracRotation2 * fracRotation1;
+        }
+
+        float Menger(vec3 z)
+        {
+            float r;
+            int n = 0;
+            // Fold
+            z = abs(z);
+            if (z.x<z.y){ z.xy = z.yx;}
+            if (z.x<z.z){ z.xz = z.zx;}
+            if (z.y<z.z){ z.yz = z.zy;}
+            if (z.z<1./3.){ z.z -=2.*( z.z-1./3.);}
+            const int Iterations = int(${numIterations});
+            while (n < Iterations && dot(z,z)<100.0)
+            {
+                z=scale* (z-offset)+offset;
+                // Fold
+                z = abs(z);
+                if (z.x<z.y){ z.xy = z.yx;}
+                if (z.x< z.z){ z.xz = z.zx;}
+                if (z.y<z.z){ z.yz = z.zy;}
+                if (z.z<1./3.*offset.z){ z.z -=2.*( z.z-1./3.*offset.z);}
+                // Rotate, scale, rotate (we need to cast to a 4-component vector).
+                z = (M*vec4(z,1.0)).xyz;
+                r = dot(z-offset, z-offset);
+                //orbitTrap = min(orbitTrap, abs(vec4(z,r)));
+                n++;
+            }
+            return float(z.x-offset) * pow(scale, float(-n));
         }
 
         float DE(vec3 z)
         {
-            float r;
-            int n = 0;
-            const int Iterations = int(${numIterations});
-            while (n < Iterations) {
-                z *= fracRotation1;
-                if(z.x+z.y<0.0) z.xy = -z.yx;
-                if(z.x+z.z<0.0) z.xz = -z.zx;
-                if(z.y+z.z<0.0) z.zy = -z.yz;
-                z = z*scale - offset*(scale-1.0);
-                z *= fracRotation2;
-                r = dot(z, z);
-                //if (n< ColorIterations)  orbitTrap = min(orbitTrap, abs(vec4(z,r)));
-                n++;
-            }
-	        return length(z) * pow(scale, -float(n));
+	        return Menger(z);
         }
 
         float SDF_SURFACE(vec3 X)
@@ -166,8 +210,6 @@
     Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
     Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
     
-    Scene.prototype.envMap = function()
-    { return 'https://portsmouth.github.io/envmaps/HDR_112_River_Road_2_Bg.jpg'; }
     
     Scene.prototype.initGui = function(gui)
     {

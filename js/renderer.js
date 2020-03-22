@@ -4,38 +4,41 @@
 *  - 'ao': ambient occlusion, colored via {@link Surface} material diffuse albedo modulated by the `SURFACE_DIFFUSE_REFLECTANCE` shader function
 *  - 'normals': view normal at first hit as a color
 * @constructor
-* @property {number} width                     - (if not specified, fits to window)
-* @property {number} height                    - (if not specified, fits to window)
-* @property {String} [renderMode='pt']         - rendering mode (either 'pt', 'ao', 'normals')
-* @property {number} [dispersive=false]        - enable dispersive (i.e. spectral) rendering
-* @property {number} [maxSamplesPerFrame=1]    - maximum number of per-pixel samples per frame
-* @property {number} [maxSpp=1]                - maximum number of samples-per-pixel, after which the render terminates
-* @property {number} [maxBounces=3]            - maximum number of surface bounces
-* @property {number} [maxScatters=2]           - maximum number of volumetric scatterings
-* @property {number} [maxMarchSteps=256]       - maximum number of raymarching steps per path segment
-* @property {number} [maxVolumeSteps=256]      - maximum number of Woodcock tracking steps per path segment
-* @property {number} [maxStepsIsMiss=true]     - whether rays which exceed max step count are considered hits or misses
-* @property {number} [interactive=true]        - if enabled, tries to maintain interactive frame rate at the expense of more noise
-* @property {number} [goalFPS=10.0]            - sampling will adjust to try to match goal FPS
-* @property {number} [minsSPPToRedraw=0.0]     - if >0.0, renderer will not redraw until the specified SPP have been accumulated
-* @property {number} [radianceClamp=3.0]       - clamp radiance to (10^) this max value, for firefly reduction
-* @property {number} [wavelengthSamples=256]   - number of samples to take over visible wavelength range
-* @property {number} [exposure=0.0]            - exposure, on a log scale
-* @property {number} [gamma=2.2]               - display gamma correction
-* @property {number} [contrast=1.0]            - tonemapping contrast
-* @property {number} [saturation=1.0]          - tonemapping saturation
-* @property {number} [skyPower=4.0]            - sky power (arbitrary units)
-* @property {number} [skyTemperature=6000]     - sky emission blackbody temperature (in Kelvin), used in dispersive mode only
-* @property {Array}  [skyTint]                 - sky color tint
-* @property {number} [envMapRotation=0.0]      - env map rotation about pole in degrees (0 to 360)
-* @property {number} [envMapVisible=true]      - whether env map is visible to primary rays (otherwise black)
-* @property {number} [sunPower=1.0]            - sun power (arbitrary units)
-* @property {Array}  [sunColor]                - sun color
-* @property {number} [sunAngularSize=5.0]      - sun angular size (degrees)
-* @property {number} [sunLatitude=50.0]        - sun latitude (degrees)
-* @property {number} [sunLongitude=0.0]        - sun longitude (degrees)
-* @property {number} [sunVisibleDirectly=true] - whether sun is directly visible
-* @property {number} [shadowStrength=1.0]     - if <1.0, areas in shadow are not completely dark (provided mostly to allow rendering of occluded areas, e.g. fractals)
+* @property {number} width                       - (if not specified, fits to window)
+* @property {number} height                      - (if not specified, fits to window)
+* @property {String} [renderMode='pt']           - rendering mode (either 'pt', 'ao', 'normals')
+* @property {number} [dispersive=false]          - enable dispersive (i.e. spectral) rendering
+* @property {number} [maxSamplesPerFrame=1]      - maximum number of per-pixel samples per frame
+* @property {number} [maxSpp=1]                  - maximum number of samples-per-pixel, after which the render terminates
+* @property {number} [maxBounces=3]              - maximum number of surface bounces
+* @property {number} [maxScatters=2]             - maximum number of volumetric scatterings
+* @property {number} [maxMarchSteps=256]         - maximum number of raymarching steps per path segment
+* @property {number} [maxVolumeSteps=256]        - maximum number of Woodcock tracking steps per path segment
+* @property {number} [maxStepsIsMiss=true]       - whether rays which exceed max step count are considered hits or misses
+* @property {number} [interactive=true]          - if enabled, tries to maintain interactive frame rate at the expense of more noise
+* @property {number} [goalFPS=10.0]              - sampling will adjust to try to match goal FPS
+* @property {number} [minsSPPToRedraw=0.0]       - if >0.0, renderer will not redraw until the specified SPP have been accumulated
+* @property {number} [radianceClamp=3.0]         - clamp radiance to (10^) this max value, for firefly reduction
+* @property {number} [wavelengthSamples=256]     - number of samples to take over visible wavelength range
+* @property {number} [exposure=0.0]              - exposure, on a log scale
+* @property {number} [gamma=2.2]                 - display gamma correction
+* @property {number} [contrast=1.0]              - tonemapping contrast
+* @property {number} [saturation=1.0]            - tonemapping saturation
+* @property {number} [skyPower=4.0]              - sky power (arbitrary units)
+* @property {number} [skyTemperature=6000]       - sky emission blackbody temperature (in Kelvin), used in dispersive mode only
+* @property {Array}  [skyTintUp]                 - sky color upwards tint
+* @property {Array}  [skyTintDown]               - sky color downwards tint
+* @property {number} [envMapPhiRotation=0.0]     - env map rotation about pole in degrees (0 to 360)
+* @property {number} [envMapThetaRotation=0.0]   - env map rotation about equator in degrees (0 to 180)
+* @property {number} [envMapTransitionAngle=0.0] - angle over which env map tint transitions from upwards to downwards tint [degrees]
+* @property {number} [envMapVisible=true]        - whether env map is visible to primary rays (otherwise black)
+* @property {number} [sunPower=1.0]              - sun power (arbitrary units)
+* @property {Array}  [sunColor]                  - sun color
+* @property {number} [sunAngularSize=5.0]        - sun angular size (degrees)
+* @property {number} [sunLatitude=50.0]          - sun latitude (degrees)
+* @property {number} [sunLongitude=0.0]          - sun longitude (degrees)
+* @property {number} [sunVisibleDirectly=true]   - whether sun is directly visible
+* @property {number} [shadowStrength=1.0]        -   if <1.0, areas in shadow are not completely dark (provided mostly to allow rendering of occluded areas, e.g. fractals)
 */
 var Renderer = function()
 {
@@ -80,7 +83,8 @@ var Renderer = function()
     this.wavelengthSamples = 256;
     this.skyPower = 1.0;
     this.skyTemperature = 6000.0;
-    this.skyTint = [1.0,1.0,1.0];
+    this.skyTintUp = [1.0,1.0,1.0];
+    this.skyTintDown = [1.0,1.0,1.0];
     this.sunPower = 0.0;
     this.sunAngularSize = 5.0;
     this.sunColor = [1.0,0.8,0.5];
@@ -94,7 +98,9 @@ var Renderer = function()
     this.goalFPS = 20.0;
     this.minsSPPToRedraw = 0.0;
     this.envMapVisible = true;
-    this.envMapRotation = 0.0;
+    this.envMapPhiRotation = 0.0;
+    this.envMapThetaRotation = 0.0;
+    this.envMapTransitionAngle = 135.0;
     this.shadowStrength = 1.0;
     this.maxStepsIsMiss = true;
     this.interactive = true;
@@ -474,7 +480,8 @@ Renderer.prototype.render = function()
 
     // Pathtracing options
     INTEGRATOR_PROGRAM.uniformF("skyPower", Math.pow(10.0,this.skyPower));
-    INTEGRATOR_PROGRAM.uniform3Fv("skyTint", this.skyTint);
+    INTEGRATOR_PROGRAM.uniform3Fv("skyTintUp", this.skyTintUp);
+    INTEGRATOR_PROGRAM.uniform3Fv("skyTintDown", this.skyTintDown);
     INTEGRATOR_PROGRAM.uniformF("sunPower", Math.pow(10.0,this.sunPower));
     INTEGRATOR_PROGRAM.uniformF("sunAngularSize", this.sunAngularSize);
     INTEGRATOR_PROGRAM.uniformF("sunLatitude", this.sunLatitude);
@@ -491,10 +498,12 @@ Renderer.prototype.render = function()
     INTEGRATOR_PROGRAM.uniformF("minLengthScale", Math.max(snelly.minLengthScale, 1.0e-6));
     INTEGRATOR_PROGRAM.uniformF("shadowStrength", this.shadowStrength);
     INTEGRATOR_PROGRAM.uniformI("envMapVisible", Boolean(this.envMapVisible) ? 1 : 0);
-    INTEGRATOR_PROGRAM.uniformF("envMapRotation", Math.min(Math.max(this.envMapRotation, 0.0), 360.0));
+    INTEGRATOR_PROGRAM.uniformF("envMapPhiRotation", Math.min(Math.max(this.envMapPhiRotation, 0.0), 360.0));
+    INTEGRATOR_PROGRAM.uniformF("envMapThetaRotation", Math.min(Math.max(this.envMapThetaRotation, 0.0), 180.0));
+    INTEGRATOR_PROGRAM.uniformF("envMapTransitionAngle", Math.min(Math.max(this.envMapTransitionAngle, 0.0), 180.0));
     INTEGRATOR_PROGRAM.uniformI("maxStepsIsMiss", Boolean(this.maxStepsIsMiss) ? 1 : 0);
     INTEGRATOR_PROGRAM.uniformI("wavelengthSamples", this.wavelengthSamples);
-    
+
     // Attach radiance FBO
     this.fbo.bind();
     this.fbo.drawBuffers(2);
