@@ -366,7 +366,7 @@ GUI.prototype.createMaterialSettings = function()
                                 snelly.reset(true);
                             } );
 
-        this.roughnessItem = this.surfaceFolder.add(surfaceObj, 'roughness', 0.0, 0.1);
+        this.roughnessItem = this.surfaceFolder.add(surfaceObj, 'roughness', 0.0, 1.0);
         this.roughnessItem.onChange( function(value) { surfaceObj.roughness = value; snelly.camera.enabled = false; snelly.reset(true); } );
         this.roughnessItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
 
