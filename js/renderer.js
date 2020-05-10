@@ -11,9 +11,7 @@
 * @property {number} [maxSamplesPerFrame=1]      - maximum number of per-pixel samples per frame
 * @property {number} [maxSpp=1]                  - maximum number of samples-per-pixel, after which the render terminates
 * @property {number} [maxBounces=3]              - maximum number of surface bounces
-* @property {number} [maxScatters=2]             - maximum number of volumetric scatterings
 * @property {number} [maxMarchSteps=256]         - maximum number of raymarching steps per path segment
-* @property {number} [maxVolumeSteps=256]        - maximum number of Woodcock tracking steps per path segment
 * @property {number} [maxStepsIsMiss=true]       - whether rays which exceed max step count are considered hits or misses
 * @property {number} [interactive=true]          - if enabled, tries to maintain interactive frame rate at the expense of more noise
 * @property {number} [goalFPS=10.0]              - sampling will adjust to try to match goal FPS
@@ -78,7 +76,6 @@ var Renderer = function()
     this.maxBounces = 3;
     this.maxScatters = 2;
     this.maxMarchSteps = 256;
-    this.maxVolumeSteps = 256;
     this.radianceClamp = 3.0;
     this.wavelengthSamples = 256;
     this.skyPower = 1.0;
@@ -104,6 +101,8 @@ var Renderer = function()
     this.shadowStrength = 1.0;
     this.maxStepsIsMiss = true;
     this.interactive = true;
+
+    this.spotlights = []
 
     // Load shaders
     this.shaderSources = GLU.resolveShaderSource({
@@ -220,20 +219,13 @@ Renderer.prototype.compileShaders = function()
     if (shader.indexOf("DIELECTRIC_ROUGHNESS(")            == -1) { shader += `\n float DIELECTRIC_ROUGHNESS(in float roughness, in vec3 X, in vec3 N) { return roughness; }\n`; }
     if (shader.indexOf("DIELECTRIC_NORMAL_MAP(")            > -1) { hasDielectricNM = true; }
 
-    let hasVolume = true;
     let hasVolumeEmission = true;
-    if (shader.indexOf("SDF_VOLUME(")                      == -1) { hasVolume= false; }
-    if (shader.indexOf("VOLUME_EXTINCTION(")               == -1) { shader += `\n float VOLUME_EXTINCTION(float extinction_ui, vec3 X) { return extinction_ui; }\n`; }
-    if (shader.indexOf("VOLUME_EXTINCTION_MAX(")           == -1) { shader += `\n float VOLUME_EXTINCTION_MAX(float extinction_ui) { return extinction_ui; }\n`; }
-    if (shader.indexOf("VOLUME_SCATTERING_COLOR(")         == -1) { shader += `\n vec3 VOLUME_SCATTERING_COLOR(vec3 scattering_color_ui, vec3 X) { return scattering_color_ui; }\n`; }
-    if (shader.indexOf("VOLUME_ABSORPTION_COLOR(")         == -1) { shader += `\n vec3 VOLUME_ABSORPTION_COLOR(vec3 absorption_color_ui, vec3 X) { return absorption_color_ui; }\n`; }
-    if (shader.indexOf("VOLUME_ANISOTROPY(")               == -1) { shader += `\n float VOLUME_ANISOTROPY(float anisotropy, vec3 X) { return anisotropy; }\n`; }
     if (shader.indexOf("VOLUME_EMISSION(")                 == -1) { hasVolumeEmission = false; shader += `\n vec3 VOLUME_EMISSION(vec3 emission, vec3 X) { return emission; }\n`; }
 
     let hasGeometry = (hasSurface || hasMetal || hasDielectric);
-    if ( !(hasGeometry || hasVolume) )
+    if ( !hasGeometry )
     { 
-        GLU.fail('Scene must define at least one of: SDF_SURFACE, SDF_METAL, SDF_DIELECTRIC, or SDF_VOLUME'); 
+        GLU.fail('Scene must define at least one of: SDF_SURFACE, SDF_METAL, or SDF_DIELECTRIC'); 
     }
 
     let hasNM = (hasSurfaceNM || hasMetalNM || hasDielectricNM);
@@ -260,8 +252,6 @@ Renderer.prototype.compileShaders = function()
     if (hasSurface)        replacements.__DEFINES__ += '\n#define HAS_SURFACE\n';
     if (hasMetal)          replacements.__DEFINES__ += '\n#define HAS_METAL\n';
     if (hasDielectric)     replacements.__DEFINES__ += '\n#define HAS_DIELECTRIC\n';
-    if (hasVolume)         replacements.__DEFINES__ += '\n#define HAS_VOLUME\n';
-    if (hasGeometry)       replacements.__DEFINES__ += '\n#define HAS_GEOMETRY\n';
     if (hasVolumeEmission) replacements.__DEFINES__ += '\n#define HAS_VOLUME_EMISSION\n';
 
     if (hasNM)           replacements.__DEFINES__ += '\n#define HAS_NORMALMAP\n';
@@ -395,6 +385,23 @@ Renderer.prototype.pick = function(xPick, yPick)
             material: pixels[1]};
 }
 
+// (angle in degrees, radiance as a 3-element-array)
+Renderer.prototype.addSpotlight = function(position, direction, angle, radius, radiance)
+{
+    let spotlight = {'position':position,
+                     'direction':direction,
+                     'angle':angle,
+                     'radius':radius,
+                     'radiance': radiance};
+    if (this.spotlights.length < 4) // current, hard-code max number of spotlights to 4
+        this.spotlights.push(spotlight);
+}
+
+Renderer.prototype.removeSpotlights = function()
+{
+    this.spotlights = [];
+}
+
 Renderer.prototype.render = function()
 {
     if (!this.loaded) return;
@@ -478,31 +485,46 @@ Renderer.prototype.render = function()
         INTEGRATOR_PROGRAM.uniformTexture("ICDF", snelly.emissionIcdf);
     }
 
-    // Pathtracing options
-    INTEGRATOR_PROGRAM.uniformF("skyPower", Math.pow(10.0,this.skyPower));
-    INTEGRATOR_PROGRAM.uniform3Fv("skyTintUp", this.skyTintUp);
-    INTEGRATOR_PROGRAM.uniform3Fv("skyTintDown", this.skyTintDown);
-    INTEGRATOR_PROGRAM.uniformF("sunPower", Math.pow(10.0,this.sunPower));
-    INTEGRATOR_PROGRAM.uniformF("sunAngularSize", this.sunAngularSize);
-    INTEGRATOR_PROGRAM.uniformF("sunLatitude", this.sunLatitude);
-    INTEGRATOR_PROGRAM.uniformF("sunLongitude", this.sunLongitude);
-    INTEGRATOR_PROGRAM.uniform3Fv("sunColor", this.sunColor);
-    this.updateSunDir();
-    INTEGRATOR_PROGRAM.uniform3Fv("sunDir", this.sunDir);
-    INTEGRATOR_PROGRAM.uniformI("sunVisibleDirectly", this.sunVisibleDirectly);
+    // Raytracing options
+    {
+        INTEGRATOR_PROGRAM.uniformF("skyPower", Math.pow(10.0,this.skyPower));
+        INTEGRATOR_PROGRAM.uniform3Fv("skyTintUp", this.skyTintUp);
+        INTEGRATOR_PROGRAM.uniform3Fv("skyTintDown", this.skyTintDown);
+        INTEGRATOR_PROGRAM.uniformF("sunPower", Math.pow(10.0,this.sunPower));
+        INTEGRATOR_PROGRAM.uniformF("sunAngularSize", this.sunAngularSize);
+        INTEGRATOR_PROGRAM.uniformF("sunLatitude", this.sunLatitude);
+        INTEGRATOR_PROGRAM.uniformF("sunLongitude", this.sunLongitude);
+        INTEGRATOR_PROGRAM.uniform3Fv("sunColor", this.sunColor);
+        this.updateSunDir();
+        INTEGRATOR_PROGRAM.uniform3Fv("sunDir", this.sunDir);
+        INTEGRATOR_PROGRAM.uniformI("sunVisibleDirectly", this.sunVisibleDirectly);
 
-    INTEGRATOR_PROGRAM.uniformF("radianceClamp", Math.pow(10.0, this.radianceClamp));
-    INTEGRATOR_PROGRAM.uniformF("skipProbability", this.skipProbability);
-    INTEGRATOR_PROGRAM.uniformF("lengthScale", Math.max(snelly.lengthScale, 1.0e-6));
-    INTEGRATOR_PROGRAM.uniformF("maxLengthScale", Math.max(snelly.maxLengthScale, 1.0e-6));
-    INTEGRATOR_PROGRAM.uniformF("minLengthScale", Math.max(snelly.minLengthScale, 1.0e-6));
-    INTEGRATOR_PROGRAM.uniformF("shadowStrength", this.shadowStrength);
-    INTEGRATOR_PROGRAM.uniformI("envMapVisible", Boolean(this.envMapVisible) ? 1 : 0);
-    INTEGRATOR_PROGRAM.uniformF("envMapPhiRotation", Math.min(Math.max(this.envMapPhiRotation, 0.0), 360.0));
-    INTEGRATOR_PROGRAM.uniformF("envMapThetaRotation", Math.min(Math.max(this.envMapThetaRotation, 0.0), 180.0));
-    INTEGRATOR_PROGRAM.uniformF("envMapTransitionAngle", Math.min(Math.max(this.envMapTransitionAngle, 0.0), 180.0));
-    INTEGRATOR_PROGRAM.uniformI("maxStepsIsMiss", Boolean(this.maxStepsIsMiss) ? 1 : 0);
-    INTEGRATOR_PROGRAM.uniformI("wavelengthSamples", this.wavelengthSamples);
+        INTEGRATOR_PROGRAM.uniformF("radianceClamp", Math.pow(10.0, this.radianceClamp));
+        INTEGRATOR_PROGRAM.uniformF("skipProbability", this.skipProbability);
+        INTEGRATOR_PROGRAM.uniformF("lengthScale", Math.max(snelly.lengthScale, 1.0e-6));
+        INTEGRATOR_PROGRAM.uniformF("maxLengthScale", Math.max(snelly.maxLengthScale, 1.0e-6));
+        INTEGRATOR_PROGRAM.uniformF("minLengthScale", Math.max(snelly.minLengthScale, 1.0e-6));
+        INTEGRATOR_PROGRAM.uniformF("shadowStrength", this.shadowStrength);
+        INTEGRATOR_PROGRAM.uniformI("envMapVisible", Boolean(this.envMapVisible) ? 1 : 0);
+        INTEGRATOR_PROGRAM.uniformF("envMapPhiRotation", Math.min(Math.max(this.envMapPhiRotation, 0.0), 360.0));
+        INTEGRATOR_PROGRAM.uniformF("envMapThetaRotation", Math.min(Math.max(this.envMapThetaRotation, 0.0), 180.0));
+        INTEGRATOR_PROGRAM.uniformF("envMapTransitionAngle", Math.min(Math.max(this.envMapTransitionAngle, 0.0), 180.0));
+        INTEGRATOR_PROGRAM.uniformI("maxStepsIsMiss", Boolean(this.maxStepsIsMiss) ? 1 : 0);
+        INTEGRATOR_PROGRAM.uniformI("wavelengthSamples", this.wavelengthSamples);
+
+        /*
+        let num_spotlights = this.spotlights.length;
+        INTEGRATOR_PROGRAM.uniformI("spotlightCount", num_spotlights);
+        for (let n=0; n<4; ++n)
+        {
+            if (num_spotlights<n+1) break;
+            INTEGRATOR_PROGRAM.uniform3Fv("spotlightPosition" +n.toString(), this.spotlights[n].position);
+            INTEGRATOR_PROGRAM.uniform3Fv("spotlightDirection"+n.toString(), this.spotlights[n].direction);
+            INTEGRATOR_PROGRAM.uniformF(  "spotlightAngle"    +n.toString(), this.spotlights[n].angle);
+            INTEGRATOR_PROGRAM.uniform3Fv("spotlightRadiance" +n.toString(), this.spotlights[n].radiance);
+        }
+        */
+    }
 
     // Attach radiance FBO
     this.fbo.bind();

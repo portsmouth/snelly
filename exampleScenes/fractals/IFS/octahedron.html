@@ -14,68 +14,69 @@
         /******* copy-pasted console output on 'O', begin *******/
     
         let renderer  = snelly.getRenderer();
-        let camera    = snelly.getCamera();
-        let controls  = snelly.getControls();
-        let materials = snelly.getMaterials();
-            
-            this.par = {};
-            this.par.scale = 1.7537442439608555;
-            this.par.offset = [1.9591419290485281,0,0]
-            this.par.time = 6.5139071918546065;
-            this.par.numIterations = 20;
-            this.par.angle1 = 159.64083317883674;
-            this.par.angle2 = 212.854444238449;
-            this.par.rot1 = [360,360,360]
-            this.par.rot2 = [62.76498150749285,94.35562033971435,116.42083599703103]
-            this.frame = 0;
-                
-        snelly.showGUI(true);
+let camera    = snelly.getCamera();
+let controls  = snelly.getControls();
+let materials = snelly.getMaterials();
+    
+    this.par = {};
+    this.par.scale = 1.6551724137931034;
+    this.par.offset = [2.941176470588235,1.2687427912341407,1.2687427912341407]
+    this.par.time = 6.5139071918546065;
+    this.par.numIterations = 20;
+    this.par.angle1 = 117.3253857746343;
+    this.par.angle2 = 89.00546507041221;
+    this.par.rot1 = [360,360,360]
+    this.par.rot2 = [19.764705882352942,55.05882352941177,80.47058823529412]
+    this.frame = 0;
+        
+snelly.showGUI(true);
 
-        /** Camera settings **/
-        camera.fov = 31.361031518624642;
-        camera.aperture = -22.034115347756206;
-        camera.focalDistance = 0.98891450725164;
-        camera.up.set(0, 1, 0);
-        camera.position.set(-1.2916758566759845, 1.6225391781536327, -9.21032232700773);
-        controls.target.set(-0.06641597753474722, -0.09608660631821003, 0.15052103126619698);
+/** Camera settings **/
+camera.fov = 31.361031518624642;
+camera.aperture = -22.034115347756206;
+camera.focalDistance = 1.0263015730417218;
+camera.up.set(0, 1, 0);
+camera.position.set(-12.684639114623858, 2.337557919802, -0.7742075498577059);
+controls.target.set(0.11465340509217217, -0.0779520707125425, 0.09118891462928408);
 
-        /** Renderer settings **/
-        renderer.renderMode = 'pt';
-        renderer.dispersive = false;
-        renderer.maxSamplesPerFrame = 1;
-        renderer.maxSpp = 1024;
-        renderer.maxBounces = 2;
-        renderer.maxScatters = 2;
-        renderer.maxMarchSteps = 341;
-        renderer.maxVolumeSteps = 256;
-        renderer.maxStepsIsMiss = false;
-        renderer.interactive = false;
-        renderer.goalFPS = 10;
-        renderer.minsSPPToRedraw = 0;
-        renderer.radianceClamp = 3;
-        renderer.wavelengthSamples = 201.55359527923872;
-        renderer.exposure = -0.975480615650854;
-        renderer.gamma = 1.8940394352593168;
-        renderer.contrast = 1.2299937368417078;
-        renderer.saturation = 1.0866202337742694;
-        renderer.skyPower = 3.1457203009334354;
-        renderer.skyTint = [1, 1, 1];
-        renderer.envMapRotation = 0;
-        renderer.envMapVisible = false;
-        renderer.sunPower = 2.8136974517246305;
-        renderer.sunColor = [0.7745098039215687, 0.722875816993464, 0.6454248366013072];
-        renderer.sunAngularSize = 20;
-        renderer.sunLatitude = 65.29614174357266;
-        renderer.sunLongitude = 53.425494827234914;
-        renderer.sunVisibleDirectly = false;
-        renderer.shadowStrength = 1;
+/** Renderer settings **/
+renderer.renderMode = 'pt';
+renderer.dispersive = false;
+renderer.maxSamplesPerFrame = 1;
+renderer.maxSpp = 1024;
+renderer.maxBounces = 2;
+renderer.maxScatters = 2;
+renderer.maxMarchSteps = 341;
+renderer.maxVolumeSteps = 256;
+renderer.maxStepsIsMiss = false;
+renderer.interactive = false;
+renderer.goalFPS = 10;
+renderer.minsSPPToRedraw = 0;
+renderer.radianceClamp = 3;
+renderer.wavelengthSamples = 201.55359527923872;
+renderer.exposure = -0.975480615650854;
+renderer.gamma = 1.8940394352593168;
+renderer.contrast = 1.2299937368417078;
+renderer.saturation = 1.0866202337742694;
+renderer.skyPower = 3.1457203009334354;
+renderer.skyTintUp = [1, 1, 1];
+renderer.skyTintDown = [1, 1, 1];
+renderer.envMapRotation = 0;
+renderer.envMapVisible = false;
+renderer.sunPower = 2.8136974517246305;
+renderer.sunColor = [0.7745098039215687, 0.722875816993464, 0.6454248366013072];
+renderer.sunAngularSize = 20;
+renderer.sunLatitude = 65.29614174357266;
+renderer.sunLongitude = 53.425494827234914;
+renderer.sunVisibleDirectly = false;
+renderer.shadowStrength = 1;
 
-        /** Material settings **/
-        let surface = materials.loadSurface();
-        surface.roughness = 0.0015032093519664477;
-        surface.ior = 2.5282628411658887;
-        surface.diffuseAlbedo = [0.16966890562453357, 0.20588235294117652, 0.08275663206459057];
-        surface.specAlbedo = [0, 0.17647058823529438, 1];
+/** Material settings **/
+let surface = materials.loadSurface();
+surface.roughness = 0.0015032093519664477;
+surface.ior = 1.6068554436619014;
+surface.diffuseAlbedo = [0.07843137254901966, 0.07843137254901966, 0.07843137254901966];
+surface.specAlbedo = [0.05882352941176472, 0.05882352941176472, 0.05882352941176472];
 
         /******* copy-pasted console output on 'O', end *******/
     }

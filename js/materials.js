@@ -58,52 +58,6 @@ Surface.prototype.syncShader = function(shader)
 
 
 ////////////////////////////////////////////////////////
-// Volumetric material
-////////////////////////////////////////////////////////
-
-/** 
-* Volumetric material. Control via properties:
-* @constructor 
-* @extends Material
-* @property {number} extinction      - Total extinction multiplier in units of inverse scene scale
-* @property {Array}  scatteringColor - Scattering (RGB) color (multiplies extinction to give per-channel scattering coefficient)
-* @property {Array}  absorptionColor - The absorption (RGB) color (multiplies extinction to give per-channel absorption coefficient)
-* @property {number} anisotropy      - Phase function anisotropy in [-1,1]
-* @property {number} emission        - emission power magnitude
-* @property {Array}  emissionColor   - emission color (multiplies emission to give per-channel emission)
-* @example
-* volume.extinction = 0.1;
-* volume.scatteringColor = [0.5, 0.5, 0.5];
-* volume.absorptionColor = [0.0, 0.5, 0.0];
-* volume.anisotropy = 0.0;
-* volume.emission = 0.0;
-* volume.emissionColor = [0.5, 0.5, 0.5];
-*/
-function Volume(name)
-{
-    Material.call(this, name);
-    this.extinction = 0.1; //  in units of scene length scale
-    this.scatteringColor = [1.0, 1.0, 1.0];
-    this.absorptionColor = [1.0, 1.0, 1.0];
-    this.anisotropy = 0.0;
-    this.emission = 0.0;
-    this.emissionColor = [1.0, 1.0, 1.0];
-}
-
-Volume.prototype = Object.create(Material.prototype);
-
-Volume.prototype.syncShader = function(shader)
-{
-    shader.uniformF("volumeExtinction", this.extinction);
-    shader.uniform3Fv("volumeScatteringColorRGB", this.scatteringColor);
-    shader.uniform3Fv("volumeAbsorptionColorRGB", this.absorptionColor);
-    shader.uniformF("volumeEmission", this.emission);
-    shader.uniform3Fv("volumeEmissionColorRGB", this.emissionColor);
-    shader.uniformF("volumeAnisotropy", this.anisotropy);
-}
-
-
-////////////////////////////////////////////////////////
 // Metals
 ////////////////////////////////////////////////////////
 
@@ -593,7 +547,7 @@ float IOR_DIELE(float wavelength_nm)
     float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
     float l2 = wavelength_um*wavelength_um;                                                                               
     float n2 = ${IOR_FORMULA}; 
-    return max(sqrt(abs(n2)), 1.0e-3);                                                                     
+    return max(sqrt(abs(n2)), 1.0e-3);
 }`;
 
     return code;
@@ -629,7 +583,7 @@ PolyanskiyDielectric.prototype = Object.create(Dielectric.prototype);
 
 PolyanskiyDielectric.prototype.ior = function()
 {
-    var IOR_FORMULA = ' _C1 + _C2*pow(l, _C3)/(l*l - pow(_C4, _C5))'; 
+    var IOR_FORMULA = ' _C1 + _C2*pow(l, _C3)/(l*l - pow(_C4, _C5))';
 
     // Defines a GLSL function which takes wavelength (in nanometres) and returns ior
     var code = `
@@ -638,12 +592,12 @@ uniform float _C2;
 uniform float _C3;
 uniform float _C4;
 uniform float _C5;
-float IOR_DIELE(float wavelength_nm) 
-{                                                                                            
-    float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
-    float l = wavelength_um;                                                                               
-    float n2 = ${IOR_FORMULA}; 
-    return max(sqrt(abs(n2)), 1.0e-3);                                                                     
+float IOR_DIELE(float wavelength_nm)
+{
+    float wavelength_um = 1.0e-3*wavelength_nm;
+    float l = wavelength_um;
+    float n2 = ${IOR_FORMULA};
+    return max(sqrt(abs(n2)), 1.0e-3);
 }`;
 
     return code;
@@ -688,13 +642,13 @@ CauchyDielectric.prototype.ior = function()
     {
         uniforms += `uniform float _C${n};\n`;
     }
-    var code = `${uniforms}    
-float IOR_DIELE(float wavelength_nm) 
-{                                                                                            
-    float wavelength_um = 1.0e-3*wavelength_nm;                                                                      
-    float l = wavelength_um;                                                                               
-    float n = ${IOR_FORMULA}; 
-    return max(n, 1.0e-3);                                                                     
+    var code = `${uniforms}
+float IOR_DIELE(float wavelength_nm)
+{
+    float wavelength_um = 1.0e-3*wavelength_nm;
+    float l = wavelength_um;
+    float n = ${IOR_FORMULA};
+    return max(n, 1.0e-3);
 }`;
 
     return code;
@@ -784,9 +738,6 @@ var Materials = function()
 
         // Surface (uber)
         this.surfaceObj = new Surface("Surface", "");
-
-        // Volume
-        this.volumeObj = new Volume("Volume", "");
 
         // Defaults:
         this.loadDielectric("Glass (BK7)");
@@ -949,7 +900,6 @@ Materials.prototype.syncShader  = function(program)
     if (this.metalObj      !== null) this.metalObj.syncShader(program);
     if (this.dielectricObj !== null) this.dielectricObj.syncShader(program);
     if (this.surfaceObj    !== null) this.surfaceObj.syncShader(program);
-    if (this.volumeObj     !== null) this.volumeObj.syncShader(program);
 }
 
     

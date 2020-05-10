@@ -43,7 +43,6 @@ uniform vec3 surfaceDiffuseAlbedoRGB;
 #define MAT_DIELE  0
 #define MAT_METAL  1
 #define MAT_SURFA  2
-#define MAT_VOLUM  3
 
 #define M_PI 3.1415926535897932384626433832795
 
@@ -76,9 +75,6 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
 #ifdef HAS_DIELECTRIC
     float sdf_diele = abs(SDF_DIELECTRIC(start)); sdf = min(sdf, sdf_diele);
 #endif
-#ifdef HAS_VOLUME
-    float sdf_volum = abs(SDF_VOLUME(start)); sdf = min(sdf, sdf_volum);
-#endif
 
     float InitialSign = sign(sdf);
     float t = 0.0;
@@ -99,9 +95,6 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
 #endif
 #ifdef HAS_DIELECTRIC
         sdf_diele = abs(SDF_DIELECTRIC(pW)); if (sdf_diele<minMarchDist) { material = MAT_DIELE; break; } sdf = min(sdf, sdf_diele); 
-#endif
-#ifdef HAS_VOLUME
-        sdf_volum = abs(SDF_VOLUME(pW)); if (sdf_volum<minMarchDist) { material = MAT_VOLUM; break; } sdf = min(sdf, sdf_volum); 
 #endif
         iters++;
     }
@@ -146,9 +139,6 @@ vec3 normal(in vec3 pW, int material)
 #endif
 #ifdef HAS_DIELECTRIC
     if (material==MAT_DIELE) { N = vec3(SDF_DIELECTRIC(xyyp) - SDF_DIELECTRIC(xyyn), SDF_DIELECTRIC(yxyp) - SDF_DIELECTRIC(yxyn), SDF_DIELECTRIC(yyxp) - SDF_DIELECTRIC(yyxn)); return normalize(N); }
-#endif
-#ifdef HAS_VOLUME
-    if (material==MAT_VOLUM) { N = vec3(    SDF_VOLUME(xyyp) -     SDF_VOLUME(xyyn),     SDF_VOLUME(yxyp) -     SDF_VOLUME(yxyn),     SDF_VOLUME(yyxp) -     SDF_VOLUME(yyxn)); return normalize(N); }
 #endif
 }
 
@@ -346,7 +336,7 @@ void main()
 
             // Compute diffuse albedo
             vec3 diffuseAlbedo = SURFACE_DIFFUSE_REFL_RGB(pW, basis.nW, woW);
-            
+
             // Set incident radiance to according to whether the AO ray hit anything or missed.
             if (!Occluded(pW, wiW)) RGB += diffuseAlbedo;
             else                    RGB += diffuseAlbedo * abs(1.0 - shadowStrength);
@@ -382,6 +372,144 @@ void main()
 {
     gl_Position = vec4(Position, 1.0);
     vTexCoord = TexCoord;
+}
+`,
+
+'lighttracer-fragment-shader': `#version 300 es
+precision highp float;
+
+// @todo: samplers
+
+
+// Spotlights
+uniform int spotlightCount;
+uniform vec3 spotlightPosition0;
+uniform vec3 spotlightPosition1;
+uniform vec3 spotlightPosition2;
+uniform vec3 spotlightPosition3;
+uniform vec3 spotlightDirection0;
+uniform vec3 spotlightDirection1;
+uniform vec3 spotlightDirection2;
+uniform vec3 spotlightDirection3;
+uniform float spotlightRadius0;
+uniform float spotlightRadius1;
+uniform float spotlightRadius2;
+uniform float spotlightRadius3;
+uniform float spotlightAngle0;
+uniform float spotlightAngle1;
+uniform float spotlightAngle2;
+uniform float spotlightAngle3;
+uniform vec3 spotlightRadiance0;
+uniform vec3 spotlightRadiance1;
+uniform vec3 spotlightRadiance2;
+uniform vec3 spotlightRadiance3;
+
+// Camera parameters
+uniform vec2 resolution;
+uniform vec3 camPos;
+uniform vec3 camDir;
+uniform vec3 camX;
+uniform vec3 camY;
+uniform float camFovy; // degrees
+uniform float camAspect;
+uniform float camAperture;
+uniform float camFocalDistance;
+
+// Length scales
+uniform float lengthScale;
+uniform float minLengthScale;
+uniform float maxLengthScale;
+
+// Surface material parameters
+uniform float metalRoughness;
+uniform vec3 metalSpecAlbedoRGB;
+uniform float dieleRoughness;
+uniform vec3 dieleAbsorptionRGB;
+uniform vec3 dieleSpecAlbedoRGB;
+uniform vec3 surfaceDiffuseAlbedoRGB;
+uniform vec3 surfaceSpecAlbedoRGB;
+uniform float surfaceRoughness;
+uniform float surfaceIor;
+
+// Volumetric/atmosphere constants
+uniform float volumeEmission;
+uniform vec3 volumeEmissionColorRGB;
+uniform float atmosphereExtinction;
+uniform vec3 atmosphereScatteringColorRGB;
+uniform vec3 atmosphereAbsorptionColorRGB;
+uniform float atmosphereAnisotropy;
+
+
+
+void constructSpotlightRay(in vec3 position, in vec3 direction, float radius, float angle, inout vec4 rnd,
+                           inout vec3 primaryStart, inout vec3 primaryDir)
+{
+    // Make emission cross-section circular
+    float rPos = radius*sqrt(rand(rnd));
+    float phiPos = 2.0*M_PI*rand(rnd);
+    vec3 X = vec3(1.0, 0.0, 0.0);
+    vec3 Z = vec3(0.0, 0.0, 1.0);
+    vec3 u = cross(Z, direction);
+    if ( length(u) < 1.0e-3 )
+        u = cross(X, direction);
+
+    u = normalize(u);
+    vec3 v = cross(direction, u);
+    primaryStart = position + rPos*(u*cos(phiPos) + v*sin(phiPos));
+
+    // Emit in a cone with the given spread
+    float spreadAngle = 0.5*abs(angle)*M_PI/180.0;
+    float rDir = min(tan(spreadAngle), 1.0e6) * sqrt(rand(rnd));
+    float phiDir = 2.0*M_PI*rand(seed);
+    primaryDir = normalize(direction + rDir*(u*cos(phiDir) + v*sin(phiDir)));
+}
+
+
+
+RadianceType lightPathContribution(float wavelength_nm, in vec3 rgb, inout vec4 rnd)
+{
+    // For each spotlight, trace a path from the light through the scene,
+    // with appropriate vertex factors at each surface hit.
+    // At each vertex, connect to the first camera-path hit point (cW), producing a final contribution
+    // due to each light.
+
+    // Also, on each light path segment, connect to the first camera segment [c0, c1]
+    // to generate a volumetric scattering contribution (if an atmosphere is present).
+    // This requires sampling the distances along each segment.
+    // (Ideally we would importance sample these distances according to their joint PDF, but a good start
+    // is to equi-angular sample the camera-segment based on the light position, and the light-segment based on the camera position).
+
+    // Perform light-trace starting from spot-lights, if present:
+    for (int n=0; n<spotlightCount*__MAX_SAMPLES_PER_FRAME__; ++n)
+    {
+        vec3 Lspot;
+        vec3 primaryStart, primaryDir;
+        switch (n)
+        {
+            case 0: { constructSpotlightRay(spotlightPosition0, spotlightDirection0, spotlightRadius0, spotlightAngle0, rnd, primaryStart, primaryDir); Lspot = spotlightRadiance0; break; }
+            case 1: { constructSpotlightRay(spotlightPosition1, spotlightDirection1, spotlightRadius1, spotlightAngle1, rnd, primaryStart, primaryDir); Lspot = spotlightRadiance1; break; }
+            case 2: { constructSpotlightRay(spotlightPosition2, spotlightDirection2, spotlightRadius2, spotlightAngle2, rnd, primaryStart, primaryDir); Lspot = spotlightRadiance2; break; }
+            case 3: { constructSpotlightRay(spotlightPosition3, spotlightDirection3, spotlightRadius3, spotlightAngle3, rnd, primaryStart, primaryDir); Lspot = spotlightRadiance3; break; }
+        }
+
+        vec3 pW = primaryStart;
+        vec3 rayDir = primaryDir; // (parallel to light direction)
+    }
+}
+
+
+void main()
+{
+    // Read current photon vertex and direction
+
+    // Calculate hit (or miss)
+
+    // Compute contribution to caustic image (image plane hit and radiance)
+
+    // Update photon vertex and direction
+
+
+
 }
 `,
 
@@ -439,7 +567,6 @@ uniform float surfaceIor;
 #define MAT_DIELE  0
 #define MAT_METAL  1
 #define MAT_SURFA  2
-#define MAT_VOLUM  3
 
 #define M_PI 3.1415926535897932384626433832795
 
@@ -472,9 +599,6 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
 #ifdef HAS_DIELECTRIC
     float sdf_diele = abs(SDF_DIELECTRIC(start)); sdf = min(sdf, sdf_diele);
 #endif
-#ifdef HAS_VOLUME
-    float sdf_volum = abs(SDF_VOLUME(start)); sdf = min(sdf, sdf_volum);
-#endif
 
     float InitialSign = sign(sdf);
     float t = 0.0;
@@ -495,9 +619,6 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
 #endif
 #ifdef HAS_DIELECTRIC
         sdf_diele = abs(SDF_DIELECTRIC(pW)); if (sdf_diele<minMarchDist) { material = MAT_DIELE; break; } sdf = min(sdf, sdf_diele); 
-#endif
-#ifdef HAS_VOLUME
-        sdf_volum = abs(SDF_VOLUME(pW)); if (sdf_volum<minMarchDist) { material = MAT_VOLUM; break; } sdf = min(sdf, sdf_volum); 
 #endif
         iters++;
     }
@@ -542,9 +663,6 @@ vec3 normal(in vec3 pW, int material)
 #endif
 #ifdef HAS_DIELECTRIC
     if (material==MAT_DIELE) { N = vec3(SDF_DIELECTRIC(xyyp) - SDF_DIELECTRIC(xyyn), SDF_DIELECTRIC(yxyp) - SDF_DIELECTRIC(yxyn), SDF_DIELECTRIC(yyxp) - SDF_DIELECTRIC(yyxn)); return normalize(N); }
-#endif
-#ifdef HAS_VOLUME
-    if (material==MAT_VOLUM) { N = vec3(    SDF_VOLUME(xyyp) -     SDF_VOLUME(xyyn),     SDF_VOLUME(yxyp) -     SDF_VOLUME(yxyn),     SDF_VOLUME(yyxp) -     SDF_VOLUME(yyxn)); return normalize(N); }
 #endif
 }
 
@@ -739,6 +857,7 @@ void main()
 'pathtracer-fragment-shader': `#version 300 es
 precision highp float;
 
+// Samplers
 uniform sampler2D Radiance;         // 0 (IO buffer)
 uniform sampler2D RngData;          // 1 (IO buffer)
 uniform sampler2D WavelengthToXYZ;  // 2
@@ -751,6 +870,7 @@ in vec2 vTexCoord;
 layout(location = 0) out vec4 gbuf_rad;
 layout(location = 1) out vec4 gbuf_rng;
 
+// Camera parameters
 uniform vec2 resolution;
 uniform vec3 camPos;
 uniform vec3 camDir;
@@ -761,10 +881,12 @@ uniform float camAspect;
 uniform float camAperture;
 uniform float camFocalDistance;
 
+// Length scales
 uniform float lengthScale;
 uniform float minLengthScale;
 uniform float maxLengthScale;
 
+// Sun parameters
 uniform float sunPower;
 uniform float sunAngularSize;
 uniform float sunLatitude;
@@ -772,7 +894,6 @@ uniform float sunLongitude;
 uniform vec3 sunColor;
 uniform vec3 sunDir;
 uniform bool sunVisibleDirectly;
-
 uniform bool haveEnvMap;
 uniform bool envMapVisible;
 uniform float envMapPhiRotation;
@@ -782,12 +903,14 @@ uniform float skyPower;
 uniform vec3 skyTintUp;
 uniform vec3 skyTintDown;
 
+// Pathtracing parameters
 uniform float radianceClamp;
 uniform float skipProbability;
 uniform float shadowStrength;
 uniform bool maxStepsIsMiss;
 uniform int wavelengthSamples;
 
+// Surface material parameters
 uniform float metalRoughness;
 uniform vec3 metalSpecAlbedoRGB;
 uniform float dieleRoughness;
@@ -798,13 +921,19 @@ uniform vec3 surfaceSpecAlbedoRGB;
 uniform float surfaceRoughness;
 uniform float surfaceIor;
 
-uniform float volumeExtinction;
-uniform vec3 volumeScatteringColorRGB;
-uniform vec3 volumeAbsorptionColorRGB;
+// Volumetric/atmosphere constants
 uniform float volumeEmission;
 uniform vec3 volumeEmissionColorRGB;
-uniform float volumeAnisotropy;
+uniform float atmosphereExtinction;
+uniform vec3 atmosphereScatteringColorRGB;
+uniform vec3 atmosphereAbsorptionColorRGB;
+uniform float atmosphereAnisotropy;
 
+
+
+//////////////////////////////////////////////////////////////
+// Defines
+//////////////////////////////////////////////////////////////
 #define DENOM_TOLERANCE 1.0e-7
 #define PDF_EPSILON 1.0e-6
 #define THROUGHPUT_EPSILON 1.0e-5
@@ -815,8 +944,6 @@ uniform float volumeAnisotropy;
 #define MAT_DIELE  0
 #define MAT_METAL  1
 #define MAT_SURFA  2
-#define MAT_VOLUM  3
-
 
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
@@ -941,7 +1068,7 @@ vec3 rgbToXyz(in vec3 RGB)
 }
 
 #ifdef DISPERSION_ENABLED
-// In dispersive rendering, takes the RGB of an albedo-like quantity (i.e. a desired color), 
+// In dispersive rendering, takes the RGB of an albedo-like quantity (i.e. a desired color),
 // and the rgb color matching functions at the wavelength of the current monochromatic beam,
 // and returns the corresponding scalar albedo at this wavelength.
 float rgbToAlbedo(in vec3 RGB, in vec3 rgb)
@@ -1038,9 +1165,15 @@ float powerHeuristic(const float a, const float b)
     return a/(a + b);
 }
 
+
+/////////////////////////////////////////////////////////////////////////
+// Phase function
+/////////////////////////////////////////////////////////////////////////
+
+/*
 vec3 samplePhaseFunction(in vec3 rayDir, inout vec4 rnd)
 {
-    float g = volumeAnisotropy;
+    float g = atmosphereAnisotropy;
     float costheta;
     if (abs(g)<1.0e-3)
         costheta = 1.0 - 2.0*rand(rnd);
@@ -1054,10 +1187,11 @@ vec3 samplePhaseFunction(in vec3 rayDir, inout vec4 rnd)
 
 float phaseFunction(float mu)
 {
-    float g = volumeAnisotropy;
+    float g = atmosphereAnisotropy;
     float gSqr = g*g;
     return (1.0/(4.0*M_PI)) * (1.0 - gSqr) / pow(1.0 - 2.0*g*mu + gSqr, 1.5);
 }
+*/
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -1113,152 +1247,152 @@ float smithG2(in vec3 woL, in vec3 wiL, in vec3 mLocal, float roughness)
     return smithG1(woL, mLocal, roughness) * smithG1(wiL, mLocal, roughness);
 }
 
+// cosi         = magnitude of the cosine of the incident ray angle to the normal
+// eta_ti       = ratio et/ei of the transmitted IOR (et) and incident IOR (ei)
+float fresnelDielectricReflectance(in float cosi, in float eta_ti)
+{
+    float c = cosi;
+    float g = eta_ti*eta_ti - 1.0 + c*c;
+    if (g > 0.0)
+    {
+        g = sqrt(g);
+        float A = (g-c) / (g+c);
+        float B = (c*(g+c) - 1.0) / (c*(g-c) + 1.0);
+        return 0.5*A*A*(1.0 + B*B);
+    }
+    return 1.0; // total internal reflection
+}
 
 /////////////////////////////////////////////////////////////////////////
 // BRDF functions
 /////////////////////////////////////////////////////////////////////////
 
-#ifdef HAS_GEOMETRY
-
 // ****************************        Dielectric        ****************************
 
 #ifdef HAS_DIELECTRIC
 
-/// Compute Fresnel reflectance at a dielectric interface (which has an "interior" and an "exterior").
-/// Here cosi is the cosine to the (interior-to-exterior) normal of the incident ray
-/// direction wi, (where we use the PBRT convention that the light
-/// travels in the opposite direction to wi, i.e. wi is the direction
-/// *from* which the light arrives at the surface point).
-/// The Boolean "entering" indicates whether the ray is entering or exiting the dielectric.
-float fresnelDielectricReflectance(in float cosi, in float iorInternal, in float iorExternal)
+// Given the direction (wt) of a light beam transmitted through a plane dielectric interface
+// with the given normal (n) in any orientation, and the ratio eta_ti = et/ei of the transmitted IOR (et) and incident IOR (ei),
+// compute the direction of the incident light beam (wi). Returns false if no such beam exists, due to total internal reflection.
+bool refraction_given_transmitted_direction(in vec3 n, in float eta_ti, in vec3 wt, inout vec3 wi)
 {
-    bool entering = cosi > 0.0;
-    float ei, et;
-    if (entering)
-    {
-        ei = iorExternal; // Incident from external medium, if entering
-        et = iorInternal; // Transmitted to internal medium, if entering
-    }
-    else
-    {
-        ei = iorInternal; // Incident from internal medium, if exiting
-        et = iorExternal; // Transmitted to external medium, if exiting
-    }
-
-    // Compute sint from Snell's law:
-    float sint = ei/et * sqrt(max(0.0, 1.0 - cosi*cosi));
-
-    // Handle total internal reflection
-    if (sint >= 1.0) return 1.0;
-
-    float cost = sqrt(max(0.0, 1.0 - sint*sint));
-    float cosip = abs(cosi);
-    float rParallel      = (et*cosip - ei*cost) / (et*cosip + ei*cost);
-    float rPerpendicular = (ei*cosip - et*cost) / (ei*cosip + et*cost);
-    return 0.5 * (rParallel*rParallel + rPerpendicular*rPerpendicular);
-}
-
-// Given the direction (wt) of a beam transmitted through a plane dielectric interface
-// with the given normal (n) (with n pointing away from the transmitted half-space, i.e. wt.n<0),
-// and the ratio eta = et/ei of the incident IOR (ei) and transmitted IOR (et),
-// compute the direction of the incident beam (wi).
-// Returns false if no such beam exists, due to total internal reflection.
-bool refraction(in vec3 n, in float eta, in vec3 wt, inout vec3 wi)
-{
-    vec3 x = safe_normalize(cross(cross(n, wt), n));
-    float sint = dot(wt, x);
-    float sini = eta * sint; // Snell's law
-    float sini2 = sini*sini;
-    if (sini2 >= 1.0) return false; // Total internal reflection
-    float cosi2 = (1.0 - sini*sini);
-    float cosi = max(0.0, sqrt(cosi2));
-    wi = -cosi*n + sini*x;
+    float wtn = dot(wt, n);
+    float disciminant = 1.0 - eta_ti*eta_ti*(1.0 - wtn*wtn);
+    if (disciminant < 0.0) return false;
+    wi = eta_ti*wt - n*sign(wtn)*(eta_ti*abs(wtn) - sqrt(disciminant));
     return true;
 }
 
-RadianceType DIELECTRIC_SPEC_REFL_EVAL(in vec3 X, in vec3 woL, in Basis basis, in vec3 rgb)
+// Given the direction (wi) of a light beam incident on a plane dielectric interface
+// with the given normal (n) in any orientation, and the ratio eta_ti = et/ei of the transmitted IOR (et) and incident IOR (ei),
+// compute the direction of the transmitted light beam (wt). Returns false if no such beam exists, due to total internal reflection.
+bool refraction_given_incident_direction(in vec3 n, in float eta_ti, in vec3 wi, inout vec3 wt)
 {
-    vec3 woW = localToWorld(woL, basis);
-    vec3 reflRGB = DIELECTRIC_SPECULAR_REFLECTANCE(dieleSpecAlbedoRGB, X, basis.nW, woW);
+    float win = dot(wi, n);
+    float disciminant = 1.0 - (1.0 - win*win)/(eta_ti*eta_ti);
+    if (disciminant < 0.0) return false;
+    wt = wi/eta_ti - n*sign(win)*(abs(win)/eta_ti - sqrt(disciminant));
+    return true;
+}
+
+RadianceType DIELECTRIC_SPEC_REFL_EVAL(in vec3 X, in vec3 winputL, in Basis basis, in vec3 rgb)
+{
+    vec3 winputW = localToWorld(winputL, basis);
+    vec3 reflRGB = DIELECTRIC_SPECULAR_REFLECTANCE(dieleSpecAlbedoRGB, X, basis.nW, winputW);
     return rgbToAlbedo(reflRGB, rgb);
 }
 
-RadianceType evaluateDielectric( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 rgb )
+RadianceType evaluateDielectric( in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, in float wavelength_nm, in vec3 rgb, bool fromCamera )
 {
     float ior = IOR_DIELE(wavelength_nm);
-    bool reflected = cosTheta(wiL) * cosTheta(woL) > 0.0;
-    RadianceType dielectricAlbedo = DIELECTRIC_SPEC_REFL_EVAL(X, woL, basis, rgb);
-    RadianceType Fr = dielectricAlbedo * fresnelDielectricReflectance(woL.z, ior, 1.0);
+    bool reflected = cosTheta(woutputL) * cosTheta(winputL) > 0.0;
+    RadianceType dielectricAlbedo = DIELECTRIC_SPEC_REFL_EVAL(X, winputL, basis, rgb);
+    vec3 beamIncidentL = fromCamera ? -woutputL : -winputL;
+    vec3 beamOutgoingL = fromCamera ?  winputL  :  woutputL;
+    bool entering = (beamIncidentL.z < 0.0);
     vec3 h;
-    float eta; // IOR ratio, et/ei
     if (reflected)
-    { // Compute reflection half-vector
-        h = safe_normalize(wiL + woL);
+    {
+        // Compute reflection half-vector
+        h = safe_normalize(woutputL + winputL);
     }
     else
-    { // Compute refraction half-vector
-        bool entering = cosTheta(wiL) > 0.0;
-        eta = entering ? ior : 1.0/ior;
-        h = safe_normalize(wiL + eta*woL);
+    {
+        // Compute refraction half-vector
+        if (entering)
+            h = safe_normalize(beamIncidentL - ior*beamOutgoingL);
+        else
+            h = safe_normalize(ior*beamIncidentL - beamOutgoingL);
     }
     if (cosTheta(h)<0.0) h *= -1.0; // make sure half-vector points out
     float roughness = DIELECTRIC_ROUGHNESS(dieleRoughness, X, basis.nW);
     float D = microfacetEval(h, roughness);
-    float G = smithG2(woL, wiL, h, roughness);
+    float G = smithG2(-beamIncidentL, beamOutgoingL, h, roughness);
     RadianceType f;
+    float eta_ti = entering ? ior : 1.0/ior; // eta_ti = et/ei
+    RadianceType Fr = dielectricAlbedo * fresnelDielectricReflectance(abs(winputL.z), eta_ti);
     if (reflected)
     {
-        f = dielectricAlbedo * Fr * D * G / max(4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
+        f = dielectricAlbedo * Fr * D * G / max(4.0*abs(cosTheta(woutputL))*abs(cosTheta(winputL)), DENOM_TOLERANCE);
     }
     else
     {
-        float im = dot(wiL, h);
-        float om = dot(woL, h);
-        float sqrtDenom = im + eta*om;
-        float dwh_dwo = eta*eta * abs(om) / max(sqrtDenom*sqrtDenom, DENOM_TOLERANCE);
-        f = (RadianceType(1.0) - Fr) * G * D * abs(im) * dwh_dwo / max(abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
+        float im = dot(-beamIncidentL, h);
+        float om = dot(beamOutgoingL, h);
+        float eta_ti = entering ? ior : 1.0/ior; // eta_it = ei/et
+        float sqrtDenom = im + eta_ti*om;
+        float dwh_dwo = eta_ti*eta_ti * abs(om) / max(sqrtDenom*sqrtDenom, DENOM_TOLERANCE);
+        f = (RadianceType(1.0) - Fr) * G * D * abs(im) * dwh_dwo / max(abs(cosTheta(woutputL))*abs(cosTheta(winputL)), DENOM_TOLERANCE);
     }
     return f;
 }
 
-float pdfDielectric( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 rgb )
+float pdfDielectric( in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, in float wavelength_nm, in vec3 rgb, bool fromCamera )
 {
     float ior = IOR_DIELE(wavelength_nm);
-    bool reflected = cosTheta(wiL) * cosTheta(woL) > 0.0;
-    RadianceType dielectricAlbedo = DIELECTRIC_SPEC_REFL_EVAL(X, woL, basis, rgb);
-    RadianceType Fr = dielectricAlbedo * fresnelDielectricReflectance(woL.z, ior, 1.0);
+    bool reflected = cosTheta(woutputL) * cosTheta(winputL) > 0.0;
+    RadianceType dielectricAlbedo = DIELECTRIC_SPEC_REFL_EVAL(X, winputL, basis, rgb);
+    vec3 beamIncidentL = fromCamera ? -woutputL : -winputL;
+    vec3 beamOutgoingL = fromCamera ?  winputL  :  woutputL;
+    bool entering = (beamIncidentL.z < 0.0);
+    float eta_ti = entering ? ior : 1.0/ior; // eta_it = ei/et
+    RadianceType Fr = dielectricAlbedo * fresnelDielectricReflectance(abs(winputL.z), eta_ti);
     vec3 h;
     float dwh_dwo;
     float pdf;
     if (reflected)
     {
-        h = safe_normalize(wiL + woL);
-        dwh_dwo = 1.0 / max(4.0*dot(woL, h), DENOM_TOLERANCE);
+        h = safe_normalize(woutputL + winputL);
+        dwh_dwo = 1.0 / max(4.0*abs(dot(winputL, h)), DENOM_TOLERANCE);
         pdf = averageComponent(Fr);
     }
     else
-    { // Compute reflection half-vector
-        bool entering = cosTheta(wiL) > 0.0;
-        float eta = entering ? ior : 1.0/max(ior, DENOM_TOLERANCE);
-        vec3 h = safe_normalize(wiL + eta*woL);
-        float im = dot(wiL, h);
-        float om = dot(woL, h);
-        float sqrtDenom = im + eta*om;
-        dwh_dwo = eta*eta * abs(om) / max(sqrtDenom*sqrtDenom, DENOM_TOLERANCE);
+    {
+        // Compute refraction half-vector
+        if (entering)
+            h = safe_normalize(beamIncidentL - ior*beamOutgoingL);
+        else
+            h = safe_normalize(ior*beamIncidentL - beamOutgoingL);
+        if (cosTheta(h)<0.0) h *= -1.0; // make sure half-vector points out
+        float eta_ti = entering ? ior : 1.0/ior; // eta_it = ei/et
+        float im = dot(-beamIncidentL, h);
+        float om = dot(beamOutgoingL, h);
+        float sqrtDenom = im + eta_ti*om;
+        dwh_dwo = eta_ti*eta_ti * abs(om) / max(sqrtDenom*sqrtDenom, DENOM_TOLERANCE);
         pdf = 1.0 - averageComponent(Fr);
     }
-    if (cosTheta(h)<0.0) h *= -1.0; // make sure half-vector points out
     float roughness = DIELECTRIC_ROUGHNESS(dieleRoughness, X, basis.nW);
     pdf *= microfacetPDF(h, roughness);
     return abs(pdf * dwh_dwo);
 }
 
-RadianceType sampleDielectric( in vec3 X, in Basis basis, in vec3 woL, in float wavelength_nm, in vec3 rgb,
-                               inout vec3 wiL, inout float pdfOut, inout vec4 rnd )
+RadianceType sampleDielectric( in vec3 X, in Basis basis, in vec3 winputL, in float wavelength_nm, in vec3 rgb, bool fromCamera,
+                               inout vec3 woutputL, inout float pdfOut, inout vec4 rnd )
 {
     float ior = IOR_DIELE(wavelength_nm);
-    RadianceType dielectricAlbedo = DIELECTRIC_SPEC_REFL_EVAL(X, woL, basis, rgb);
-    RadianceType Fr = dielectricAlbedo * fresnelDielectricReflectance(woL.z, ior, 1.0);
+    RadianceType dielectricAlbedo = DIELECTRIC_SPEC_REFL_EVAL(X, winputL, basis, rgb);
+    float eta_ti_refl = (winputL.z >= 0.0) ? ior : 1.0/ior; // et/ei on reflection of incident beam
+    RadianceType Fr = dielectricAlbedo * fresnelDielectricReflectance(abs(winputL.z), eta_ti_refl);
     float roughness = DIELECTRIC_ROUGHNESS(dieleRoughness, X, basis.nW);
     vec3 m = microfacetSample(rnd, roughness); // Sample microfacet normal m
     float microPDF = microfacetPDF(m, roughness);
@@ -1266,55 +1400,51 @@ RadianceType sampleDielectric( in vec3 X, in Basis basis, in vec3 woL, in float 
     if (rand(rnd) < reflectProb)
     {
         // Compute specularly reflected ray direction
-        wiL = -woL + 2.0*dot(woL, m)*m; // Compute incident direction by reflecting woL about m
-        if (wiL.z<0.0) wiL.z *= -1.0; // Reflect into positive hemisphere if necessary (ad hoc)
+        woutputL = -winputL + 2.0*dot(winputL, m)*m; // Compute incident direction by reflecting winputL about m
+        if (woutputL.z * winputL.z < 0.0) woutputL *= -1.0; // flip if reflected ray direction in wrong hemisphere
         float D = microfacetEval(m, roughness);
-        float G = smithG2(woL, wiL, m, roughness); // Shadow-masking function
-        RadianceType f = Fr * D * G / max(4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
+        float G = smithG2(winputL, woutputL, m, roughness); // Shadow-masking function
+        RadianceType f = Fr * D * G / max(4.0*abs(cosTheta(woutputL))*abs(cosTheta(winputL)), DENOM_TOLERANCE);
         float dwh_dwo; // Jacobian of the half-direction mapping
-        dwh_dwo = 1.0 / max(abs(4.0*dot(woL, m)), DENOM_TOLERANCE);
+        dwh_dwo = 1.0 / max(abs(4.0*dot(winputL, m)), DENOM_TOLERANCE);
         pdfOut = microPDF * reflectProb * dwh_dwo; // Return total BRDF and corresponding pdf
         return f;
-    }
-    else
-    {
-        // Note, for transmission:
-        //  woL.m < 0 means the transmitted light is entering the dielectric *from* the (vacuum) exterior of the microfacet
-        //  woL.m > 0 means the transmitted light is exiting the dielectric *to* the (vacuum) exterior of the microfacet
-        bool entering = dot(woL, m) < 0.0;
-        float eta;
-        vec3 ni; // normal pointing into incident halfspace
-        if (entering) // Entering, incident halfspace is outside dielectric
+     }
+     else
+     {
+        vec3 beamIncidentL = fromCamera ? -woutputL : -winputL;
+        vec3 beamOutgoingL = fromCamera ?  winputL  :  woutputL;
+        bool entering = (beamIncidentL.z < 0.0);
+        float eta_ti = entering ? ior : 1.0/ior; // et/ei on transmission of incident beam
+        if (fromCamera)
         {
-            eta = ior; // = et/ei
-            ni = m;
+            if ( !refraction_given_transmitted_direction(m, eta_ti, beamOutgoingL, beamIncidentL) ) return RadianceType(0.0); // total internal reflection occurred
+            woutputL = -beamIncidentL;
         }
-        else // Exiting, incident halfspace is inside dielectric
+        else
         {
-            eta = 1.0/ior; // = et/ei
-            ni = -m;
+            beamIncidentL = -winputL;
+            if ( !refraction_given_incident_direction(m, eta_ti, beamIncidentL, beamOutgoingL) ) return RadianceType(0.0); // total internal reflection occurred
+            woutputL = beamOutgoingL;
         }
-        // Compute incident direction corresponding to known transmitted direction
-        if ( !refraction(ni, eta, woL, wiL) ) return RadianceType(0.0); // total internal reflection occurred
-        wiL = -wiL; // As refract() computes the incident beam direction, and wiL is defined to be opposite to that.
-        float cosi = dot(wiL, m);
-        RadianceType Frm = RadianceType(fresnelDielectricReflectance(cosi, ior, 1.0));
+
+        float im = dot(-beamIncidentL, m);
+        RadianceType Frm = RadianceType(fresnelDielectricReflectance(abs(im), eta_ti));
         RadianceType Trm = RadianceType(1.0) - dielectricAlbedo * Frm;  // Fresnel transmittance
         // Evaluate microfacet distribution for the sampled half direction
         vec3 wh = m; // refraction half-vector = m
         float D = microfacetEval(wh, roughness);
-        float G = smithG2(woL, wiL, wh, roughness); // Shadow-masking function
+        float G = smithG2(-beamIncidentL, beamOutgoingL, wh, roughness); // Shadow-masking function
         float dwh_dwo; // Jacobian of the half-direction mapping
-        float im = dot(wiL, m);
         {
-            float om = dot(woL, m);
-            float sqrtDenom = im + eta*om;
-            dwh_dwo = eta*eta * abs(om) / max(sqrtDenom*sqrtDenom, DENOM_TOLERANCE);
+            float om = dot(beamOutgoingL, m);
+            float sqrtDenom = im + eta_ti*om;
+            dwh_dwo = eta_ti*eta_ti * abs(om) / max(sqrtDenom*sqrtDenom, DENOM_TOLERANCE);
         }
-        RadianceType f = RadianceType(abs(im) * dwh_dwo * Trm * G * D) / max(abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
+        RadianceType f = RadianceType(abs(im) * dwh_dwo * Trm * G * D) / max(abs(cosTheta(woutputL))*abs(cosTheta(winputL)), DENOM_TOLERANCE);
         pdfOut = (1.0-reflectProb) * microPDF * abs(dwh_dwo);
         return f;
-    }
+     }
 }
 
 #endif
@@ -1337,54 +1467,54 @@ float fresnelMetalReflectance(in float cosi, in float ior, in float k)
     return 0.5*(Rparl2 + Rperp2);
 }
 
-RadianceType METAL_SPEC_REFL_EVAL(in vec3 X, in vec3 woL, in Basis basis, in vec3 rgb)
+RadianceType METAL_SPEC_REFL_EVAL(in vec3 X, in vec3 winputL, in Basis basis, in vec3 rgb)
 {
-    vec3 woW = localToWorld(woL, basis);
-    vec3 reflRGB = METAL_SPECULAR_REFLECTANCE(metalSpecAlbedoRGB, X, basis.nW, woW);
+    vec3 winputW = localToWorld(winputL, basis);
+    vec3 reflRGB = METAL_SPECULAR_REFLECTANCE(metalSpecAlbedoRGB, X, basis.nW, winputW);
     return rgbToAlbedo(reflRGB, rgb);
 }
 
-RadianceType evaluateMetal( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 rgb )
+RadianceType evaluateMetal( in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, in float wavelength_nm, in vec3 rgb)
 {
     float ior = IOR_METAL(wavelength_nm);
     float k = K_METAL(wavelength_nm);
-    float Fr = fresnelMetalReflectance(woL.z, ior, k);
-    vec3 h = normalize(wiL + woL); // Compute the reflection half-vector
+    float Fr = fresnelMetalReflectance(winputL.z, ior, k);
+    vec3 h = normalize(woutputL + winputL); // Compute the reflection half-vector
     float roughness = METAL_ROUGHNESS(metalRoughness, X, basis.nW);
     float D = microfacetEval(h, roughness);
-    float G = smithG2(woL, wiL, h, roughness);
-    RadianceType specAlbedo = METAL_SPEC_REFL_EVAL(X, woL, basis, rgb);
-    RadianceType f = specAlbedo * Fr * D * G / max(4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
+    float G = smithG2(winputL, woutputL, h, roughness);
+    RadianceType specAlbedo = METAL_SPEC_REFL_EVAL(X, winputL, basis, rgb);
+    RadianceType f = specAlbedo * Fr * D * G / max(4.0*abs(cosTheta(woutputL))*abs(cosTheta(winputL)), DENOM_TOLERANCE);
     return f;
 }
 
-float pdfMetal( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 rgb )
+float pdfMetal( in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, in float wavelength_nm, in vec3 rgb)
 {
     float ior = IOR_DIELE(wavelength_nm);
     float k = K_METAL(wavelength_nm);
-    vec3 h = safe_normalize(wiL + woL); // reflection half-vector
-    float dwh_dwo = 1.0 / max(abs(4.0*dot(woL, h)), DENOM_TOLERANCE); // Jacobian of the half-direction mapping
+    vec3 h = safe_normalize(woutputL + winputL); // reflection half-vector
+    float dwh_dwo = 1.0 / max(abs(4.0*dot(winputL, h)), DENOM_TOLERANCE); // Jacobian of the half-direction mapping
     float roughness = METAL_ROUGHNESS(metalRoughness, X, basis.nW);
     float pdf = microfacetPDF(h, roughness) * dwh_dwo;
     return pdf;
 }
 
-RadianceType sampleMetal( in vec3 X, in Basis basis, in vec3 woL, in float wavelength_nm, in vec3 rgb,
-                          inout vec3 wiL, inout float pdfOut, inout vec4 rnd )
+RadianceType sampleMetal( in vec3 X, in Basis basis, in vec3 winputL, in float wavelength_nm, in vec3 rgb,
+                          inout vec3 woutputL, inout float pdfOut, inout vec4 rnd )
 {
     float ior = IOR_METAL(wavelength_nm);
     float k = K_METAL(wavelength_nm);
-    float Fr = fresnelMetalReflectance(woL.z, ior, k);
+    float Fr = fresnelMetalReflectance(winputL.z, ior, k);
     float roughness = METAL_ROUGHNESS(metalRoughness, X, basis.nW);
     vec3 m = microfacetSample(rnd, roughness); // Sample microfacet normal m
-    wiL = -woL + 2.0*dot(woL, m)*m; // Compute wiL by reflecting woL about m
-    if (wiL.z<DENOM_TOLERANCE) wiL.z *= -1.0; // Reflect into positive hemisphere if necessary (ad hoc)
+    woutputL = -winputL + 2.0*dot(winputL, m)*m; // Compute woutputL by reflecting winputL about m
+    if (woutputL.z<DENOM_TOLERANCE) woutputL.z *= -1.0; // Reflect into positive hemisphere if necessary (ad hoc)
     float D = microfacetEval(m, roughness);
-    float G = smithG2(woL, wiL, m, roughness); // Shadow-masking function
-    RadianceType specAlbedo = METAL_SPEC_REFL_EVAL(X, woL, basis, rgb);
-    RadianceType f = specAlbedo * Fr * D * G / max(4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
+    float G = smithG2(winputL, woutputL, m, roughness); // Shadow-masking function
+    RadianceType specAlbedo = METAL_SPEC_REFL_EVAL(X, winputL, basis, rgb);
+    RadianceType f = specAlbedo * Fr * D * G / max(4.0*abs(cosTheta(woutputL))*abs(cosTheta(winputL)), DENOM_TOLERANCE);
     float dwh_dwo; // Jacobian of the half-direction mapping
-    dwh_dwo = 1.0 / max(abs(4.0*dot(woL, m)), DENOM_TOLERANCE);
+    dwh_dwo = 1.0 / max(abs(4.0*dot(winputL, m)), DENOM_TOLERANCE);
     pdfOut = microfacetPDF(m, roughness) * dwh_dwo;
     return f;
 }
@@ -1395,99 +1525,85 @@ RadianceType sampleMetal( in vec3 X, in Basis basis, in vec3 woL, in float wavel
 
 #ifdef HAS_SURFACE
 
-RadianceType SURFACE_DIFFUSE_REFL_EVAL(in vec3 X, in vec3 nW, in vec3 woW, in vec3 rgb)
+RadianceType SURFACE_DIFFUSE_REFL_EVAL(in vec3 X, in vec3 nW, in vec3 winputW, in vec3 rgb)
 {
-    vec3 reflRGB = SURFACE_DIFFUSE_REFLECTANCE(surfaceDiffuseAlbedoRGB, X, nW, woW);
+    vec3 reflRGB = SURFACE_DIFFUSE_REFLECTANCE(surfaceDiffuseAlbedoRGB, X, nW, winputW);
     return rgbToAlbedo(reflRGB, rgb);
 }
 
-RadianceType SURFACE_SPEC_REFL_EVAL(in vec3 X, in vec3 nW, in vec3 woW, in vec3 rgb)
+RadianceType SURFACE_SPEC_REFL_EVAL(in vec3 X, in vec3 nW, in vec3 winputW, in vec3 rgb)
 {
-    vec3 reflRGB = SURFACE_SPECULAR_REFLECTANCE(surfaceSpecAlbedoRGB, X, nW, woW);
+    vec3 reflRGB = SURFACE_SPECULAR_REFLECTANCE(surfaceSpecAlbedoRGB, X, nW, winputW);
     return rgbToAlbedo(reflRGB, rgb);
 }
 
-// Fast path for non-transmissive surface
-float fresnelDielectricReflectanceFast(in float cosi, in float ior)
+RadianceType evaluateSurface(in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, in float wavelength_nm, in vec3 rgb)
 {
-    float ei = 1.0;
-    float et = max(1.0, ior);
-    float sint = ei/et * sqrt(max(0.0, 1.0 - cosi*cosi));
-    float cost = sqrt(max(0.0, 1.0 - sint*sint));
-    float cosip = abs(cosi);
-    float rParallel      = (et*cosip - ei*cost) / (et*cosip + ei*cost);
-    float rPerpendicular = (ei*cosip - et*cost) / (ei*cosip + et*cost);
-    return 0.5 * (rParallel*rParallel + rPerpendicular*rPerpendicular);
-}
-
-RadianceType evaluateSurface(in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 rgb)
-{
-    vec3 woW = localToWorld(woL, basis);
-    RadianceType diffuseAlbedo = SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, woW, rgb);
-    RadianceType    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, woW, rgb);
+    vec3 winputW = localToWorld(winputL, basis);
+    RadianceType diffuseAlbedo = SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, winputW, rgb);
+    RadianceType    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, winputW, rgb);
     float ior = surfaceIor;
     float roughness = SURFACE_ROUGHNESS(surfaceRoughness, X, basis.nW);
-    float Fr = fresnelDielectricReflectanceFast(wiL.z, ior);
-    vec3 h = normalize(wiL + woL); // Compute the reflection half-vector
+    float Fr = fresnelDielectricReflectance(woutputL.z, ior);
+    vec3 h = normalize(woutputL + winputL); // Compute the reflection half-vector
     float D = microfacetEval(h, roughness);
-    float G = smithG2(woL, wiL, h, roughness);
-    RadianceType f = Fr * specAlbedo * D * G / max(4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
-    float E = fresnelDielectricReflectanceFast(woL.z, ior);
+    float G = smithG2(winputL, woutputL, h, roughness);
+    RadianceType f = Fr * specAlbedo * D * G / max(4.0*abs(cosTheta(woutputL))*abs(cosTheta(winputL)), DENOM_TOLERANCE);
+    float E = fresnelDielectricReflectance(winputL.z, ior);
     f += (1.0 - E) * diffuseAlbedo/M_PI;
     return f;
 }
 
-float pdfSurface(in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in float wavelength_nm, in vec3 rgb)
+float pdfSurface(in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, in float wavelength_nm, in vec3 rgb)
 {
-    vec3 woW = localToWorld(woL, basis);
-    RadianceType diffuseAlbedo = SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, woW, rgb);
-    RadianceType    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, woW, rgb);
+    vec3 winputW = localToWorld(winputL, basis);
+    RadianceType diffuseAlbedo = SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, winputW, rgb);
+    RadianceType    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, winputW, rgb);
     float ior = surfaceIor;
-    float E = fresnelDielectricReflectanceFast(woL.z, ior);
+    float E = fresnelDielectricReflectance(abs(winputL.z), ior);
     float specWeight    = (E      )*averageComponent(specAlbedo);
     float diffuseWeight = (1.0 - E)*averageComponent(diffuseAlbedo);
     float weightSum = max(specWeight + diffuseWeight, DENOM_TOLERANCE);
     float specProb = specWeight/weightSum;
     float roughness = SURFACE_ROUGHNESS(surfaceRoughness, X, basis.nW);
-    float diffusePdf = pdfHemisphere(wiL);
-    vec3 h = safe_normalize(wiL + woL); // reflection half-vector
-    float dwh_dwo = 1.0 / max(abs(4.0*dot(woL, h)), DENOM_TOLERANCE); // Jacobian of the half-direction mapping
+    float diffusePdf = pdfHemisphere(woutputL);
+    vec3 h = safe_normalize(woutputL + winputL); // reflection half-vector
+    float dwh_dwo = 1.0 / max(abs(4.0*dot(winputL, h)), DENOM_TOLERANCE); // Jacobian of the half-direction mapping
     float specularPdf = microfacetPDF(h, roughness) * dwh_dwo;
     return specProb*specularPdf + (1.0-specProb)*diffusePdf;
 }
 
-RadianceType sampleSurface(in vec3 X, in Basis basis, in vec3 woL, in float wavelength_nm, in vec3 rgb,
-                           inout vec3 wiL, inout float pdfOut, inout vec4 rnd)
+RadianceType sampleSurface(in vec3 X, in Basis basis, in vec3 winputL, in float wavelength_nm, in vec3 rgb,
+                           inout vec3 woutputL, inout float pdfOut, inout vec4 rnd)
 {
-    vec3 woW = localToWorld(woL, basis);
-    RadianceType diffuseAlbedo = SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, woW, rgb);
-    RadianceType    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, woW, rgb);
+    vec3 winputW = localToWorld(winputL, basis);
+    RadianceType diffuseAlbedo = SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, winputW, rgb);
+    RadianceType    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, winputW, rgb);
     float ior = surfaceIor;
     float roughness = SURFACE_ROUGHNESS(surfaceRoughness, X, basis.nW);
-    float E = fresnelDielectricReflectanceFast(woL.z, ior);
+    float E = fresnelDielectricReflectance(abs(winputL.z), ior);
     float specWeight    = (E      )*averageComponent(specAlbedo);
     float diffuseWeight = (1.0 - E)*averageComponent(diffuseAlbedo);
     float weightSum = max(specWeight + diffuseWeight, DENOM_TOLERANCE);
     float specProb = specWeight/weightSum;
     if (rand(rnd) >= specProb) // diffuse term, happens with probability 1-specProb
     {
-        wiL = sampleHemisphere(rnd, pdfOut);
-        float Fr = fresnelDielectricReflectanceFast(wiL.z, ior);
+        woutputL = sampleHemisphere(rnd, pdfOut);
         pdfOut *= (1.0-specProb);
         return (1.0 - E) * diffuseAlbedo/M_PI;
     }
     else
     {
         vec3 m = microfacetSample(rnd, roughness); // Sample microfacet normal m
-        wiL = -woL + 2.0*dot(woL, m)*m; // Compute wiL by reflecting woL about m
+        woutputL = -winputL + 2.0*dot(winputL, m)*m; // Compute woutputL by reflecting winputL about m
         pdfOut = specProb;
-        if (wiL.z<DENOM_TOLERANCE) return RadianceType(0.0);
+        if (woutputL.z<DENOM_TOLERANCE) return RadianceType(0.0);
         float D = microfacetEval(m, roughness);
-        float G = smithG2(woL, wiL, m, roughness); // Shadow-masking function
-        float Fr = fresnelDielectricReflectanceFast(wiL.z, ior);
-        RadianceType f = Fr * specAlbedo * D * G / max(4.0*abs(cosTheta(wiL))*abs(cosTheta(woL)), DENOM_TOLERANCE);
+        float G = smithG2(winputL, woutputL, m, roughness); // Shadow-masking function
+        float Fr = fresnelDielectricReflectance(abs(winputL.z), ior);
+        RadianceType f = Fr * specAlbedo * D * G / max(4.0*abs(cosTheta(woutputL))*abs(cosTheta(winputL)), DENOM_TOLERANCE);
         float dwh_dwo; // Jacobian of the half-direction mapping
-        dwh_dwo = 1.0 / max(abs(4.0*dot(woL, m)), DENOM_TOLERANCE);
+        dwh_dwo = 1.0 / max(abs(4.0*dot(winputL, m)), DENOM_TOLERANCE);
         pdfOut *= microfacetPDF(m, roughness) * dwh_dwo;
         return f;
     }
@@ -1497,88 +1613,53 @@ RadianceType sampleSurface(in vec3 X, in Basis basis, in vec3 woL, in float wave
 
 // ****************************        BSDF common interface        ****************************
 
-RadianceType evaluateBsdf( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm, in vec3 rgb,
+RadianceType evaluateBsdf( in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, in int material, in float wavelength_nm, in vec3 rgb, bool fromCamera,
                            inout vec4 rnd )
 {
 #ifdef HAS_SURFACE
-    if (material==MAT_SURFA) { return    evaluateSurface(X, basis, woL, wiL, wavelength_nm, rgb); }
+    if (material==MAT_SURFA) { return    evaluateSurface(X, basis, winputL, woutputL, wavelength_nm, rgb); }
 #endif
 #ifdef HAS_METAL
-    if (material==MAT_METAL) { return      evaluateMetal(X, basis, woL, wiL, wavelength_nm, rgb); }
+    if (material==MAT_METAL) { return      evaluateMetal(X, basis, winputL, woutputL, wavelength_nm, rgb); }
 #endif
 #ifdef HAS_DIELECTRIC
-    if (material==MAT_DIELE) { return evaluateDielectric(X, basis, woL, wiL, wavelength_nm, rgb); }
+    if (material==MAT_DIELE) { return evaluateDielectric(X, basis, winputL, woutputL, wavelength_nm, rgb, fromCamera); }
 #endif
 }
 
-RadianceType sampleBsdf( in vec3 X, in Basis basis, in vec3 woL, in int material, in float wavelength_nm, in vec3 rgb,
-                         inout vec3 wiL, inout float pdfOut, inout vec4 rnd )
+RadianceType sampleBsdf( in vec3 X, in Basis basis, in vec3 winputL, in int material, in float wavelength_nm, in vec3 rgb, bool fromCamera,
+                         inout vec3 woutputL, inout float pdfOut, inout vec4 rnd )
 {
 #ifdef HAS_SURFACE
-    if (material==MAT_SURFA) { return    sampleSurface(X, basis, woL, wavelength_nm, rgb, wiL, pdfOut, rnd); }
+    if (material==MAT_SURFA) { return    sampleSurface(X, basis, winputL, wavelength_nm, rgb, woutputL, pdfOut, rnd); }
 #endif
 #ifdef HAS_METAL
-    if (material==MAT_METAL) { return      sampleMetal(X, basis, woL, wavelength_nm, rgb, wiL, pdfOut, rnd); }
+    if (material==MAT_METAL) { return      sampleMetal(X, basis, winputL, wavelength_nm, rgb, woutputL, pdfOut, rnd); }
 #endif
 #ifdef HAS_DIELECTRIC
-    if (material==MAT_DIELE) { return sampleDielectric(X, basis, woL, wavelength_nm, rgb, wiL, pdfOut, rnd); }
+    if (material==MAT_DIELE) { return sampleDielectric(X, basis, winputL, wavelength_nm, rgb, fromCamera, woutputL, pdfOut, rnd); }
 #endif
 }
 
-float pdfBsdf( in vec3 X, in Basis basis, in vec3 woL, in vec3 wiL, in int material, in float wavelength_nm, in vec3 rgb )
+float pdfBsdf( in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, in int material, in float wavelength_nm, in vec3 rgb, bool fromCamera )
 {
 #ifdef HAS_SURFACE
-    if (material==MAT_SURFA) { return    pdfSurface(X, basis, woL, wiL, wavelength_nm, rgb); }
+    if (material==MAT_SURFA) { return    pdfSurface(X, basis, winputL, woutputL, wavelength_nm, rgb); }
 #endif
 #ifdef HAS_METAL
-    if (material==MAT_METAL) { return      pdfMetal(X, basis, woL, wiL, wavelength_nm, rgb); }
+    if (material==MAT_METAL) { return      pdfMetal(X, basis, winputL, woutputL, wavelength_nm, rgb); }
 #endif
 #ifdef HAS_DIELECTRIC
-    if (material==MAT_DIELE) { return pdfDielectric(X, basis, woL, wiL, wavelength_nm, rgb); }
+    if (material==MAT_DIELE) { return pdfDielectric(X, basis, winputL, woutputL, wavelength_nm, rgb, fromCamera); }
 #endif
 }
-
-#endif // HAS_GEOMETRY
-
-#ifdef HAS_VOLUME
-
-RadianceType VOLUME_ALBEDO_EVAL(in vec3 X, in vec3 rgb)
-{
-    vec3 sigma_s = VOLUME_SCATTERING_COLOR(volumeScatteringColorRGB, X);
-    vec3 sigma_a = VOLUME_ABSORPTION_COLOR(volumeAbsorptionColorRGB, X);
-    vec3 albedo_rgb = sigma_s / max(sigma_s + sigma_a, DENOM_TOLERANCE);
-    return rgbToAlbedo(albedo_rgb, rgb);
-}
-
-RadianceType VOLUME_EXTINCTION_EVAL(in vec3 X, in vec3 rgb)
-{
-    vec3 sigma_s = VOLUME_SCATTERING_COLOR(volumeScatteringColorRGB, X);
-    vec3 sigma_a = VOLUME_ABSORPTION_COLOR(volumeAbsorptionColorRGB, X);
-    RadianceType extinction = volumeExtinction * RadianceType(VOLUME_EXTINCTION(volumeExtinction, X));
-    vec3 sigma_t = extinction * (sigma_s + sigma_a) / lengthScale;
-    return rgbToAlbedo(sigma_t, rgb);
-}
-
-RadianceType VOLUME_EXTINCTION_MAX_EVAL()
-{
-    return RadianceType(VOLUME_EXTINCTION_MAX(volumeExtinction));
-}
-
-float VOLUME_ANISOTROPY_EVAL(in vec3 X)
-{
-    return VOLUME_ANISOTROPY(volumeAnisotropy, X);
-}
-
-#endif // HAS_VOLUME
 
 #ifdef HAS_VOLUME_EMISSION
-
 RadianceType VOLUME_EMISSION_EVAL(in vec3 X, in vec3 rgb)
 {
     vec3 emission = VOLUME_EMISSION(volumeEmissionColorRGB * volumeEmission, X);
     return rgbToAlbedo(emission, rgb);
 }
-
 #endif // HAS_VOLUME_EMISSION
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -1601,9 +1682,6 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
 #ifdef HAS_DIELECTRIC
     float sdf_diele = abs(SDF_DIELECTRIC(start)); sdf = min(sdf, sdf_diele);
 #endif
-#ifdef HAS_VOLUME
-    float sdf_volum = abs(SDF_VOLUME(start));     sdf = min(sdf, sdf_volum);
-#endif
 
     float InitialSign = sign(sdf);
     float t = InitialSign * sdf; // (always take the first step along the ray direction)
@@ -1620,9 +1698,6 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
 #endif
 #ifdef HAS_DIELECTRIC
         sdf_diele = abs(SDF_DIELECTRIC(pW)); if (sdf_diele<minMarch) { material = MAT_DIELE; hit = start + t*dir; return true; } sdf = min(sdf, sdf_diele);
-#endif
-#ifdef HAS_VOLUME
-        sdf_volum = abs(SDF_VOLUME(pW));     if (sdf_volum<minMarch) { material = MAT_VOLUM; hit = start + t*dir; return true; } sdf = min(sdf, sdf_volum);
 #endif
         // With this formula, the ray advances whether sdf is initially negative or positive --
         // but on crossing the zero isosurface, sdf flips allowing bracketing of the root.
@@ -1658,9 +1733,6 @@ vec3 normal(in vec3 pW, int material)
 #ifdef HAS_DIELECTRIC
     if (material==MAT_DIELE) { N = vec3(SDF_DIELECTRIC(xyyp) - SDF_DIELECTRIC(xyyn), SDF_DIELECTRIC(yxyp) - SDF_DIELECTRIC(yxyn), SDF_DIELECTRIC(yyxp) - SDF_DIELECTRIC(yyxn)); return safe_normalize(N); }
 #endif
-#ifdef HAS_VOLUME
-    if (material==MAT_VOLUM) { N = vec3(    SDF_VOLUME(xyyp) -     SDF_VOLUME(xyyn),     SDF_VOLUME(yxyp) -     SDF_VOLUME(yxyn),     SDF_VOLUME(yyxp) -     SDF_VOLUME(yyxn)); return safe_normalize(N); }
-#endif
 }
 
 #ifdef HAS_NORMALMAP
@@ -1691,99 +1763,12 @@ void perturbNormal(in vec3 X, in Basis basis, int material, inout vec3 nW)
 #endif
 
 // MC-estimates the amount of light transmitted along an infinite ray
-RadianceType Visibility(in vec3 pW, in vec3 rayDir, in vec3 rgb, inout vec4 rnd, bool inVolume)
+RadianceType Visibility(in vec3 pW, in vec3 rayDir, in vec3 rgb, inout vec4 rnd)
 {
     vec3 pW_next;
     int hitMaterial;
     bool hit = traceRay(pW, rayDir, pW_next, hitMaterial, maxLengthScale);
-#ifndef HAS_VOLUME
     return RadianceType(!hit);
-#else
-
-    // Deal with all volume interactions until the ray either hits a surface or escapes
-    const int maxVolHits = 16;
-    int volHits = 0;
-    float eps = 3.0*minLengthScale;
-    RadianceType sigma_t_max = VOLUME_EXTINCTION_MAX_EVAL();
-    RadianceType inv_sigma_t_max = 1.0/max(sigma_t_max, DENOM_TOLERANCE);
-#ifndef DISPERSION_ENABLED
-    // Choose color channel to sample
-    int channel = randomChannel(rnd);
-    float inv_sigma_t_max_c = getChannel(inv_sigma_t_max, channel);
-#endif
-    while ((inVolume || hitMaterial==MAT_VOLUM) && volHits<maxVolHits)
-    {
-        // If ray lies in the volume interior
-        if (inVolume)
-        {
-            // Do Woodcock tracking to check for a possible volume scattering event along the in-volume segment pW -> pW_next
-            // (except if the current ray lies inside a dielectric, in which case there is no volumetric scattering, i.e. the dielectric displaces the volume)
-            vec3 pScatter;
-            RadianceType sigma_t;
-            bool interacted = false;
-            float segmentLength = length(pW_next - pW);
-#ifdef DISPERSION_ENABLED
-            float distanceMarched = -log(rand(rnd)) * inv_sigma_t_max;
-#else
-            float distanceMarched = -log(rand(rnd)) * inv_sigma_t_max_c;           
-#endif
-
-            int steps = 0;
-            while (distanceMarched<segmentLength-eps && steps<__MAX_VOLUME_STEPS__)
-            {
-                pScatter = pW + distanceMarched*rayDir;
-                sigma_t = VOLUME_EXTINCTION_EVAL(pScatter, rgb);
-#ifdef DISPERSION_ENABLED
-                interacted = bool(rand(rnd) < sigma_t * inv_sigma_t_max);
-                if (interacted) break;
-                distanceMarched += -log(rand(rnd)) * inv_sigma_t_max;
-#else
-                float sigma_t_c = getChannel(sigma_t, channel);
-                interacted = bool(rand(rnd) < sigma_t_c * inv_sigma_t_max_c);
-                if (interacted) break;
-                distanceMarched += -log(rand(rnd)) * inv_sigma_t_max_c;
-#endif
-                steps++;
-            }
-
-            if (interacted) return RadianceType(0.0); // on absorption/scattering, return zero visibility
-            else
-            {
-                pW = pW_next;
-                if (hitMaterial==MAT_VOLUM) // if hitMaterial is volume boundary, displace pW into volume exterior
-                {
-                    vec3 nW = normal(pW, MAT_VOLUM);
-                    pW += nW * eps;
-                    inVolume = false;
-                }
-                else // if hitMaterial is a surface, return zero visibility
-                    return RadianceType(0.0);
-            }
-        }
-
-        // else if ray passed through the volume exterior and hit the volume boundary
-        else // !inVolume
-        {
-            pW = pW_next; // advance to the volume boundary
-            vec3 nW = normal(pW, MAT_VOLUM); // displace pW into volume interior
-            pW -= nW * eps;
-            inVolume = true;
-        }
-
-        // Re-trace from new pW
-        hit = traceRay(pW, rayDir, pW_next, hitMaterial, maxLengthScale);
-        volHits++;
-    }
-    bool visible = (!hit || volHits==maxVolHits);
-#ifdef DISPERSION_ENABLED
-    return float(visible); // if no hit or scattering, return visibility 1.0 (transparent)
-#else
-    vec3 V = vec3(0.0);
-    setChannel(V, channel, float(visible));
-    return V;
-#endif
-
-#endif // HAS_VOLUME
 }
 
 
@@ -1865,9 +1850,7 @@ float sunPowerEstimate(Basis basis)
     return vis_factor * solid_angle * sunPower * maxComponent(sunColor);
 }
 
-#ifdef HAS_GEOMETRY
-
-RadianceType sampleLightAtSurface(Basis basis, in vec3 rgb, inout vec4 rnd, inout vec3 wiL, inout vec3 wiW, inout float lightPdf)
+RadianceType sampleLightAtSurface(Basis basis, in vec3 rgb, inout vec4 rnd, inout vec3 woutputL, inout vec3 woutputW, inout float lightPdf)
 {
     if (sunPower<RADIANCE_EPSILON && skyPower<RADIANCE_EPSILON) 
         return RadianceType(0.0);
@@ -1882,86 +1865,42 @@ RadianceType sampleLightAtSurface(Basis basis, in vec3 rgb, inout vec4 rnd, inou
     RadianceType Li = RadianceType(0.0);
     if (chooseSun)
     {
-        wiW = sampleSunDir(rnd, sunPdf);
-        wiL = worldToLocal(wiW, basis);
+        woutputW = sampleSunDir(rnd, sunPdf);
+        woutputL = worldToLocal(woutputW, basis);
         lightPdf = sunProb*sunPdf;
-        if (wiL.z < 0.0) return RadianceType(0.0);
-        Li += sunRadiance(wiW, rgb);
+        if (woutputL.z < 0.0) return RadianceType(0.0);
+        Li += sunRadiance(woutputW, rgb);
     }
     else
     {
-        wiL = sampleHemisphere(rnd, skyPdf);
-        wiW = localToWorld(wiL, basis);
+        woutputL = sampleHemisphere(rnd, skyPdf);
+        woutputW = localToWorld(woutputL, basis);
         lightPdf = skyProb*skyPdf;
-        Li += environmentRadiance(wiW, rgb);
+        Li += environmentRadiance(woutputW, rgb);
     }
     return Li;
 }
 
 // Estimate direct radiance at the given surface vertex
-RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 woW, in int material,
-                                   float wavelength_nm, in vec3 rgb, inout vec4 rnd, bool inVolume, inout float lightPdf)
+RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 winputW, in int material,
+                                   float wavelength_nm, in vec3 rgb, inout vec4 rnd, inout float lightPdf)
 {
-    vec3 wiL, wiW; // direction of sampled direct light (*towards* the light)
-    RadianceType Li = sampleLightAtSurface(basis, rgb, rnd, wiL, wiW, lightPdf);
+    vec3 woutputL, woutputW; // direction of sampled direct light (*towards* the light)
+    RadianceType Li = sampleLightAtSurface(basis, rgb, rnd, woutputL, woutputW, lightPdf);
     if ( averageComponent(Li) < RADIANCE_EPSILON ) return RadianceType(0.0);
     vec3 dPw = 3.0*minLengthScale * basis.nW;
-    RadianceType V = Visibility(pW+dPw, wiW, rgb, rnd, inVolume);
+    RadianceType V = Visibility(pW+dPw, woutputW, rgb, rnd);
     Li *= abs(RadianceType(1.0) - shadowStrength*(RadianceType(1.0)-V));
     // Apply MIS weight with the BSDF pdf for the sampled direction
-    vec3 woL = worldToLocal(woW, basis);
-    float bsdfPdf = pdfBsdf(pW, basis, woL, wiL, material, wavelength_nm, rgb);
+    vec3 winputL = worldToLocal(winputW, basis);
+    bool fromCamera = true; // camera path
+    float bsdfPdf = pdfBsdf(pW, basis, winputL, woutputL, material, wavelength_nm, rgb, fromCamera);
     if (bsdfPdf<PDF_EPSILON) return RadianceType(0.0);
-    RadianceType f = evaluateBsdf(pW, basis, woL, wiL, material, wavelength_nm, rgb, rnd);
+    RadianceType f = evaluateBsdf(pW, basis, winputL, woutputL, material, wavelength_nm, rgb, fromCamera, rnd);
     float misWeight = powerHeuristic(lightPdf, bsdfPdf);
     RadianceType fOverPdf = min(RadianceType(radianceClamp), f/max(PDF_EPSILON, lightPdf));
-    return fOverPdf * Li * abs(dot(wiW, basis.nW)) * misWeight;
+    return fOverPdf * Li * abs(dot(woutputW, basis.nW)) * misWeight;
 }
-
-#endif // HAS_GEOMETRY
-
-#ifdef HAS_VOLUME
-
-RadianceType sampleLightInVolume(in vec3 rgb, inout vec4 rnd, inout vec3 wiW, inout float lightPdf)
-{
-    // Light sampling (choose either sun or sky)
-    float sunWeight = sunPower;
-    float skyWeight = skyPower;
-    float sunProb = clamp(max(sunWeight, DENOM_TOLERANCE) / max(skyWeight+sunWeight, DENOM_TOLERANCE), 0.0, 1.0);
-    float skyProb = max(PDF_EPSILON, 1.0-sunProb);
-    bool chooseSun = (rand(rnd) <= sunProb);
-    float skyPdf, sunPdf;
-    RadianceType Li = RadianceType(0.0);
-    if (chooseSun)
-    {
-        wiW = sampleSunDir(rnd, sunPdf);
-        lightPdf = sunProb*sunPdf;
-        Li += sunRadiance(wiW, rgb);
-    }
-    else
-    {
-        wiW = sampleSphere(rnd, skyPdf);
-        lightPdf = skyProb*skyPdf;
-        Li += environmentRadiance(wiW, rgb);
-    }
-    return Li;
-}
-
-// Estimate direct radiance at the given volumetric vertex
-RadianceType directVolumeLighting(in vec3 pW, in vec3 woW, in vec3 rgb, inout vec4 rnd, bool inVolume)
-{
-    vec3 wiW; // direction of sampled direct light (*towards* the light)
-    float lightPdf;
-    RadianceType Li = sampleLightInVolume(rgb, rnd, wiW, lightPdf);
-    RadianceType V = Visibility(pW, wiW, rgb, rnd, inVolume);
-    Li *= abs(RadianceType(1.0) - shadowStrength*(RadianceType(1.0)-V));
-    float f = phaseFunction(dot(woW, -wiW));
-    float fOverPdf = min(radianceClamp, f/max(PDF_EPSILON, lightPdf));
-    return fOverPdf * Li;
-}
-
-#endif // HAS_VOLUME
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // Pathtracing integrator
@@ -1989,32 +1928,21 @@ void constructPrimaryRay(in vec2 pixel, inout vec4 rnd,
     primaryDir = safe_normalize(focalPlaneHit - lensPos);
 }
 
-RadianceType samplePath(in vec3 primaryStart, in vec3 primaryDir, 
-                        float wavelength_nm, in vec3 rgb, inout vec4 rnd)
 
+RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir, 
+                        float wavelength_nm, in vec3 rgb, inout vec4 rnd)
 {
-    // Perform pathtrace to estimate the primary ray radiance, L
+    // Perform pathtrace starting from the camera lens to estimate the primary ray radiance, L
     RadianceType L = RadianceType(0.0);
     float misWeight = 1.0; // For MIS book-keeping
     vec3 pW = primaryStart;
-    vec3 rayDir = primaryDir; // (opposite to light direction)
-    bool inVolume = false;
-#ifdef HAS_VOLUME
-    RadianceType sigma_t_max = VOLUME_EXTINCTION_MAX_EVAL();
-    RadianceType inv_sigma_t_max = 1.0/sigma_t_max;
-    inVolume = SDF_VOLUME(primaryStart) < 0.0;
-#endif
+    vec3 rayDir = primaryDir; // (opposite to light beam direction)
+
     float eps = 3.0*minLengthScale;
 #ifdef HAS_DIELECTRIC
     bool inDielectric = SDF_DIELECTRIC(primaryStart) < 0.0;
 #endif
-
     RadianceType throughput = RadianceType(1.0);
-
-#ifndef DISPERSION_ENABLED
-    // choose volume color channel to sample for this entire path
-    int volume_channel = randomChannel(rnd);
-#endif
 
     for (int vertex=0; vertex<=__MAX_BOUNCES__; ++vertex)
     {
@@ -2027,130 +1955,21 @@ RadianceType samplePath(in vec3 primaryStart, in vec3 primaryDir,
         {
             rayLength = length(pW_next - pW);
         }
-
-#ifdef HAS_VOLUME
-        // Deal with all volume interactions until the ray either hits a surface or escapes
-        int volHits = 0;
-        bool absorb = false;
-        while ((inVolume || hitMaterial==MAT_VOLUM) && volHits<(1+__MAX_SCATTERS__))
+        else
         {
-            // If ray lies in the volume interior
-            if (inVolume)
-            {
-                float segmentLength = length(pW_next - pW);
-#ifndef DISPERSION_ENABLED
-                // channel to sample
-                float inv_sigma_t_max_c = getChannel(inv_sigma_t_max, volume_channel);
-#endif
-                // Do Woodcock tracking to check for a possible volume absorption/scattering event along the in-volume segment pW -> pW_next
-                // (except if the current ray lies inside a dielectric, in which case there is no volumetric scattering, i.e. the dielectric displaces the volume)
-                vec3 pScatter;
-                RadianceType sigma_t;
-                bool interacted = false;
-#ifdef HAS_DIELECTRIC
-                if (!inDielectric)
-#endif
-                {
-#ifdef DISPERSION_ENABLED
-                    float distanceMarched = -log(rand(rnd)) * inv_sigma_t_max;
-#else
-                    float distanceMarched = -log(rand(rnd)) * inv_sigma_t_max_c;
-#endif
-                    int steps = 0;
-                    while (distanceMarched<segmentLength-eps && steps<__MAX_VOLUME_STEPS__)
-                    {
-                        pScatter = pW + distanceMarched*rayDir;
-                        sigma_t = VOLUME_EXTINCTION_EVAL(pScatter, rgb);
-#ifdef DISPERSION_ENABLED
-                        interacted = bool(rand(rnd) < sigma_t * inv_sigma_t_max);
-                        if (interacted) break;
-                        distanceMarched += -log(rand(rnd)) * inv_sigma_t_max;
-#else
-                        float sigma_t_c = getChannel(sigma_t, volume_channel);
-                        interacted = bool(rand(rnd) < sigma_t_c * inv_sigma_t_max_c);
-                        if (interacted) break;
-                        distanceMarched += -log(rand(rnd)) * inv_sigma_t_max_c;
-#endif
-                        steps++;
-                    }
-                }
-
-                // Absorption/scattering event
-                if (interacted)
-                {
-                    RadianceType albedo = VOLUME_ALBEDO_EVAL(pScatter, rgb);
-#ifdef DISPERSION_ENABLED
-                    absorb = (rand(rnd) > albedo);
-#else
-                    float albedo_c = getChannel(albedo, volume_channel);
-                    absorb = (rand(rnd) > albedo_c);
-#endif
-                    if (absorb)
-                    {
-#ifdef HAS_VOLUME_EMISSION
-                        RadianceType emission = VOLUME_EMISSION_EVAL(pScatter, rgb);
-                        L += throughput * emission; // add volume emission term
-#endif
-#ifndef DISPERSION_ENABLED
-                        setChannel(throughput, volume_channel, 0.0);
-#endif
-                        break;
-                    }
-
-                    L += throughput * directVolumeLighting(pScatter, -rayDir, rgb, rnd, inVolume); // add contribution due to direct lighting at vertex
-                    throughput *= albedo; // update throughput due to scattering
-                    if (maxComponent(throughput) < THROUGHPUT_EPSILON) break;
-                    pW = pScatter; // continue to next vertex
-                    rayDir = samplePhaseFunction(rayDir, rnd); // sample scattered dir (NB, PF is the angle PDF so the MC PDF denom. cancels it in the L estimator)
-                }
-
-                // No scattering
-                else
-                {
-                    pW = pW_next;
-                    if (hitMaterial==MAT_VOLUM) // if hitMaterial is volume boundary, displace pW into volume exterior
-                    {
-                        vec3 nW = normal(pW, MAT_VOLUM);
-                        pW += nW * eps;
-                        inVolume = false;
-                    }
-                    else        // if hitMaterial is a surface, break and handle it (note, still inside volume)
-                        break;  // (or if !hit, that's a numerical glitch as we should be inside a closed volume boundary)
-                }
-            }
-
-            // else if ray passed through the volume exterior and hit the volume boundary
-            else // !inVolume
-            {
-                pW = pW_next; // advance to the volume boundary
-                vec3 nW = normal(pW, MAT_VOLUM); // displace pW into volume interior
-                pW -= nW * eps;
-                inVolume = true;
-            }
-
-            // Re-trace from new pW
-            hit = traceRay(pW, rayDir, pW_next, hitMaterial, maxLengthScale);
-            volHits++;
-        }
-
-        if (maxComponent(throughput) < THROUGHPUT_EPSILON) break;
-
-        if (volHits == __MAX_SCATTERS__) hit = false;
-#endif // HAS_VOLUME
-
-        // If this ray didn't scatter and missed all geometry, add environment light term and terminate path
-        if (!hit)
-        {
+            // This ray missed all geometry; add environment light term and terminate path
             RadianceType Li = RadianceType(0.0);
             if (!(vertex==0 && !envMapVisible))      Li += environmentRadiance(rayDir, rgb);
             if (!(vertex==0 && !sunVisibleDirectly)) Li += sunRadiance(rayDir, rgb);
             L += throughput * Li * misWeight;
+
+            // @todo: add term for single-scattering of spotlights in the homogeneous atmosphere (if present)
+            {
+
+            }
+
             break;
         }
-
-#ifndef HAS_GEOMETRY
-        break;
-#else
         // If the current ray lies inside a dielectric, apply Beer's law for absorption
 #ifdef HAS_DIELECTRIC
         if (inDielectric)
@@ -2160,8 +1979,13 @@ RadianceType samplePath(in vec3 primaryStart, in vec3 primaryDir,
         }
 #endif
 
-        // This ray didn't scatter but hit some geometry, so deal with the surface interaction.
-        // First, compute normal at current surface vertex
+        // @todo: also apply Beer's law for the homogeneous atmosphere, if present
+        {
+
+        }
+
+        // This ray hit some geometry, so deal with the surface interaction.
+        // First, compute the normal and thus the local vertex basis:
         pW = pW_next;
         vec3 nW = normal(pW, hitMaterial);
         Basis basis = makeBasis(nW);
@@ -2171,30 +1995,29 @@ RadianceType samplePath(in vec3 primaryStart, in vec3 primaryDir,
 #endif
 
         // Sample BSDF for the next bounce direction
-        vec3 woW = -rayDir;
-        vec3 woL = worldToLocal(woW, basis);
-        vec3 wiL;
+        vec3 winputW = -rayDir; // winputW, points *towards* the incident direction
+        vec3 winputL = worldToLocal(winputW, basis); 
+        vec3 woutputL; // woutputL, points *towards* the outgoing direction
         float bsdfPdf;
-        RadianceType f = sampleBsdf(pW, basis, woL, hitMaterial, wavelength_nm, rgb, wiL, bsdfPdf, rnd);
-        vec3 wiW = localToWorld(wiL, basis);
-        rayDir = wiW; // Update ray direction
+        bool fromCamera = true; // camera path
+        RadianceType f = sampleBsdf(pW, basis, winputL, hitMaterial, wavelength_nm, rgb, fromCamera, woutputL, bsdfPdf, rnd);
+        vec3 woutputW = localToWorld(woutputL, basis);
+        rayDir = woutputW; // Update ray direction
 
         // Detect dielectric transmission
 #ifdef HAS_DIELECTRIC
-        if (hitMaterial==MAT_DIELE && dot(woW, nW)*dot(wiW, nW) < 0.0)
+        if (hitMaterial==MAT_DIELE && dot(winputW, nW)*dot(woutputW, nW) < 0.0)
         {
             inDielectric = !inDielectric;
         }
 #endif
-
 #ifdef HAS_VOLUME_EMISSION
-        // Add volumetric emission at the surface point, if present (treating it as isotropic radiance field)
+        // Add volumetric emission at the surface point, if present (treating it as an isotropic radiance field)
         L += throughput * VOLUME_EMISSION_EVAL(pW, rgb);
 #endif
-
         // Update path throughput
         RadianceType fOverPdf = min(RadianceType(radianceClamp), f/max(PDF_EPSILON, bsdfPdf));
-        throughput *= fOverPdf * abs(dot(wiW, nW));
+        throughput *= fOverPdf * abs(dot(woutputW, nW));
         if (maxComponent(throughput) < THROUGHPUT_EPSILON) break;
 
         // Add direct lighting term at current surface vertex
@@ -2203,17 +2026,15 @@ RadianceType samplePath(in vec3 primaryStart, in vec3 primaryDir,
         if (!inDielectric)
 #endif
         {
-            L += throughput * directSurfaceLighting(pW, basis, woW, hitMaterial, wavelength_nm, rgb, rnd, inVolume, lightPdf);
+            L += throughput * directSurfaceLighting(pW, basis, winputW, hitMaterial, wavelength_nm, rgb, rnd, lightPdf);
         }
 
         // Prepare for tracing the bounce ray
-        pW += nW * sign(dot(wiW, nW)) * eps;           // perturb vertex into half-space of scattered ray
+        pW += nW * sign(dot(woutputW, nW)) * eps;    // perturb vertex into half-space of scattered ray
         misWeight = powerHeuristic(bsdfPdf, lightPdf); // compute MIS weight for bounce ray
-#endif // HAS_GEOMETRY
     }
     return L;
 }
-
 
 void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
 {
@@ -2245,10 +2066,10 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
         constructPrimaryRay(pixelj, rnd, primaryStart, primaryDir);
 
         // Perform pathtrace to estimate the primary ray radiance, L
-        L += samplePath(primaryStart, primaryDir, wavelength_nm, rgb, rnd);
+        L += cameraPath(primaryStart, primaryDir, wavelength_nm, rgb, rnd);
     }
     L /= float(__MAX_SAMPLES_PER_FRAME__);
-    
+
     // Write updated radiance and sample count
     vec4 oldL = texture(Radiance, vTexCoord);
     float oldN = oldL.w;

@@ -93,7 +93,7 @@ var Snelly = function(sceneObj)
 */
 Snelly.prototype.getVersion = function()
 {
-    return [1, 7, 2];
+    return [1, 8, 0];
 }
 
 Snelly.prototype.handleEvent = function(event)
@@ -359,14 +359,10 @@ dielectric.absorptionScale = ${materials.getLoadedDielectric().absorptionScale};
 dielectric.roughness = ${materials.getLoadedDielectric().roughness};
 `;
     }
-    if (shader.indexOf("SDF_VOLUME(") != -1 || shader.indexOf("VOLUME_EMISSION(") != -1)
+    if (shader.indexOf("VOLUME_EMISSION(") != -1)
     {
         code += `
 let volume = materials.loadVolume();
-volume.extinction = ${materials.loadVolume().extinction};
-volume.scatteringColor = [${materials.loadVolume().scatteringColor[0]}, ${materials.loadVolume().scatteringColor[1]}, ${materials.loadVolume().scatteringColor[2]}];
-volume.absorptionColor = [${materials.loadVolume().absorptionColor[0]}, ${materials.loadVolume().absorptionColor[1]}, ${materials.loadVolume().absorptionColor[2]}];
-volume.anisotropy = ${materials.loadVolume().anisotropy};
 volume.emission = ${materials.loadVolume().emission};
 volume.emissionColor = [${materials.loadVolume().emissionColor[0]}, ${materials.loadVolume().emissionColor[1]}, ${materials.loadVolume().emissionColor[2]}];
 `;
