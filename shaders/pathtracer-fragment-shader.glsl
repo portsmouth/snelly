@@ -959,8 +959,8 @@ RadianceType transmittanceOverFreeSegment(in vec3 pW, in vec3 rayDir, float segm
     bool hitAtmosphere = atmosphereSegment(pW, rayDir, segmentLength, t0, t1);
     if (!hitAtmosphere)
         return RadianceType(1.0);
-    vec3 opticalDepth = (t1 - t0) * extinction;
-    vec3 Tr = exp(-opticalDepth);
+    RadianceType opticalDepth = (t1 - t0) * extinction;
+    RadianceType Tr = exp(-opticalDepth);
     return Tr;
 }
 
@@ -1139,8 +1139,8 @@ RadianceType atmospheric_scattering(in vec3 pW, in vec3 rayDir, in float segment
     float t_scatter = t0 + t01*rand(rnd);
     float invDistancePdf = t01;
     vec3 pW_scatter = pW + t_scatter*rayDir;
-    vec3 opticalDepth = (t_scatter - t0) * extinction; // optical depth from pW -> pW_scatter
-    vec3 Tr_pW = exp(-opticalDepth);                   // transmittance from pW -> pW_scatter
+    RadianceType opticalDepth = (t_scatter - t0) * extinction; // optical depth from pW -> pW_scatter
+    RadianceType Tr_pW = exp(-opticalDepth);                   // transmittance from pW -> pW_scatter
 
     // Direct lighting
     vec3 wiW; // sample direction of scattered light (*towards* the light)
