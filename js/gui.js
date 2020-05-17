@@ -70,7 +70,6 @@ GUI.prototype.createRendererSettings = function()
     this.raymarchingFolder.add(pathtracer, 'maxSamplesPerFrame', 1, 16, 1).onChange( function(value) { pathtracer.maxBounces = Math.floor(value); pathtracer.reset(); });
     this.raymarchingFolder.add(pathtracer, 'maxSpp', 1, 10000, 1).onChange( function(value) { pathtracer.maxSpp = Math.floor(value); pathtracer.reset(); });
     this.raymarchingFolder.add(pathtracer, 'maxMarchSteps', 1, 2048, 1).onChange( function(value) { pathtracer.maxMarchSteps = Math.floor(value); pathtracer.reset(); } );
-    this.raymarchingFolder.add(pathtracer, 'maxVolumeSteps', 1, 1024, 1).onChange( function(value) { pathtracer.maxVolumeSteps = Math.floor(value); pathtracer.reset(); } );
     this.raymarchingFolder.add(pathtracer, 'maxStepsIsMiss').onChange( function(value) { pathtracer.reset(true); } );
     this.raymarchingFolder.add(pathtracer, 'radianceClamp', -2.0, 12.0).onChange( function(value) { pathtracer.reset(true); } );
     this.raymarchingFolder.add(pathtracer, 'wavelengthSamples', 4, 1024, 1).onChange( function(value) { pathtracer.reset(true); } );
@@ -141,7 +140,7 @@ GUI.prototype.createRendererSettings = function()
     this.lightingFolder.add(pathtracer, 'envMapVisible').onChange( function(value) { pathtracer.reset(true); } );
 
     // sun-lighting
-    this.lightingFolder.add(pathtracer, 'sunPower', -6.0, 6.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.lightingFolder.add(pathtracer, 'sunPower', -6.0, 10.0).onChange( function(value) { pathtracer.reset(true); } );
     this.lightingFolder.sunColor = [pathtracer.sunColor[0]*255.0, pathtracer.sunColor[1]*255.0, pathtracer.sunColor[2]*255.0];
     var sunColorItem = this.lightingFolder.addColor(this.lightingFolder, 'sunColor');
     sunColorItem.onChange( function(C) {
@@ -328,84 +327,15 @@ GUI.prototype.createMaterialSettings = function()
     {
         this.surfaceFolder = this.gui.addFolder('Surface material');
         var surfaceObj = snelly.getSurface();
-        this.surfaceFolder.diffuse = [surfaceObj.diffuseAlbedo[0]*255.0, surfaceObj.diffuseAlbedo[1]*255.0, surfaceObj.diffuseAlbedo[2]*255.0];
-        var diffItem = this.surfaceFolder.addColor(this.surfaceFolder, 'diffuse');
-        diffItem.onChange( function(albedo) {
-                                if (typeof albedo==='string' || albedo instanceof String)
-                                {
-                                    var color = hexToRgb(albedo);
-                                    surfaceObj.diffuseAlbedo[0] = color.r / 255.0;
-                                    surfaceObj.diffuseAlbedo[1] = color.g / 255.0;
-                                    surfaceObj.diffuseAlbedo[2] = color.b / 255.0;
-                                }
-                                else
-                                {
-                                    surfaceObj.diffuseAlbedo[0] = albedo[0] / 255.0;
-                                    surfaceObj.diffuseAlbedo[1] = albedo[1] / 255.0;
-                                    surfaceObj.diffuseAlbedo[2] = albedo[2] / 255.0;
-                                }
-                                snelly.reset(true);
-                            } );
-
-        this.surfaceFolder.specular = [surfaceObj.specAlbedo[0]*255.0, surfaceObj.specAlbedo[1]*255.0, surfaceObj.specAlbedo[2]*255.0];
-        var specItem = this.surfaceFolder.addColor(this.surfaceFolder, 'specular');
-        specItem.onChange( function(albedo) {
-                                if (typeof albedo==='string' || albedo instanceof String)
-                                {
-                                    var color = hexToRgb(albedo);
-                                    surfaceObj.specAlbedo[0] = color.r / 255.0;
-                                    surfaceObj.specAlbedo[1] = color.g / 255.0;
-                                    surfaceObj.specAlbedo[2] = color.b / 255.0;
-                                }
-                                else
-                                {
-                                    surfaceObj.specAlbedo[0] = albedo[0] / 255.0;
-                                    surfaceObj.specAlbedo[1] = albedo[1] / 255.0;
-                                    surfaceObj.specAlbedo[2] = albedo[2] / 255.0;
-                                }
-                                snelly.reset(true);
-                            } );
-
-        this.roughnessItem = this.surfaceFolder.add(surfaceObj, 'roughness', 0.0, 1.0);
-        this.roughnessItem.onChange( function(value) { surfaceObj.roughness = value; snelly.camera.enabled = false; snelly.reset(true); } );
-        this.roughnessItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
-
-        this.iorItem = this.surfaceFolder.add(surfaceObj, 'ior', 1.0, 3.0);
-        this.iorItem.onChange( function(value) { surfaceObj.ior = value; snelly.camera.enabled = false; snelly.reset(true); } );
-        this.iorItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
-
+        surfaceObj.initGui(this.surfaceFolder);
         this.surfaceFolder.close();
     }
 
     // Volume settings
-    if (shader.indexOf("VOLUME_EMISSION(") !== -1)
     {
-        this.volumeFolder = this.gui.addFolder('Volume properties');
+        this.volumeFolder = this.gui.addFolder('Atmosphere properties');
         var volumeObj = snelly.getVolume();
-        
-        this.emissionItem = this.volumeFolder.add(volumeObj, 'emission', 0.0, 100.0);
-        this.emissionItem.onChange( function(value) { volumeObj.emission = value; snelly.camera.enabled = false; snelly.reset(true); } );
-        this.emissionItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
-
-        this.volumeFolder.emissionColor = [volumeObj.emissionColor[0]*255.0, volumeObj.emissionColor[1]*255.0, volumeObj.emissionColor[2]*255.0];
-        var emissionColorItem = this.volumeFolder.addColor(this.volumeFolder, 'emissionColor');
-        emissionColorItem.onChange( function(C) {
-                                if (typeof C==='string' || C instanceof String)
-                                {
-                                    var color = hexToRgb(C);
-                                    volumeObj.emissionColor[0] = color.r / 255.0;
-                                    volumeObj.emissionColor[1] = color.g / 255.0;
-                                    volumeObj.emissionColor[2] = color.b / 255.0;
-                                }
-                                else
-                                {
-                                    volumeObj.emissionColor[0] = C[0] / 255.0;
-                                    volumeObj.emissionColor[1] = C[1] / 255.0;
-                                    volumeObj.emissionColor[2] = C[2] / 255.0;
-                                }
-                                snelly.reset(true);
-                            } );
-
+        volumeObj.initGui(this.volumeFolder);
         this.volumeFolder.close();
     }
 

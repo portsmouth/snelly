@@ -93,7 +93,7 @@ var Snelly = function(sceneObj)
 */
 Snelly.prototype.getVersion = function()
 {
-    return [1, 8, 1];
+    return [1, 9, 0];
 }
 
 Snelly.prototype.handleEvent = function(event)
@@ -285,7 +285,7 @@ let materials = snelly.getMaterials();
     {
         code += this.sceneObj.initGenerator();
     }
-    
+
     code += this.guiVisible ? `\nsnelly.showGUI(true);\n` : `\nsnelly.showGUI(false);\n`;
 
     code += `
@@ -305,7 +305,6 @@ renderer.maxSpp = ${renderer.maxSpp};
 renderer.maxBounces = ${renderer.maxBounces};
 renderer.maxScatters = ${renderer.maxScatters};
 renderer.maxMarchSteps = ${renderer.maxMarchSteps};
-renderer.maxVolumeSteps = ${renderer.maxVolumeSteps};
 renderer.maxStepsIsMiss = ${renderer.maxStepsIsMiss};
 renderer.interactive = ${renderer.interactive};
 renderer.goalFPS = ${renderer.goalFPS};
@@ -319,8 +318,10 @@ renderer.saturation = ${renderer.saturation};
 renderer.skyPower = ${renderer.skyPower};
 renderer.skyTintUp = [${renderer.skyTintUp[0]}, ${renderer.skyTintUp[1]}, ${renderer.skyTintUp[2]}];
 renderer.skyTintDown = [${renderer.skyTintDown[0]}, ${renderer.skyTintDown[1]}, ${renderer.skyTintDown[2]}];
-renderer.envMapRotation = ${renderer.envMapRotation};
 renderer.envMapVisible = ${renderer.envMapVisible};
+renderer.envMapPhiRotation = ${renderer.envMapPhiRotation};
+renderer.envMapThetaRotation = ${renderer.envMapThetaRotation};
+renderer.envMapTransitionAngle = ${renderer.envMapTransitionAngle};
 renderer.sunPower = ${renderer.sunPower};
 renderer.sunColor = [${renderer.sunColor[0]}, ${renderer.sunColor[1]}, ${renderer.sunColor[2]}];
 renderer.sunAngularSize = ${renderer.sunAngularSize};
@@ -336,37 +337,24 @@ renderer.shadowStrength = ${renderer.shadowStrength};
     if (shader.indexOf("SDF_SURFACE(") != -1)
     {
         code += `
-let surface = materials.loadSurface();
-surface.roughness = ${materials.loadSurface().roughness};
-surface.ior = ${materials.loadSurface().ior};
-surface.diffuseAlbedo = [${materials.loadSurface().diffuseAlbedo[0]}, ${materials.loadSurface().diffuseAlbedo[1]}, ${materials.loadSurface().diffuseAlbedo[2]}];
-surface.specAlbedo = [${materials.loadSurface().specAlbedo[0]}, ${materials.loadSurface().specAlbedo[1]}, ${materials.loadSurface().specAlbedo[2]}];
-`;
-    } 
+let surface = materials.loadSurface();`;
+        code += materials.loadSurface().repr();
+    }
     if (shader.indexOf("SDF_METAL(") != -1)
     {
         code += `
-let metal = materials.loadMetal('${materials.getLoadedMetal().getName()}');
-metal.roughness = ${materials.getLoadedMetal().roughness};
-`;
+let metal = materials.loadMetal('${materials.getLoadedMetal().getName()}');`;
+        code += materials.loadMetal().repr();
     }
     if (shader.indexOf("SDF_DIELECTRIC(") != -1)
     {
         code += `
-let dielectric = materials.loadDielectric('${materials.getLoadedDielectric().getName()}');
-dielectric.absorptionColor = [${materials.getLoadedDielectric().absorptionColor[0]}, ${materials.getLoadedDielectric().absorptionColor[1]}, ${materials.getLoadedDielectric().absorptionColor[2]}];
-dielectric.absorptionScale = ${materials.getLoadedDielectric().absorptionScale}; // mfp in multiples of scene scale
-dielectric.roughness = ${materials.getLoadedDielectric().roughness};
-`;
+let dielectric = materials.loadDielectric('${materials.getLoadedDielectric().getName()}');`;
+        code += materials.loadDielectric().repr();
     }
-    if (shader.indexOf("VOLUME_EMISSION(") != -1)
-    {
-        code += `
-let volume = materials.loadVolume();
-volume.emission = ${materials.loadVolume().emission};
-volume.emissionColor = [${materials.loadVolume().emissionColor[0]}, ${materials.loadVolume().emissionColor[1]}, ${materials.loadVolume().emissionColor[2]}];
-`;
-    }
+    code += `
+let volume = materials.loadVolume();`;
+    code += materials.loadVolume().repr();
 
     code += `
 /******* copy-pasted console output on 'O', end *******/`;

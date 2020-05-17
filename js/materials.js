@@ -48,6 +48,17 @@ function Surface(name)
 
 Surface.prototype = Object.create(Material.prototype);
 
+Surface.prototype.repr  = function()
+{
+    let code = `
+    surface.roughness = ${this.roughness};
+    surface.ior = ${this.ior};
+    surface.diffuseAlbedo = [${this.diffuseAlbedo[0]}, ${this.diffuseAlbedo[1]}, ${this.diffuseAlbedo[2]}];
+    surface.specAlbedo = [${this.specAlbedo[0]}, ${this.specAlbedo[1]}, ${this.specAlbedo[2]}];
+    `;
+    return code;
+}
+
 Surface.prototype.syncShader = function(shader)
 {
     shader.uniform3Fv("surfaceDiffuseAlbedoRGB", this.diffuseAlbedo);
@@ -56,23 +67,73 @@ Surface.prototype.syncShader = function(shader)
     shader.uniformF("surfaceIor", this.ior);
 }
 
+Surface.prototype.initGui  = function(parentFolder) 
+{
+    this.diffuse = [this.diffuseAlbedo[0]*255.0, this.diffuseAlbedo[1]*255.0, this.diffuseAlbedo[2]*255.0];
+    var diffItem = parentFolder.addColor(this, 'diffuse');
+    let SURFACE_OBJ = this;
+    diffItem.onChange( function(albedo) {
+                            if (typeof albedo==='string' || albedo instanceof String)
+                            {
+                                var color = hexToRgb(albedo);
+                                SURFACE_OBJ.diffuseAlbedo[0] = color.r / 255.0;
+                                SURFACE_OBJ.diffuseAlbedo[1] = color.g / 255.0;
+                                SURFACE_OBJ.diffuseAlbedo[2] = color.b / 255.0;
+                            }
+                            else
+                            {
+                                SURFACE_OBJ.diffuseAlbedo[0] = albedo[0] / 255.0;
+                                SURFACE_OBJ.diffuseAlbedo[1] = albedo[1] / 255.0;
+                                SURFACE_OBJ.diffuseAlbedo[2] = albedo[2] / 255.0;
+                            }
+                            snelly.reset(true);
+                        } );
+
+    this.specular = [this.specAlbedo[0]*255.0, this.specAlbedo[1]*255.0, this.specAlbedo[2]*255.0];
+    var specItem = parentFolder.addColor(this, 'specular');
+    specItem.onChange( function(albedo) {
+                            if (typeof albedo==='string' || albedo instanceof String)
+                            {
+                                var color = hexToRgb(albedo);
+                                SURFACE_OBJ.specAlbedo[0] = color.r / 255.0;
+                                SURFACE_OBJ.specAlbedo[1] = color.g / 255.0;
+                                SURFACE_OBJ.specAlbedo[2] = color.b / 255.0;
+                            }
+                            else
+                            {
+                                SURFACE_OBJ.specAlbedo[0] = albedo[0] / 255.0;
+                                SURFACE_OBJ.specAlbedo[1] = albedo[1] / 255.0;
+                                SURFACE_OBJ.specAlbedo[2] = albedo[2] / 255.0;
+                            }
+                            snelly.reset(true);
+                        } );
+
+    this.roughnessItem = parentFolder.add(this, 'roughness', 0.0, 1.0);
+    this.roughnessItem.onChange( function(value) { SURFACE_OBJ.roughness = value; snelly.camera.enabled = false; snelly.reset(true); } );
+    this.roughnessItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+
+    this.iorItem = parentFolder.add(this, 'ior', 1.0, 3.0);
+    this.iorItem.onChange( function(value) { SURFACE_OBJ.ior = value; snelly.camera.enabled = false; snelly.reset(true); } );
+    this.iorItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+}
 
 ////////////////////////////////////////////////////////
 // Volumetric material
 ////////////////////////////////////////////////////////
 
 /** 
-* Volumetric material. Control via properties:
+* Volumetric material (a homogeneous atmosphere, with heterogeneous emission). Control via properties:
 * @constructor 
 * @extends Material
-* @property {number} extinction      - Total extinction multiplier in units of inverse scene scale
-* @property {Array}  scatteringColor - Scattering (RGB) color (multiplies extinction to give per-channel scattering coefficient)
+* @property {number} mfp             - MFP in units of inverse scene scale (gives grey extinction as inverse MFP)
+* @property {number} maxOpticalDepth - maximum optical depth (in any channel), used to bound attenuation to infinity
+* @property {Array}  scatteringColor - Scattering (RGB) color (multiplies grey extinction to give per-channel scattering coefficient)
 * @property {Array}  absorptionColor - The absorption (RGB) color (multiplies extinction to give per-channel absorption coefficient)
 * @property {number} anisotropy      - Phase function anisotropy in [-1,1]
 * @property {number} emission        - emission power magnitude
 * @property {Array}  emissionColor   - emission color (multiplies emission to give per-channel emission)
 * @example
-* volume.extinction = 0.1;
+* volume.mfp = 0.1;
 * volume.scatteringColor = [0.5, 0.5, 0.5];
 * volume.absorptionColor = [0.0, 0.5, 0.0];
 * volume.anisotropy = 0.0;
@@ -82,26 +143,168 @@ Surface.prototype.syncShader = function(shader)
 function Volume(name)
 {
     Material.call(this, name);
-    //this.extinction = 0.1; //  in units of scene length scale
-    //this.scatteringColor = [1.0, 1.0, 1.0];
-    //this.absorptionColor = [1.0, 1.0, 1.0];
-    //this.anisotropy = 0.0;
+    
+    //.atmosphere bounds (homogeneous within this box)
+    this.atmosphereMinX = -10.0;
+    this.atmosphereMaxX =  10.0;
+    this.atmosphereMinY = 0.0;
+    this.atmosphereMaxY =  10.0;
+    this.atmosphereMinZ = -10.0;
+    this.atmosphereMaxZ =  10.0;
+    // homogeneous atmosphere volumetric parameters
+    this.lof10_mfp = 1.0; // in units of scene length scale
+    this.scatteringColor = [0.0, 0.0, 0.0];
+    this.absorptionColor = [0.0, 0.0, 0.0];
+    this.anisotropy = 0.0;
+    // UI values for optional heterogeneous volumetric emission field
     this.emission = 0.0;
     this.emissionColor = [1.0, 1.0, 1.0];
 }
 
 Volume.prototype = Object.create(Material.prototype);
 
+Volume.prototype.repr  = function()
+{
+    let code = `
+    volume.atmosphereMinX = ${this.atmosphereMinX};
+    volume.atmosphereMinY = ${this.atmosphereMinY};
+    volume.atmosphereMinZ = ${this.atmosphereMinZ};
+    volume.atmosphereMaxX = ${this.atmosphereMaxX};
+    volume.atmosphereMaxY = ${this.atmosphereMaxY};
+    volume.atmosphereMaxZ = ${this.atmosphereMaxZ};
+    volume.lof10_mfp = ${this.lof10_mfp};
+    volume.scatteringColor = [${this.scatteringColor[0]}, ${this.scatteringColor[1]}, ${this.scatteringColor[2]}];
+    volume.absorptionColor = [${this.absorptionColor[0]}, ${this.absorptionColor[1]}, ${this.absorptionColor[2]}];
+    volume.emission = ${this.emission};
+    volume.emissionColor = [${this.emissionColor[0]}, ${this.emissionColor[1]}, ${this.emissionColor[2]}];
+    `;
+    return code;
+}
+
 Volume.prototype.syncShader = function(shader)
 {
-    //shader.uniformF("volumeExtinction", this.extinction);
-    //shader.uniform3Fv("volumeScatteringColorRGB", this.scatteringColor);
-    //shader.uniform3Fv("volumeAbsorptionColorRGB", this.absorptionColor);
-    //shader.uniformF("volumeAnisotropy", this.anisotropy);
+    let scatteringCoeff = [0.0, 0.0, 0.0];
+    let absorptionCoeff = [0.0, 0.0, 0.0];
+    let extinctionCoeff = [0.0, 0.0, 0.0];
+    for (let c=0; c<3; ++c)
+    {
+        scatteringCoeff[c] = this.scatteringColor[c];
+        absorptionCoeff[c] = this.absorptionColor[c];
+        extinctionCoeff[c] = absorptionCoeff[c] + scatteringCoeff[c];
+    }
+
+    shader.uniformF("atmosphereMFP", Math.pow(10, this.lof10_mfp));
+    shader.uniform3Fv("atmosphereExtinctionCoeffRGB", extinctionCoeff);
+    shader.uniform3Fv("atmosphereScatteringCoeffRGB", scatteringCoeff);
+    shader.uniformF("atmosphereAnisotropy", this.anisotropy);
+
+    let boundsMin = [this.atmosphereMinX, this.atmosphereMinY, this.atmosphereMinZ];
+    let boundsMax = [this.atmosphereMaxX, this.atmosphereMaxY, this.atmosphereMaxZ];
+    shader.uniform3Fv("atmosphereBoundsMin", boundsMin);
+    shader.uniform3Fv("atmosphereBoundsMax", boundsMax);
+
     shader.uniformF("volumeEmission", this.emission);
     shader.uniform3Fv("volumeEmissionColorRGB", this.emissionColor);
-    
 }
+
+Volume.prototype.initGui = function(parentFolder)
+{
+    let VOLUME_OBJ = this;
+
+    this.mfpItem = parentFolder.add(this, 'lof10_mfp', -2.0, 4.0);
+    this.mfpItem.onChange( function(value) { this.lof10_mfp = value; snelly.camera.enabled = false; snelly.reset(true); });
+    this.mfpItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+
+    parentFolder.scatteringColor = [this.scatteringColor[0]*255.0, this.scatteringColor[1]*255.0, this.scatteringColor[2]*255.0];
+    var scatteringColorItem = parentFolder.addColor(parentFolder, 'scatteringColor');
+    scatteringColorItem.onChange( function(C) {
+                            if (typeof C==='string' || C instanceof String)
+                            {
+                                var color = hexToRgb(C);
+                                VOLUME_OBJ.scatteringColor[0] = color.r / 255.0;
+                                VOLUME_OBJ.scatteringColor[1] = color.g / 255.0;
+                                VOLUME_OBJ.scatteringColor[2] = color.b / 255.0;
+                            }
+                            else
+                            {
+                                VOLUME_OBJ.scatteringColor[0] = C[0] / 255.0;
+                                VOLUME_OBJ.scatteringColor[1] = C[1] / 255.0;
+                                VOLUME_OBJ.scatteringColor[2] = C[2] / 255.0;
+                            }
+                            snelly.reset(true);
+                        } );
+
+    parentFolder.absorptionColor = [this.absorptionColor[0]*255.0, this.absorptionColor[1]*255.0, this.absorptionColor[2]*255.0];
+    var absorptionColorItem = parentFolder.addColor(parentFolder, 'absorptionColor');
+    absorptionColorItem.onChange( function(C) {
+                            if (typeof C==='string' || C instanceof String)
+                            {
+                                var color = hexToRgb(C);
+                                VOLUME_OBJ.absorptionColor[0] = color.r / 255.0;
+                                VOLUME_OBJ.absorptionColor[1] = color.g / 255.0;
+                                VOLUME_OBJ.absorptionColor[2] = color.b / 255.0;
+                            }
+                            else
+                            {
+                                VOLUME_OBJ.absorptionColor[0] = C[0] / 255.0;
+                                VOLUME_OBJ.absorptionColor[1] = C[1] / 255.0;
+                                VOLUME_OBJ.absorptionColor[2] = C[2] / 255.0;
+                            }
+                            snelly.reset(true);
+                        } );
+
+    this.emissionItem = parentFolder.add(this, 'emission', 0.0, 100.0);
+    this.emissionItem.onChange( function(value) { this.emission = value; snelly.camera.enabled = false; snelly.reset(true); } );
+    this.emissionItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+
+    parentFolder.emission = [this.emissionColor[0]*255.0, this.emissionColor[1]*255.0, this.emissionColor[2]*255.0];
+    var emissionColorItem = parentFolder.addColor(parentFolder, 'emission');
+    emissionColorItem.onChange( function(C) {
+                            if (typeof C==='string' || C instanceof String)
+                            {
+                                var color = hexToRgb(C);
+                                VOLUME_OBJ.emissionColor[0] = color.r / 255.0;
+                                VOLUME_OBJ.emissionColor[1] = color.g / 255.0;
+                                VOLUME_OBJ.emissionColor[2] = color.b / 255.0;
+                            }
+                            else
+                            {
+                                VOLUME_OBJ.emissionColor[0] = C[0] / 255.0;
+                                VOLUME_OBJ.emissionColor[1] = C[1] / 255.0;
+                                VOLUME_OBJ.emissionColor[2] = C[2] / 255.0;
+                            }
+                            snelly.reset(true);
+                        } );
+
+    this.anisotropyItem = parentFolder.add(this, 'anisotropy', -0.999, 0.999);
+    this.anisotropyItem.onChange( function(value) { VOLUME_OBJ.anisotropy = value; snelly.camera.enabled = false; snelly.reset(true); } );
+    this.anisotropyItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+
+    this.atmosphereMinXItem = parentFolder.add(this, 'atmosphereMinX', -1000.0, 1000.0);
+    this.atmosphereMinXItem.onChange( function(value) { VOLUME_OBJ.atmosphereMinX = value; snelly.camera.enabled = false; snelly.reset(true); } );
+    this.atmosphereMinXItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+
+    this.atmosphereMaxXItem = parentFolder.add(this, 'atmosphereMaxX', -1000.0, 1000.0);
+    this.atmosphereMaxXItem.onChange( function(value) { VOLUME_OBJ.atmosphereMaxX = value; snelly.camera.enabled = false; snelly.reset(true); } );
+    this.atmosphereMaxXItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+
+    this.atmosphereMinYItem = parentFolder.add(this, 'atmosphereMinY', -1000.0, 1000.0);
+    this.atmosphereMinYItem.onChange( function(value) { VOLUME_OBJ.atmosphereMinY = value; snelly.camera.enabled = false; snelly.reset(true); } );
+    this.atmosphereMinYItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+
+    this.atmosphereMaxYItem = parentFolder.add(this, 'atmosphereMaxY', -1000.0, 1000.0);
+    this.atmosphereMaxYItem.onChange( function(value) { VOLUME_OBJ.atmosphereMaxY = value; snelly.camera.enabled = false; snelly.reset(true); } );
+    this.atmosphereMaxYItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+
+    this.atmosphereMinZItem = parentFolder.add(this, 'atmosphereMinZ', -1000.0, 1000.0);
+    this.atmosphereMinZItem.onChange( function(value) { VOLUME_OBJ.atmosphereMinZ = value; snelly.camera.enabled = false; snelly.reset(true); } );
+    this.atmosphereMinZItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+
+    this.atmosphereMaxZItem = parentFolder.add(this, 'atmosphereMaxZ', -1000.0, 1000.0);
+    this.atmosphereMaxZItem.onChange( function(value) { VOLUME_OBJ.atmosphereMaxZ = value; snelly.camera.enabled = false; snelly.reset(true); } );
+    this.atmosphereMaxZItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+}
+
 
 
 ////////////////////////////////////////////////////////
@@ -149,6 +352,15 @@ function Metal(name)
 }
 
 Metal.prototype = Object.create(Material.prototype);
+
+Metal.prototype.repr  = function()
+{
+    let code = `
+    metal.roughness = ${this.roughness};
+    metal.specAlbedo = [${this.specAlbedo[0]}, ${this.specAlbedo[1]}, ${this.specAlbedo[2]}];
+    `;
+    return code;
+}
 
 Metal.prototype.syncShader = function(shader)
 {
@@ -392,6 +604,16 @@ function Dielectric(name)
 }
 
 Dielectric.prototype = Object.create(Material.prototype);
+
+Dielectric.prototype.repr  = function()
+{
+    let code = `
+    dielectric.absorptionColor = [${this.absorptionColor[0]}, ${this.absorptionColor[1]}, ${this.absorptionColor[2]}];
+    dielectric.absorptionScale = ${this.absorptionScale}; // mfp in multiples of scene scale
+    dielectric.roughness = ${this.roughness};
+    `;
+    return code;
+}
 
 Dielectric.prototype.syncShader = function(shader)
 {

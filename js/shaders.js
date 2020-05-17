@@ -921,14 +921,17 @@ uniform vec3 surfaceSpecAlbedoRGB;
 uniform float surfaceRoughness;
 uniform float surfaceIor;
 
-// Volumetric/atmosphere constants
-uniform float volumeEmission;
-uniform vec3 volumeEmissionColorRGB;
-uniform float atmosphereExtinction;
-uniform vec3 atmosphereScatteringColorRGB;
-uniform vec3 atmosphereAbsorptionColorRGB;
+// Atmosphere constants
+uniform vec3 atmosphereBoundsMin;
+uniform vec3 atmosphereBoundsMax;
+uniform vec3 atmosphereExtinctionCoeffRGB;
+uniform vec3 atmosphereScatteringCoeffRGB;
+uniform float atmosphereMFP;
 uniform float atmosphereAnisotropy;
 
+// Volumetric emission constants
+uniform float volumeEmission;
+uniform vec3 volumeEmissionColorRGB;
 
 
 //////////////////////////////////////////////////////////////
@@ -997,9 +1000,10 @@ float tanTheta(in vec3 nLocal)  { return sqrt(max(0.0, tanTheta2(nLocal))); }
 
 struct Basis
 {
+    // right-handed coordinate system
     vec3 nW; // aligned with the z-axis in local space
-    vec3 tW;
-    vec3 bW;
+    vec3 tW; // aligned with the x-axis in local space
+    vec3 bW; // aligned with the y-axis in local space
 };
 
 Basis sunBasis;
@@ -1072,12 +1076,12 @@ vec3 rgbToXyz(in vec3 RGB)
 // and the rgb color matching functions at the wavelength of the current monochromatic beam,
 // and returns the corresponding scalar albedo at this wavelength.
 float rgbToAlbedo(in vec3 RGB, in vec3 rgb)
-{    
+{
     return dot(RGB, rgb);
 }
 #else
 vec3 rgbToAlbedo(in vec3 RGB, in vec3 rgb)
-{    
+{
     return RGB;
 }
 #endif
@@ -1170,7 +1174,13 @@ float powerHeuristic(const float a, const float b)
 // Phase function
 /////////////////////////////////////////////////////////////////////////
 
-/*
+float phaseFunction(float mu)
+{
+    float g = atmosphereAnisotropy;
+    float gSqr = g*g;
+    return (1.0/(4.0*M_PI)) * (1.0 - gSqr) / pow(1.0 - 2.0*g*mu + gSqr, 1.5);
+}
+
 vec3 samplePhaseFunction(in vec3 rayDir, inout vec4 rnd)
 {
     float g = atmosphereAnisotropy;
@@ -1184,15 +1194,6 @@ vec3 samplePhaseFunction(in vec3 rayDir, inout vec4 rnd)
     Basis basis = makeBasis(rayDir);
     return costheta*rayDir + sintheta*(cos(phi)*basis.tW + sin(phi)*basis.bW);
 }
-
-float phaseFunction(float mu)
-{
-    float g = atmosphereAnisotropy;
-    float gSqr = g*g;
-    return (1.0/(4.0*M_PI)) * (1.0 - gSqr) / pow(1.0 - 2.0*g*mu + gSqr, 1.5);
-}
-*/
-
 
 /////////////////////////////////////////////////////////////////////////
 // Beckmann Microfacet formulae
@@ -1266,6 +1267,8 @@ float fresnelDielectricReflectance(in float cosi, in float eta_ti)
 /////////////////////////////////////////////////////////////////////////
 // BRDF functions
 /////////////////////////////////////////////////////////////////////////
+
+#ifdef HAS_GEOMETRY
 
 // ****************************        Dielectric        ****************************
 
@@ -1660,22 +1663,37 @@ float pdfBsdf( in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, in 
 #endif
 }
 
+#endif // HAS_GEOMETRY
+
+RadianceType VOLUME_SCATTERING_EVAL(in vec3 rgb)
+{
+    return rgbToAlbedo(atmosphereScatteringCoeffRGB/(atmosphereMFP*lengthScale), rgb);
+}
+
+RadianceType VOLUME_EXTINCTION_EVAL(in vec3 rgb)
+{
+    return rgbToAlbedo(atmosphereExtinctionCoeffRGB/(atmosphereMFP*lengthScale), rgb);
+}
+
 #ifdef HAS_VOLUME_EMISSION
+
 RadianceType VOLUME_EMISSION_EVAL(in vec3 X, in vec3 rgb)
 {
     vec3 emission = VOLUME_EMISSION(volumeEmissionColorRGB * volumeEmission, X);
     return rgbToAlbedo(emission, rgb);
 }
+
 #endif // HAS_VOLUME_EMISSION
 
 ///////////////////////////////////////////////////////////////////////////////////
 // SDF raymarcher
 ///////////////////////////////////////////////////////////////////////////////////
 
-// find first hit over specified segment
-bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
-                   inout vec3 hit, inout int material)
+// find first hit along specified ray
+bool traceRay(in vec3 start, in vec3 dir,
+              inout vec3 hit, inout int material, float maxMarchDist)
 {
+    material = MAT_INVAL;
     float minMarch = minLengthScale;
     const float HUGE_VAL = 1.0e20;
     float sdf = HUGE_VAL;
@@ -1691,7 +1709,7 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
 
     float InitialSign = sign(sdf);
     float t = InitialSign * sdf; // (always take the first step along the ray direction)
-    if (t>=maxDist) return false;
+    if (t>=maxMarchDist) return false;
     for (int n=0; n<__MAX_MARCH_STEPS__; n++)
     {
         vec3 pW = start + t*dir;
@@ -1708,17 +1726,9 @@ bool traceDistance(in vec3 start, in vec3 dir, float maxDist,
         // With this formula, the ray advances whether sdf is initially negative or positive --
         // but on crossing the zero isosurface, sdf flips allowing bracketing of the root.
         t += InitialSign * sdf;
-        if (t>=maxDist) return false;
+        if (t>=maxMarchDist) return false;
     }
     return !maxStepsIsMiss;
-}
-
-// find first hit along infinite ray
-bool traceRay(in vec3 start, in vec3 dir,
-              inout vec3 hit, inout int material, float maxMarchDist)
-{
-    material = MAT_INVAL;
-    return traceDistance(start, dir, maxMarchDist, hit, material);
 }
 
 vec3 normal(in vec3 pW, int material)
@@ -1768,13 +1778,60 @@ void perturbNormal(in vec3 X, in Basis basis, int material, inout vec3 nW)
 }
 #endif
 
-// MC-estimates the amount of light transmitted along an infinite ray
-RadianceType Visibility(in vec3 pW, in vec3 rayDir, in vec3 rgb, inout vec4 rnd)
+
+#define sort2(a,b) { vec3 tmp=min(a,b); b=a+b-tmp; a=tmp; }
+
+bool atmosphereHit( in vec3 rayPos, in vec3 rayDir,
+                    inout float t0, inout float t1 )
 {
-    vec3 pW_next;
+    vec3 dL = 1.0/rayDir;
+    vec3 lo = (atmosphereBoundsMin*lengthScale - rayPos) * dL;
+    vec3 hi = (atmosphereBoundsMax*lengthScale - rayPos) * dL;
+    sort2(lo, hi);
+    bool hit = !( lo.x>hi.y || lo.y>hi.x || lo.x>hi.z || lo.z>hi.x || lo.y>hi.z || lo.z>hi.y );
+    t0 = max(max(lo.x, lo.y), lo.z);
+    t1 = min(min(hi.x, hi.y), hi.z);
+    return hit;
+}
+
+bool atmosphereSegment(in vec3 pW, in vec3 rayDir, float segmentLength, // input segment
+                       inout float t0, inout float t1)                  // portion of input segment within atmosphere
+{
+    if ( !atmosphereHit(pW, rayDir, t0, t1) )
+        return false;
+    t0 = max(0.0, t0);
+    if (t1<0.0 || segmentLength<t0)
+        return false;
+    t1 = min(segmentLength, t1);
+    return true;
+}
+
+// Return the amount of light transmitted (per-channel) along a given "free" segment (i.e. ignoring geometry)
+RadianceType transmittanceOverFreeSegment(in vec3 pW, in vec3 rayDir, float segmentLength, in vec3 rgb)
+{
+    RadianceType extinction = VOLUME_EXTINCTION_EVAL(rgb);
+    if (length(extinction) == 0.f)
+        return RadianceType(1.0);
+    float t0, t1;
+    bool hitAtmosphere = atmosphereSegment(pW, rayDir, segmentLength, t0, t1);
+    if (!hitAtmosphere)
+        return RadianceType(1.0);
+    vec3 opticalDepth = (t1 - t0) * extinction;
+    vec3 Tr = exp(-opticalDepth);
+    return Tr;
+}
+
+// Return the amount of light transmitted (per-channel) along an infinite ray
+// (zero if occluded by geometry).
+RadianceType transmittanceToInfinity(in vec3 pW, in vec3 rayDir, in vec3 rgb)
+{
+    vec3 pW_surface;
     int hitMaterial;
-    bool hit = traceRay(pW, rayDir, pW_next, hitMaterial, maxLengthScale);
-    return RadianceType(!hit);
+    bool hit = traceRay(pW, rayDir, pW_surface, hitMaterial, maxLengthScale);
+    if (hit)
+        return RadianceType(0.0);
+    else
+        return transmittanceOverFreeSegment(pW, rayDir, maxLengthScale, rgb);
 }
 
 
@@ -1782,23 +1839,22 @@ RadianceType Visibility(in vec3 pW, in vec3 rayDir, in vec3 rgb, inout vec4 rnd)
 // Light sampling
 ////////////////////////////////////////////////////////////////////////////////
 
-vec3 environmentRadianceRGB(in vec3 dir)
+vec3 environmentRadianceRGB(in vec3 dirW)
 {
-    float rot_phi = M_PI*envMapPhiRotation/180.0;
+    float rot_phi   = M_PI*envMapPhiRotation/180.0;
     float rot_theta = M_PI*envMapThetaRotation/180.0;
-    float phi = atan(dir.x, dir.z) + M_PI + rot_phi;
+    vec3 sky_pole = vec3(sin(rot_theta), cos(rot_theta), 0.0);
+    Basis sky_basis = makeBasis(sky_pole);
+    vec3 dirL = worldToLocal(dirW, sky_basis);
+    float phi = atan(dirL.y, dirL.x) + M_PI + rot_phi;
     phi -= 2.0*M_PI*floor(phi/(2.0*M_PI)); // wrap phi to [0, 2*pi]
-    float theta = mod(acos(dir.y) + rot_theta, M_PI);             // theta in [0, pi]
+    float theta = acos(dirL.z);
     float u = phi/(2.0*M_PI);
     float v = theta/M_PI;
     vec3 RGB = vec3(1.0);
     if (haveEnvMap)
-    {
         RGB = texture(envMap, vec2(u,v)).rgb;
-    }
-    float St = sin(rot_theta);
-    vec3 color_pole = vec3(cos(rot_phi)*St, cos(rot_theta), sin(rot_phi)*St);
-    float t = dot(dir, color_pole);
+    float t = dot(dirW, sky_pole);
     float tt = envMapTransitionAngle/180.0;
     RGB *= skyPower * mix(skyTintDown, skyTintUp, smoothstep(-tt, tt, t));
     return RGB;
@@ -1848,19 +1904,10 @@ RadianceType sunRadiance(in vec3 dir, in vec3 rgb)
     return rgbToAlbedo(RGB_sun, rgb);
 }
 
-float sunPowerEstimate(Basis basis)
-{
-    float theta_max = sunAngularSize * M_PI/180.0;
-    float vis_factor = clamp(dot(basis.nW, sunDir) + sin(theta_max), 0.0, 1.0);
-    float solid_angle = 2.0*M_PI*(1.0 - cos(theta_max));
-    return vis_factor * solid_angle * sunPower * maxComponent(sunColor);
-}
-
 RadianceType sampleLightAtSurface(Basis basis, in vec3 rgb, inout vec4 rnd, inout vec3 woutputL, inout vec3 woutputW, inout float lightPdf)
 {
     if (sunPower<RADIANCE_EPSILON && skyPower<RADIANCE_EPSILON) 
         return RadianceType(0.0);
-    
     // Light sampling (choose either sun or sky)
     float sunWeight = sunPower;
     float skyWeight = skyPower;
@@ -1895,8 +1942,8 @@ RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 winputW, in 
     RadianceType Li = sampleLightAtSurface(basis, rgb, rnd, woutputL, woutputW, lightPdf);
     if ( averageComponent(Li) < RADIANCE_EPSILON ) return RadianceType(0.0);
     vec3 dPw = 3.0*minLengthScale * basis.nW;
-    RadianceType V = Visibility(pW+dPw, woutputW, rgb, rnd);
-    Li *= abs(RadianceType(1.0) - shadowStrength*(RadianceType(1.0)-V));
+    RadianceType Tr = transmittanceToInfinity(pW+dPw, woutputW, rgb);
+    Li *= abs(RadianceType(1.0) - shadowStrength*(RadianceType(1.0)-Tr));
     // Apply MIS weight with the BSDF pdf for the sampled direction
     vec3 winputL = worldToLocal(winputW, basis);
     bool fromCamera = true; // camera path
@@ -1906,6 +1953,76 @@ RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 winputW, in 
     float misWeight = powerHeuristic(lightPdf, bsdfPdf);
     RadianceType fOverPdf = min(RadianceType(radianceClamp), f/max(PDF_EPSILON, lightPdf));
     return fOverPdf * Li * abs(dot(woutputW, basis.nW)) * misWeight;
+}
+
+RadianceType sampleLightInVolume(in vec3 rgb, inout vec4 rnd, inout vec3 woutputW, inout float lightPdf)
+{
+    // Light sampling (choose either sun or sky)
+    float sunWeight = sunPower;
+    float skyWeight = skyPower;
+    float sunProb = clamp(max(sunWeight, DENOM_TOLERANCE) / max(skyWeight+sunWeight, DENOM_TOLERANCE), 0.0, 1.0);
+    float skyProb = max(PDF_EPSILON, 1.0-sunProb);
+    bool chooseSun = (rand(rnd) <= sunProb);
+    float skyPdf, sunPdf;
+    RadianceType Li = RadianceType(0.0);
+    if (chooseSun)
+    {
+        woutputW = sampleSunDir(rnd, sunPdf);
+        lightPdf = sunProb*sunPdf;
+        Li += sunRadiance(woutputW, rgb);
+    }
+    else
+    {
+        woutputW = sampleSphere(rnd, skyPdf);
+        lightPdf = skyProb*skyPdf;
+        Li += environmentRadiance(woutputW, rgb);
+    }
+    return Li;
+}
+
+RadianceType atmospheric_scattering(in vec3 pW, in vec3 rayDir, in float segmentLength, in vec3 rgb, inout vec4 rnd)
+{
+    RadianceType extinction = VOLUME_EXTINCTION_EVAL(rgb);
+    RadianceType scattering = VOLUME_SCATTERING_EVAL(rgb);
+    if ( averageComponent(extinction) < RADIANCE_EPSILON ||
+         averageComponent(scattering) < RADIANCE_EPSILON ) return RadianceType(0.0);
+
+    // Find sub-segment of supplied segment over which (homogeneous) atmosphere exists
+    float t0, t1;
+    bool hitAtmosphere = atmosphereSegment(pW, rayDir, segmentLength, t0, t1);
+    if (!hitAtmosphere)
+        return RadianceType(0.0);
+    float t01 = (t1 - t0); // uniformly sample a scattering point in [t0, t1]
+    float t_scatter = t0 + t01*rand(rnd);
+    float invDistancePdf = t01;
+    vec3 pW_scatter = pW + t_scatter*rayDir;
+    vec3 opticalDepth = (t_scatter - t0) * extinction; // optical depth from pW -> pW_scatter
+    vec3 Tr_pW = exp(-opticalDepth);                   // transmittance from pW -> pW_scatter
+
+    // Direct lighting
+    vec3 wiW; // sample direction of scattered light (*towards* the light)
+    float lightPdf;
+    RadianceType L = sampleLightInVolume(rgb, rnd, wiW, lightPdf);
+    if ( averageComponent(L) < RADIANCE_EPSILON ) return RadianceType(0.0);
+    RadianceType Tr_light = transmittanceToInfinity(pW_scatter, wiW, rgb); // transmittance to light (at "infinity")
+    RadianceType Li = Tr_light * L / max(PDF_EPSILON, lightPdf); // incident light estimator
+    float PF = phaseFunction(dot(-rayDir, -wiW)); // evaluate phase function for scattering -Wiw -> -rayDir
+    RadianceType Ls = Tr_pW * scattering * PF * Li * invDistancePdf; // final estimator for scattered radiance
+
+#ifdef HAS_VOLUME_EMISSION
+    // Surface emission contribution
+    wiW = samplePhaseFunction(rayDir, rnd); // sample direction of scattered light (from phase function)
+    vec3 pW_hit;
+    int hitMaterial;
+    bool hit = traceRay(pW_scatter, wiW, pW_hit, hitMaterial, maxLengthScale);
+    if (hit)
+    {
+        // (NB, phase function is the angle PDF, so the MC PDF denom. cancels it in the estimator)
+        Ls += Tr_pW * scattering * VOLUME_EMISSION_EVAL(pW_hit, rgb) * invDistancePdf;
+    }
+#endif
+
+    return Ls;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1963,19 +2080,19 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
         }
         else
         {
-            // This ray missed all geometry; add environment light term and terminate path
+            // This ray missed all geometry; add environment light term
+            // (attenuated by transmittance through atmosphere to "infinity")
+            // and terminate path
             RadianceType Li = RadianceType(0.0);
             if (!(vertex==0 && !envMapVisible))      Li += environmentRadiance(rayDir, rgb);
             if (!(vertex==0 && !sunVisibleDirectly)) Li += sunRadiance(rayDir, rgb);
-            L += throughput * Li * misWeight;
-
-            // @todo: add term for single-scattering of spotlights in the homogeneous atmosphere (if present)
-            {
-
-            }
-
+            RadianceType Tr = transmittanceToInfinity(pW, rayDir, rgb);
+            L += throughput * Tr * Li * misWeight;
+            // Also also term for single-scattering of sun/sky in the homogeneous atmosphere over the segment to "infinity"
+            L += throughput * atmospheric_scattering(pW, rayDir, maxLengthScale, rgb, rnd);
             break;
         }
+
         // If the current ray lies inside a dielectric, apply Beer's law for absorption
 #ifdef HAS_DIELECTRIC
         if (inDielectric)
@@ -1983,12 +2100,17 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             RadianceType absorption = rgbToAlbedo(dieleAbsorptionRGB, rgb);
             throughput *= exp(-rayLength*absorption);
         }
-#endif
-
-        // @todo: also apply Beer's law for the homogeneous atmosphere, if present
+        else
         {
+#endif
+            // Add term for single-scattering of sun/sky in the homogeneous atmosphere over the segment up to the next hit
+            L += throughput * atmospheric_scattering(pW, rayDir, rayLength, rgb, rnd);
 
+            // Attenuate throughput to next hit due to atmospheric attenuation (Beer's law)
+            throughput *= transmittanceOverFreeSegment(pW, rayDir, rayLength, rgb);
+#ifdef HAS_DIELECTRIC
         }
+#endif
 
         // This ray hit some geometry, so deal with the surface interaction.
         // First, compute the normal and thus the local vertex basis:

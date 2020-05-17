@@ -26,10 +26,10 @@
 * @property {number} [skyTemperature=6000]       - sky emission blackbody temperature (in Kelvin), used in dispersive mode only
 * @property {Array}  [skyTintUp]                 - sky color upwards tint
 * @property {Array}  [skyTintDown]               - sky color downwards tint
+* @property {number} [envMapVisible=true]        - whether env map is visible to primary rays (otherwise black)
 * @property {number} [envMapPhiRotation=0.0]     - env map rotation about pole in degrees (0 to 360)
 * @property {number} [envMapThetaRotation=0.0]   - env map rotation about equator in degrees (0 to 180)
 * @property {number} [envMapTransitionAngle=0.0] - angle over which env map tint transitions from upwards to downwards tint [degrees]
-* @property {number} [envMapVisible=true]        - whether env map is visible to primary rays (otherwise black)
 * @property {number} [sunPower=1.0]              - sun power (arbitrary units)
 * @property {Array}  [sunColor]                  - sun color
 * @property {number} [sunAngularSize=5.0]        - sun angular size (degrees)
@@ -220,12 +220,17 @@ Renderer.prototype.compileShaders = function()
     if (shader.indexOf("DIELECTRIC_NORMAL_MAP(")            > -1) { hasDielectricNM = true; }
 
     let hasVolumeEmission = true;
+    if (shader.indexOf("VOLUME_EXTINCTION(")               == -1) { shader += `\n float VOLUME_EXTINCTION(float extinction_ui, vec3 X) { return extinction_ui; }\n`; }
+    if (shader.indexOf("VOLUME_EXTINCTION_MAX(")           == -1) { shader += `\n float VOLUME_EXTINCTION_MAX(float extinction_ui) { return extinction_ui; }\n`; }
+    if (shader.indexOf("VOLUME_SCATTERING_COLOR(")         == -1) { shader += `\n vec3 VOLUME_SCATTERING_COLOR(vec3 scattering_color_ui, vec3 X) { return scattering_color_ui; }\n`; }
+    if (shader.indexOf("VOLUME_ABSORPTION_COLOR(")         == -1) { shader += `\n vec3 VOLUME_ABSORPTION_COLOR(vec3 absorption_color_ui, vec3 X) { return absorption_color_ui; }\n`; }
+    if (shader.indexOf("VOLUME_ANISOTROPY(")               == -1) { shader += `\n float VOLUME_ANISOTROPY(float anisotropy, vec3 X) { return anisotropy; }\n`; }
     if (shader.indexOf("VOLUME_EMISSION(")                 == -1) { hasVolumeEmission = false; shader += `\n vec3 VOLUME_EMISSION(vec3 emission, vec3 X) { return emission; }\n`; }
 
     let hasGeometry = (hasSurface || hasMetal || hasDielectric);
-    if ( !hasGeometry )
-    { 
-        GLU.fail('Scene must define at least one of: SDF_SURFACE, SDF_METAL, or SDF_DIELECTRIC'); 
+    if ( !(hasGeometry || hasVolume) )
+    {
+        GLU.fail('Scene must define at least one of: SDF_SURFACE, SDF_METAL, SDF_DIELECTRIC, or SDF_VOLUME'); 
     }
 
     let hasNM = (hasSurfaceNM || hasMetalNM || hasDielectricNM);
@@ -253,6 +258,7 @@ Renderer.prototype.compileShaders = function()
     if (hasMetal)          replacements.__DEFINES__ += '\n#define HAS_METAL\n';
     if (hasDielectric)     replacements.__DEFINES__ += '\n#define HAS_DIELECTRIC\n';
     if (hasVolumeEmission) replacements.__DEFINES__ += '\n#define HAS_VOLUME_EMISSION\n';
+    if (hasGeometry)       replacements.__DEFINES__ += '\n#define HAS_GEOMETRY\n';
 
     if (hasNM)           replacements.__DEFINES__ += '\n#define HAS_NORMALMAP\n';
     if (hasSurfaceNM)    replacements.__DEFINES__ += '\n#define HAS_SURFACE_NORMALMAP\n';
