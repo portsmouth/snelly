@@ -1,7 +1,19 @@
 
 <body onload="onLoad();">
-    <script src="https://portsmouth.github.io/snelly/js/compiled/snelly.min.js"></script>
-    
+    <script src="../../../js/thirdparty/jquery-1.11.3.min.js"></script>
+    <script src="../../../js/thirdparty/three/three.min.js"></script>
+    <script src="../../../js/thirdparty/three/libs/stats.min.js"></script>
+    <script src="../../../js/thirdparty/three/libs/dat.gui.min.js"></script>
+    <script src="../../../js/thirdparty/three/controls/OrbitControls.js"></script>
+    <script src="../../../js/gl.js"></script>
+    <script src="../../../js/gui.js"></script>
+    <script src="../../../js/shaders.js"></script>
+    <script src="../../../js/color.js"></script>
+    <script src="../../../js/materials.js"></script>
+    <script src="../../../js/spectra.js"></script>
+    <script src="../../../js/renderer.js"></script>
+    <script src="../../../js/snelly.js"></script>
+
     <?/* ------------------------------------------------------------------*/?>
     <?/*                         scene definition                          */?>
     <?/* ------------------------------------------------------------------*/?>
@@ -21,31 +33,31 @@ let materials = snelly.getMaterials();
     this.par = {};
     this.par.scale = 2.0243666262917994;
     this.par.offset = [6.1568627450980395,6.1568627450980395,6.1568627450980395];
-    this.par.Phi = 0.173381378301265;
+    this.par.Phi = 3.4729366397800963;
     this.par.time = 6.5139071918546065;
     this.par.numIterations = 20;
     this.par.colorIterations = 22.52576512623613;
-    this.par.angle1 = 12.146199757750795;
-    this.par.angle2 = 93.12086480942277;
-    this.par.rot1 = [268.2352941176471,194.60207612456747,255.2411968247507]
-    this.par.rot2 = [1,1,1]
+    this.par.angle1 = 288.2132778255907;
+    this.par.angle2 = 211.35640373876652;
+    this.par.rot1 = [186.63780756279567,139.48028404212855,254.09601565088303]
+    this.par.rot2 = [0.4457348446828532,0.31064451217252653,0.5195097006382656]
     this.par.threshold1 = 0.9273662877727131;
     this.par.threshold2 = 0.7928769286309547;
     this.frame = 0;
     this.par.emit1 = [10,5.369088811995386,2.843137254901961]
     this.par.emit2 = [3.1045751633986938,9.313725490196079,3.835063437139562]
     this.par.emit3 = [10,2.156862745098039,2.156862745098039]
-    this.par.floor_height = 0.0;
+    this.par.floor_height = 0;
         
 snelly.showGUI(true);
 
 /** Camera settings **/
 camera.fov = 31.361031518624642;
-camera.aperture = -23;
-camera.focalDistance = 1.5605625941243624;
+camera.aperture = -2.9977920175017942;
+camera.focalDistance = 1.7076822651320536;
 camera.up.set(0, 1, 0);
-camera.position.set(42.530266108715466, 5.911997116024457, 0.21402834040369828);
-controls.target.set(6.618389464546324, -0.10976964521186312, -0.03646958493614634);
+camera.position.set(0.1420515804667322, 5.381842139484213, 59.234802065107345);
+controls.target.set(0.03827715914233121, -0.746339414786435, -1.2737860522423152);
 
 /** Renderer settings **/
 renderer.renderMode = 'pt';
@@ -55,38 +67,51 @@ renderer.maxSpp = 1024;
 renderer.maxBounces = 3;
 renderer.maxScatters = 2;
 renderer.maxMarchSteps = 341;
-renderer.maxVolumeSteps = 256;
 renderer.maxStepsIsMiss = false;
 renderer.interactive = false;
 renderer.goalFPS = 10;
 renderer.minsSPPToRedraw = 0;
 renderer.radianceClamp = 3;
 renderer.wavelengthSamples = 201.55359527923872;
-renderer.exposure = -0.1908378590984201;
-renderer.gamma = 1.44;
-renderer.contrast = 1.0976055937233227;
-renderer.saturation = 0.9146713281027687;
-renderer.skyPower = 0.8702316298593997;
-renderer.skyTint = [1, 1, 1];
-renderer.envMapRotation = 0;
+renderer.exposure = 0.6639650452442902;
+renderer.gamma = 0.8484848484848484;
+renderer.contrast = 0.9911938829177509;
+renderer.saturation = 0.9102800965571182;
+renderer.skyPower = -6;
+renderer.skyTintUp = [1, 1, 1];
+renderer.skyTintDown = [1, 1, 1];
 renderer.envMapVisible = false;
-renderer.sunPower = -6;
+renderer.envMapPhiRotation = 0;
+renderer.envMapThetaRotation = 0;
+renderer.envMapTransitionAngle = 135;
+renderer.sunPower = 5.2200450420077384;
 renderer.sunColor = [1, 1, 1];
-renderer.sunAngularSize = 20;
-renderer.sunLatitude = 52.213794738089575;
-renderer.sunLongitude = 129.88332859059315;
+renderer.sunAngularSize = 0.9439941742073819;
+renderer.sunLatitude = 90;
+renderer.sunLongitude = 0;
 renderer.sunVisibleDirectly = false;
 renderer.shadowStrength = 1;
 
 /** Material settings **/
 let surface = materials.loadSurface();
-surface.roughness = 0.0067478887543059975;
-surface.ior = 2.5282628411658887;
-surface.diffuseAlbedo = [0.12543252595155707, 0.16257887237940172, 0.4411764705882353];
-surface.specAlbedo = [0.5196078431372548, 0.5196078431372548, 0.5196078431372548];
+    surface.roughness = 0.04670122557359108;
+    surface.ior = 2.8013329864099417;
+    surface.diffuseAlbedo = [0.7529411764705882, 0.35294117647058826, 0.35294117647058826];
+    surface.specAlbedo = [0.6039215686274509, 0.6039215686274509, 0.6039215686274509];
+    
 let volume = materials.loadVolume();
-volume.emission = 100.0;
-volume.emissionColor =  [1, 1, 1];
+    volume.atmosphereMinX = -15;
+    volume.atmosphereMinY = -51.27142990766583;
+    volume.atmosphereMinZ = -15;
+    volume.atmosphereMaxX = 15;
+    volume.atmosphereMaxY = 15;
+    volume.atmosphereMaxZ = 15;
+    volume.lof10_mfp = 0.5618958028941394;
+    volume.scatteringColor = [0.2196078431372549, 0.18823529411764706, 0.7019607843137254];
+    volume.absorptionColor = [0.2743615887190135, 0.2743615887190135, 0.2743615887190135];
+    volume.emission = 0;
+    volume.emissionColor = [1, 1, 1];
+
         /******* copy-pasted console output on 'O', end *******/
     }
     
@@ -220,7 +245,7 @@ volume.emissionColor =  [1, 1, 1];
             return fractal;
         }
 
-        float SDF_METAL(vec3 X)
+        float METAL(vec3 X)
         {
             float L = 1.0e6;
             return sdBox(X, vec3(-L,floor_height-2.0,-L), vec3(L, floor_height,L));
