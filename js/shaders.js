@@ -1984,20 +1984,26 @@ RadianceType atmospheric_scattering(in vec3 pW, in vec3 rayDir, in float segment
 {
     RadianceType extinction = VOLUME_EXTINCTION_EVAL(rgb);
     RadianceType scattering = VOLUME_SCATTERING_EVAL(rgb);
-    if ( averageComponent(extinction) < RADIANCE_EPSILON ||
-         averageComponent(scattering) < RADIANCE_EPSILON ) return RadianceType(0.0);
+    float extinction_norm = averageComponent(extinction);
+    float scattering_norm = averageComponent(scattering);
+    if ( extinction_norm < RADIANCE_EPSILON ||
+         scattering_norm < RADIANCE_EPSILON ) return RadianceType(0.0);
 
     // Find sub-segment of supplied segment over which (homogeneous) atmosphere exists
     float t0, t1;
     bool hitAtmosphere = atmosphereSegment(pW, rayDir, segmentLength, t0, t1);
     if (!hitAtmosphere)
         return RadianceType(0.0);
+
+    // Sample a scattering point in [t0, t1] proportional to the transmittance
+    float xi = rand(rnd);
     float t01 = (t1 - t0); // uniformly sample a scattering point in [t0, t1]
-    float t_scatter = t0 + t01*rand(rnd);
-    float invDistancePdf = t01;
-    vec3 pW_scatter = pW + t_scatter*rayDir;
-    RadianceType opticalDepth = (t_scatter - t0) * extinction; // optical depth from pW -> pW_scatter
-    RadianceType Tr_pW = exp(-opticalDepth);                   // transmittance from pW -> pW_scatter
+    float T01 = exp(-t01*extinction_norm);
+    float t_scatter = t0 - log(1.0 - xi*(1.0 - T01)) / extinction_norm; // sampled scatter distance
+    vec3 pW_scatter = pW + t_scatter*rayDir;                            // sampled scatter point
+    RadianceType opticalDepth_scatter = (t_scatter - t0) * extinction;  // optical depth from pW -> pW_scatter
+    RadianceType Tr_pW = exp(-opticalDepth_scatter);                    // transmittance from pW -> pW_scatter
+    float invDistancePdf = (1.0 - T01) * exp(averageComponent(opticalDepth_scatter)) / extinction_norm; // PDF of scatter distance
 
     // Direct lighting
     vec3 wiW; // sample direction of scattered light (*towards* the light)
