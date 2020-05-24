@@ -112,7 +112,7 @@ Surface.prototype.initGui  = function(parentFolder)
     this.roughnessItem.onChange( function(value) { SURFACE_OBJ.roughness = value; snelly.camera.enabled = false; snelly.reset(true); } );
     this.roughnessItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
 
-    this.iorItem = parentFolder.add(this, 'ior', 1.0, 3.0);
+    this.iorItem = parentFolder.add(this, 'ior', 1.0, 6.0);
     this.iorItem.onChange( function(value) { SURFACE_OBJ.ior = value; snelly.camera.enabled = false; snelly.reset(true); } );
     this.iorItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
 }

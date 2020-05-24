@@ -79,7 +79,7 @@ GUI.prototype.createRendererSettings = function()
     // camera folder
     this.cameraFolder = this.rendererFolder.addFolder('Camera');
     this.cameraFolder.add(camera, 'fov', 5.0, 120.0).onChange( function(value) { pathtracer.reset(true); } );
-    this.cameraFolder.add(camera, 'aperture',      -30.0, 1.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.cameraFolder.add(camera, 'aperture',      -35.0, 1.0).onChange( function(value) { pathtracer.reset(true); } );
     this.cameraFolder.add(camera, 'focalDistance', -3.0, 3.0).onChange( function(value) { pathtracer.reset(true); } );
     this.cameraFolder.close();
     
