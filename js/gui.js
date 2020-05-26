@@ -9,7 +9,7 @@ var GUI = function(visible = true)
     this.gui.domElement.id = 'gui';
     var gui = this.gui;
     this.visible = visible;
-    
+
     this.createSceneSettings();
     this.createMaterialSettings();
     this.createRendererSettings();
@@ -33,6 +33,7 @@ function updateDisplay(gui)
 */
 GUI.prototype.sync = function()
 {
+    console.warn('[snelly] GUI.prototype.sync');
     updateDisplay(this.gui);
 }
 
@@ -53,6 +54,8 @@ function hexToRgb(hex)
 
 GUI.prototype.createRendererSettings = function()
 {
+    console.warn('[snelly] GUI.prototype.createRendererSettings');
+
     this.rendererFolder = this.gui.addFolder('Renderer');
     this.pathtracerSettings = {};
     var pathtracer = snelly.getRenderer();
@@ -60,7 +63,7 @@ GUI.prototype.createRendererSettings = function()
 
     // @todo: add a basic AO and normals mode as well, useful for scene debugging.
     var renderModes = ['pt', 'ao', 'normals'];
-    
+
     // raymarching folder
     this.raymarchingFolder = this.rendererFolder.addFolder('Raymarcher');
     this.raymarchingFolder.add(pathtracer, 'renderMode', renderModes).onChange( function(renderMode) { pathtracer.renderMode = renderMode; pathtracer.reset(); });
@@ -75,14 +78,14 @@ GUI.prototype.createRendererSettings = function()
     this.raymarchingFolder.add(pathtracer, 'wavelengthSamples', 4, 1024, 1).onChange( function(value) { pathtracer.reset(true); } );
     this.raymarchingFolder.add(pathtracer, 'interactive').onChange( function(value) { pathtracer.reset(); } );
     this.raymarchingFolder.close();
-    
+
     // camera folder
     this.cameraFolder = this.rendererFolder.addFolder('Camera');
     this.cameraFolder.add(camera, 'fov', 5.0, 120.0).onChange( function(value) { pathtracer.reset(true); } );
     this.cameraFolder.add(camera, 'aperture',      -35.0, 1.0).onChange( function(value) { pathtracer.reset(true); } );
     this.cameraFolder.add(camera, 'focalDistance', -3.0, 3.0).onChange( function(value) { pathtracer.reset(true); } );
     this.cameraFolder.close();
-    
+
     // tonemapping folder
     this.tonemappingFolder = this.rendererFolder.addFolder('Tonemapping');
     this.tonemappingFolder.add(pathtracer, 'exposure', -5.0, 15.0);
@@ -90,10 +93,10 @@ GUI.prototype.createRendererSettings = function()
     this.tonemappingFolder.add(pathtracer, 'contrast', 0.0, 3.0);
     this.tonemappingFolder.add(pathtracer, 'saturation', 0.0, 3.0);
     this.tonemappingFolder.close();
-    
+
     // lighting folder
     this.lightingFolder = this.rendererFolder.addFolder('Lighting');
-    
+
     // sky-lighting
     var skyPowerItem = this.lightingFolder.add(pathtracer, 'skyPower', -6.0, 6.0).onChange( function(value) { pathtracer.reset(true); } );
     this.lightingFolder.skyTintUp = [pathtracer.skyTintUp[0]*255.0, pathtracer.skyTintUp[1]*255.0, pathtracer.skyTintUp[2]*255.0];
@@ -159,14 +162,14 @@ GUI.prototype.createRendererSettings = function()
                             }
                             snelly.reset(true);
                         } );
-                        
+
     this.lightingFolder.add(pathtracer, 'sunAngularSize', 0.0, 20.0).onChange( function(value) { pathtracer.reset(true); } );
     this.lightingFolder.add(pathtracer, 'sunLatitude', -90.0, 90.0).onChange( function(value) { pathtracer.reset(true); } );
     this.lightingFolder.add(pathtracer, 'sunLongitude', 0.0, 360.0).onChange( function(value) { pathtracer.reset(true); } );
     this.lightingFolder.add(pathtracer, 'sunVisibleDirectly').onChange( function(value) { pathtracer.reset(true); } );
     this.lightingFolder.add(pathtracer, 'shadowStrength', 0.0, 1.0).onChange( function(value) { pathtracer.reset(true); } );
     this.lightingFolder.close();
-    
+
     this.gui.remember(this.pathtracerSettings);
     this.rendererFolder.open();
 }
@@ -273,6 +276,7 @@ GUI.prototype.getSceneFolder = function()
 
 GUI.prototype.createMaterialSettings = function()
 {
+    console.warn('[snelly] GUI.prototype.createMaterialSettings');
     var GUI = this;
 
     var sceneObj = snelly.getScene();

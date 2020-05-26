@@ -22,7 +22,7 @@ var GLU = {};
         if (!gl) this.fail("Could not initialise WebGL 2");
         this.gl = gl;
 
-        //console.log('Supported webGL extensions: ' + gl.getSupportedExtensions());
+        console.warn('[snelly] Supported webGL extensions: ' + gl.getSupportedExtensions());
         this.floatBufExt = gl.getExtension("EXT_color_buffer_float");
         this.floatLinExt = gl.getExtension("OES_texture_float_linear");
         if (!this.floatBufExt || !this.floatLinExt) this.fail("Your platform does not support float textures");
@@ -92,8 +92,6 @@ var GLU = {};
     this.createProgram = function(vertexShader, fragmentShaders, vertSource, fragSource)
     {
         // Here fragmentShaders is either a single shader, or an array of shaders to link
-
-        // create a program.
         var program = gl.createProgram();
 
         // attach the shaders.
@@ -111,7 +109,7 @@ var GLU = {};
         {
             gl.attachShader(program, fragmentShaders);
         }
-        
+
         // link the program.
         gl.linkProgram(program);
 
@@ -120,36 +118,39 @@ var GLU = {};
         if (!success)
         {
             // something went wrong with the link
-            let errMsg = "Program failed to link: ".bold().fontcolor("red") + gl.getProgramInfoLog(program) +
+            let errMsg = "[snelly] Program failed to link: ".bold().fontcolor("red") + gl.getProgramInfoLog(program) +
             "\n" + gl.getShaderInfoLog(fragmentShader) +
             "\n" + gl.getShaderInfoLog(vertexShader)
-
             errMsg += "\n\nProblematic shaders:\n\nVERTEX_SHADER:\n".bold().fontcolor("red") + addLineNumbers(vertSource)
                     +"\n\nFRAGMENT_SHADER:\n".bold().fontcolor("red") + addLineNumbers(fragSource);
-                    
+            console.error(errMsg);
             this.fail(errMsg);
         }
-
         return program;
     }
 
     this.compileShaderSource = function(shaderName, shaderSource, shaderType)
     {
+        console.warn('[snelly] compileShaderSource: ', shaderName);
+
         var shader = gl.createShader(shaderType); // Create the shader object
         gl.shaderSource(shader, shaderSource); // Set the shader source code.
         gl.compileShader(shader);              // Compile the shader
+        var shaderTypeStr = (shaderType==gl.VERTEX_SHADER) ? 'vertex' : 'fragment';
         var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS); // Check if it compiled
         if (!success)
         {
             // Something went wrong during compilation; get the error
-            var shaderTypeStr = (shaderType==gl.VERTEX_SHADER) ? 'vertex' : 'fragment';
-            let errMsg = "Could not compile ".bold() + shaderName.bold() + " " + shaderTypeStr.bold() + " shader: \n\n".bold();
+            let errMsg = "[snelly] Could not compile ".bold() + shaderName.bold() + " " + shaderTypeStr.bold() + " shader: \n\n".bold();
             let glErr = gl.getShaderInfoLog(shader).bold().fontcolor("red");
             glErr = glErr.replace(/^/gm, "\t");
             errMsg += glErr;
             errMsg += "\nProblematic shader:\n\n" + addLineNumbers(shaderSource, 1);
+            console.error(errMsg);
             this.fail(errMsg);
         }
+
+        console.warn("[snelly] Shader [" + shaderTypeStr + "] successfully compiled: ", shaderName);
         return shader;
     }
 
@@ -177,6 +178,7 @@ var GLU = {};
     */
     this.Shader = function(name, shaderSources, replacements)
     {
+        console.warn("[snelly] Shader constructor: ", name);
         let shader_sources = shaderSources[name];
         let vertSource = shader_sources.v;
         let fragSource = shader_sources.f; // could be an array
@@ -218,7 +220,7 @@ var GLU = {};
         {
             fragmentShaders = GLU.compileShaderSource(name, fragSource, gl.FRAGMENT_SHADER);
         }
-        
+
         // Link shaders
         this.program = GLU.createProgram(vertexShader, fragmentShaders, vertSource, fragSource);
         if (!gl.getProgramParameter(this.program, gl.LINK_STATUS))
@@ -494,7 +496,7 @@ var GLU = {};
         this.glName = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, this.glName);
         gl.texImage2D(gl.TEXTURE_2D, 0, this.internalformat, this.width, this.height, 0, this.format, this.type, texels);
-        
+
         if (texels !== null) this.setFilter();
         this.boundUnit = -1;
     }

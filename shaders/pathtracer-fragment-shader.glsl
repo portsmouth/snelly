@@ -879,18 +879,18 @@ vec3 normal(in vec3 pW, int material)
     // Compute normal as gradient of SDF
     float normalEpsilon = 2.0*minLengthScale;
     vec3 e = vec3(normalEpsilon, 0.0, 0.0);
-    vec3 xyyp = pW+e.xyy; vec3 xyyn = pW-e.xyy;
-    vec3 yxyp = pW+e.yxy; vec3 yxyn = pW-e.yxy;
-    vec3 yyxp = pW+e.yyx; vec3 yyxn = pW-e.yyx;
+    vec3 Xp = pW+e.xyy; vec3 Xn = pW-e.xyy;
+    vec3 Yp = pW+e.yxy; vec3 Yn = pW-e.yxy;
+    vec3 Zp = pW+e.yyx; vec3 Zn = pW-e.yyx;
     vec3 N;
 #ifdef HAS_SURFACE
-    if (material==MAT_SURFA) { N = vec3(   SDF_SURFACE(xyyp) -    SDF_SURFACE(xyyn),    SDF_SURFACE(yxyp) -    SDF_SURFACE(yxyn),    SDF_SURFACE(yyxp) -    SDF_SURFACE(yyxn)); return safe_normalize(N); }
+    if (material==MAT_SURFA) { N = vec3(   SDF_SURFACE(Xp) -    SDF_SURFACE(Xn),    SDF_SURFACE(Yp) -    SDF_SURFACE(Yn),    SDF_SURFACE(Zp) -    SDF_SURFACE(Zn)); return safe_normalize(N); }
 #endif
 #ifdef HAS_METAL
-    if (material==MAT_METAL) { N = vec3(     SDF_METAL(xyyp) -      SDF_METAL(xyyn),      SDF_METAL(yxyp) -      SDF_METAL(yxyn),      SDF_METAL(yyxp) -      SDF_METAL(yyxn)); return safe_normalize(N); }
+    if (material==MAT_METAL) { N = vec3(     SDF_METAL(Xp) -      SDF_METAL(Xn),      SDF_METAL(Yp) -      SDF_METAL(Yn),      SDF_METAL(Zp) -      SDF_METAL(Zn)); return safe_normalize(N); }
 #endif
 #ifdef HAS_DIELECTRIC
-    if (material==MAT_DIELE) { N = vec3(SDF_DIELECTRIC(xyyp) - SDF_DIELECTRIC(xyyn), SDF_DIELECTRIC(yxyp) - SDF_DIELECTRIC(yxyn), SDF_DIELECTRIC(yyxp) - SDF_DIELECTRIC(yyxn)); return safe_normalize(N); }
+    if (material==MAT_DIELE) { N = vec3(SDF_DIELECTRIC(Xp) - SDF_DIELECTRIC(Xn), SDF_DIELECTRIC(Yp) - SDF_DIELECTRIC(Yn), SDF_DIELECTRIC(Zp) - SDF_DIELECTRIC(Zn)); return safe_normalize(N); }
 #endif
 }
 

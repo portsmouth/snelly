@@ -40,6 +40,7 @@
 */
 var Renderer = function()
 {
+    console.warn('[snelly] Renderer constructor');
     this.gl = GLU.gl;
     var gl = GLU.gl;
 
@@ -168,6 +169,7 @@ Renderer.prototype.createQuadVbo = function()
 */
 Renderer.prototype.reset = function(no_recompile = false)
 {
+    console.warn('[snelly] Renderer.prototype.reset');
     this.numSamples = 0;
     this.spp = 0;
     this.numFramesSinceReset = 0;
@@ -188,6 +190,8 @@ Renderer.prototype.getSPP = function()
 
 Renderer.prototype.compileShaders = function()
 {
+    console.warn('[snelly] Renderer.prototype.compileShaders');
+
     // Inject code for the current scene SDF:
     var sceneObj = snelly.getScene();
     if (sceneObj == null) return;
@@ -330,6 +334,8 @@ Renderer.prototype.focusAt = function(xPick, yPick)
 
 Renderer.prototype.pick = function(xPick, yPick)
 {
+    console.warn('[snelly] Renderer.prototype.pick');
+
     if (!this.loaded) return;
     if (this.pickProgram==null) return;
     var sceneObj = snelly.getScene(); if (sceneObj==null) return;
@@ -432,7 +438,7 @@ Renderer.prototype.render = function()
         this.numSamples += (1.0-this.skipProbability) * Math.round(this.maxSamplesPerFrame) * this._width * this._height;
     }
     else
-    {   
+    {
         this.numSamples += Math.round(this.maxSamplesPerFrame) * this._width * this._height;
     }
     this.spp = this.numSamples / (this._width * this._height);
@@ -441,7 +447,7 @@ Renderer.prototype.render = function()
         this.spp = this.maxSpp;
         return;
     }
-    
+
     // Update framebuffer only if we reached the requied SPP threshold for redraw
     if (this.spp >= this.minsSPPToRedraw)
     {
@@ -622,6 +628,7 @@ Renderer.prototype.render = function()
 
 Renderer.prototype.resize = function(width, height)
 {
+    console.log('[snelly] Renderer.prototype.resize');
     this._width = width;
     this._height = height;
 

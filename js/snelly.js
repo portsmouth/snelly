@@ -6,6 +6,8 @@
 */
 var Snelly = function(sceneObj)
 {
+    console.log('[snelly] Snelly constructor');
+
     this.initialized = false;
     this.terminated = false;
     this.rendering = false;
@@ -184,6 +186,8 @@ Snelly.prototype.getGLContext = function()
 
 Snelly.prototype.initScene = function()
 {
+    console.warn('[snelly] Snelly.prototype.initScene');
+
     if (typeof this.sceneObj.shader == "undefined")
     {
         GLU.fail('Scene must define a "shader" function!');
@@ -259,7 +263,7 @@ Snelly.prototype.initScene = function()
     this.loadSpectrum("blackbody");
     //this.addSpectrum( new FlatSpectrum("flat", "Flat spectrum", 390.0, 750.0) );
     //this.loadSpectrum("flat");
-    
+
     // Camera setup
     this.camControls.update();
     this.reset(false);
@@ -268,6 +272,8 @@ Snelly.prototype.initScene = function()
 
 Snelly.prototype.dumpScene = function()
 {
+    console.warn('[snelly] Snelly.prototype.dumpScene');
+
     let camera = this.camera;
     let controls = this.camControls;
     let renderer = this.pathtracer;
@@ -553,6 +559,8 @@ Snelly.prototype._resize = function(width, height)
 
 Snelly.prototype.resize = function()
 {
+    console.warn('[snelly] Snelly.prototype.resize');
+
     if (this.terminated) return;
     if (this.auto_resize)
     {
@@ -687,7 +695,7 @@ Snelly.prototype.onkeydown = function(event)
             this.guiVisible = !this.guiVisible;
             snelly.getGUI().toggleHide();
             break;
-        
+
         case 79: // O key: output scene settings code to console
             let code = this.dumpScene();
             console.log(code);
@@ -724,7 +732,7 @@ Snelly.prototype.onkeydown = function(event)
             this.reset(true);
             break;
         }
-        
+
         case 65: // A key: cam left
         {
             let toTarget = new THREE.Vector3();
@@ -741,7 +749,7 @@ Snelly.prototype.onkeydown = function(event)
             this.reset(true);
             break;
         }
-        
+
         case 83: // S key: cam back
         {
             let toTarget = new THREE.Vector3();
@@ -757,7 +765,7 @@ Snelly.prototype.onkeydown = function(event)
             this.reset(true);
             break;
         }
-        
+
         case 68: // S key: cam right
         {
             let toTarget = new THREE.Vector3();
