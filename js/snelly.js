@@ -279,12 +279,14 @@ Snelly.prototype.dumpScene = function()
     let renderer = this.pathtracer;
     let materials = this.materials;
 
-    var code = `/******* copy-pasted console output on 'O', begin *******/\n`;
+    var code = `
+{
+    /******* copy-pasted console output on 'O', begin *******/\n`;
     code += `
-let renderer  = snelly.getRenderer();
-let camera    = snelly.getCamera();
-let controls  = snelly.getControls();
-let materials = snelly.getMaterials();
+    let renderer  = snelly.getRenderer();
+    let camera    = snelly.getCamera();
+    let controls  = snelly.getControls();
+    let materials = snelly.getMaterials();
     `;
 
     if (typeof this.sceneObj.initGenerator !== "undefined")
@@ -295,75 +297,76 @@ let materials = snelly.getMaterials();
     code += this.guiVisible ? `\nsnelly.showGUI(true);\n` : `\nsnelly.showGUI(false);\n`;
 
     code += `
-/** Camera settings **/
-camera.fov = ${camera.fov};
-camera.aperture = ${camera.aperture};
-camera.focalDistance = ${camera.focalDistance};
-camera.up.set(${camera.up.x}, ${camera.up.y}, ${camera.up.z});
-camera.position.set(${camera.position.x}, ${camera.position.y}, ${camera.position.z});
-controls.target.set(${controls.target.x}, ${controls.target.y}, ${controls.target.z});
+    /** Camera settings **/
+    camera.fov = ${camera.fov};
+    camera.aperture = ${camera.aperture};
+    camera.focalDistance = ${camera.focalDistance};
+    camera.up.set(${camera.up.x}, ${camera.up.y}, ${camera.up.z});
+    camera.position.set(${camera.position.x}, ${camera.position.y}, ${camera.position.z});
+    controls.target.set(${controls.target.x}, ${controls.target.y}, ${controls.target.z});
 
-/** Renderer settings **/
-renderer.renderMode = '${renderer.renderMode}';
-renderer.dispersive = ${renderer.dispersive};
-renderer.maxSamplesPerFrame = ${renderer.maxSamplesPerFrame};
-renderer.maxSpp = ${renderer.maxSpp};
-renderer.maxBounces = ${renderer.maxBounces};
-renderer.maxScatters = ${renderer.maxScatters};
-renderer.maxMarchSteps = ${renderer.maxMarchSteps};
-renderer.maxStepsIsMiss = ${renderer.maxStepsIsMiss};
-renderer.interactive = ${renderer.interactive};
-renderer.goalFPS = ${renderer.goalFPS};
-renderer.minsSPPToRedraw = ${renderer.minsSPPToRedraw};
-renderer.radianceClamp = ${renderer.radianceClamp};
-renderer.wavelengthSamples = ${renderer.wavelengthSamples};
-renderer.exposure = ${renderer.exposure};
-renderer.gamma = ${renderer.gamma};
-renderer.contrast = ${renderer.contrast};
-renderer.saturation = ${renderer.saturation};
-renderer.skyPower = ${renderer.skyPower};
-renderer.skyTintUp = [${renderer.skyTintUp[0]}, ${renderer.skyTintUp[1]}, ${renderer.skyTintUp[2]}];
-renderer.skyTintDown = [${renderer.skyTintDown[0]}, ${renderer.skyTintDown[1]}, ${renderer.skyTintDown[2]}];
-renderer.envMapVisible = ${renderer.envMapVisible};
-renderer.envMapPhiRotation = ${renderer.envMapPhiRotation};
-renderer.envMapThetaRotation = ${renderer.envMapThetaRotation};
-renderer.envMapTransitionAngle = ${renderer.envMapTransitionAngle};
-renderer.sunPower = ${renderer.sunPower};
-renderer.sunColor = [${renderer.sunColor[0]}, ${renderer.sunColor[1]}, ${renderer.sunColor[2]}];
-renderer.sunAngularSize = ${renderer.sunAngularSize};
-renderer.sunLatitude = ${renderer.sunLatitude};
-renderer.sunLongitude = ${renderer.sunLongitude};
-renderer.sunVisibleDirectly = ${renderer.sunVisibleDirectly};
-renderer.shadowStrength = ${renderer.shadowStrength};
+    /** Renderer settings **/
+    renderer.renderMode = '${renderer.renderMode}';
+    renderer.dispersive = ${renderer.dispersive};
+    renderer.maxSamplesPerFrame = ${renderer.maxSamplesPerFrame};
+    renderer.maxSpp = ${renderer.maxSpp};
+    renderer.maxBounces = ${renderer.maxBounces};
+    renderer.maxScatters = ${renderer.maxScatters};
+    renderer.maxMarchSteps = ${renderer.maxMarchSteps};
+    renderer.maxStepsIsMiss = ${renderer.maxStepsIsMiss};
+    renderer.interactive = ${renderer.interactive};
+    renderer.goalFPS = ${renderer.goalFPS};
+    renderer.minsSPPToRedraw = ${renderer.minsSPPToRedraw};
+    renderer.radianceClamp = ${renderer.radianceClamp};
+    renderer.wavelengthSamples = ${renderer.wavelengthSamples};
+    renderer.exposure = ${renderer.exposure};
+    renderer.gamma = ${renderer.gamma};
+    renderer.contrast = ${renderer.contrast};
+    renderer.saturation = ${renderer.saturation};
+    renderer.skyPower = ${renderer.skyPower};
+    renderer.skyTintUp = [${renderer.skyTintUp[0]}, ${renderer.skyTintUp[1]}, ${renderer.skyTintUp[2]}];
+    renderer.skyTintDown = [${renderer.skyTintDown[0]}, ${renderer.skyTintDown[1]}, ${renderer.skyTintDown[2]}];
+    renderer.envMapVisible = ${renderer.envMapVisible};
+    renderer.envMapPhiRotation = ${renderer.envMapPhiRotation};
+    renderer.envMapThetaRotation = ${renderer.envMapThetaRotation};
+    renderer.envMapTransitionAngle = ${renderer.envMapTransitionAngle};
+    renderer.sunPower = ${renderer.sunPower};
+    renderer.sunColor = [${renderer.sunColor[0]}, ${renderer.sunColor[1]}, ${renderer.sunColor[2]}];
+    renderer.sunAngularSize = ${renderer.sunAngularSize};
+    renderer.sunLatitude = ${renderer.sunLatitude};
+    renderer.sunLongitude = ${renderer.sunLongitude};
+    renderer.sunVisibleDirectly = ${renderer.sunVisibleDirectly};
+    renderer.shadowStrength = ${renderer.shadowStrength};
 `;
 
     code += `
-/** Material settings **/`;
+    /** Material settings **/`;
     var shader = this.sceneObj.shader();
     if (shader.indexOf("SDF_SURFACE(") != -1)
     {
         code += `
-let surface = materials.loadSurface();`;
+    let surface = materials.loadSurface();`;
         code += materials.loadSurface().repr();
     }
     if (shader.indexOf("SDF_METAL(") != -1)
     {
         code += `
-let metal = materials.loadMetal('${materials.getLoadedMetal().getName()}');`;
+    let metal = materials.loadMetal('${materials.getLoadedMetal().getName()}');`;
         code += materials.loadMetal().repr();
     }
     if (shader.indexOf("SDF_DIELECTRIC(") != -1)
     {
         code += `
-let dielectric = materials.loadDielectric('${materials.getLoadedDielectric().getName()}');`;
+    let dielectric = materials.loadDielectric('${materials.getLoadedDielectric().getName()}');`;
         code += materials.loadDielectric().repr();
     }
     code += `
-let volume = materials.loadVolume();`;
+    let volume = materials.loadVolume();`;
     code += materials.loadVolume().repr();
 
     code += `
-/******* copy-pasted console output on 'O', end *******/`;
+    /******* copy-pasted console output on 'O', end *******/
+}`;
     return code;
 }
 
