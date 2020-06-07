@@ -29,14 +29,7 @@ uniform float lengthScale;
 uniform float minLengthScale;
 uniform float maxLengthScale;
 
-// Sun parameters
-uniform float sunPower;
-uniform float sunAngularSize;
-uniform float sunLatitude;
-uniform float sunLongitude;
-uniform vec3 sunColor;
-uniform vec3 sunDir;
-uniform bool sunVisibleDirectly;
+// Sky parameters
 uniform bool haveEnvMap;
 uniform bool envMapVisible;
 uniform float envMapPhiRotation;
@@ -45,6 +38,21 @@ uniform float envMapTransitionAngle;
 uniform float skyPower;
 uniform vec3 skyTintUp;
 uniform vec3 skyTintDown;
+
+// Sun parameters
+uniform float sunPower;
+uniform float sunAngularSize;
+uniform float sunLatitude;
+uniform float sunLongitude;
+uniform vec3 sunColor;
+uniform vec3 sunDir;
+uniform bool sunVisibleDirectly;
+
+// Sphere light
+uniform vec3 sphereLightPosition;
+uniform float sphereLightRadius;
+uniform float sphereLightPower;
+uniform vec3 sphereLightColor;
 
 // Pathtracing parameters
 uniform float radianceClamp;
@@ -277,19 +285,31 @@ void setChannel(inout vec3 color, int channel, float value)
 /////////////////////////////////////////////////////////////////////////
 
 /// Uniformly sample a sphere
-vec3 sampleSphere(inout vec4 rnd, inout float pdf)
+vec3 sampleSphereUniformly(inout vec4 rnd)
 {
     float z = 1.0 - 2.0*rand(rnd);
     float r = sqrt(max(0.0, 1.0 - z*z));
     float phi = 2.0*M_PI*rand(rnd);
     float x = cos(phi);
     float y = sin(phi);
-    pdf = 1.0/(4.0*M_PI);
+    // pdf = 1.0/(4.0*M_PI);
+    return vec3(x, y, z);
+}
+
+vec3 sampleHemisphereUniformly(inout vec4 rnd)
+{
+    float xi = rand(rnd);
+    float r = sqrt(1.0 - xi*xi);
+    float phi = 2.0 * M_PI * rand(rnd);
+    float x = r * cos(phi);
+    float y = r * sin(phi);
+    float z = xi;
+    // pdf = 1.0/(2.0*M_PI);
     return vec3(x, y, z);
 }
 
 // Do cosine-weighted sampling of hemisphere
-vec3 sampleHemisphere(inout vec4 rnd, inout float pdf)
+vec3 sampleHemisphereCosineWeighted(inout vec4 rnd, inout float pdf)
 {
     float r = sqrt(rand(rnd));
     float theta = 2.0 * M_PI * rand(rnd);
@@ -740,7 +760,7 @@ RadianceType sampleSurface(in vec3 X, in Basis basis, in vec3 winputL, in float 
     float specProb = specWeight/weightSum;
     if (rand(rnd) >= specProb) // diffuse term, happens with probability 1-specProb
     {
-        woutputL = sampleHemisphere(rnd, pdfOut);
+        woutputL = sampleHemisphereCosineWeighted(rnd, pdfOut);
         pdfOut *= (1.0-specProb);
         return (1.0 - E) * diffuseAlbedo/M_PI;
     }
@@ -949,7 +969,8 @@ bool atmosphereSegment(in vec3 pW, in vec3 rayDir, float segmentLength, // input
     return true;
 }
 
-// Return the amount of light transmitted (per-channel) along a given "free" segment (i.e. ignoring geometry)
+
+// Return the amount of light transmitted (per-channel) along a known "free" segment (i.e. free of geometry)
 RadianceType transmittanceOverFreeSegment(in vec3 pW, in vec3 rayDir, float segmentLength, in vec3 rgb)
 {
     RadianceType extinction = VOLUME_EXTINCTION_EVAL(rgb);
@@ -964,17 +985,18 @@ RadianceType transmittanceOverFreeSegment(in vec3 pW, in vec3 rayDir, float segm
     return Tr;
 }
 
-// Return the amount of light transmitted (per-channel) along an infinite ray
+
+// Return the amount of light transmitted (per-channel) along a given segment
 // (zero if occluded by geometry).
-RadianceType transmittanceToInfinity(in vec3 pW, in vec3 rayDir, in vec3 rgb)
+RadianceType transmittanceOverSegment(in vec3 pW, in vec3 rayDir, float segmentLength, in vec3 rgb)
 {
     vec3 pW_surface;
     int hitMaterial;
-    bool hit = traceRay(pW, rayDir, pW_surface, hitMaterial, maxLengthScale);
+    bool hit = traceRay(pW, rayDir, pW_surface, hitMaterial, segmentLength);
     if (hit)
         return RadianceType(0.0);
     else
-        return transmittanceOverFreeSegment(pW, rayDir, maxLengthScale, rgb);
+        return transmittanceOverFreeSegment(pW, rayDir, segmentLength, rgb);
 }
 
 
@@ -1019,21 +1041,22 @@ float skyPowerEstimate()
 }
 
 RadianceType sampleSkyAtSurface(Basis basis, in vec3 rgb, inout vec4 rnd,
-                                inout vec3 woutputL, inout vec3 woutputW, inout float skyPdf)
+                                inout vec3 woutputL, inout vec3 woutputW, inout float pdfDir)
 {
     if (skyPower<RADIANCE_EPSILON)
         return RadianceType(0.0);
-    woutputL = sampleHemisphere(rnd, skyPdf);
+    woutputL = sampleHemisphereCosineWeighted(rnd, pdfDir);
     woutputW = localToWorld(woutputL, basis);
     return environmentRadiance(woutputW, rgb);
 }
 
 RadianceType sampleSkyInVolume(in vec3 rgb, inout vec4 rnd,
-                               inout vec3 woutputW, inout float skyPdf)
+                               inout vec3 woutputW, inout float pdfDir)
 {
     if (skyPower<RADIANCE_EPSILON)
         return RadianceType(0.0);
-    woutputW = sampleSphere(rnd, skyPdf);
+    woutputW = sampleSphereUniformly(rnd);
+    pdfDir = 1.0/(4.0*M_PI);
     return environmentRadiance(woutputW, rgb);
 }
 
@@ -1041,7 +1064,7 @@ RadianceType sampleSkyInVolume(in vec3 rgb, inout vec4 rnd,
 // Sun
 //////////////////////////////////////////////
 
-vec3 sampleSunDir(inout vec4 rnd, inout float pdf)
+vec3 sampleSunDir(inout vec4 rnd, inout float pdfDir)
 {
     float theta_max = sunAngularSize * M_PI/180.0;
     float theta = theta_max * sqrt(rand(rnd));
@@ -1054,7 +1077,7 @@ vec3 sampleSunDir(inout vec4 rnd, inout float pdf)
     float y = sintheta * sinphi;
     float z = costheta;
     float solid_angle = 2.0*M_PI*(1.0 - cos(theta_max));
-    pdf = 1.0/solid_angle;
+    pdfDir = 1.0/solid_angle;
     return localToWorld(vec3(x, y, z), sunBasis);
 }
 
@@ -1075,24 +1098,77 @@ RadianceType sunRadiance(in vec3 dir, in vec3 rgb)
 }
 
 RadianceType sampleSunAtSurface(Basis basis, in vec3 rgb, inout vec4 rnd,
-                                inout vec3 woutputL, inout vec3 woutputW, inout float sunPdf)
+                                inout vec3 woutputL, inout vec3 woutputW, inout float pdfDir)
 {
     if (sunPower<RADIANCE_EPSILON)
         return RadianceType(0.0);
-    woutputW = sampleSunDir(rnd, sunPdf);
+    woutputW = sampleSunDir(rnd, pdfDir);
     woutputL = worldToLocal(woutputW, basis);
     if (woutputL.z < 0.0) return RadianceType(0.0);
     return sunRadiance(woutputW, rgb);
 }
 
 RadianceType sampleSunInVolume(in vec3 rgb, inout vec4 rnd,
-                               inout vec3 woutputW, inout float sunPdf)
+                               inout vec3 woutputW, inout float pdfDir)
 {
     if (sunPower<RADIANCE_EPSILON)
         return RadianceType(0.0);
-    woutputW = sampleSunDir(rnd, sunPdf);
+    woutputW = sampleSunDir(rnd, pdfDir);
     return sunRadiance(woutputW, rgb);
 }
+
+//////////////////////////////////////////////
+// Sphere light
+//////////////////////////////////////////////
+
+vec3 sampleSphereLightPosition(inout vec4 rnd, in vec3 pW,
+                               inout float pdfArea)
+{
+    // Sample a point uniformly on the sphere-light hemisphere facing the vertex pW
+    vec3 cp = normalize(pW - sphereLightPosition);
+    Basis hemisphereBasis = makeBasis(cp);
+    vec3 vL = sampleHemisphereUniformly(rnd);
+    vec3 vW = localToWorld(vL, hemisphereBasis);
+    pdfArea = 1.0 / (2.0*M_PI*sphereLightRadius*sphereLightRadius); // @todo: precompute
+    return sphereLightPosition + sphereLightRadius*vW;
+}
+
+RadianceType sphereLightRadiance(in vec3 pW, in vec3 dir, in vec3 rgb,
+                                 inout vec3 pHit)
+{
+    // does ray (pW, dir) hit the sphere?
+    vec3 m = pW - sphereLightPosition;
+    float b = dot(m, dir);
+    float c = dot(m, m) - sphereLightRadius*sphereLightRadius;
+    if (c>0.0 && b>0.0)
+        return RadianceType(0.0);
+    float discr = b*b - c;
+    if (discr < 0.0)
+        return RadianceType(0.0);
+    float t = -b - sqrt(discr);
+    t = max(t, 0.0);
+    pHit = pW + t*dir;
+    vec3 RGB_spherelight = sphereLightPower * sphereLightColor;
+    return rgbToAlbedo(RGB_spherelight, rgb);
+}
+
+RadianceType sampleSphereLight(in vec3 rgb, inout vec4 rnd, in vec3 pW,
+                               inout vec3 pHit, inout float pdfDir)
+{
+    if (sphereLightPower<RADIANCE_EPSILON)
+        return RadianceType(0.0);
+    float pdfArea;
+    pHit = sampleSphereLightPosition(rnd, pW, pdfArea);
+    vec3 dHit = pHit - pW;
+    float dHit2 = dot(dHit, dHit);
+    dHit = normalize(dHit);
+    vec3 nHit = normalize(pHit - sphereLightPosition);
+    float costheta = abs(dot(nHit, dHit));
+    pdfDir = pdfArea * dHit2 / max(DENOM_TOLERANCE, costheta);
+    vec3 RGB_spherelight = sphereLightPower * sphereLightColor;
+    return RGB_spherelight;
+}
+
 
 //////////////////////////////////////////////
 // Direct lighting routines
@@ -1101,7 +1177,7 @@ RadianceType sampleSunInVolume(in vec3 rgb, inout vec4 rnd,
 // Estimate direct radiance at the given surface vertex
 RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 winputW, in int material,
                                    float wavelength_nm, in vec3 rgb, inout vec4 rnd,
-                                   inout float skyPdf, inout float sunPdf)
+                                   inout float skyPdf, inout float sunPdf, inout float sphPdf)
 {
     vec3 dPw = 3.0*minLengthScale * basis.nW;
     vec3 winputL = worldToLocal(winputW, basis);
@@ -1109,12 +1185,12 @@ RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 winputW, in 
     RadianceType Ldirect = RadianceType(0.0);
     vec3 woutputL, woutputW;
     // Sky
-    if (skyPower > 0.0)
+    if (skyPower > RADIANCE_EPSILON)
     {
         RadianceType Li = sampleSkyAtSurface(basis, rgb, rnd, woutputL, woutputW, skyPdf);
         if (averageComponent(Li) > RADIANCE_EPSILON)
         {
-            RadianceType Tr = transmittanceToInfinity(pW+dPw, woutputW, rgb);
+            RadianceType Tr = transmittanceOverSegment(pW+dPw, woutputW, maxLengthScale, rgb);
             Li *= abs(RadianceType(1.0) - shadowStrength*(RadianceType(1.0)-Tr));
             if (averageComponent(Li) > RADIANCE_EPSILON)
             {
@@ -1127,12 +1203,12 @@ RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 winputW, in 
         }
     }
     // Sun
-    if (sunPower > 0.0)
+    if (sunPower > RADIANCE_EPSILON)
     {
         RadianceType Li = sampleSunAtSurface(basis, rgb, rnd, woutputL, woutputW, sunPdf);
         if (averageComponent(Li) > RADIANCE_EPSILON)
         {
-            RadianceType Tr = transmittanceToInfinity(pW+dPw, woutputW, rgb);
+            RadianceType Tr = transmittanceOverSegment(pW+dPw, woutputW, maxLengthScale, rgb);
             Li *= abs(RadianceType(1.0) - shadowStrength*(RadianceType(1.0)-Tr));
             if (averageComponent(Li) > RADIANCE_EPSILON)
             {
@@ -1144,6 +1220,30 @@ RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 winputW, in 
             }
         }
     }
+    // Sphere light
+    if ((sphereLightPower > RADIANCE_EPSILON) &&
+        (dot(pW - sphereLightPosition, basis.nW) <= sphereLightRadius)) // (is sphere visible from the surface point?)
+    {
+        vec3 pHit;
+        RadianceType Li = sampleSphereLight(rgb, rnd, pW, pHit, sphPdf);
+        if (averageComponent(Li) > RADIANCE_EPSILON)
+        {
+            float hitDist = max(0.0, length(pHit - pW) - 3.0*minLengthScale);
+            woutputW = normalize(pHit - pW);
+            woutputL = worldToLocal(woutputW, basis);
+            RadianceType Tr = transmittanceOverSegment(pW+dPw, woutputW, hitDist, rgb);
+            Li *= abs(RadianceType(1.0) - shadowStrength*(RadianceType(1.0)-Tr));
+            if (averageComponent(Li) > RADIANCE_EPSILON)
+            {
+                // Apply MIS weight with the BSDF pdf for the sampled direction
+                float bsdfPdf = max(PDF_EPSILON, pdfBsdf(pW, basis, winputL, woutputL, material, wavelength_nm, rgb, fromCamera));
+                RadianceType f = evaluateBsdf(pW, basis, winputL, woutputL, material, wavelength_nm, rgb, fromCamera, rnd);
+                float misWeight = powerHeuristic(sphPdf, bsdfPdf);
+                Ldirect += f * Li/max(PDF_EPSILON, sphPdf) * abs(dot(woutputW, basis.nW)) * misWeight;
+            }
+        }
+    }
+
     return min(RadianceType(radianceClamp), Ldirect);
 }
 
@@ -1159,7 +1259,7 @@ RadianceType directVolumeLighting(in vec3 pW, in vec3 rayDir, in vec3 rgb, inout
         RadianceType Li = sampleSkyInVolume(rgb, rnd, woutputW, skyPdf);
         if (averageComponent(Li) > RADIANCE_EPSILON)
         {
-            RadianceType Tr = transmittanceToInfinity(pW, woutputW, rgb);
+            RadianceType Tr = transmittanceOverSegment(pW, woutputW, maxLengthScale, rgb);
             Li *= abs(RadianceType(1.0) - shadowStrength*(RadianceType(1.0)-Tr));
             if (averageComponent(Li) > RADIANCE_EPSILON)
             {
@@ -1176,12 +1276,31 @@ RadianceType directVolumeLighting(in vec3 pW, in vec3 rayDir, in vec3 rgb, inout
         RadianceType Li = sampleSunInVolume(rgb, rnd, woutputW, sunPdf);
         if (averageComponent(Li) > RADIANCE_EPSILON)
         {
-            RadianceType Tr = transmittanceToInfinity(pW, woutputW, rgb);
+            RadianceType Tr = transmittanceOverSegment(pW, woutputW, maxLengthScale, rgb);
             Li *= abs(RadianceType(1.0) - shadowStrength*(RadianceType(1.0)-Tr));
             if (averageComponent(Li) > RADIANCE_EPSILON)
             {
                 float PF = phaseFunction(dot(-rayDir, -woutputW)); // evaluate phase function for scattering -woutputW -> -rayDir
                 Ldirect += PF * Li/max(PDF_EPSILON, sunPdf);
+            }
+        }
+    }
+    // Sphere light
+    if (sphereLightPower > RADIANCE_EPSILON)
+    {
+        float sphPdf;
+        vec3 pHit;
+        RadianceType Li = sampleSphereLight(rgb, rnd, pW, pHit, sphPdf);
+        if (averageComponent(Li) > RADIANCE_EPSILON)
+        {
+            float hitDist = max(0.0, length(pHit - pW) - 3.0*minLengthScale);
+            vec3 woutputW = normalize(pHit - pW);
+            RadianceType Tr = transmittanceOverSegment(pW, woutputW, hitDist, rgb);
+            Li *= abs(RadianceType(1.0) - shadowStrength*(RadianceType(1.0)-Tr));
+            if (averageComponent(Li) > RADIANCE_EPSILON)
+            {
+                float PF = phaseFunction(dot(-rayDir, -woutputW)); // evaluate phase function for scattering -woutputW -> -rayDir
+                Ldirect += PF * Li/max(PDF_EPSILON, sphPdf);
             }
         }
     }
@@ -1264,10 +1383,10 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
     RadianceType L = RadianceType(0.0);
     float misWeightSky = 1.0; // For MIS book-keeping
     float misWeightSun = 1.0; // For MIS book-keeping
+    float misWeightSph = 1.0; // For MIS book-keeping
     vec3 pW = primaryStart;
     vec3 rayDir = primaryDir; // (opposite to light beam direction)
 
-    float eps = 3.0*minLengthScale;
 #ifdef HAS_DIELECTRIC
     bool inDielectric = SDF_DIELECTRIC(primaryStart) < 0.0;
 #endif
@@ -1289,16 +1408,31 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             // This ray missed all geometry; add environment light term
             // (attenuated by transmittance through atmosphere to "infinity")
             // and terminate path
-            RadianceType Tr = transmittanceToInfinity(pW, rayDir, rgb);
+            RadianceType Tr = transmittanceOverSegment(pW, rayDir, maxLengthScale, rgb);
             if (averageComponent(Tr) > RADIANCE_EPSILON)
             {
                 if (!(vertex==0 && !envMapVisible))      L += throughput * Tr * misWeightSky * environmentRadiance(rayDir, rgb);
                 if (!(vertex==0 && !sunVisibleDirectly)) L += throughput * Tr * misWeightSun * sunRadiance(rayDir, rgb);
+                vec3 pHit;
+                L += throughput * Tr * misWeightSph * sphereLightRadiance(pW, rayDir, rgb, pHit);
             }
-            // Also also term for single-inscattering of sun/sky in the homogeneous atmosphere over the segment to "infinity"
+            // Also also term for single-inscattering in the homogeneous atmosphere over the segment to "infinity"
             if (vertex<2) // (restrict to first two segments only, for efficiency)
                 L += throughput * atmospheric_inscattering(pW, rayDir, maxLengthScale, rgb, rnd);
             break;
+        }
+
+        // Add possible contribution due to ray hitting the sphere light
+        if (sphereLightPower>RADIANCE_EPSILON)
+        {
+            vec3 pHit;
+            RadianceType Li = sphereLightRadiance(pW, rayDir, rgb, pHit);
+            float dHit = length(pHit - pW);
+            if ((dHit<rayLength) && (averageComponent(Li)>RADIANCE_EPSILON))
+            {
+                RadianceType Tr = transmittanceOverFreeSegment(pW, rayDir, dHit, rgb);
+                L += throughput * Tr * misWeightSph * Li;
+            }
         }
 
         // If the current ray lies inside a dielectric, apply Beer's law for absorption
@@ -1311,7 +1445,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
         else
         {
 #endif
-            // Add term for single-scattering of sun/sky in the homogeneous atmosphere over the segment up to the next hit
+            // Add term for single-scattering of in the homogeneous atmosphere over the segment up to the next hit
             if (vertex<2) // (restrict to first two segments only, for efficiency)
                 L += throughput * atmospheric_inscattering(pW, rayDir, rayLength, rgb, rnd);
 
@@ -1333,7 +1467,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
 
         // Sample BSDF for the next bounce direction
         vec3 winputW = -rayDir; // winputW, points *towards* the incident direction
-        vec3 winputL = worldToLocal(winputW, basis); 
+        vec3 winputL = worldToLocal(winputW, basis);
         vec3 woutputL; // woutputL, points *towards* the outgoing direction
         float bsdfPdf;
         bool fromCamera = true; // camera path
@@ -1360,17 +1494,20 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
         // Add direct lighting term at current surface vertex
         float skyPdf = 0.0;
         float sunPdf = 0.0;
+        float sphPdf = 0.0;
 #ifdef HAS_DIELECTRIC
         if (!inDielectric)
 #endif
         {
-            L += throughput * directSurfaceLighting(pW, basis, winputW, hitMaterial, wavelength_nm, rgb, rnd, skyPdf, sunPdf);
+            L += throughput * directSurfaceLighting(pW, basis, winputW, hitMaterial, wavelength_nm, rgb, rnd,
+                                                    skyPdf, sunPdf, sphPdf);
         }
 
         // Prepare for tracing the bounce ray
-        pW += nW * sign(dot(woutputW, nW)) * eps;    // perturb vertex into half-space of scattered ray
+        pW += nW * sign(dot(woutputW, nW)) * 3.0*minLengthScale; // perturb vertex into half-space of scattered ray
         misWeightSky = powerHeuristic(bsdfPdf, skyPdf); // compute sky MIS weight for bounce ray
         misWeightSun = powerHeuristic(bsdfPdf, sunPdf); // compute sun MIS weight for bounce ray
+        misWeightSph = powerHeuristic(bsdfPdf, sphPdf); // compute sphere-light MIS weight for bounce ray
     }
     return L;
 }

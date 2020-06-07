@@ -36,6 +36,9 @@
 * @property {number} [sunLatitude=50.0]          - sun latitude (degrees)
 * @property {number} [sunLongitude=0.0]          - sun longitude (degrees)
 * @property {number} [sunVisibleDirectly=true]   - whether sun is directly visible
+* @property {number} [sphereLightRadius=0.0]      - sphere light radius
+* @property {number} [sphereLightPower]           - sphere light power (arbitrary units)
+* @property {Array} [sphereLightPosition]         - whether sun is directly visible
 * @property {number} [shadowStrength=1.0]        -   if <1.0, areas in shadow are not completely dark (provided mostly to allow rendering of occluded areas, e.g. fractals)
 */
 var Renderer = function()
@@ -69,41 +72,51 @@ var Renderer = function()
     this.frametime_measure_ms = 0.0;
     this.spp = 0.0;
 
-    // Default user-adjustable properties
+    // Default user-adjustable properties:
+
+    // General rendering settings
     this.renderMode = 'pt';
     this.dispersive = false;
     this.maxSamplesPerFrame = 1;
     this.maxSpp = 1024;
     this.maxBounces = 3;
-    this.maxScatters = 2;
     this.maxMarchSteps = 256;
     this.radianceClamp = 3.0;
     this.wavelengthSamples = 256;
-    this.skyPower = 1.0;
-    this.skyTemperature = 6000.0;
-    this.skyTintUp = [1.0,1.0,1.0];
-    this.skyTintDown = [1.0,1.0,1.0];
-    this.sunPower = 0.0;
-    this.sunAngularSize = 5.0;
-    this.sunColor = [1.0,0.8,0.5];
-    this.sunLatitude = 50.0;
-    this.sunLongitude = 0.0;
-    this.sunVisibleDirectly = true;
-    this.exposure = 0.0;
-    this.gamma = 2.2;
-    this.contrast = 1.0;
-    this.saturation = 1.0;
     this.goalFPS = 20.0;
     this.minsSPPToRedraw = 0.0;
-    this.envMapVisible = true;
-    this.envMapPhiRotation = 0.0;
-    this.envMapThetaRotation = 0.0;
-    this.envMapTransitionAngle = 135.0;
     this.shadowStrength = 1.0;
     this.maxStepsIsMiss = true;
     this.interactive = true;
 
-    this.spotlights = []
+    // Lights
+        // sky light
+        this.skyPower = 0.0; // (log)
+        this.skyTemperature = 6000.0;
+        this.skyTintUp = [1.0,1.0,1.0];
+        this.skyTintDown = [1.0,1.0,1.0];
+        this.envMapVisible = true;
+        this.envMapPhiRotation = 0.0;
+        this.envMapThetaRotation = 0.0;
+        this.envMapTransitionAngle = 135.0;
+        // sun light
+        this.sunPower = -7.0; // (log)
+        this.sunAngularSize = 5.0;
+        this.sunColor = [1.0,1.0,1.0];
+        this.sunLatitude = 50.0;
+        this.sunLongitudef = 0.0;
+        this.sunVisibleDirectly = true;
+        // sphere light
+        this.sphereLightRadius = 0.0;
+        this.sphereLightPower = -7.0; // (log)
+        this.sphereLightColor =  [1.0,1.0,1.0];
+        this.sphereLightPosition = [0.0,0.0,0.0];
+
+    // Tone-mapping
+    this.exposure = 0.0;
+    this.gamma = 2.2;
+    this.contrast = 1.0;
+    this.saturation = 1.0;
 
     // Load shaders
     this.shaderSources = GLU.resolveShaderSource({
@@ -253,7 +266,6 @@ Renderer.prototype.compileShaders = function()
     replacements.__MAX_MARCH_STEPS__ = Math.round(this.maxMarchSteps);
     replacements.__MAX_VOLUME_STEPS__ = Math.round(this.maxVolumeSteps);
     replacements.__MAX_BOUNCES__  = Math.round(this.maxBounces);
-    replacements.__MAX_SCATTERS__ = Math.round(this.maxScatters);
     replacements.__MAX_SAMPLES_PER_FRAME__  = Math.round(this.maxSamplesPerFrame); 
 
     replacements.__DEFINES__ = '';
@@ -397,23 +409,6 @@ Renderer.prototype.pick = function(xPick, yPick)
             material: pixels[1]};
 }
 
-// (angle in degrees, radiance as a 3-element-array)
-Renderer.prototype.addSpotlight = function(position, direction, angle, radius, radiance)
-{
-    let spotlight = {'position':position,
-                     'direction':direction,
-                     'angle':angle,
-                     'radius':radius,
-                     'radiance': radiance};
-    if (this.spotlights.length < 4) // current, hard-code max number of spotlights to 4
-        this.spotlights.push(spotlight);
-}
-
-Renderer.prototype.removeSpotlights = function()
-{
-    this.spotlights = [];
-}
-
 Renderer.prototype.render = function()
 {
     if (!this.loaded) return;
@@ -499,43 +494,39 @@ Renderer.prototype.render = function()
 
     // Raytracing options
     {
-        INTEGRATOR_PROGRAM.uniformF("skyPower", Math.pow(10.0,this.skyPower));
-        INTEGRATOR_PROGRAM.uniform3Fv("skyTintUp", this.skyTintUp);
-        INTEGRATOR_PROGRAM.uniform3Fv("skyTintDown", this.skyTintDown);
-        INTEGRATOR_PROGRAM.uniformF("sunPower", Math.pow(10.0,this.sunPower));
-        INTEGRATOR_PROGRAM.uniformF("sunAngularSize", this.sunAngularSize);
-        INTEGRATOR_PROGRAM.uniformF("sunLatitude", this.sunLatitude);
-        INTEGRATOR_PROGRAM.uniformF("sunLongitude", this.sunLongitude);
-        INTEGRATOR_PROGRAM.uniform3Fv("sunColor", this.sunColor);
-        this.updateSunDir();
-        INTEGRATOR_PROGRAM.uniform3Fv("sunDir", this.sunDir);
-        INTEGRATOR_PROGRAM.uniformI("sunVisibleDirectly", this.sunVisibleDirectly);
-
+        // Upload general rendering settings
         INTEGRATOR_PROGRAM.uniformF("radianceClamp", Math.pow(10.0, this.radianceClamp));
         INTEGRATOR_PROGRAM.uniformF("skipProbability", this.skipProbability);
         INTEGRATOR_PROGRAM.uniformF("lengthScale", Math.max(snelly.lengthScale, 1.0e-6));
         INTEGRATOR_PROGRAM.uniformF("maxLengthScale", Math.max(snelly.maxLengthScale, 1.0e-6));
         INTEGRATOR_PROGRAM.uniformF("minLengthScale", Math.max(snelly.minLengthScale, 1.0e-6));
         INTEGRATOR_PROGRAM.uniformF("shadowStrength", this.shadowStrength);
-        INTEGRATOR_PROGRAM.uniformI("envMapVisible", Boolean(this.envMapVisible) ? 1 : 0);
-        INTEGRATOR_PROGRAM.uniformF("envMapPhiRotation", Math.min(Math.max(this.envMapPhiRotation, 0.0), 360.0));
-        INTEGRATOR_PROGRAM.uniformF("envMapThetaRotation", Math.min(Math.max(this.envMapThetaRotation, 0.0), 180.0));
-        INTEGRATOR_PROGRAM.uniformF("envMapTransitionAngle", Math.min(Math.max(this.envMapTransitionAngle, 0.0), 180.0));
         INTEGRATOR_PROGRAM.uniformI("maxStepsIsMiss", Boolean(this.maxStepsIsMiss) ? 1 : 0);
         INTEGRATOR_PROGRAM.uniformI("wavelengthSamples", this.wavelengthSamples);
 
-        /*
-        let num_spotlights = this.spotlights.length;
-        INTEGRATOR_PROGRAM.uniformI("spotlightCount", num_spotlights);
-        for (let n=0; n<4; ++n)
-        {
-            if (num_spotlights<n+1) break;
-            INTEGRATOR_PROGRAM.uniform3Fv("spotlightPosition" +n.toString(), this.spotlights[n].position);
-            INTEGRATOR_PROGRAM.uniform3Fv("spotlightDirection"+n.toString(), this.spotlights[n].direction);
-            INTEGRATOR_PROGRAM.uniformF(  "spotlightAngle"    +n.toString(), this.spotlights[n].angle);
-            INTEGRATOR_PROGRAM.uniform3Fv("spotlightRadiance" +n.toString(), this.spotlights[n].radiance);
-        }
-        */
+        // Upload lighting params:
+            // sky
+            INTEGRATOR_PROGRAM.uniformF("skyPower", Math.pow(10.0,this.skyPower));
+            INTEGRATOR_PROGRAM.uniform3Fv("skyTintUp", this.skyTintUp);
+            INTEGRATOR_PROGRAM.uniform3Fv("skyTintDown", this.skyTintDown);
+            INTEGRATOR_PROGRAM.uniformI("envMapVisible", Boolean(this.envMapVisible) ? 1 : 0);
+            INTEGRATOR_PROGRAM.uniformF("envMapPhiRotation", Math.min(Math.max(this.envMapPhiRotation, 0.0), 360.0));
+            INTEGRATOR_PROGRAM.uniformF("envMapThetaRotation", Math.min(Math.max(this.envMapThetaRotation, 0.0), 180.0));
+            INTEGRATOR_PROGRAM.uniformF("envMapTransitionAngle", Math.min(Math.max(this.envMapTransitionAngle, 0.0), 180.0));
+            // sun
+            INTEGRATOR_PROGRAM.uniformF("sunPower", Math.pow(10.0,this.sunPower));
+            INTEGRATOR_PROGRAM.uniformF("sunAngularSize", this.sunAngularSize);
+            INTEGRATOR_PROGRAM.uniformF("sunLatitude", this.sunLatitude);
+            INTEGRATOR_PROGRAM.uniformF("sunLongitude", this.sunLongitude);
+            INTEGRATOR_PROGRAM.uniform3Fv("sunColor", this.sunColor);
+            this.updateSunDir();
+            INTEGRATOR_PROGRAM.uniform3Fv("sunDir", this.sunDir);
+            INTEGRATOR_PROGRAM.uniformI("sunVisibleDirectly", this.sunVisibleDirectly);
+            // sphere
+            INTEGRATOR_PROGRAM.uniform3Fv("sphereLightPosition", this.sphereLightPosition);
+            INTEGRATOR_PROGRAM.uniformF("sphereLightRadius", this.sphereLightRadius*snelly.lengthScale);
+            INTEGRATOR_PROGRAM.uniformF("sphereLightPower", Math.pow(10.0,this.sphereLightPower) / (4.0*Math.PI*Math.pow(this.sphereLightRadius, 2.0)));
+            INTEGRATOR_PROGRAM.uniform3Fv("sphereLightColor", this.sphereLightColor);
     }
 
     // Attach radiance FBO

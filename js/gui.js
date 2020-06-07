@@ -69,12 +69,12 @@ GUI.prototype.createRendererSettings = function()
     this.raymarchingFolder.add(pathtracer, 'renderMode', renderModes).onChange( function(renderMode) { pathtracer.renderMode = renderMode; pathtracer.reset(); });
     this.raymarchingFolder.add(pathtracer, 'dispersive').onChange( function(value) { pathtracer.reset(); } );
     this.raymarchingFolder.add(pathtracer, 'maxBounces', 0, 100, 1).onChange( function(value) { pathtracer.maxBounces = Math.floor(value); pathtracer.reset(); });
-    this.raymarchingFolder.add(pathtracer, 'maxScatters', 0, 20, 1).onChange( function(value) { pathtracer.maxScatters = Math.floor(value); pathtracer.reset(); });
     this.raymarchingFolder.add(pathtracer, 'maxSamplesPerFrame', 1, 16, 1).onChange( function(value) { pathtracer.maxBounces = Math.floor(value); pathtracer.reset(); });
     this.raymarchingFolder.add(pathtracer, 'maxSpp', 1, 10000, 1).onChange( function(value) { pathtracer.maxSpp = Math.floor(value); pathtracer.reset(); });
     this.raymarchingFolder.add(pathtracer, 'maxMarchSteps', 1, 2048, 1).onChange( function(value) { pathtracer.maxMarchSteps = Math.floor(value); pathtracer.reset(); } );
     this.raymarchingFolder.add(pathtracer, 'maxStepsIsMiss').onChange( function(value) { pathtracer.reset(true); } );
     this.raymarchingFolder.add(pathtracer, 'radianceClamp', -2.0, 12.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.raymarchingFolder.add(pathtracer, 'shadowStrength', 0.0, 1.0).onChange( function(value) { pathtracer.reset(true); } );
     this.raymarchingFolder.add(pathtracer, 'wavelengthSamples', 4, 1024, 1).onChange( function(value) { pathtracer.reset(true); } );
     this.raymarchingFolder.add(pathtracer, 'interactive').onChange( function(value) { pathtracer.reset(); } );
     this.raymarchingFolder.close();
@@ -98,9 +98,10 @@ GUI.prototype.createRendererSettings = function()
     this.lightingFolder = this.rendererFolder.addFolder('Lighting');
 
     // sky-lighting
-    var skyPowerItem = this.lightingFolder.add(pathtracer, 'skyPower', -6.0, 6.0).onChange( function(value) { pathtracer.reset(true); } );
-    this.lightingFolder.skyTintUp = [pathtracer.skyTintUp[0]*255.0, pathtracer.skyTintUp[1]*255.0, pathtracer.skyTintUp[2]*255.0];
-    var skyTintUpItem = this.lightingFolder.addColor(this.lightingFolder, 'skyTintUp');
+    this.skyFolder = this.lightingFolder.addFolder('Sky');
+    var skyPowerItem = this.skyFolder.add(pathtracer, 'skyPower', -7.0, 7.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.skyFolder.skyTintUp = [pathtracer.skyTintUp[0]*255.0, pathtracer.skyTintUp[1]*255.0, pathtracer.skyTintUp[2]*255.0];
+    var skyTintUpItem = this.skyFolder.addColor(this.skyFolder, 'skyTintUp');
     skyTintUpItem.onChange( function(C) {
                             if (typeof C==='string' || C instanceof String)
                             {
@@ -117,8 +118,8 @@ GUI.prototype.createRendererSettings = function()
                             }
                             snelly.reset(true);
                         } );
-    this.lightingFolder.skyTintDown = [pathtracer.skyTintDown[0]*255.0, pathtracer.skyTintDown[1]*255.0, pathtracer.skyTintDown[2]*255.0];
-    var skyTintDownItem = this.lightingFolder.addColor(this.lightingFolder, 'skyTintDown');
+    this.skyFolder.skyTintDown = [pathtracer.skyTintDown[0]*255.0, pathtracer.skyTintDown[1]*255.0, pathtracer.skyTintDown[2]*255.0];
+    var skyTintDownItem = this.skyFolder.addColor(this.skyFolder, 'skyTintDown');
     skyTintDownItem.onChange( function(C) {
                             if (typeof C==='string' || C instanceof String)
                             {
@@ -136,16 +137,18 @@ GUI.prototype.createRendererSettings = function()
                             snelly.reset(true);
                         } );
     spectrumObj = snelly.getLoadedSpectrum();
-    spectrumObj.initGui(this.lightingFolder);
-    this.lightingFolder.add(pathtracer, 'envMapPhiRotation', 0.0, 360.0).onChange( function(value) { pathtracer.reset(true); } );
-    this.lightingFolder.add(pathtracer, 'envMapThetaRotation', 0.0, 180.0).onChange( function(value) { pathtracer.reset(true); } );
-    this.lightingFolder.add(pathtracer, 'envMapTransitionAngle', 0.0, 180.0).onChange( function(value) { pathtracer.reset(true); } );
-    this.lightingFolder.add(pathtracer, 'envMapVisible').onChange( function(value) { pathtracer.reset(true); } );
+    spectrumObj.initGui(this.skyFolder);
+    this.skyFolder.add(pathtracer, 'envMapPhiRotation', 0.0, 360.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.skyFolder.add(pathtracer, 'envMapThetaRotation', 0.0, 180.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.skyFolder.add(pathtracer, 'envMapTransitionAngle', 0.0, 180.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.skyFolder.add(pathtracer, 'envMapVisible').onChange( function(value) { pathtracer.reset(true); } );
+    this.skyFolder.close();
 
     // sun-lighting
-    this.lightingFolder.add(pathtracer, 'sunPower', -6.0, 10.0).onChange( function(value) { pathtracer.reset(true); } );
-    this.lightingFolder.sunColor = [pathtracer.sunColor[0]*255.0, pathtracer.sunColor[1]*255.0, pathtracer.sunColor[2]*255.0];
-    var sunColorItem = this.lightingFolder.addColor(this.lightingFolder, 'sunColor');
+    this.sunFolder = this.lightingFolder.addFolder('Sun');
+    this.sunFolder.add(pathtracer, 'sunPower', -7.0, 7.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.sunFolder.sunColor = [pathtracer.sunColor[0]*255.0, pathtracer.sunColor[1]*255.0, pathtracer.sunColor[2]*255.0];
+    var sunColorItem = this.sunFolder.addColor(this.sunFolder, 'sunColor');
     sunColorItem.onChange( function(C) {
                             if (typeof C==='string' || C instanceof String)
                             {
@@ -162,13 +165,35 @@ GUI.prototype.createRendererSettings = function()
                             }
                             snelly.reset(true);
                         } );
+    this.sunFolder.add(pathtracer, 'sunAngularSize', 0.0, 20.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.sunFolder.add(pathtracer, 'sunLatitude', -90.0, 90.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.sunFolder.add(pathtracer, 'sunLongitude', 0.0, 360.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.sunFolder.add(pathtracer, 'sunVisibleDirectly').onChange( function(value) { pathtracer.reset(true); } );
+    this.sunFolder.close();
 
-    this.lightingFolder.add(pathtracer, 'sunAngularSize', 0.0, 20.0).onChange( function(value) { pathtracer.reset(true); } );
-    this.lightingFolder.add(pathtracer, 'sunLatitude', -90.0, 90.0).onChange( function(value) { pathtracer.reset(true); } );
-    this.lightingFolder.add(pathtracer, 'sunLongitude', 0.0, 360.0).onChange( function(value) { pathtracer.reset(true); } );
-    this.lightingFolder.add(pathtracer, 'sunVisibleDirectly').onChange( function(value) { pathtracer.reset(true); } );
-    this.lightingFolder.add(pathtracer, 'shadowStrength', 0.0, 1.0).onChange( function(value) { pathtracer.reset(true); } );
-    this.lightingFolder.close();
+    // sphere-lighting
+    this.sphereLightFolder = this.lightingFolder.addFolder('Sphere Light');
+    this.sphereLightFolder.add(pathtracer, 'sphereLightPower', -7.0, 10.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.sphereLightFolder.sphereLightColor = [pathtracer.sphereLightColor[0]*255.0, pathtracer.sphereLightColor[1]*255.0, pathtracer.sphereLightColor[2]*255.0];
+    var sphereLightColorItem = this.sphereLightFolder.addColor(this.sphereLightFolder, 'sphereLightColor');
+    sphereLightColorItem.onChange( function(C) {
+                            if (typeof C==='string' || C instanceof String)
+                            {
+                                var color = hexToRgb(C);
+                                pathtracer.sphereLightColor[0] = color.r / 255.0;
+                                pathtracer.sphereLightColor[1] = color.g / 255.0;
+                                pathtracer.sphereLightColor[2] = color.b / 255.0;
+                            }
+                            else
+                            {
+                                pathtracer.sphereLightColor[0] = C[0] / 255.0;
+                                pathtracer.sphereLightColor[1] = C[1] / 255.0;
+                                pathtracer.sphereLightColor[2] = C[2] / 255.0;
+                            }
+                            snelly.reset(true);
+                        } );
+    this.sphereLightFolder.add(pathtracer, 'sphereLightRadius', 0.0, 10.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.sphereLightFolder.close();
 
     this.gui.remember(this.pathtracerSettings);
     this.rendererFolder.open();

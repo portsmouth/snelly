@@ -57,7 +57,7 @@ var Snelly = function(sceneObj)
     // Instantiate distance field pathtracer
     this.pathtracer = new Renderer();
     this.auto_resize = true;
-        
+
     // Spectrum initialization
     this.spectra = {}
     this.SPECTRUM_SAMPLES = 1024;
@@ -95,7 +95,7 @@ var Snelly = function(sceneObj)
 */
 Snelly.prototype.getVersion = function()
 {
-    return [1, 9, 2];
+    return [1, 10, 0];
 }
 
 Snelly.prototype.handleEvent = function(event)
@@ -306,12 +306,12 @@ Snelly.prototype.dumpScene = function()
     controls.target.set(${controls.target.x}, ${controls.target.y}, ${controls.target.z});
 
     /** Renderer settings **/
+    // General rendering settings
     renderer.renderMode = '${renderer.renderMode}';
     renderer.dispersive = ${renderer.dispersive};
     renderer.maxSamplesPerFrame = ${renderer.maxSamplesPerFrame};
     renderer.maxSpp = ${renderer.maxSpp};
     renderer.maxBounces = ${renderer.maxBounces};
-    renderer.maxScatters = ${renderer.maxScatters};
     renderer.maxMarchSteps = ${renderer.maxMarchSteps};
     renderer.maxStepsIsMiss = ${renderer.maxStepsIsMiss};
     renderer.interactive = ${renderer.interactive};
@@ -319,24 +319,33 @@ Snelly.prototype.dumpScene = function()
     renderer.minsSPPToRedraw = ${renderer.minsSPPToRedraw};
     renderer.radianceClamp = ${renderer.radianceClamp};
     renderer.wavelengthSamples = ${renderer.wavelengthSamples};
+    renderer.shadowStrength = ${renderer.shadowStrength};
+    // Tone-mapping
     renderer.exposure = ${renderer.exposure};
     renderer.gamma = ${renderer.gamma};
     renderer.contrast = ${renderer.contrast};
     renderer.saturation = ${renderer.saturation};
-    renderer.skyPower = ${renderer.skyPower};
-    renderer.skyTintUp = [${renderer.skyTintUp[0]}, ${renderer.skyTintUp[1]}, ${renderer.skyTintUp[2]}];
-    renderer.skyTintDown = [${renderer.skyTintDown[0]}, ${renderer.skyTintDown[1]}, ${renderer.skyTintDown[2]}];
-    renderer.envMapVisible = ${renderer.envMapVisible};
-    renderer.envMapPhiRotation = ${renderer.envMapPhiRotation};
-    renderer.envMapThetaRotation = ${renderer.envMapThetaRotation};
-    renderer.envMapTransitionAngle = ${renderer.envMapTransitionAngle};
-    renderer.sunPower = ${renderer.sunPower};
-    renderer.sunColor = [${renderer.sunColor[0]}, ${renderer.sunColor[1]}, ${renderer.sunColor[2]}];
-    renderer.sunAngularSize = ${renderer.sunAngularSize};
-    renderer.sunLatitude = ${renderer.sunLatitude};
-    renderer.sunLongitude = ${renderer.sunLongitude};
-    renderer.sunVisibleDirectly = ${renderer.sunVisibleDirectly};
-    renderer.shadowStrength = ${renderer.shadowStrength};
+    // Lights
+        // sky light
+        renderer.skyPower = ${renderer.skyPower};
+        renderer.skyTintUp = [${renderer.skyTintUp[0]}, ${renderer.skyTintUp[1]}, ${renderer.skyTintUp[2]}];
+        renderer.skyTintDown = [${renderer.skyTintDown[0]}, ${renderer.skyTintDown[1]}, ${renderer.skyTintDown[2]}];
+        renderer.envMapVisible = ${renderer.envMapVisible};
+        renderer.envMapPhiRotation = ${renderer.envMapPhiRotation};
+        renderer.envMapThetaRotation = ${renderer.envMapThetaRotation};
+        renderer.envMapTransitionAngle = ${renderer.envMapTransitionAngle};
+        // sun light
+        renderer.sunPower = ${renderer.sunPower};
+        renderer.sunColor = [${renderer.sunColor[0]}, ${renderer.sunColor[1]}, ${renderer.sunColor[2]}];
+        renderer.sunAngularSize = ${renderer.sunAngularSize};
+        renderer.sunLatitude = ${renderer.sunLatitude};
+        renderer.sunLongitude = ${renderer.sunLongitude};
+        renderer.sunVisibleDirectly = ${renderer.sunVisibleDirectly};
+        // sphere light
+        renderer.sphereLightPosition = [${renderer.sphereLightPosition[0]}, ${renderer.sphereLightPosition[1]}, ${renderer.sphereLightPosition[2]}];
+        renderer.sphereLightRadius = ${renderer.sphereLightRadius};
+        renderer.sphereLightPower = ${renderer.sphereLightPower};
+        renderer.sphereLightColor = [${renderer.sphereLightColor[0]}, ${renderer.sphereLightColor[1]}, ${renderer.sphereLightColor[2]}];
 `;
 
     code += `
