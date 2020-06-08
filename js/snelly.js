@@ -317,6 +317,7 @@ Snelly.prototype.dumpScene = function()
     renderer.interactive = ${renderer.interactive};
     renderer.goalFPS = ${renderer.goalFPS};
     renderer.minsSPPToRedraw = ${renderer.minsSPPToRedraw};
+    renderer.filterRadius = ${renderer.filterRadius};
     renderer.radianceClamp = ${renderer.radianceClamp};
     renderer.wavelengthSamples = ${renderer.wavelengthSamples};
     renderer.shadowStrength = ${renderer.shadowStrength};

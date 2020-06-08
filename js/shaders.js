@@ -881,6 +881,14 @@ uniform float camAspect;
 uniform float camAperture;
 uniform float camFocalDistance;
 
+// Pathtracing parameters
+uniform float filterRadius;
+uniform float radianceClamp;
+uniform float skipProbability;
+uniform float shadowStrength;
+uniform bool maxStepsIsMiss;
+uniform int wavelengthSamples;
+
 // Length scales
 uniform float lengthScale;
 uniform float minLengthScale;
@@ -910,13 +918,6 @@ uniform vec3 sphereLightPosition;
 uniform float sphereLightRadius;
 uniform float sphereLightPower;
 uniform vec3 sphereLightColor;
-
-// Pathtracing parameters
-uniform float radianceClamp;
-uniform float skipProbability;
-uniform float shadowStrength;
-uniform bool maxStepsIsMiss;
-uniform int wavelengthSamples;
 
 // Surface material parameters
 uniform float metalRoughness;
@@ -2369,6 +2370,13 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
     return L;
 }
 
+float sample_jitter(float xi) 
+{
+    // sample from triangle filter, returning jitter in [-1, 1]
+    return xi < 0.5 ? sqrt(2.0*xi) - 1.0 : 1.0 - sqrt(2.0 - 2.0*xi);
+}
+
+
 void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
 {
 #ifdef DISPERSION_ENABLED
@@ -2391,8 +2399,10 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     RadianceType L = RadianceType(0.0);
     for (int n=0; n<__MAX_SAMPLES_PER_FRAME__; ++n)
     {
-        // Jitter over pixel
-        vec2 pixelj = pixel + (-0.5 + vec2(rand(rnd), rand(rnd)));
+        // Apply FIS to obtain pixel jitter about center in pixel units
+        float jx = 0.5 * filterRadius * sample_jitter(rand(rnd));
+        float jy = 0.5 * filterRadius * sample_jitter(rand(rnd));
+        vec2 pixelj = pixel + vec2(jx, jy);
 
         // Compute world ray direction for this fragment
         vec3 primaryStart, primaryDir;

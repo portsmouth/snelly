@@ -83,6 +83,7 @@ var Renderer = function()
     this.maxMarchSteps = 256;
     this.radianceClamp = 3.0;
     this.wavelengthSamples = 256;
+    this.filterRadius = 2.0;
     this.goalFPS = 20.0;
     this.minsSPPToRedraw = 0.0;
     this.shadowStrength = 1.0;
@@ -107,7 +108,7 @@ var Renderer = function()
         this.sunLongitudef = 0.0;
         this.sunVisibleDirectly = true;
         // sphere light
-        this.sphereLightRadius = 0.0;
+        this.sphereLightRadius = 1.0;
         this.sphereLightPower = -7.0; // (log)
         this.sphereLightColor =  [1.0,1.0,1.0];
         this.sphereLightPosition = [0.0,0.0,0.0];
@@ -264,7 +265,6 @@ Renderer.prototype.compileShaders = function()
     replacements.__SHADER__          = shader;
     replacements.__IOR_FUNC__        = iorCodeDiele + '\n' + iorCodeMetal;
     replacements.__MAX_MARCH_STEPS__ = Math.round(this.maxMarchSteps);
-    replacements.__MAX_VOLUME_STEPS__ = Math.round(this.maxVolumeSteps);
     replacements.__MAX_BOUNCES__  = Math.round(this.maxBounces);
     replacements.__MAX_SAMPLES_PER_FRAME__  = Math.round(this.maxSamplesPerFrame); 
 
@@ -495,6 +495,7 @@ Renderer.prototype.render = function()
     // Raytracing options
     {
         // Upload general rendering settings
+        INTEGRATOR_PROGRAM.uniformF("filterRadius", this.filterRadius);
         INTEGRATOR_PROGRAM.uniformF("radianceClamp", Math.pow(10.0, this.radianceClamp));
         INTEGRATOR_PROGRAM.uniformF("skipProbability", this.skipProbability);
         INTEGRATOR_PROGRAM.uniformF("lengthScale", Math.max(snelly.lengthScale, 1.0e-6));
