@@ -1165,7 +1165,7 @@ RadianceType sampleSphereLight(in vec3 rgb, inout vec4 rnd, in vec3 pW,
     dHit = normalize(dHit);
     vec3 nHit = normalize(pHit - sphereLightPosition);
     float costheta = abs(dot(nHit, dHit));
-    pdfDir = pdfArea * dHit2 / max(DENOM_TOLERANCE, costheta);
+    pdfDir = pdfArea * dHit2 / max(DENOM_TOLERANCE, costheta); // convert area-measure PDF to solid-angle-measure
     vec3 RGB_spherelight = sphereLightPower * sphereLightColor;
     return RGB_spherelight;
 }
@@ -1409,30 +1409,53 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             // This ray missed all geometry; add environment light term
             // (attenuated by transmittance through atmosphere to "infinity")
             // and terminate path
-            RadianceType Tr = transmittanceOverSegment(pW, rayDir, maxLengthScale, rgb);
-            if (averageComponent(Tr) > RADIANCE_EPSILON)
+            RadianceType Li = RadianceType(0.0);
+
+            // Check first for area-light (i.e. sphere light) hit
+            vec3 pLightHit;
+            RadianceType LiSph = (sphereLightPower<RADIANCE_EPSILON) ? RadianceType(0.0) : sphereLightRadiance(pW, rayDir, rgb, pLightHit);
+            float lightSegmentLength;
+            if (averageComponent(LiSph) > RADIANCE_EPSILON)
             {
-                if (!(vertex==0 && !envMapVisible))      L += throughput * Tr * misWeightSky * environmentRadiance(rayDir, rgb);
-                if (!(vertex==0 && !sunVisibleDirectly)) L += throughput * Tr * misWeightSun * sunRadiance(rayDir, rgb);
-                vec3 pHit;
-                L += throughput * Tr * misWeightSph * sphereLightRadiance(pW, rayDir, rgb, pHit);
+                lightSegmentLength = length(pLightHit - pW);
+                RadianceType TrSph = transmittanceOverFreeSegment(pW, rayDir, lightSegmentLength, rgb);
+                L += throughput * TrSph * misWeightSph * LiSph;
             }
-            // Also also term for single-inscattering in the homogeneous atmosphere over the segment to "infinity"
+
+            // Otherwise, only 
+            else
+            {
+                lightSegmentLength = maxLengthScale;
+                RadianceType Tr = transmittanceOverSegment(pW, rayDir, lightSegmentLength, rgb);
+                if (averageComponent(Tr) > RADIANCE_EPSILON)
+                {
+                    if (!(vertex==0 && !envMapVisible))      L += throughput * Tr * misWeightSky * environmentRadiance(rayDir, rgb);
+                    if (!(vertex==0 && !sunVisibleDirectly)) L += throughput * Tr * misWeightSun * sunRadiance(rayDir, rgb);
+                }
+            }
+
+            // Add term for single-inscattering in the homogeneous atmosphere over the segment to the light hit
             if (vertex<2) // (restrict to first two segments only, for efficiency)
-                L += throughput * atmospheric_inscattering(pW, rayDir, maxLengthScale, rgb, rnd);
+                L += throughput * atmospheric_inscattering(pW, rayDir, lightSegmentLength, rgb, rnd);
             break;
         }
 
         // Add possible contribution due to ray hitting the sphere light
-        if (sphereLightPower>RADIANCE_EPSILON)
+        vec3 pLightHit;
+        RadianceType LiSph = (sphereLightPower<RADIANCE_EPSILON) ? RadianceType(0.0) : sphereLightRadiance(pW, rayDir, rgb, pLightHit);
+        if (averageComponent(LiSph) > RADIANCE_EPSILON)
         {
-            vec3 pHit;
-            RadianceType Li = sphereLightRadiance(pW, rayDir, rgb, pHit);
-            float dHit = length(pHit - pW);
-            if ((dHit<rayLength) && (averageComponent(Li)>RADIANCE_EPSILON))
+            float lightSegmentLength = length(pLightHit - pW);
+            RadianceType TrSph = transmittanceOverFreeSegment(pW, rayDir, lightSegmentLength, rgb);
+            if (lightSegmentLength < rayLength)
             {
-                RadianceType Tr = transmittanceOverFreeSegment(pW, rayDir, dHit, rgb);
-                L += throughput * Tr * misWeightSph * Li;
+                RadianceType TrSph = transmittanceOverFreeSegment(pW, rayDir, lightSegmentLength, rgb);
+                L += throughput * TrSph * misWeightSph * LiSph;
+
+                // Add term for single-inscattering in the homogeneous atmosphere over the segment up to the light hit
+                if (vertex<2) // (restrict to first two segments only, for efficiency)
+                    L += throughput * atmospheric_inscattering(pW, rayDir, lightSegmentLength, rgb, rnd);
+                break; // terminate on hitting light (assume light has zero albedo)
             }
         }
 
@@ -1446,7 +1469,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
         else
         {
 #endif
-            // Add term for single-scattering of in the homogeneous atmosphere over the segment up to the next hit
+            // Add term for single-scattering in the homogeneous atmosphere over the segment up to the next hit
             if (vertex<2) // (restrict to first two segments only, for efficiency)
                 L += throughput * atmospheric_inscattering(pW, rayDir, rayLength, rgb, rnd);
 
@@ -1518,7 +1541,6 @@ float sample_jitter(float xi)
     // sample from triangle filter, returning jitter in [-1, 1]
     return xi < 0.5 ? sqrt(2.0*xi) - 1.0 : 1.0 - sqrt(2.0 - 2.0*xi);
 }
-
 
 void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
 {
