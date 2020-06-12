@@ -1,0 +1,249 @@
+<body onload="onLoad();">
+
+<script src="../../js/thirdparty/jquery-1.11.3.min.js"></script>
+<script src="../../js/thirdparty/three/three.min.js"></script>
+<script src="../../js/thirdparty/three/libs/stats.min.js"></script>
+<script src="../../js/thirdparty/three/libs/dat.gui.min.js"></script>
+<script src="../../js/thirdparty/three/controls/OrbitControls.js"></script>
+<script src="../../js/gl.js"></script>
+<script src="../../js/gui.js"></script>
+<script src="../../js/shaders.js"></script>
+<script src="../../js/color.js"></script>
+<script src="../../js/materials.js"></script>
+<script src="../../js/spectra.js"></script>
+<script src="../../js/renderer.js"></script>
+<script src="../../js/snelly.js"></script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                         scene definition                          */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+
+function Scene() {}
+
+Scene.prototype.init = function(snelly)
+{
+	// initial scene parameters
+	this.parameters = {}
+	this.parameters.shapes = ['Sphere', 'Cube', 'Octahedron', 'Dodecahedron', 'Icosahedron', 'TruncatedOctahedron', 'TruncatedIcosahedron'];
+
+	var PHI = Math.sqrt(5.0)*0.5 + 0.5;
+
+	var GDFVectors = [];
+	GDFVectors.push(new THREE.Vector3(1, 0, 0).normalize());
+	GDFVectors.push(new THREE.Vector3(0, 1, 0).normalize());
+	GDFVectors.push(new THREE.Vector3(0, 0, 1).normalize());
+	GDFVectors.push(new THREE.Vector3(1, 1, 1).normalize());
+	GDFVectors.push(new THREE.Vector3(-1, 1, 1).normalize());
+	GDFVectors.push(new THREE.Vector3(1, -1, 1).normalize());
+	GDFVectors.push(new THREE.Vector3(1, 1, -1).normalize());
+	GDFVectors.push(new THREE.Vector3(0, 1, PHI+1.0).normalize());
+	GDFVectors.push(new THREE.Vector3(0, -1, PHI+1.0).normalize());
+	GDFVectors.push(new THREE.Vector3(PHI+1.0, 0, 1).normalize());
+	GDFVectors.push(new THREE.Vector3(-PHI-1.0, 0, 1).normalize());
+	GDFVectors.push(new THREE.Vector3(1, PHI+1.0, 0).normalize());
+	GDFVectors.push(new THREE.Vector3(-1, PHI+1.0, 0).normalize());
+	GDFVectors.push(new THREE.Vector3(0, PHI, 1).normalize());
+	GDFVectors.push(new THREE.Vector3(0, -PHI, 1).normalize());
+	GDFVectors.push(new THREE.Vector3(1, 0, PHI).normalize());
+	GDFVectors.push(new THREE.Vector3(-1, 0, PHI).normalize());
+	GDFVectors.push(new THREE.Vector3(PHI, 1, 0).normalize());
+	GDFVectors.push(new THREE.Vector3(-PHI, 1, 0).normalize());
+
+	this.GDFVectorsFlattened = [];
+	for (var n=0; n<GDFVectors.length; n++)
+	{
+		var v = GDFVectors[n];
+		this.GDFVectorsFlattened.push(v.x);
+		this.GDFVectorsFlattened.push(v.y);
+		this.GDFVectorsFlattened.push(v.z);
+	}
+
+    /******* copy-pasted console output on 'O', begin *******/
+
+	let renderer  = snelly.getRenderer();
+	let camera    = snelly.getCamera();
+	let controls  = snelly.getControls();
+	let materials = snelly.getMaterials();
+		
+	this.parameters.shape = 'Dodecahedron';
+	this.parameters.size = 1.8040873854827344;
+	this.parameters.rotation = [0,0,0];
+	this.parameters.bulge = 0.16913319238900634;
+	this.parameters.height = 1;
+
+   this.parameters.check_size = 1.0;
+		
+	snelly.showGUI(true);
+
+	/** Camera settings **/
+	camera.fov = 45;
+	camera.aperture = -30.0;
+	camera.focalDistance = 0.7174954174734902;
+	camera.up.set(0, 1, 0);
+	camera.position.set(-5.907557938895467, 1.4708539245099685, 3.291321370537903);
+	controls.target.set(8.78369797993197, -0.12020094276692239, -3.734560670234669);
+
+	/** Renderer settings **/
+	renderer.renderMode = 'pt';
+	renderer.dispersive = false;
+	renderer.maxSamplesPerFrame = 1;
+	renderer.maxBounces = 4;
+	renderer.maxMarchSteps = 256;
+	renderer.maxStepsIsMiss = true;
+	renderer.interactive = true;
+	renderer.goalFPS = 20;
+	renderer.minsSPPToRedraw = 0;
+	renderer.radianceClamp = 2.5508817333358325;
+	renderer.wavelengthSamples = 29.504941582431588;
+	renderer.exposure = 0.5013371485834694;
+	renderer.gamma = 2.173243747396636;
+	renderer.contrast = 1;
+	renderer.saturation = 1;
+	renderer.skyPower = 0.0;
+	renderer.skyTemperature = 6000;
+	renderer.envMapRotation = 0;
+	renderer.envMapVisible = true;
+	renderer.sunPower = -10.0;
+	renderer.sunColor = [1, 0.8, 0.5];
+	renderer.sunAngularSize = 5;
+	renderer.sunLatitude = 50;
+	renderer.sunLongitude = 0;
+	renderer.sunVisibleDirectly = true;
+	renderer.shadowStrength = 1;
+
+	/** Material settings **/
+	let surface = materials.loadSurface();
+	surface.roughness = 0.018040873854827343;
+	surface.ior = 2.3079633544749827;
+	surface.diffuseAlbedo = [1, 1, 1];
+	surface.specAlbedo = [0, 0, 0];
+
+	let dielectric = materials.loadDielectric("Glass (BK7)");
+	dielectric.absorptionColor = [1, 1, 1];
+	dielectric.absorptionScale = 0.1; // mfp in multiples of scene scale
+	dielectric.roughness = 0.005;
+
+    /******* copy-pasted console output on 'O', end *******/
+    	
+}
+
+Scene.prototype.initGenerator = function()
+{
+	return `
+this.parameters.shape = '${this.parameters.shape}';
+this.parameters.size = ${this.parameters.size};
+this.parameters.rotation = [${this.parameters.rotation}];
+this.parameters.bulge = ${this.parameters.bulge};
+this.parameters.height = ${this.parameters.height};
+this.parameters.check_size = ${this.parameters.check_size};
+	`;
+}
+
+Scene.prototype.getName = function() { return 'Dielectric lattice'; }
+
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/dielectrics/glassPolyhedron.html"; }
+
+Scene.prototype.shader = function()
+{
+	let func = `d += pow(abs(dot(p, GDFVectors[i])), 1.0/e)`;
+	let ret = `pow(d, e) - r`;
+
+	let func2 = `d = max(d, abs(dot(p, GDFVectors[i])));`;
+	let ret2 = `d - r`;
+	
+	return `
+		uniform float _size;
+		uniform float _height;
+		uniform float _bulge;
+      uniform float check_size;
+        uniform vec3 _RotVector;
+
+		float sdSphere(vec3 X, float r, float e)
+		{
+			return length(X) - r;
+		}
+
+		float sdBox(vec3 X, vec3 bmin, vec3 bmax)
+		{
+			vec3 center = 0.5*(bmin + bmax);
+			vec3 halfExtents = 0.5*(bmax - bmin);
+			vec3 d = abs(X-center) - halfExtents;
+			return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
+		}
+      
+		float SDF_DIELECTRIC(vec3 X)
+		{
+         X -= vec3(0.0, _height, 0.0);
+			return sdSphere(X, _size, _bulge/5.0);
+		}
+
+		float SDF_SURFACE(vec3 X)
+	    {
+	        float L = 1.0e4;
+	        return sdBox(X, vec3(-L,-0.1,-L), vec3(L, 0.0,L));
+	    }
+
+		vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
+		{
+			float albedo = 1.0;
+			if (X.y<=0.001)
+			{
+				float ax = cos(X.x/check_size);
+				float ay = cos(X.z/check_size);
+				albedo = ax*ay < 0.0 ? 1.0 : 0.0;
+			}
+		    return C * vec3(albedo);
+		}
+	`;
+}
+
+Scene.prototype.getLengthScale = function()    { return 1.0; }
+Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
+Scene.prototype.getMaxLengthScale = function() { return 5.0e2 * this.getLengthScale(); }
+
+Scene.prototype.syncShader = function(snelly, shader)
+{
+	shader.uniform3Fv("GDFVectors", this.GDFVectorsFlattened);
+	shader.uniformF("_size",    this.parameters.size);
+	shader.uniformF("_bulge",   Math.max(this.parameters.bulge, 1.0e-5));
+    shader.uniformF("_height",    this.parameters.height);
+    shader.uniform3Fv("_RotVector", this.parameters.rotation);
+    shader.uniformF("check_size",    this.parameters.check_size);
+}
+
+  // set up gui and callbacks for this scene
+  Scene.prototype.initGui = function(gui)
+  {
+	  	this.typeItem = gui.getSceneFolder().add(this.parameters, 'shape', this.parameters.shapes);
+		this.typeItem.onChange( function(value) { snelly.reset(); } );
+
+	  	gui.addSlider(this.parameters, {name: 'size', min: 0.0, max: 10.0});
+		gui.addSlider(this.parameters, {name: 'bulge', min: 0.0, max: 1.0});
+      
+        gui.addSlider(this.parameters, {name: 'height', min: 0.0, max: 10.0});
+        gui.addColor(this.parameters, "rotation", 360.0);
+        gui.addSlider(this.parameters, {name: 'check_size', min: 0.0, max: 20.0});
+  }
+
+Scene.prototype.getName = function() { return 'Glass sphere on a checkerboard'; }
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/lattice_dielectric.html"; }
+
+Scene.prototype.envMap = function()
+{
+  	return 'https://portsmouth.github.io/envmaps/HDR_112_River_Road_2_Bg.jpg';
+}
+
+</script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                            main loop                              */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+</script>
+
+</body>

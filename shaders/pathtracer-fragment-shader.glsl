@@ -1167,7 +1167,7 @@ RadianceType sampleSphereLight(in vec3 rgb, inout vec4 rnd, in vec3 pW,
     float costheta = abs(dot(nHit, dHit));
     pdfDir = pdfArea * dHit2 / max(DENOM_TOLERANCE, costheta); // convert area-measure PDF to solid-angle-measure
     vec3 RGB_spherelight = sphereLightPower * sphereLightColor;
-    return RGB_spherelight;
+    return rgbToAlbedo(RGB_spherelight, rgb);
 }
 
 
