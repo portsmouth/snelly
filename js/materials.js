@@ -207,6 +207,12 @@ Volume.prototype.syncShader = function(shader)
     shader.uniform3Fv("volumeEmissionColorRGB", this.emissionColor);
 }
 
+Volume.prototype.nonNullVolume = function(color)
+{
+    return this.scatteringColor[0]> 0.0 || this.scatteringColor[1]> 0.0 || this.scatteringColor[2]> 0.0;
+    return this.absorptionColor[0]> 0.0 || this.absorptionColor[1]> 0.0 || this.absorptionColor[2]> 0.0;
+}
+
 Volume.prototype.initGui = function(parentFolder)
 {
     let VOLUME_OBJ = this;
@@ -218,6 +224,7 @@ Volume.prototype.initGui = function(parentFolder)
     parentFolder.scatteringColor = [this.scatteringColor[0]*255.0, this.scatteringColor[1]*255.0, this.scatteringColor[2]*255.0];
     var scatteringColorItem = parentFolder.addColor(parentFolder, 'scatteringColor');
     scatteringColorItem.onChange( function(C) {
+                            let CACHED_NON_NULL_VOUME = VOLUME_OBJ.nonNullVolume();
                             if (typeof C==='string' || C instanceof String)
                             {
                                 var color = hexToRgb(C);
@@ -231,12 +238,16 @@ Volume.prototype.initGui = function(parentFolder)
                                 VOLUME_OBJ.scatteringColor[1] = C[1] / 255.0;
                                 VOLUME_OBJ.scatteringColor[2] = C[2] / 255.0;
                             }
-                            snelly.reset(true);
+                            if (VOLUME_OBJ.nonNullVolume() != CACHED_NON_NULL_VOUME)
+                                snelly.reset(false);
+                            else
+                                snelly.reset(true);
                         } );
 
     parentFolder.absorptionColor = [this.absorptionColor[0]*255.0, this.absorptionColor[1]*255.0, this.absorptionColor[2]*255.0];
     var absorptionColorItem = parentFolder.addColor(parentFolder, 'absorptionColor');
     absorptionColorItem.onChange( function(C) {
+                            let CACHED_NON_NULL_VOUME = VOLUME_OBJ.nonNullVolume();
                             if (typeof C==='string' || C instanceof String)
                             {
                                 var color = hexToRgb(C);
@@ -250,7 +261,10 @@ Volume.prototype.initGui = function(parentFolder)
                                 VOLUME_OBJ.absorptionColor[1] = C[1] / 255.0;
                                 VOLUME_OBJ.absorptionColor[2] = C[2] / 255.0;
                             }
-                            snelly.reset(true);
+                            if (VOLUME_OBJ.nonNullVolume() != CACHED_NON_NULL_VOUME)
+                                snelly.reset(false);
+                            else
+                                snelly.reset(true);
                         } );
 
     this.emissionItem = parentFolder.add(this, 'emission', 0.0, 100.0);

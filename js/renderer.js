@@ -11,6 +11,7 @@
 * @property {number} [maxSamplesPerFrame=1]      - maximum number of per-pixel samples per frame
 * @property {number} [maxSpp=1]                  - maximum number of samples-per-pixel, after which the render terminates
 * @property {number} [maxBounces=3]              - maximum number of surface bounces
+* @property {number} [maxAtmosphereScatters=1]   - maximum number of scatters in atmosphere (1 -> single scattering only)
 * @property {number} [maxMarchSteps=256]         - maximum number of raymarching steps per path segment
 * @property {number} [maxStepsIsMiss=true]       - whether rays which exceed max step count are considered hits or misses
 * @property {number} [interactive=true]          - if enabled, tries to maintain interactive frame rate at the expense of more noise
@@ -80,6 +81,7 @@ var Renderer = function()
     this.maxSamplesPerFrame = 1;
     this.maxSpp = 1024;
     this.maxBounces = 3;
+    this.maxAtmosphereScatters = 1;
     this.maxMarchSteps = 256;
     this.radianceClamp = 3.0;
     this.wavelengthSamples = 256;
@@ -202,6 +204,11 @@ Renderer.prototype.getSPP = function()
     return this.spp;
 }
 
+Renderer.prototype.colorNotZero = function(color)
+{
+    return color[0]> 0.0 || color[1]> 0.0 || color[2]> 0.0;
+}
+
 Renderer.prototype.compileShaders = function()
 {
     console.warn('[snelly] Renderer.prototype.compileShaders');
@@ -245,17 +252,23 @@ Renderer.prototype.compileShaders = function()
     if (shader.indexOf("VOLUME_ANISOTROPY(")               == -1) { shader += `\n float VOLUME_ANISOTROPY(float anisotropy, vec3 X) { return anisotropy; }\n`; }
     if (shader.indexOf("VOLUME_EMISSION(")                 == -1) { hasVolumeEmission = false; shader += `\n vec3 VOLUME_EMISSION(vec3 emission, vec3 X) { return emission; }\n`; }
 
+    let hasSphereLight = (this.sphereLightPower > -7.0);
+
     let hasGeometry = (hasSurface || hasMetal || hasDielectric);
     if ( !(hasGeometry || hasVolume) )
     {
         GLU.fail('Scene must define at least one of: SDF_SURFACE, SDF_METAL, SDF_DIELECTRIC, or SDF_VOLUME'); 
     }
 
+    var volumeObj     = snelly.getVolume();           if (volumeObj == null) return;
+    let hasAtmosphere = this.colorNotZero(volumeObj.scatteringColor) || this.colorNotZero(volumeObj.absorptionColor);
+
     let hasNM = (hasSurfaceNM || hasMetalNM || hasDielectricNM);
-    
+
     // Insert material GLSL code
     var dielectricObj = snelly.getLoadedDielectric(); if (dielectricObj == null) return;
     var metalObj      = snelly.getLoadedMetal();      if (metalObj == null) return;
+
     iorCodeDiele    = dielectricObj.ior();
     iorCodeMetal    = metalObj.ior();
 
@@ -266,13 +279,14 @@ Renderer.prototype.compileShaders = function()
     replacements.__IOR_FUNC__        = iorCodeDiele + '\n' + iorCodeMetal;
     replacements.__MAX_MARCH_STEPS__ = Math.round(this.maxMarchSteps);
     replacements.__MAX_BOUNCES__  = Math.round(this.maxBounces);
-    replacements.__MAX_SAMPLES_PER_FRAME__  = Math.round(this.maxSamplesPerFrame); 
-
+    replacements.__MAX_ATMOSPHERE_SCATTERS__  = Math.round(this.maxAtmosphereScatters);
+    replacements.__MAX_SAMPLES_PER_FRAME__  = Math.round(this.maxSamplesPerFrame);
     replacements.__DEFINES__ = '';
 
     if (hasSurface)        replacements.__DEFINES__ += '\n#define HAS_SURFACE\n';
     if (hasMetal)          replacements.__DEFINES__ += '\n#define HAS_METAL\n';
     if (hasDielectric)     replacements.__DEFINES__ += '\n#define HAS_DIELECTRIC\n';
+    if (hasAtmosphere)     replacements.__DEFINES__ += '\n#define HAS_ATMOSPHERE\n';
     if (hasVolumeEmission) replacements.__DEFINES__ += '\n#define HAS_VOLUME_EMISSION\n';
     if (hasGeometry)       replacements.__DEFINES__ += '\n#define HAS_GEOMETRY\n';
 
@@ -282,7 +296,21 @@ Renderer.prototype.compileShaders = function()
     if (hasDielectricNM) replacements.__DEFINES__ += '\n#define HAS_DIELECTRIC_NORMALMAP\n';
 
     if (this.interactive) replacements.__DEFINES__ += '\n#define INTERACTIVE_MODE\n';
-    if (this.dispersive) replacements.__DEFINES__  += '\n#define DISPERSION_ENABLED\n';
+    if (this.dispersive)  replacements.__DEFINES__  += '\n#define DISPERSION_ENABLED\n';
+
+    if (hasSphereLight) replacements.__DEFINES__ += '\n#define HAS_SPHERE_LIGHT\n';
+
+    console.warn('[snelly]     hasSurface        = ', hasSurface);
+    console.warn('[snelly]     hasMetal          = ', hasMetal);
+    console.warn('[snelly]     hasDielectric     = ', hasDielectric);
+    console.warn('[snelly]     hasAtmosphere     = ', hasAtmosphere);
+    console.warn('[snelly]     hasVolumeEmission = ', hasVolumeEmission);
+    console.warn('[snelly]     hasGeometry       = ', hasGeometry);
+    console.warn('[snelly]     hasNM             = ', hasNM);
+    console.warn('[snelly]     hasSurfaceNM      = ', hasSurfaceNM);
+    console.warn('[snelly]     hasMetalNM        = ', hasMetalNM);
+    console.warn('[snelly]     hasDielectricNM   = ', hasDielectricNM);
+    console.warn('[snelly]     hasSphereLight    = ', hasSphereLight);
 
     // Compile pathtracer with different entry point according to mode.
     // Here shaderSources is a dict from name (e.g. "trace")
@@ -291,12 +319,15 @@ Renderer.prototype.compileShaders = function()
     {
         case 'ao':
             this.aoProgram = new GLU.Shader('ao', this.shaderSources, replacements);
+            console.warn('[snelly] AO mode');
             break;
         case 'normals':
+            console.warn('[snelly] normals mode');
             this.normalsProgram = new GLU.Shader('normals', this.shaderSources, replacements);
             break;
         case 'pt':
         default:
+            console.warn('[snelly] pathtracer mode');
             this.pathtraceAllProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
             break;
     }
@@ -443,7 +474,7 @@ Renderer.prototype.render = function()
         return;
     }
 
-    // Update framebuffer only if we reached the requied SPP threshold for redraw
+    // Update framebuffer only if we reached the required SPP threshold for redraw
     if (this.spp >= this.minsSPPToRedraw)
     {
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -524,7 +555,7 @@ Renderer.prototype.render = function()
             INTEGRATOR_PROGRAM.uniform3Fv("sunDir", this.sunDir);
             INTEGRATOR_PROGRAM.uniformI("sunVisibleDirectly", this.sunVisibleDirectly);
             // sphere
-            INTEGRATOR_PROGRAM.uniform3Fv("sphereLightPosition", this.sphereLightPosition);
+            INTEGRATOR_PROGRAM.uniform3Fv("sphereLightPosition", this.sphereLightPosition.map(x => x*snelly.lengthScale));
             INTEGRATOR_PROGRAM.uniformF("sphereLightRadius", this.sphereLightRadius*snelly.lengthScale);
             INTEGRATOR_PROGRAM.uniformF("sphereLightPower", Math.pow(10.0,this.sphereLightPower) / (4.0*Math.PI*Math.pow(this.sphereLightRadius, 2.0)));
             INTEGRATOR_PROGRAM.uniform3Fv("sphereLightColor", this.sphereLightColor);

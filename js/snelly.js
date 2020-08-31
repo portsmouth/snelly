@@ -95,7 +95,7 @@ var Snelly = function(sceneObj)
 */
 Snelly.prototype.getVersion = function()
 {
-    return [1, 10, 0];
+    return [1, 10, 1];
 }
 
 Snelly.prototype.handleEvent = function(event)
@@ -312,6 +312,7 @@ Snelly.prototype.dumpScene = function()
     renderer.maxSamplesPerFrame = ${renderer.maxSamplesPerFrame};
     renderer.maxSpp = ${renderer.maxSpp};
     renderer.maxBounces = ${renderer.maxBounces};
+    renderer.maxAtmosphereScatters = ${renderer.maxAtmosphereScatters};
     renderer.maxMarchSteps = ${renderer.maxMarchSteps};
     renderer.maxStepsIsMiss = ${renderer.maxStepsIsMiss};
     renderer.interactive = ${renderer.interactive};
@@ -362,13 +363,13 @@ Snelly.prototype.dumpScene = function()
     {
         code += `
     let metal = materials.loadMetal('${materials.getLoadedMetal().getName()}');`;
-        code += materials.loadMetal().repr();
+        code += materials.loadMetal(materials.getLoadedMetal().getName()).repr();
     }
     if (shader.indexOf("SDF_DIELECTRIC(") != -1)
     {
         code += `
     let dielectric = materials.loadDielectric('${materials.getLoadedDielectric().getName()}');`;
-        code += materials.loadDielectric().repr();
+        code += materials.loadDielectric(materials.getLoadedDielectric().getName()).repr();
     }
     code += `
     let volume = materials.loadVolume();`;

@@ -533,7 +533,7 @@ var GLU = {};
     {
         let tex = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, tex);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.SRGB8, 1, 1, 0, gl.RGB, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 255, 255]));
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.SRGB8, 1, 1, 0, gl.RGB, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0]));
         let imgInfo = {
             width: 1,   // we don't know the size until it loads
             height: 1,

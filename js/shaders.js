@@ -375,6 +375,144 @@ void main()
 }
 `,
 
+'lighttracer-fragment-shader': `#version 300 es
+precision highp float;
+
+// @todo: samplers
+
+
+// Spotlights
+uniform int spotlightCount;
+uniform vec3 spotlightPosition0;
+uniform vec3 spotlightPosition1;
+uniform vec3 spotlightPosition2;
+uniform vec3 spotlightPosition3;
+uniform vec3 spotlightDirection0;
+uniform vec3 spotlightDirection1;
+uniform vec3 spotlightDirection2;
+uniform vec3 spotlightDirection3;
+uniform float spotlightRadius0;
+uniform float spotlightRadius1;
+uniform float spotlightRadius2;
+uniform float spotlightRadius3;
+uniform float spotlightAngle0;
+uniform float spotlightAngle1;
+uniform float spotlightAngle2;
+uniform float spotlightAngle3;
+uniform vec3 spotlightRadiance0;
+uniform vec3 spotlightRadiance1;
+uniform vec3 spotlightRadiance2;
+uniform vec3 spotlightRadiance3;
+
+// Camera parameters
+uniform vec2 resolution;
+uniform vec3 camPos;
+uniform vec3 camDir;
+uniform vec3 camX;
+uniform vec3 camY;
+uniform float camFovy; // degrees
+uniform float camAspect;
+uniform float camAperture;
+uniform float camFocalDistance;
+
+// Length scales
+uniform float lengthScale;
+uniform float minLengthScale;
+uniform float maxLengthScale;
+
+// Surface material parameters
+uniform float metalRoughness;
+uniform vec3 metalSpecAlbedoRGB;
+uniform float dieleRoughness;
+uniform vec3 dieleAbsorptionRGB;
+uniform vec3 dieleSpecAlbedoRGB;
+uniform vec3 surfaceDiffuseAlbedoRGB;
+uniform vec3 surfaceSpecAlbedoRGB;
+uniform float surfaceRoughness;
+uniform float surfaceIor;
+
+// Volumetric/atmosphere constants
+uniform float volumeEmission;
+uniform vec3 volumeEmissionColorRGB;
+uniform float atmosphereExtinction;
+uniform vec3 atmosphereScatteringColorRGB;
+uniform vec3 atmosphereAbsorptionColorRGB;
+uniform float atmosphereAnisotropy;
+
+
+
+void constructSpotlightRay(in vec3 position, in vec3 direction, float radius, float angle, inout vec4 rnd,
+                           inout vec3 primaryStart, inout vec3 primaryDir)
+{
+    // Make emission cross-section circular
+    float rPos = radius*sqrt(rand(rnd));
+    float phiPos = 2.0*M_PI*rand(rnd);
+    vec3 X = vec3(1.0, 0.0, 0.0);
+    vec3 Z = vec3(0.0, 0.0, 1.0);
+    vec3 u = cross(Z, direction);
+    if ( length(u) < 1.0e-3 )
+        u = cross(X, direction);
+
+    u = normalize(u);
+    vec3 v = cross(direction, u);
+    primaryStart = position + rPos*(u*cos(phiPos) + v*sin(phiPos));
+
+    // Emit in a cone with the given spread
+    float spreadAngle = 0.5*abs(angle)*M_PI/180.0;
+    float rDir = min(tan(spreadAngle), 1.0e6) * sqrt(rand(rnd));
+    float phiDir = 2.0*M_PI*rand(seed);
+    primaryDir = normalize(direction + rDir*(u*cos(phiDir) + v*sin(phiDir)));
+}
+
+
+
+RadianceType lightPathContribution(float wavelength_nm, in vec3 rgb, inout vec4 rnd)
+{
+    // For each spotlight, trace a path from the light through the scene,
+    // with appropriate vertex factors at each surface hit.
+    // At each vertex, connect to the first camera-path hit point (cW), producing a final contribution
+    // due to each light.
+
+    // Also, on each light path segment, connect to the first camera segment [c0, c1]
+    // to generate a volumetric scattering contribution (if an atmosphere is present).
+    // This requires sampling the distances along each segment.
+    // (Ideally we would importance sample these distances according to their joint PDF, but a good start
+    // is to equi-angular sample the camera-segment based on the light position, and the light-segment based on the camera position).
+
+    // Perform light-trace starting from spot-lights, if present:
+    for (int n=0; n<spotlightCount*__MAX_SAMPLES_PER_FRAME__; ++n)
+    {
+        vec3 Lspot;
+        vec3 primaryStart, primaryDir;
+        switch (n)
+        {
+            case 0: { constructSpotlightRay(spotlightPosition0, spotlightDirection0, spotlightRadius0, spotlightAngle0, rnd, primaryStart, primaryDir); Lspot = spotlightRadiance0; break; }
+            case 1: { constructSpotlightRay(spotlightPosition1, spotlightDirection1, spotlightRadius1, spotlightAngle1, rnd, primaryStart, primaryDir); Lspot = spotlightRadiance1; break; }
+            case 2: { constructSpotlightRay(spotlightPosition2, spotlightDirection2, spotlightRadius2, spotlightAngle2, rnd, primaryStart, primaryDir); Lspot = spotlightRadiance2; break; }
+            case 3: { constructSpotlightRay(spotlightPosition3, spotlightDirection3, spotlightRadius3, spotlightAngle3, rnd, primaryStart, primaryDir); Lspot = spotlightRadiance3; break; }
+        }
+
+        vec3 pW = primaryStart;
+        vec3 rayDir = primaryDir; // (parallel to light direction)
+    }
+}
+
+
+void main()
+{
+    // Read current photon vertex and direction
+
+    // Calculate hit (or miss)
+
+    // Compute contribution to caustic image (image plane hit and radiance)
+
+    // Update photon vertex and direction
+
+
+
+}
+`,
+
 'normals-fragment-shader': `#version 300 es
 precision highp float;
 
@@ -844,7 +982,6 @@ __DEFINES__
 __SHADER__
 
 __IOR_FUNC__
-
 
 #ifdef DISPERSION_ENABLED
 #define RadianceType float
@@ -1661,6 +1798,7 @@ void perturbNormal(in vec3 X, in Basis basis, int material, inout vec3 nW)
 }
 #endif
 
+#ifdef HAS_ATMOSPHERE
 
 #define sort2(a,b) { vec3 tmp=min(a,b); b=a+b-tmp; a=tmp; }
 
@@ -1689,10 +1827,14 @@ bool atmosphereSegment(in vec3 pW, in vec3 rayDir, float segmentLength, // input
     return true;
 }
 
+#endif
 
 // Return the amount of light transmitted (per-channel) along a known "free" segment (i.e. free of geometry)
 RadianceType transmittanceOverFreeSegment(in vec3 pW, in vec3 rayDir, float segmentLength, in vec3 rgb)
 {
+#ifndef HAS_ATMOSPHERE
+    return RadianceType(1.0);
+#else
     RadianceType extinction = VOLUME_EXTINCTION_EVAL(rgb);
     if (length(extinction) == 0.f)
         return RadianceType(1.0);
@@ -1703,8 +1845,8 @@ RadianceType transmittanceOverFreeSegment(in vec3 pW, in vec3 rayDir, float segm
     RadianceType opticalDepth = (t1 - t0) * extinction;
     RadianceType Tr = exp(-opticalDepth);
     return Tr;
+#endif
 }
-
 
 // Return the amount of light transmitted (per-channel) along a given segment
 // (zero if occluded by geometry).
@@ -1718,6 +1860,7 @@ RadianceType transmittanceOverSegment(in vec3 pW, in vec3 rayDir, float segmentL
     else
         return transmittanceOverFreeSegment(pW, rayDir, segmentLength, rgb);
 }
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1841,6 +1984,8 @@ RadianceType sampleSunInVolume(in vec3 rgb, inout vec4 rnd,
 // Sphere light
 //////////////////////////////////////////////
 
+#ifdef HAS_SPHERE_LIGHT
+
 vec3 sampleSphereLightPosition(inout vec4 rnd, in vec3 pW,
                                inout float pdfArea)
 {
@@ -1889,6 +2034,7 @@ RadianceType sampleSphereLight(in vec3 rgb, inout vec4 rnd, in vec3 pW,
     return rgbToAlbedo(RGB_spherelight, rgb);
 }
 
+#endif
 
 //////////////////////////////////////////////
 // Direct lighting routines
@@ -1904,6 +2050,7 @@ RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 winputW, in 
     bool fromCamera = true; // camera path
     RadianceType Ldirect = RadianceType(0.0);
     vec3 woutputL, woutputW;
+
     // Sky
     if (skyPower > RADIANCE_EPSILON)
     {
@@ -1922,6 +2069,7 @@ RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 winputW, in 
             }
         }
     }
+
     // Sun
     if (sunPower > RADIANCE_EPSILON)
     {
@@ -1940,6 +2088,8 @@ RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 winputW, in 
             }
         }
     }
+
+#ifdef HAS_SPHERE_LIGHT
     // Sphere light
     if ((sphereLightPower > RADIANCE_EPSILON) &&
         (dot(pW - sphereLightPosition, basis.nW) <= sphereLightRadius)) // (is sphere visible from the surface point?)
@@ -1963,14 +2113,18 @@ RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 winputW, in 
             }
         }
     }
+#endif
 
     return min(RadianceType(radianceClamp), Ldirect);
 }
+
+#ifdef HAS_ATMOSPHERE
 
 RadianceType directVolumeLighting(in vec3 pW, in vec3 rayDir, in vec3 rgb, inout vec4 rnd)
 {
     bool fromCamera = true; // camera path
     RadianceType Ldirect = RadianceType(0.0);
+
     // Sky
     if (skyPower > RADIANCE_EPSILON)
     {
@@ -1988,6 +2142,7 @@ RadianceType directVolumeLighting(in vec3 pW, in vec3 rayDir, in vec3 rgb, inout
             }
         }
     }
+
     // Sun
     if (sunPower > RADIANCE_EPSILON)
     {
@@ -2005,6 +2160,8 @@ RadianceType directVolumeLighting(in vec3 pW, in vec3 rayDir, in vec3 rgb, inout
             }
         }
     }
+
+#ifdef HAS_SPHERE_LIGHT
     // Sphere light
     if (sphereLightPower > RADIANCE_EPSILON)
     {
@@ -2024,10 +2181,12 @@ RadianceType directVolumeLighting(in vec3 pW, in vec3 rayDir, in vec3 rgb, inout
             }
         }
     }
+#endif
+
     return min(RadianceType(radianceClamp), Ldirect);
 }
 
-RadianceType atmospheric_inscattering(in vec3 pW, in vec3 rayDir, in float segmentLength, in vec3 rgb, inout vec4 rnd)
+RadianceType atmosphericInscatteringRadiance(in vec3 pW, in vec3 rayDir, in float segmentLength, in vec3 rgb, inout vec4 rnd)
 {
     RadianceType extinction = VOLUME_EXTINCTION_EVAL(rgb);
     RadianceType scattering = VOLUME_SCATTERING_EVAL(rgb);
@@ -2070,6 +2229,46 @@ RadianceType atmospheric_inscattering(in vec3 pW, in vec3 rayDir, in float segme
     return Ls;
 }
 
+RadianceType atmosphericScatterSample(in vec3 pW, in vec3 rayDir, float segmentLength, in vec3 rgb, inout vec4 rnd,
+                                      inout vec3 pW_scatter, inout vec3 woutputW)
+{
+    RadianceType extinction = VOLUME_EXTINCTION_EVAL(rgb);
+    RadianceType scattering = VOLUME_SCATTERING_EVAL(rgb);
+    float extinction_norm = averageComponent(extinction);
+
+    // Find sub-segment of supplied segment over which (homogeneous) atmosphere exists
+    float t0, t1;
+    bool hitAtmosphere = atmosphereSegment(pW, rayDir, segmentLength, t0, t1);
+    if (!hitAtmosphere)
+        return RadianceType(0.0);
+
+    // Sample a scattering point in [t0, t1] from a PDF proportional to the transmittance (normalized over [t0, t1])
+    float T01 = exp(-(t1-t0)*extinction_norm);
+    float t_scatter = t0 - log(1.0 - rand(rnd)*(1.0 - T01)) / extinction_norm; // sampled scatter distance
+    pW_scatter = pW + t_scatter*rayDir;                                        // sampled scatter point
+    RadianceType opticalDepth_scatter = (t_scatter - t0) * extinction;         // optical depth from pW -> pW_scatter
+    RadianceType Tr_pW = exp(-opticalDepth_scatter);                           // transmittance from pW -> pW_scatter
+    float invDistancePdf = (1.0 - T01) * exp(averageComponent(opticalDepth_scatter)) / extinction_norm; // PDF of scatter distance
+    woutputW = samplePhaseFunction(rayDir, rnd); // sample direction of scattered light (from phase function)
+
+    return scattering * Tr_pW * invDistancePdf; // throughput for scattered ray
+}
+
+#endif
+
+float atmosphericScatteringProbability(in RadianceType Tr, in vec3 rgb)
+{
+#ifdef HAS_ATMOSPHERE
+    RadianceType extinction = VOLUME_EXTINCTION_EVAL(rgb);
+    RadianceType scattering = VOLUME_SCATTERING_EVAL(rgb);
+    float albedo_norm = averageComponent(scattering/extinction);
+    float scatter_prob = albedo_norm * (1.0 - averageComponent(Tr));
+    return scatter_prob;
+#else
+    return 0.0;
+#endif
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Pathtracing integrator
 ////////////////////////////////////////////////////////////////////////////////
@@ -2096,6 +2295,7 @@ void constructPrimaryRay(in vec2 pixel, inout vec4 rnd,
     primaryDir = safe_normalize(focalPlaneHit - lensPos);
 }
 
+
 RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir, 
                         float wavelength_nm, in vec3 rgb, inout vec4 rnd)
 {
@@ -2103,7 +2303,9 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
     RadianceType L = RadianceType(0.0);
     float misWeightSky = 1.0; // For MIS book-keeping
     float misWeightSun = 1.0; // For MIS book-keeping
+#ifdef HAS_SPHERE_LIGHT
     float misWeightSph = 1.0; // For MIS book-keeping
+#endif
     vec3 pW = primaryStart;
     vec3 rayDir = primaryDir; // (opposite to light beam direction)
 
@@ -2111,9 +2313,12 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
     bool inDielectric = SDF_DIELECTRIC(primaryStart) < 0.0;
 #endif
     RadianceType throughput = RadianceType(1.0);
+    int atmosphere_scatters = 0;
 
     for (int vertex=0; vertex<=__MAX_BOUNCES__; ++vertex)
     {
+        if (maxComponent(throughput) < THROUGHPUT_EPSILON) break;
+
         // Raycast along current propagation direction rayDir, from current vertex pW to pW_next
         vec3 pW_next;
         int hitMaterial;
@@ -2128,55 +2333,82 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             // This ray missed all geometry; add environment light term
             // (attenuated by transmittance through atmosphere to "infinity")
             // and terminate path
-            RadianceType Li = RadianceType(0.0);
-
+            float lightSegmentLength;
+            RadianceType Tr;
+#ifdef HAS_SPHERE_LIGHT
             // Check first for area-light (i.e. sphere light) hit
             vec3 pLightHit;
             RadianceType LiSph = (sphereLightPower<RADIANCE_EPSILON) ? RadianceType(0.0) : sphereLightRadiance(pW, rayDir, rgb, pLightHit);
-            float lightSegmentLength;
             if (averageComponent(LiSph) > RADIANCE_EPSILON)
             {
                 lightSegmentLength = length(pLightHit - pW);
-                RadianceType TrSph = transmittanceOverFreeSegment(pW, rayDir, lightSegmentLength, rgb);
-                L += throughput * TrSph * misWeightSph * LiSph;
+                Tr = transmittanceOverFreeSegment(pW, rayDir, lightSegmentLength, rgb);
+                float scatter_prob = atmosphericScatteringProbability(Tr, rgb);
+                L += throughput * Tr * misWeightSph * LiSph / (1.0 - scatter_prob);
             }
-
-            // Otherwise, only 
             else
+#endif
+            // Add contribution from distant lights
             {
                 lightSegmentLength = maxLengthScale;
-                RadianceType Tr = transmittanceOverSegment(pW, rayDir, lightSegmentLength, rgb);
+                Tr = transmittanceOverSegment(pW, rayDir, lightSegmentLength, rgb);
+                float scatter_prob = atmosphericScatteringProbability(Tr, rgb);
                 if (averageComponent(Tr) > RADIANCE_EPSILON)
                 {
-                    if (!(vertex==0 && !envMapVisible))      L += throughput * Tr * misWeightSky * environmentRadiance(rayDir, rgb);
-                    if (!(vertex==0 && !sunVisibleDirectly)) L += throughput * Tr * misWeightSun * sunRadiance(rayDir, rgb);
+                    if (!(vertex==0 && !envMapVisible))      L += throughput * Tr * misWeightSky * environmentRadiance(rayDir, rgb) / (1.0 - scatter_prob);
+                    if (!(vertex==0 && !sunVisibleDirectly)) L += throughput * Tr * misWeightSun * sunRadiance(rayDir, rgb)         / (1.0 - scatter_prob);
                 }
             }
 
+#ifdef HAS_ATMOSPHERE
             // Add term for single-inscattering in the homogeneous atmosphere over the segment to the light hit
             if (vertex<2) // (restrict to first two segments only, for efficiency)
-                L += throughput * atmospheric_inscattering(pW, rayDir, lightSegmentLength, rgb, rnd);
+                L += throughput * atmosphericInscatteringRadiance(pW, rayDir, lightSegmentLength, rgb, rnd);
+
+            // Scatter in atmosphere depending on transmittance over segment
+            if (atmosphere_scatters+1 < __MAX_ATMOSPHERE_SCATTERS__)
+            {
+                float scatter_prob = atmosphericScatteringProbability(Tr, rgb);
+                if (scatter_prob > rand(rnd))
+                {
+                    vec3 pW_scatter;
+                    vec3 woutputW;
+                    throughput *= atmosphericScatterSample(pW, rayDir, lightSegmentLength, rgb, rnd, pW_scatter, woutputW) / max(DENOM_TOLERANCE, scatter_prob);
+                    pW = pW_scatter;
+                    rayDir = woutputW;
+                    atmosphere_scatters++;
+                    continue;
+                }
+            }
+
+            // Otherwise ray escapes to infinity
             break;
+#endif
         }
 
+        RadianceType Tr = RadianceType(1.0); // transmittance (about to be calculated) over segment to next hit
+        bool hitSphereLight = false;
+
+#ifdef HAS_SPHERE_LIGHT
         // Add possible contribution due to ray hitting the sphere light
         vec3 pLightHit;
         RadianceType LiSph = (sphereLightPower<RADIANCE_EPSILON) ? RadianceType(0.0) : sphereLightRadiance(pW, rayDir, rgb, pLightHit);
         if (averageComponent(LiSph) > RADIANCE_EPSILON)
         {
             float lightSegmentLength = length(pLightHit - pW);
-            RadianceType TrSph = transmittanceOverFreeSegment(pW, rayDir, lightSegmentLength, rgb);
             if (lightSegmentLength < rayLength)
             {
-                RadianceType TrSph = transmittanceOverFreeSegment(pW, rayDir, lightSegmentLength, rgb);
-                L += throughput * TrSph * misWeightSph * LiSph;
-
-                // Add term for single-inscattering in the homogeneous atmosphere over the segment up to the light hit
+                hitSphereLight = true;
+                Tr = transmittanceOverFreeSegment(pW, rayDir, lightSegmentLength, rgb);
+                L += throughput * Tr * misWeightSph * LiSph;
+#ifdef HAS_ATMOSPHERE
+                // Add term for single-inscattering in the homogeneous atmosphere over the segment up to the sphere light hit
                 if (vertex<2) // (restrict to first two segments only, for efficiency)
-                    L += throughput * atmospheric_inscattering(pW, rayDir, lightSegmentLength, rgb, rnd);
-                break; // terminate on hitting light (assume light has zero albedo)
+                    L += throughput * atmosphericInscatteringRadiance(pW, rayDir, lightSegmentLength, rgb, rnd);
+#endif
             }
         }
+#endif
 
         // If the current ray lies inside a dielectric, apply Beer's law for absorption
 #ifdef HAS_DIELECTRIC
@@ -2185,17 +2417,39 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             RadianceType absorption = rgbToAlbedo(dieleAbsorptionRGB, rgb);
             throughput *= exp(-rayLength*absorption);
         }
-        else
-        {
 #endif
-            // Add term for single-scattering in the homogeneous atmosphere over the segment up to the next hit
-            if (vertex<2) // (restrict to first two segments only, for efficiency)
-                L += throughput * atmospheric_inscattering(pW, rayDir, rayLength, rgb, rnd);
 
-            // Attenuate throughput to next hit due to atmospheric attenuation (Beer's law)
-            throughput *= transmittanceOverFreeSegment(pW, rayDir, rayLength, rgb);
-#ifdef HAS_DIELECTRIC
+        // Add term for single-scattering in the homogeneous atmosphere over the segment up to the next hit
+#ifdef HAS_ATMOSPHERE
+        if (vertex<2) // (restrict to first two segments only, for efficiency)
+            L += throughput * atmosphericInscatteringRadiance(pW, rayDir, rayLength, rgb, rnd);
+
+        if (!hitSphereLight)
+            Tr = transmittanceOverFreeSegment(pW, rayDir, rayLength, rgb);
+
+        // Scatter in atmosphere depending on transmittance over segment to next hit
+        if (atmosphere_scatters+1 < __MAX_ATMOSPHERE_SCATTERS__)
+        {
+            float scatter_prob = atmosphericScatteringProbability(Tr, rgb);
+            if (scatter_prob > rand(rnd))
+            {
+                vec3 pW_scatter;
+                vec3 woutputW;
+                throughput *= atmosphericScatterSample(pW, rayDir, rayLength, rgb, rnd, pW_scatter, woutputW) / max(DENOM_TOLERANCE, scatter_prob);
+                pW = pW_scatter;
+                rayDir = woutputW;
+                atmosphere_scatters++;
+                continue;
+            }
+            else
+                throughput /= max(DENOM_TOLERANCE, 1.0 - scatter_prob);
         }
+
+        if (hitSphereLight)
+            break; // terminate on hitting light (as we assume the sphere light has zero albedo)
+
+        // Attenuate throughput to next hit due to atmospheric attenuation (Beer's law)
+        throughput *= transmittanceOverFreeSegment(pW, rayDir, rayLength, rgb);
 #endif
 
         // This ray hit some geometry, so deal with the surface interaction.
@@ -2250,7 +2504,9 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
         pW += nW * sign(dot(woutputW, nW)) * 3.0*minLengthScale; // perturb vertex into half-space of scattered ray
         misWeightSky = powerHeuristic(bsdfPdf, skyPdf); // compute sky MIS weight for bounce ray
         misWeightSun = powerHeuristic(bsdfPdf, sunPdf); // compute sun MIS weight for bounce ray
+#ifdef HAS_SPHERE_LIGHT
         misWeightSph = powerHeuristic(bsdfPdf, sphPdf); // compute sphere-light MIS weight for bounce ray
+#endif
     }
     return L;
 }
@@ -2328,7 +2584,7 @@ void main()
         gbuf_rng = rnd;
         return;
     }
-#endif 
+#endif
 
     INIT();
     pathtrace(gl_FragCoord.xy, rnd);

@@ -348,6 +348,7 @@ Optional callback on key down.
 | [maxSamplesPerFrame] | <code>number</code> | <code>1</code> | maximum number of per-pixel samples per frame |
 | [maxSpp] | <code>number</code> | <code>1</code> | maximum number of samples-per-pixel, after which the render terminates |
 | [maxBounces] | <code>number</code> | <code>3</code> | maximum number of surface bounces |
+| [maxAtmosphereScatters] | <code>number</code> | <code>1</code> | maximum number of scatters in atmosphere (1 -> single scattering only) |
 | [maxMarchSteps] | <code>number</code> | <code>256</code> | maximum number of raymarching steps per path segment |
 | [maxStepsIsMiss] | <code>number</code> | <code>true</code> | whether rays which exceed max step count are considered hits or misses |
 | [interactive] | <code>number</code> | <code>true</code> | if enabled, tries to maintain interactive frame rate at the expense of more noise |

@@ -69,8 +69,9 @@ GUI.prototype.createRendererSettings = function()
     this.raymarchingFolder.add(pathtracer, 'renderMode', renderModes).onChange( function(renderMode) { pathtracer.renderMode = renderMode; pathtracer.reset(); });
     this.raymarchingFolder.add(pathtracer, 'dispersive').onChange( function(value) { pathtracer.reset(); } );
     this.raymarchingFolder.add(pathtracer, 'maxBounces', 0, 100, 1).onChange( function(value) { pathtracer.maxBounces = Math.floor(value); pathtracer.reset(); });
+    this.raymarchingFolder.add(pathtracer, 'maxAtmosphereScatters', 1, 100, 1).onChange( function(value) { pathtracer.maxAtmosphereScatters = Math.floor(value); pathtracer.reset(); });
     this.raymarchingFolder.add(pathtracer, 'maxSamplesPerFrame', 1, 16, 1).onChange( function(value) { pathtracer.maxBounces = Math.floor(value); pathtracer.reset(); });
-    this.raymarchingFolder.add(pathtracer, 'maxSpp', 1, 10000, 1).onChange( function(value) { pathtracer.maxSpp = Math.floor(value); pathtracer.reset(); });
+    this.raymarchingFolder.add(pathtracer, 'maxSpp', 1, 100000, 1).onChange( function(value) { pathtracer.maxSpp = Math.floor(value); pathtracer.reset(); });
     this.raymarchingFolder.add(pathtracer, 'maxMarchSteps', 1, 2048, 1).onChange( function(value) { pathtracer.maxMarchSteps = Math.floor(value); pathtracer.reset(); } );
     this.raymarchingFolder.add(pathtracer, 'maxStepsIsMiss').onChange( function(value) { pathtracer.reset(true); } );
     this.raymarchingFolder.add(pathtracer, 'filterRadius', 0.0, 30.0).onChange( function(value) { pathtracer.reset(true); } );
@@ -174,7 +175,16 @@ GUI.prototype.createRendererSettings = function()
 
     // sphere-lighting
     this.sphereLightFolder = this.lightingFolder.addFolder('Sphere Light');
-    this.sphereLightFolder.add(pathtracer, 'sphereLightPower', -7.0, 10.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.sphereLightFolder.sphereLightPower = pathtracer.sphereLightPower;
+    this.sphereLightFolder.add(this.sphereLightFolder, 'sphereLightPower', -7.0, 10.0).onChange( function(value)
+    { 
+        let CACHED_SPHERE_LIGHT_ON = (pathtracer.sphereLightPower > -7.0);
+        pathtracer.sphereLightPower = value;
+        if ((value>-7.0 && !CACHED_SPHERE_LIGHT_ON) || (value==7.0 && CACHED_SPHERE_LIGHT_ON))
+            pathtracer.reset();
+        else
+            pathtracer.reset(true);
+    } );
     this.sphereLightFolder.sphereLightColor = [pathtracer.sphereLightColor[0]*255.0, pathtracer.sphereLightColor[1]*255.0, pathtracer.sphereLightColor[2]*255.0];
     var sphereLightColorItem = this.sphereLightFolder.addColor(this.sphereLightFolder, 'sphereLightColor');
     sphereLightColorItem.onChange( function(C) {
@@ -194,6 +204,8 @@ GUI.prototype.createRendererSettings = function()
                             snelly.reset(true);
                         } );
     this.sphereLightFolder.add(pathtracer, 'sphereLightRadius', 0.0, 10.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.sphereLightFolder.addColor(pathtracer, 'sphereLightPosition', 100.0).onChange( function(value) { pathtracer.reset(true); } );
+
     this.sphereLightFolder.close();
 
     this.gui.remember(this.pathtracerSettings);
