@@ -44,6 +44,9 @@ function Surface(name)
     this.specAlbedo = [1.0, 1.0, 1.0];
     this.roughness = 0.1;
     this.ior = 1.5;
+    this.subsurfaceAlbedoRGB = [0.5, 0.5, 0.5];
+    this.subsurfaceMFP = 0.0;
+    this.subsurfaceAnisotropy = 0.0;
 }
 
 Surface.prototype = Object.create(Material.prototype);
@@ -55,6 +58,9 @@ Surface.prototype.repr  = function()
     surface.ior = ${this.ior};
     surface.diffuseAlbedo = [${this.diffuseAlbedo[0]}, ${this.diffuseAlbedo[1]}, ${this.diffuseAlbedo[2]}];
     surface.specAlbedo = [${this.specAlbedo[0]}, ${this.specAlbedo[1]}, ${this.specAlbedo[2]}];
+    surface.subsurfaceAlbedoRGB = [${this.subsurfaceAlbedoRGB[0]}, ${this.subsurfaceAlbedoRGB[1]}, ${this.subsurfaceAlbedoRGB[2]}];
+    surface.subsurfaceMFP = ${this.subsurfaceMFP};
+    surface.subsurfaceAnisotropy = ${this.subsurfaceAnisotropy};
     `;
     return code;
 }
@@ -65,6 +71,9 @@ Surface.prototype.syncShader = function(shader)
     shader.uniform3Fv("surfaceSpecAlbedoRGB", this.specAlbedo);
     shader.uniformF("surfaceRoughness", this.roughness);
     shader.uniformF("surfaceIor", this.ior);
+    shader.uniform3Fv("subsurfaceAlbedoRGB", this.subsurfaceAlbedoRGB);
+    shader.uniformF("subsurfaceMFP", this.subsurfaceMFP);
+    shader.uniformF("subsurfaceAnisotropy", this.subsurfaceAnisotropy);
 }
 
 Surface.prototype.initGui  = function(parentFolder) 
@@ -115,6 +124,33 @@ Surface.prototype.initGui  = function(parentFolder)
     this.iorItem = parentFolder.add(this, 'ior', 1.0, 6.0);
     this.iorItem.onChange( function(value) { SURFACE_OBJ.ior = value; snelly.camera.enabled = false; snelly.reset(true); } );
     this.iorItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+
+    this.subsurfaceAlbedo = [this.subsurfaceAlbedoRGB[0]*255.0, this.subsurfaceAlbedoRGB[1]*255.0, this.subsurfaceAlbedoRGB[2]*255.0];
+    var subsurfaceAlbedoItem = parentFolder.addColor(this, 'subsurfaceAlbedo');
+    subsurfaceAlbedoItem.onChange( function(albedo) {
+                            if (typeof albedo==='string' || albedo instanceof String)
+                            {
+                                var color = hexToRgb(albedo);
+                                SURFACE_OBJ.subsurfaceAlbedoRGB[0] = color.r / 255.0;
+                                SURFACE_OBJ.subsurfaceAlbedoRGB[1] = color.g / 255.0;
+                                SURFACE_OBJ.subsurfaceAlbedoRGB[2] = color.b / 255.0;
+                            }
+                            else
+                            {
+                                SURFACE_OBJ.subsurfaceAlbedoRGB[0] = albedo[0] / 255.0;
+                                SURFACE_OBJ.subsurfaceAlbedoRGB[1] = albedo[1] / 255.0;
+                                SURFACE_OBJ.subsurfaceAlbedoRGB[2] = albedo[2] / 255.0;
+                            }
+                            snelly.reset(true);
+                        } );
+
+    this.subsurfaceMFPItem = parentFolder.add(this, 'subsurfaceMFP', 0.0, 10.0);
+    this.subsurfaceMFPItem.onChange( function(value) { SURFACE_OBJ.subsurfaceMFP = value; snelly.camera.enabled = false; snelly.reset(true); } );
+    this.subsurfaceMFPItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+
+    this.subsurfaceAnisotropyItem = parentFolder.add(this, 'subsurfaceAnisotropy', -1.0, 1.0);
+    this.subsurfaceAnisotropyItem.onChange( function(value) { SURFACE_OBJ.subsurface = value; snelly.camera.enabled = false; snelly.reset(true); } );
+    this.subsurfaceAnisotropyItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
 }
 
 ////////////////////////////////////////////////////////

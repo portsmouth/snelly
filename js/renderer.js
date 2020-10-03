@@ -229,6 +229,7 @@ Renderer.prototype.compileShaders = function()
     if (shader.indexOf("SURFACE_SPECULAR_REFLECTANCE(")    == -1) { shader += `\n vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
     if (shader.indexOf("SURFACE_ROUGHNESS(")               == -1) { shader += `\n float SURFACE_ROUGHNESS(in float roughness, in vec3 X, in vec3 N) { return roughness; }\n`; }
     if (shader.indexOf("SURFACE_NORMAL_MAP(")               > -1) { hasSurfaceNM = true; }
+    if (shader.indexOf("SUBSURFACE_ALBEDO(")               == -1) { shader += `\n vec3 SUBSURFACE_ALBEDO(in vec3 C, in vec3 X, in vec3 N) { return C; }\n`; }
 
     let hasMetal = true;
     let hasMetalNM = false;

@@ -72,6 +72,10 @@ uniform vec3 surfaceDiffuseAlbedoRGB;
 uniform vec3 surfaceSpecAlbedoRGB;
 uniform float surfaceRoughness;
 uniform float surfaceIor;
+uniform float subsurface;
+uniform vec3 subsurfaceAlbedoRGB;
+uniform float subsurfaceMFP;
+uniform float subsurfaceAnisotropy;
 
 // Atmosphere constants
 uniform vec3 atmosphereBoundsMin;
@@ -337,16 +341,16 @@ float powerHeuristic(const float a, const float b)
 // Phase function
 /////////////////////////////////////////////////////////////////////////
 
-float phaseFunction(float mu)
+float phaseFunction(float mu, float anisotropy)
 {
-    float g = atmosphereAnisotropy;
+    float g = anisotropy;
     float gSqr = g*g;
     return (1.0/(4.0*M_PI)) * (1.0 - gSqr) / pow(1.0 - 2.0*g*mu + gSqr, 1.5);
 }
 
-vec3 samplePhaseFunction(in vec3 rayDir, inout vec4 rnd)
+vec3 samplePhaseFunction(in vec3 rayDir, float anisotropy, inout vec4 rnd)
 {
-    float g = atmosphereAnisotropy;
+    float g = anisotropy;
     float costheta;
     if (abs(g)<1.0e-3)
         costheta = 1.0 - 2.0*rand(rnd);
@@ -697,6 +701,12 @@ RadianceType sampleMetal( in vec3 X, in Basis basis, in vec3 winputL, in float w
 RadianceType SURFACE_DIFFUSE_REFL_EVAL(in vec3 X, in vec3 nW, in vec3 winputW, in vec3 rgb)
 {
     vec3 reflRGB = SURFACE_DIFFUSE_REFLECTANCE(surfaceDiffuseAlbedoRGB, X, nW, winputW);
+    return rgbToAlbedo(reflRGB, rgb);
+}
+
+RadianceType SUBSURFACE_ALBEDO_EVAL(in vec3 X, in vec3 nW, in vec3 rgb)
+{
+    vec3 reflRGB = SUBSURFACE_ALBEDO(subsurfaceAlbedoRGB, X, nW);
     return rgbToAlbedo(reflRGB, rgb);
 }
 
@@ -1280,7 +1290,7 @@ RadianceType directVolumeLighting(in vec3 pW, in vec3 rayDir, in vec3 rgb, inout
             Li *= abs(RadianceType(1.0) - shadowStrength*(RadianceType(1.0)-Tr));
             if (averageComponent(Li) > RADIANCE_EPSILON)
             {
-                float PF = phaseFunction(dot(-rayDir, -woutputW)); // evaluate phase function for scattering -woutputW -> -rayDir
+                float PF = phaseFunction(dot(-rayDir, -woutputW), atmosphereAnisotropy); // evaluate phase function for scattering -woutputW -> -rayDir
                 Ldirect += PF * Li/max(PDF_EPSILON, skyPdf);
             }
         }
@@ -1298,7 +1308,7 @@ RadianceType directVolumeLighting(in vec3 pW, in vec3 rayDir, in vec3 rgb, inout
             Li *= abs(RadianceType(1.0) - shadowStrength*(RadianceType(1.0)-Tr));
             if (averageComponent(Li) > RADIANCE_EPSILON)
             {
-                float PF = phaseFunction(dot(-rayDir, -woutputW)); // evaluate phase function for scattering -woutputW -> -rayDir
+                float PF = phaseFunction(dot(-rayDir, -woutputW), atmosphereAnisotropy); // evaluate phase function for scattering -woutputW -> -rayDir
                 Ldirect += PF * Li/max(PDF_EPSILON, sunPdf);
             }
         }
@@ -1358,7 +1368,7 @@ RadianceType atmosphericInscatteringRadiance(in vec3 pW, in vec3 rayDir, in floa
 
 #ifdef HAS_VOLUME_EMISSION
     // Surface emission contribution
-    vec3 woW = samplePhaseFunction(rayDir, rnd); // sample direction of scattered light (from phase function)
+    vec3 woW = samplePhaseFunction(rayDir, atmosphereAnisotropy, rnd); // sample direction of scattered light (from phase function)
     vec3 pW_hit;
     int hitMaterial;
     bool hit = traceRay(pW_scatter, woW, pW_hit, hitMaterial, maxLengthScale);
@@ -1392,7 +1402,7 @@ RadianceType atmosphericScatterSample(in vec3 pW, in vec3 rayDir, float segmentL
     RadianceType opticalDepth_scatter = (t_scatter - t0) * extinction;         // optical depth from pW -> pW_scatter
     RadianceType Tr_pW = exp(-opticalDepth_scatter);                           // transmittance from pW -> pW_scatter
     float invDistancePdf = (1.0 - T01) * exp(averageComponent(opticalDepth_scatter)) / extinction_norm; // PDF of scatter distance
-    woutputW = samplePhaseFunction(rayDir, rnd); // sample direction of scattered light (from phase function)
+    woutputW = samplePhaseFunction(rayDir, atmosphereAnisotropy, rnd); // sample direction of scattered light (from phase function)
 
     return scattering * Tr_pW * invDistancePdf; // throughput for scattered ray
 }
@@ -1411,6 +1421,122 @@ float atmosphericScatteringProbability(in RadianceType Tr, in vec3 rgb)
     return 0.0;
 #endif
 }
+
+
+///////////////////////////////////////////////////////////////
+// SSS
+///////////////////////////////////////////////////////////////
+
+#define MAX_SSS_STEPS 128
+
+#ifdef HAS_SURFACE
+bool randomwalk_SSS(in vec3 pW, in Basis basis, in float MFP, in RadianceType albedo, inout vec4 rnd,
+                    inout RadianceType walk_throughput, inout vec3 pExit)
+{
+    // Returns true on successful walk to an exit point.
+    // Otherwise false indicating termination without finding a valid exit point.
+    vec3 pWalk = pW;
+    vec3 dPw = 3.0*minLengthScale * basis.nW;
+    pWalk -= dPw; // Displace walk into interior to avoid issues with trace numerics
+    walk_throughput = RadianceType(albedo);
+    float pdfDir;
+    vec3 dirwalkL = sampleHemisphereCosineWeighted(rnd, pdfDir);
+    vec3 dirwalkW = -localToWorld(dirwalkL, basis); // (negative sign to start walk in interior hemisphere)
+    for (int n=0; n<MAX_SSS_STEPS; ++n)
+    {
+        float walk_step = -log(rand(rnd)) * MFP * lengthScale;
+        vec3 pHit;
+        int hitMaterial;
+        bool hit = traceRay(pWalk, dirwalkW, pHit, hitMaterial, walk_step);
+        if (hit)
+        {
+            // walk left the surface
+            pExit = pHit;
+            return true;
+        }
+        // Point remains within the surface, continue walking.
+        dirwalkW = samplePhaseFunction(dirwalkW, subsurfaceAnisotropy, rnd);
+        pWalk += walk_step*dirwalkW;
+        walk_throughput *= albedo;
+    }
+    return false;
+}
+
+// Estimate radiance at the SSS exit point
+RadianceType SSS_exit_radiance(in vec3 pW, Basis basis,
+                               in vec3 rgb, inout vec4 rnd,
+                               inout float skyPdf, inout float sunPdf, inout float sphPdf)
+{
+    vec3 dPw = 3.0*minLengthScale * basis.nW;
+    RadianceType Ldirect = RadianceType(0.0);
+    vec3 woutputL, woutputW;
+
+    // We assume a diffuse, white Lambertian lobe
+    RadianceType f = RadianceType(1.0/M_PI);
+
+    // Sky
+    if (skyPower > RADIANCE_EPSILON)
+    {
+        RadianceType Li = sampleSkyAtSurface(basis, rgb, rnd, woutputL, woutputW, skyPdf);
+        if (averageComponent(Li) > RADIANCE_EPSILON)
+        {
+            RadianceType Tr = transmittanceOverSegment(pW+dPw, woutputW, maxLengthScale, rgb);
+            Li *= abs(RadianceType(1.0) - shadowStrength*(RadianceType(1.0)-Tr));
+            if (averageComponent(Li) > RADIANCE_EPSILON)
+            {
+                // Apply MIS weight with the BSDF pdf for the sampled direction
+                float bsdfPdf = pdfHemisphere(woutputL);
+                float misWeight = powerHeuristic(skyPdf, bsdfPdf);
+                Ldirect += f * Li/max(PDF_EPSILON, skyPdf) * abs(dot(woutputW, basis.nW)) * misWeight;
+            }
+        }
+    }
+    // Sun
+    if (sunPower > RADIANCE_EPSILON)
+    {
+        RadianceType Li = sampleSunAtSurface(basis, rgb, rnd, woutputL, woutputW, sunPdf);
+        if (averageComponent(Li) > RADIANCE_EPSILON)
+        {
+            RadianceType Tr = transmittanceOverSegment(pW+dPw, woutputW, maxLengthScale, rgb);
+            Li *= abs(RadianceType(1.0) - shadowStrength*(RadianceType(1.0)-Tr));
+            if (averageComponent(Li) > RADIANCE_EPSILON)
+            {
+                // Apply MIS weight with the BSDF pdf for the sampled direction
+                float bsdfPdf = pdfHemisphere(woutputL);
+                float misWeight = powerHeuristic(sunPdf, bsdfPdf);
+                Ldirect += f * Li/max(PDF_EPSILON, sunPdf) * abs(dot(woutputW, basis.nW)) * misWeight;
+            }
+        }
+    }
+#ifdef HAS_SPHERE_LIGHT
+    // Sphere light
+    if ((sphereLightPower > RADIANCE_EPSILON) &&
+        (dot(pW - sphereLightPosition, basis.nW) <= sphereLightRadius)) // (is sphere visible from the surface point?)
+    {
+        vec3 pHit;
+        RadianceType Li = sampleSphereLight(rgb, rnd, pW, pHit, sphPdf);
+        if (averageComponent(Li) > RADIANCE_EPSILON)
+        {
+            float hitDist = max(0.0, length(pHit - pW) - 3.0*minLengthScale);
+            woutputW = normalize(pHit - pW);
+            woutputL = worldToLocal(woutputW, basis);
+            RadianceType Tr = transmittanceOverSegment(pW+dPw, woutputW, hitDist, rgb);
+            Li *= abs(RadianceType(1.0) - shadowStrength*(RadianceType(1.0)-Tr));
+            if (averageComponent(Li) > RADIANCE_EPSILON)
+            {
+                // Apply MIS weight with the BSDF pdf for the sampled direction
+                float bsdfPdf = pdfHemisphere(woutputL);
+                float misWeight = powerHeuristic(sphPdf, bsdfPdf);
+                Ldirect += f * Li/max(PDF_EPSILON, sphPdf) * abs(dot(woutputW, basis.nW)) * misWeight;
+            }
+        }
+    }
+#endif
+    return min(RadianceType(radianceClamp), Ldirect);
+}
+
+#endif
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Pathtracing integrator
@@ -1498,8 +1624,8 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
                 float scatter_prob = atmosphericScatteringProbability(Tr, rgb);
                 if (averageComponent(Tr) > RADIANCE_EPSILON)
                 {
-                    if (!(vertex==0 && !envMapVisible))      L += throughput * Tr * misWeightSky * environmentRadiance(rayDir, rgb) / (1.0 - scatter_prob);
-                    if (!(vertex==0 && !sunVisibleDirectly)) L += throughput * Tr * misWeightSun * sunRadiance(rayDir, rgb)         / (1.0 - scatter_prob);
+                    if (!(vertex==0 && !envMapVisible)      && misWeightSky>0.0) L += throughput * Tr * misWeightSky * environmentRadiance(rayDir, rgb) / (1.0 - scatter_prob);
+                    if (!(vertex==0 && !sunVisibleDirectly) && misWeightSun>0.0) L += throughput * Tr * misWeightSun * sunRadiance(rayDir, rgb)         / (1.0 - scatter_prob);
                 }
             }
 
@@ -1523,10 +1649,9 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
                     continue;
                 }
             }
-
-            // Otherwise ray escapes to infinity
-            break;
 #endif
+            // Ray escapes to infinity
+            break;
         }
 
         RadianceType Tr = RadianceType(1.0); // transmittance (about to be calculated) over segment to next hit
@@ -1605,16 +1730,6 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
         basis = makeBasis(nW);
 #endif
 
-        // Sample BSDF for the next bounce direction
-        vec3 winputW = -rayDir; // winputW, points *towards* the incident direction
-        vec3 winputL = worldToLocal(winputW, basis);
-        vec3 woutputL; // woutputL, points *towards* the outgoing direction
-        float bsdfPdf;
-        bool fromCamera = true; // camera path
-        RadianceType f = sampleBsdf(pW, basis, winputL, hitMaterial, wavelength_nm, rgb, fromCamera, woutputL, bsdfPdf, rnd);
-        vec3 woutputW = localToWorld(woutputL, basis);
-        rayDir = woutputW; // Update ray direction
-
         // Detect dielectric transmission
 #ifdef HAS_DIELECTRIC
         if (hitMaterial==MAT_DIELE && dot(winputW, nW)*dot(woutputW, nW) < 0.0)
@@ -1626,30 +1741,110 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
         // Add volumetric emission at the surface point, if present (treating it as an isotropic radiance field)
         L += throughput * VOLUME_EMISSION_EVAL(pW, rgb);
 #endif
-        // Update path throughput
-        RadianceType fOverPdf = min(RadianceType(radianceClamp), f/max(PDF_EPSILON, bsdfPdf));
-        throughput *= fOverPdf * abs(dot(woutputW, nW));
-        if (maxComponent(throughput) < THROUGHPUT_EPSILON) break;
 
-        // Add direct lighting term at current surface vertex
-        float skyPdf = 0.0;
-        float sunPdf = 0.0;
-        float sphPdf = 0.0;
-#ifdef HAS_DIELECTRIC
-        if (!inDielectric)
-#endif
+        // Make a binary choice whether to scatter at the surface, or do a subsurface random walk:
+        bool do_subsurface_walk = false;
+        float prob_sss = 0.0;
+#ifdef HAS_SURFACE
+        RadianceType subsurface_albedo;  // In order to do the SSS walk:
+        if (subsurfaceMFP > 0.0)         // a) the surface must have non-zero subsurface MFP, and
         {
-            L += throughput * directSurfaceLighting(pW, basis, winputW, hitMaterial, wavelength_nm, rgb, rnd,
+            subsurface_albedo = SUBSURFACE_ALBEDO_EVAL(pW, basis.nW, rgb);
+            prob_sss = 0.5 * averageComponent(subsurface_albedo); // b) we must randomly choose to walk using a heuristic based on the subsurface albedo
+            prob_sss = clamp(prob_sss, 0.0, 1.0-PDF_EPSILON);
+            do_subsurface_walk = (rand(rnd) < prob_sss);
+        }
+#endif
+
+        float bsdfPdf;
+        vec3 winputW;
+
+        // Regular surface bounce case
+        if (!do_subsurface_walk)
+        {
+            // Sample BSDF for the next bounce direction
+            winputW = -rayDir; // winputW, points *towards* the incident direction
+            vec3 winputL = worldToLocal(winputW, basis);
+            vec3 woutputL; // woutputL, points *towards* the outgoing direction
+            bool fromCamera = true; // camera path
+            RadianceType f = sampleBsdf(pW, basis, winputL, hitMaterial, wavelength_nm, rgb, fromCamera, woutputL, bsdfPdf, rnd);
+            vec3 woutputW = localToWorld(woutputL, basis);
+
+            // Update ray direction to the BSDF-sampled direction
+            rayDir = woutputW;
+
+            // Update path continuation throughput
+            RadianceType fOverPdf = min(RadianceType(radianceClamp), f/max(PDF_EPSILON, bsdfPdf));
+            RadianceType surface_throughput = throughput * fOverPdf * abs(dot(woutputW, nW)) / (1.0 - prob_sss);
+            throughput = surface_throughput;
+
+            // Add direct lighting term at current surface vertex
+            float skyPdf = 0.0;
+            float sunPdf = 0.0;
+            float sphPdf = 0.0;
+#ifdef HAS_DIELECTRIC
+            if (!inDielectric)
+#endif
+                L += throughput * directSurfaceLighting(pW, basis, winputW, hitMaterial, wavelength_nm, rgb, rnd,
                                                     skyPdf, sunPdf, sphPdf);
+            misWeightSky = powerHeuristic(bsdfPdf, skyPdf); // compute sky MIS weight for bounce ray
+            misWeightSun = powerHeuristic(bsdfPdf, sunPdf); // compute sun MIS weight for bounce ray
+#ifdef HAS_SPHERE_LIGHT
+            misWeightSph = powerHeuristic(bsdfPdf, sphPdf); // compute sphere-light MIS weight for bounce ray
+#endif
         }
 
-        // Prepare for tracing the bounce ray
-        pW += nW * sign(dot(woutputW, nW)) * 3.0*minLengthScale; // perturb vertex into half-space of scattered ray
-        misWeightSky = powerHeuristic(bsdfPdf, skyPdf); // compute sky MIS weight for bounce ray
-        misWeightSun = powerHeuristic(bsdfPdf, sunPdf); // compute sun MIS weight for bounce ray
-#ifdef HAS_SPHERE_LIGHT
-        misWeightSph = powerHeuristic(bsdfPdf, sphPdf); // compute sphere-light MIS weight for bounce ray
+#ifdef HAS_SURFACE
+        // Do subsurface random walk to a new vertex
+        else
+        {
+            RadianceType walk_throughput;
+            vec3 pExit;
+            bool success = randomwalk_SSS(pW, basis, subsurfaceMFP, subsurface_albedo, rnd, walk_throughput, pExit);
+            if (!success)
+                break;
+
+            // Update path vertex to exit point
+            pW = pExit;
+
+            // Sample direction of exit ray from a diffuse lobe:
+            float pdfDir;
+            vec3 dirExitL = sampleHemisphereCosineWeighted(rnd, pdfDir);
+            bsdfPdf = pdfDir;
+            nW = normal(pExit, MAT_SURFA); // Compute updated normal and basis at exit point
+            Basis basis_exit = makeBasis(nW);
+            vec3 woutputW = localToWorld(dirExitL, basis_exit);
+
+            // Update ray direction to the SSS exit direction
+            rayDir = woutputW;
+
+            // Update path continuation throughput
+            RadianceType subsurface_throughput = throughput * walk_throughput / prob_sss;
+            throughput = subsurface_throughput;
+
+            // Add direct lighting term at exit vertex (assumed to be a diffuse lobe)
+            float skyPdf = 0.0;
+            float sunPdf = 0.0;
+            float sphPdf = 0.0;
+#ifdef HAS_DIELECTRIC
+            if (!inDielectric)
 #endif
+                L += throughput * SSS_exit_radiance(pExit, basis_exit, rgb, rnd,
+                                                    skyPdf, sunPdf, sphPdf);
+            misWeightSky = powerHeuristic(bsdfPdf, skyPdf); // compute sky MIS weight for bounce ray
+            misWeightSun = powerHeuristic(bsdfPdf, sunPdf); // compute sun MIS weight for bounce ray
+#ifdef HAS_SPHERE_LIGHT
+            misWeightSph = powerHeuristic(bsdfPdf, sphPdf); // compute sphere-light MIS weight for bounce ray
+#endif
+        }
+#endif
+
+        // Prepare for tracing the continuation ray
+        pW += nW * sign(dot(rayDir, nW)) * 3.0*minLengthScale; // perturb vertex into half-space of scattered ray
+
+        // Bail out now if the path continuation throughput is below threshold
+        if (maxComponent(throughput) < THROUGHPUT_EPSILON) 
+            break;
     }
     return L;
 }
