@@ -325,7 +325,7 @@ vec3 sampleHemisphereCosineWeighted(inout vec4 rnd, inout float pdf)
 }
 
 // pdf for cosine-weighted sampling of hemisphere
-float pdfHemisphere(in vec3 wiL)
+float pdfHemisphereCosineWeighted(in vec3 wiL)
 {
     if (wiL.z < 0.0) return 0.0;
     return wiL.z / M_PI;
@@ -747,7 +747,7 @@ float pdfSurface(in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, i
     float weightSum = max(specWeight + diffuseWeight, DENOM_TOLERANCE);
     float specProb = specWeight/weightSum;
     float roughness = SURFACE_ROUGHNESS(surfaceRoughness, X, basis.nW);
-    float diffusePdf = pdfHemisphere(woutputL);
+    float diffusePdf = pdfHemisphereCosineWeighted(woutputL);
     vec3 h = safe_normalize(woutputL + winputL); // reflection half-vector
     float dwh_dwo = 1.0 / max(abs(4.0*dot(winputL, h)), DENOM_TOLERANCE); // Jacobian of the half-direction mapping
     float specularPdf = microfacetPDF(h, roughness) * dwh_dwo;
@@ -882,7 +882,7 @@ bool traceRay(in vec3 start, in vec3 dir,
 
     float InitialSign = sign(sdf);
     float t = InitialSign * sdf; // (always take the first step along the ray direction)
-    if (t>=maxMarchDist) return false;
+    if (abs(t)>=maxMarchDist) return false;
     for (int n=0; n<__MAX_MARCH_STEPS__; n++)
     {
         vec3 pW = start + t*dir;
@@ -899,7 +899,7 @@ bool traceRay(in vec3 start, in vec3 dir,
         // With this formula, the ray advances whether sdf is initially negative or positive --
         // but on crossing the zero isosurface, sdf flips allowing bracketing of the root.
         t += InitialSign * sdf;
-        if (t>=maxMarchDist) return false;
+        if (abs(t)>=maxMarchDist) return false;
     }
     return !maxStepsIsMiss;
 }
@@ -1427,7 +1427,7 @@ float atmosphericScatteringProbability(in RadianceType Tr, in vec3 rgb)
 // SSS
 ///////////////////////////////////////////////////////////////
 
-#define MAX_SSS_STEPS 128
+#define MAX_SSS_STEPS 1024
 
 #ifdef HAS_SURFACE
 bool randomwalk_SSS(in vec3 pW, in Basis basis, in float MFP, in RadianceType albedo, inout vec4 rnd,
@@ -1438,12 +1438,13 @@ bool randomwalk_SSS(in vec3 pW, in Basis basis, in float MFP, in RadianceType al
     vec3 pWalk = pW;
     vec3 dPw = 3.0*minLengthScale * basis.nW;
     pWalk -= dPw; // Displace walk into interior to avoid issues with trace numerics
-    walk_throughput = RadianceType(albedo);
+    walk_throughput = RadianceType(1.0);
     float pdfDir;
     vec3 dirwalkL = sampleHemisphereCosineWeighted(rnd, pdfDir);
     vec3 dirwalkW = -localToWorld(dirwalkL, basis); // (negative sign to start walk in interior hemisphere)
     for (int n=0; n<MAX_SSS_STEPS; ++n)
     {
+        walk_throughput *= albedo;
         float walk_step = -log(rand(rnd)) * MFP * lengthScale;
         vec3 pHit;
         int hitMaterial;
@@ -1457,7 +1458,6 @@ bool randomwalk_SSS(in vec3 pW, in Basis basis, in float MFP, in RadianceType al
         // Point remains within the surface, continue walking.
         dirwalkW = samplePhaseFunction(dirwalkW, subsurfaceAnisotropy, rnd);
         pWalk += walk_step*dirwalkW;
-        walk_throughput *= albedo;
     }
     return false;
 }
@@ -1485,7 +1485,7 @@ RadianceType SSS_exit_radiance(in vec3 pW, Basis basis,
             if (averageComponent(Li) > RADIANCE_EPSILON)
             {
                 // Apply MIS weight with the BSDF pdf for the sampled direction
-                float bsdfPdf = pdfHemisphere(woutputL);
+                float bsdfPdf = pdfHemisphereCosineWeighted(woutputL);
                 float misWeight = powerHeuristic(skyPdf, bsdfPdf);
                 Ldirect += f * Li/max(PDF_EPSILON, skyPdf) * abs(dot(woutputW, basis.nW)) * misWeight;
             }
@@ -1502,7 +1502,7 @@ RadianceType SSS_exit_radiance(in vec3 pW, Basis basis,
             if (averageComponent(Li) > RADIANCE_EPSILON)
             {
                 // Apply MIS weight with the BSDF pdf for the sampled direction
-                float bsdfPdf = pdfHemisphere(woutputL);
+                float bsdfPdf = pdfHemisphereCosineWeighted(woutputL);
                 float misWeight = powerHeuristic(sunPdf, bsdfPdf);
                 Ldirect += f * Li/max(PDF_EPSILON, sunPdf) * abs(dot(woutputW, basis.nW)) * misWeight;
             }
@@ -1525,7 +1525,7 @@ RadianceType SSS_exit_radiance(in vec3 pW, Basis basis,
             if (averageComponent(Li) > RADIANCE_EPSILON)
             {
                 // Apply MIS weight with the BSDF pdf for the sampled direction
-                float bsdfPdf = pdfHemisphere(woutputL);
+                float bsdfPdf = pdfHemisphereCosineWeighted(woutputL);
                 float misWeight = powerHeuristic(sphPdf, bsdfPdf);
                 Ldirect += f * Li/max(PDF_EPSILON, sphPdf) * abs(dot(woutputW, basis.nW)) * misWeight;
             }
@@ -1775,8 +1775,8 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
 
             // Update path continuation throughput
             RadianceType fOverPdf = min(RadianceType(radianceClamp), f/max(PDF_EPSILON, bsdfPdf));
-            RadianceType surface_throughput = throughput * fOverPdf * abs(dot(woutputW, nW)) / (1.0 - prob_sss);
-            throughput = surface_throughput;
+            RadianceType surface_throughput = fOverPdf * abs(dot(woutputW, nW)) / (1.0 - prob_sss);
+            throughput *= surface_throughput;
 
             // Add direct lighting term at current surface vertex
             float skyPdf = 0.0;
@@ -1786,7 +1786,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             if (!inDielectric)
 #endif
                 L += throughput * directSurfaceLighting(pW, basis, winputW, hitMaterial, wavelength_nm, rgb, rnd,
-                                                    skyPdf, sunPdf, sphPdf);
+                                                        skyPdf, sunPdf, sphPdf);
             misWeightSky = powerHeuristic(bsdfPdf, skyPdf); // compute sky MIS weight for bounce ray
             misWeightSun = powerHeuristic(bsdfPdf, sunPdf); // compute sun MIS weight for bounce ray
 #ifdef HAS_SPHERE_LIGHT
@@ -1807,20 +1807,23 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             // Update path vertex to exit point
             pW = pExit;
 
-            // Sample direction of exit ray from a diffuse lobe:
-            float pdfDir;
-            vec3 dirExitL = sampleHemisphereCosineWeighted(rnd, pdfDir);
-            bsdfPdf = pdfDir;
-            nW = normal(pExit, MAT_SURFA); // Compute updated normal and basis at exit point
+            // Compute updated normal and basis at exit point
+            nW = normal(pExit, MAT_SURFA);
             Basis basis_exit = makeBasis(nW);
+
+            // Sample direction of exit ray (assuming a diffuse, white Lambertian lobe)
+            RadianceType f = RadianceType(1.0/M_PI);
+            float bsdfPdf;
+            vec3 dirExitL = sampleHemisphereCosineWeighted(rnd, bsdfPdf);
             vec3 woutputW = localToWorld(dirExitL, basis_exit);
 
             // Update ray direction to the SSS exit direction
             rayDir = woutputW;
 
             // Update path continuation throughput
-            RadianceType subsurface_throughput = throughput * walk_throughput / prob_sss;
-            throughput = subsurface_throughput;
+            RadianceType fOverPdf = min(RadianceType(radianceClamp), f/max(PDF_EPSILON, bsdfPdf));
+            RadianceType surface_exit_throughput = fOverPdf * abs(dot(woutputW, nW));
+            throughput *= walk_throughput * surface_exit_throughput / prob_sss;
 
             // Add direct lighting term at exit vertex (assumed to be a diffuse lobe)
             float skyPdf = 0.0;
