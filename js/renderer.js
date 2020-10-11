@@ -14,6 +14,7 @@
 * @property {number} [maxAtmosphereScatters=1]   - maximum number of scatters in atmosphere (1 -> single scattering only)
 * @property {number} [maxMarchSteps=256]         - maximum number of raymarching steps per path segment
 * @property {number} [maxStepsIsMiss=true]       - whether rays which exceed max step count are considered hits or misses
+* @property {number} [maxSSSSteps=1]             - maximum number of scatters under surface if SSS enabled (via subsurfaceMFP > 0)
 * @property {number} [interactive=true]          - if enabled, tries to maintain interactive frame rate at the expense of more noise
 * @property {number} [goalFPS=10.0]              - sampling will adjust to try to match goal FPS
 * @property {number} [minsSPPToRedraw=0.0]       - if >0.0, renderer will not redraw until the specified SPP have been accumulated
@@ -83,6 +84,7 @@ var Renderer = function()
     this.maxBounces = 3;
     this.maxAtmosphereScatters = 1;
     this.maxMarchSteps = 256;
+    this.maxSSSSteps = 256;
     this.radianceClamp = 3.0;
     this.wavelengthSamples = 256;
     this.filterRadius = 2.0;
@@ -534,6 +536,7 @@ Renderer.prototype.render = function()
         INTEGRATOR_PROGRAM.uniformF("maxLengthScale", Math.max(snelly.maxLengthScale, 1.0e-6));
         INTEGRATOR_PROGRAM.uniformF("minLengthScale", Math.max(snelly.minLengthScale, 1.0e-6));
         INTEGRATOR_PROGRAM.uniformF("shadowStrength", this.shadowStrength);
+        INTEGRATOR_PROGRAM.uniformI("maxSSSSteps", this.maxSSSSteps);
         INTEGRATOR_PROGRAM.uniformI("maxStepsIsMiss", Boolean(this.maxStepsIsMiss) ? 1 : 0);
         INTEGRATOR_PROGRAM.uniformI("wavelengthSamples", this.wavelengthSamples);
 

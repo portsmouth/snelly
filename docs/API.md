@@ -351,6 +351,7 @@ Optional callback on key down.
 | [maxAtmosphereScatters] | <code>number</code> | <code>1</code> | maximum number of scatters in atmosphere (1 -> single scattering only) |
 | [maxMarchSteps] | <code>number</code> | <code>256</code> | maximum number of raymarching steps per path segment |
 | [maxStepsIsMiss] | <code>number</code> | <code>true</code> | whether rays which exceed max step count are considered hits or misses |
+| [maxSSSSteps] | <code>number</code> | <code>1</code> | maximum number of scatters under surface if SSS enabled (via subsurfaceMFP > 0) |
 | [interactive] | <code>number</code> | <code>true</code> | if enabled, tries to maintain interactive frame rate at the expense of more noise |
 | [goalFPS] | <code>number</code> | <code>10.0</code> | sampling will adjust to try to match goal FPS |
 | [minsSPPToRedraw] | <code>number</code> | <code>0.0</code> | if >0.0, renderer will not redraw until the specified SPP have been accumulated |

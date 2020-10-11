@@ -933,6 +933,7 @@ uniform float subsurface;
 uniform vec3 subsurfaceAlbedoRGB;
 uniform float subsurfaceMFP;
 uniform float subsurfaceAnisotropy;
+uniform int maxSSSSteps;
 
 // Atmosphere constants
 uniform vec3 atmosphereBoundsMin;
@@ -2284,7 +2285,8 @@ float atmosphericScatteringProbability(in RadianceType Tr, in vec3 rgb)
 // SSS
 ///////////////////////////////////////////////////////////////
 
-#define MAX_SSS_STEPS 1024
+#define HARDMAX_SSS_STEPS 2048
+#define MIN_SSS_STEPS_BEFORE_RR 4
 
 #ifdef HAS_SURFACE
 bool randomwalk_SSS(in vec3 pW, in Basis basis, in float MFP, in RadianceType albedo, inout vec4 rnd,
@@ -2299,8 +2301,11 @@ bool randomwalk_SSS(in vec3 pW, in Basis basis, in float MFP, in RadianceType al
     float pdfDir;
     vec3 dirwalkL = sampleHemisphereCosineWeighted(rnd, pdfDir);
     vec3 dirwalkW = -localToWorld(dirwalkL, basis); // (negative sign to start walk in interior hemisphere)
-    for (int n=0; n<MAX_SSS_STEPS; ++n)
+
+    for (int n=0; n<HARDMAX_SSS_STEPS; ++n)
     {
+        if (n>maxSSSSteps)
+            break;
         walk_throughput *= albedo;
         float walk_step = -log(rand(rnd)) * MFP * lengthScale;
         vec3 pHit;
@@ -2313,6 +2318,16 @@ bool randomwalk_SSS(in vec3 pW, in Basis basis, in float MFP, in RadianceType al
             return true;
         }
         // Point remains within the surface, continue walking.
+        // First, make a Russian-roulette termination decision (after a minimum number of steps has been taken)
+        float termination_prob = 0.0;
+        if (n > MIN_SSS_STEPS_BEFORE_RR)
+        {
+            float continuation_prob = clamp(10.0*maxComponent(walk_throughput), 0.0, 1.0);
+            float termination_prob = 1.0 - continuation_prob;
+            if (rand(rnd) < termination_prob)
+                break;
+            walk_throughput /= continuation_prob;
+        }
         dirwalkW = samplePhaseFunction(dirwalkW, subsurfaceAnisotropy, rnd);
         pWalk += walk_step*dirwalkW;
     }
@@ -2587,18 +2602,6 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
         basis = makeBasis(nW);
 #endif
 
-        // Detect dielectric transmission
-#ifdef HAS_DIELECTRIC
-        if (hitMaterial==MAT_DIELE && dot(winputW, nW)*dot(woutputW, nW) < 0.0)
-        {
-            inDielectric = !inDielectric;
-        }
-#endif
-#ifdef HAS_VOLUME_EMISSION
-        // Add volumetric emission at the surface point, if present (treating it as an isotropic radiance field)
-        L += throughput * VOLUME_EMISSION_EVAL(pW, rgb);
-#endif
-
         // Make a binary choice whether to scatter at the surface, or do a subsurface random walk:
         bool do_subsurface_walk = false;
         float prob_sss = 0.0;
@@ -2607,7 +2610,11 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
         if (subsurfaceMFP > 0.0)         // a) the surface must have non-zero subsurface MFP, and
         {
             subsurface_albedo = SUBSURFACE_ALBEDO_EVAL(pW, basis.nW, rgb);
-            prob_sss = 0.5 * averageComponent(subsurface_albedo); // b) we must randomly choose to walk using a heuristic based on the subsurface albedo
+            float diffuse_weight    = averageComponent(SURFACE_DIFFUSE_REFL_EVAL(pW, basis.nW, -rayDir, rgb));
+            float    spec_weight    = averageComponent(SURFACE_SPEC_REFL_EVAL(pW, basis.nW, -rayDir, rgb));
+            float subsurface_weight = averageComponent(subsurface_albedo) * 3.0; // weight more highly due to higher variance
+            float total_weight = diffuse_weight + spec_weight + subsurface_weight;
+            prob_sss = subsurface_weight / (total_weight + DENOM_TOLERANCE);
             prob_sss = clamp(prob_sss, 0.0, 1.0-PDF_EPSILON);
             do_subsurface_walk = (rand(rnd) < prob_sss);
         }
@@ -2626,6 +2633,18 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             bool fromCamera = true; // camera path
             RadianceType f = sampleBsdf(pW, basis, winputL, hitMaterial, wavelength_nm, rgb, fromCamera, woutputL, bsdfPdf, rnd);
             vec3 woutputW = localToWorld(woutputL, basis);
+
+            // Detect dielectric transmission
+#ifdef HAS_DIELECTRIC
+            if (hitMaterial==MAT_DIELE && dot(winputW, nW)*dot(woutputW, nW) < 0.0)
+            {
+                inDielectric = !inDielectric;
+            }
+#endif
+#ifdef HAS_VOLUME_EMISSION
+            // Add volumetric emission at the surface point, if present (treating it as an isotropic radiance field)
+            L += throughput * VOLUME_EMISSION_EVAL(pW, rgb);
+#endif
 
             // Update ray direction to the BSDF-sampled direction
             rayDir = woutputW;
