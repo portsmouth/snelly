@@ -62,68 +62,96 @@ Scene.prototype.init = function(snelly)
 
     /******* copy-pasted console output on 'O', begin *******/
 
-	let renderer  = snelly.getRenderer();
-	let camera    = snelly.getCamera();
-	let controls  = snelly.getControls();
-	let materials = snelly.getMaterials();
-		
-	this.parameters.shape = 'Dodecahedron';
-	this.parameters.size = 1.8040873854827344;
-	this.parameters.rotation = [0,0,0];
-	this.parameters.bulge = 0.16913319238900634;
-	this.parameters.height = 1;
 
-   this.parameters.check_size = 1.0;
-		
-	snelly.showGUI(true);
+    let renderer  = snelly.getRenderer();
+    let camera    = snelly.getCamera();
+    let controls  = snelly.getControls();
+    let materials = snelly.getMaterials();
+    
+this.parameters.shape = 'Dodecahedron';
+this.parameters.size = 1.8013372677541466;
+this.parameters.rotation = [0,0,0];
+this.parameters.bulge = 0.16913319238900634;
+this.parameters.height = 5.96692969943561;
+this.parameters.check_size = 0.2;
+	
+snelly.showGUI(true);
 
-	/** Camera settings **/
-	camera.fov = 45;
-	camera.aperture = -30.0;
-	camera.focalDistance = 0.7174954174734902;
-	camera.up.set(0, 1, 0);
-	camera.position.set(-5.907557938895467, 1.4708539245099685, 3.291321370537903);
-	controls.target.set(8.78369797993197, -0.12020094276692239, -3.734560670234669);
+    /** Camera settings **/
+    camera.fov = 45;
+    camera.aperture = -30;
+    camera.focalDistance = 0.7174954174734902;
+    camera.up.set(0, 1, 0);
+    camera.position.set(1.9802852365772439, 11.643092148015368, -26.21026743959043);
+    controls.target.set(-0.9432624809676923, 3.6000978208396144, -3.0789137048043127);
 
-	/** Renderer settings **/
-	renderer.renderMode = 'pt';
-	renderer.dispersive = false;
-	renderer.maxSamplesPerFrame = 1;
-	renderer.maxBounces = 4;
-	renderer.maxMarchSteps = 256;
-	renderer.maxStepsIsMiss = true;
-	renderer.interactive = true;
-	renderer.goalFPS = 20;
-	renderer.minsSPPToRedraw = 0;
-	renderer.radianceClamp = 2.5508817333358325;
-	renderer.wavelengthSamples = 29.504941582431588;
-	renderer.exposure = 0.5013371485834694;
-	renderer.gamma = 2.173243747396636;
-	renderer.contrast = 1;
-	renderer.saturation = 1;
-	renderer.skyPower = 0.0;
-	renderer.skyTemperature = 6000;
-	renderer.envMapRotation = 0;
-	renderer.envMapVisible = true;
-	renderer.sunPower = -10.0;
-	renderer.sunColor = [1, 0.8, 0.5];
-	renderer.sunAngularSize = 5;
-	renderer.sunLatitude = 50;
-	renderer.sunLongitude = 0;
-	renderer.sunVisibleDirectly = true;
-	renderer.shadowStrength = 1;
+    /** Renderer settings **/
+    // General rendering settings
+    renderer.renderMode = 'pt';
+    renderer.dispersive = false;
+    renderer.maxSamplesPerFrame = 1;
+    renderer.maxSpp = 1024;
+    renderer.maxBounces = 4;
+    renderer.maxMarchSteps = 256;
+    renderer.maxStepsIsMiss = true;
+    renderer.interactive = true;
+    renderer.goalFPS = 20;
+    renderer.minsSPPToRedraw = 0;
+    renderer.filterRadius = 2;
+    renderer.radianceClamp = 2.5508817333358325;
+    renderer.wavelengthSamples = 29.504941582431588;
+    renderer.shadowStrength = 1;
+    // Tone-mapping
+    renderer.exposure = 0.5013371485834694;
+    renderer.gamma = 2.173243747396636;
+    renderer.contrast = 1;
+    renderer.saturation = 1;
+    // Lights
+        // sky light
+        renderer.skyPower = -7;
+        renderer.skyTintUp = [1, 1, 1];
+        renderer.skyTintDown = [1, 1, 1];
+        renderer.envMapVisible = true;
+        renderer.envMapPhiRotation = 0;
+        renderer.envMapThetaRotation = 0;
+        renderer.envMapTransitionAngle = 135;
+        // sun light
+        renderer.sunPower = -10;
+        renderer.sunColor = [1, 0.8, 0.5];
+        renderer.sunAngularSize = 5;
+        renderer.sunLatitude = 50;
+        renderer.sunLongitude = 0;
+        renderer.sunVisibleDirectly = true;
+        // sphere light
+        renderer.sphereLightPosition = [0, 9.999999999999993, 2.352941176470587];
+        renderer.sphereLightRadius = 0.23349129019114737;
+        renderer.sphereLightPower = 2.9233798331237626;
+        renderer.sphereLightColor = [1, 1, 1];
 
-	/** Material settings **/
-	let surface = materials.loadSurface();
-	surface.roughness = 0.018040873854827343;
-	surface.ior = 2.3079633544749827;
-	surface.diffuseAlbedo = [1, 1, 1];
-	surface.specAlbedo = [0, 0, 0];
-
-	let dielectric = materials.loadDielectric("Glass (BK7)");
-	dielectric.absorptionColor = [1, 1, 1];
-	dielectric.absorptionScale = 0.1; // mfp in multiples of scene scale
-	dielectric.roughness = 0.005;
+    /** Material settings **/
+    let surface = materials.loadSurface();
+    surface.roughness = 0.018040873854827343;
+    surface.ior = 2.3079633544749827;
+    surface.diffuseAlbedo = [1, 1, 1];
+    surface.specAlbedo = [0, 0, 0];
+    
+    let dielectric = materials.loadDielectric('Glass (BK7)');
+    dielectric.absorptionColor = [1, 1, 1];
+    dielectric.absorptionScale = 0.1; // mfp in multiples of scene scale
+    dielectric.roughness = 0.015761701092848784;
+    
+    let volume = materials.loadVolume();
+    volume.atmosphereMinX = -1000;
+    volume.atmosphereMinY = -1000;
+    volume.atmosphereMinZ = -1000;
+    volume.atmosphereMaxX = 1000;
+    volume.atmosphereMaxY = 1000;
+    volume.atmosphereMaxZ = 1000;
+    volume.lof10_mfp = 1.1073067868759026;
+    volume.scatteringColor = [0.12908496732026142, 0.24298346789696287, 0.7745098039215687];
+    volume.absorptionColor = [0, 0, 0];
+    volume.emission = 0;
+    volume.emissionColor = [1, 1, 1];
 
     /******* copy-pasted console output on 'O', end *******/
     	
@@ -232,7 +260,7 @@ Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snel
 
 Scene.prototype.envMap = function()
 {
-  	return 'https://portsmouth.github.io/envmaps/HDR_112_River_Road_2_Bg.jpg';
+  	return '';
 }
 
 </script>

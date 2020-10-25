@@ -2306,7 +2306,6 @@ bool randomwalk_SSS(in vec3 pW, in Basis basis, in float MFP, in RadianceType al
     {
         if (n>maxSSSSteps)
             break;
-        walk_throughput *= albedo;
         float walk_step = -log(rand(rnd)) * MFP * lengthScale;
         vec3 pHit;
         int hitMaterial;
@@ -2330,6 +2329,7 @@ bool randomwalk_SSS(in vec3 pW, in Basis basis, in float MFP, in RadianceType al
         }
         dirwalkW = samplePhaseFunction(dirwalkW, subsurfaceAnisotropy, rnd);
         pWalk += walk_step*dirwalkW;
+        walk_throughput *= albedo;
     }
     return false;
 }
