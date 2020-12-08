@@ -95,7 +95,7 @@ var Snelly = function(sceneObj)
 */
 Snelly.prototype.getVersion = function()
 {
-    return [1, 11, 3];
+    return [1, 11, 4];
 }
 
 Snelly.prototype.handleEvent = function(event)
@@ -780,7 +780,7 @@ Snelly.prototype.onkeydown = function(event)
             break;
         }
 
-        case 68: // S key: cam right
+        case 68: // D key: cam right
         {
             let toTarget = new THREE.Vector3();
             toTarget.copy(this.camControls.target);

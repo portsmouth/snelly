@@ -1199,7 +1199,6 @@ RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 winputW, in 
                                    float wavelength_nm, in vec3 rgb, inout vec4 rnd,
                                    inout float skyPdf, inout float sunPdf, inout float sphPdf)
 {
-    vec3 dPw = 3.0*minLengthScale * basis.nW;
     vec3 winputL = worldToLocal(winputW, basis);
     bool fromCamera = true; // camera path
     RadianceType Ldirect = RadianceType(0.0);
@@ -1211,7 +1210,7 @@ RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 winputW, in 
         RadianceType Li = sampleSkyAtSurface(basis, rgb, rnd, woutputL, woutputW, skyPdf);
         if (averageComponent(Li) > RADIANCE_EPSILON)
         {
-            RadianceType Tr = transmittanceOverSegment(pW+dPw, woutputW, maxLengthScale, rgb);
+            RadianceType Tr = transmittanceOverSegment(pW, woutputW, maxLengthScale, rgb);
             Li *= abs(RadianceType(1.0) - shadowStrength*(RadianceType(1.0)-Tr));
             if (averageComponent(Li) > RADIANCE_EPSILON)
             {
@@ -1230,7 +1229,7 @@ RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 winputW, in 
         RadianceType Li = sampleSunAtSurface(basis, rgb, rnd, woutputL, woutputW, sunPdf);
         if (averageComponent(Li) > RADIANCE_EPSILON)
         {
-            RadianceType Tr = transmittanceOverSegment(pW+dPw, woutputW, maxLengthScale, rgb);
+            RadianceType Tr = transmittanceOverSegment(pW, woutputW, maxLengthScale, rgb);
             Li *= abs(RadianceType(1.0) - shadowStrength*(RadianceType(1.0)-Tr));
             if (averageComponent(Li) > RADIANCE_EPSILON)
             {
@@ -1255,7 +1254,7 @@ RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 winputW, in 
             float hitDist = max(0.0, length(pHit - pW) - 3.0*minLengthScale);
             woutputW = normalize(pHit - pW);
             woutputL = worldToLocal(woutputW, basis);
-            RadianceType Tr = transmittanceOverSegment(pW+dPw, woutputW, hitDist, rgb);
+            RadianceType Tr = transmittanceOverSegment(pW, woutputW, hitDist, rgb);
             Li *= abs(RadianceType(1.0) - shadowStrength*(RadianceType(1.0)-Tr));
             if (averageComponent(Li) > RADIANCE_EPSILON)
             {
@@ -1792,10 +1791,8 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             // Update ray direction to the BSDF-sampled direction
             rayDir = woutputW;
 
-            // Update path continuation throughput
-            RadianceType fOverPdf = min(RadianceType(radianceClamp), f/max(PDF_EPSILON, bsdfPdf));
-            RadianceType surface_throughput = fOverPdf * abs(dot(woutputW, nW)) / (1.0 - prob_sss);
-            throughput *= surface_throughput;
+            // Prepare for tracing the direct lighting and continuation rays
+            pW += nW * sign(dot(rayDir, nW)) * 3.0*minLengthScale; // perturb vertex into half-space of scattered ray
 
             // Add direct lighting term at current surface vertex
             float skyPdf = 0.0;
@@ -1806,6 +1803,12 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
 #endif
                 L += throughput * directSurfaceLighting(pW, basis, winputW, hitMaterial, wavelength_nm, rgb, rnd,
                                                         skyPdf, sunPdf, sphPdf);
+
+            // Update path continuation throughput
+            RadianceType fOverPdf = min(RadianceType(radianceClamp), f/max(PDF_EPSILON, bsdfPdf));
+            RadianceType surface_throughput = fOverPdf * abs(dot(woutputW, nW)) / (1.0 - prob_sss);
+            throughput *= surface_throughput;
+
             misWeightSky = powerHeuristic(bsdfPdf, skyPdf); // compute sky MIS weight for bounce ray
             misWeightSun = powerHeuristic(bsdfPdf, sunPdf); // compute sun MIS weight for bounce ray
 #ifdef HAS_SPHERE_LIGHT
@@ -1839,11 +1842,6 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             // Update ray direction to the SSS exit direction
             rayDir = woutputW;
 
-            // Update path continuation throughput
-            RadianceType fOverPdf = min(RadianceType(radianceClamp), f/max(PDF_EPSILON, bsdfPdf));
-            RadianceType surface_exit_throughput = fOverPdf * abs(dot(woutputW, nW));
-            throughput *= walk_throughput * surface_exit_throughput / prob_sss;
-
             // Add direct lighting term at exit vertex (assumed to be a diffuse lobe)
             float skyPdf = 0.0;
             float sunPdf = 0.0;
@@ -1858,20 +1856,25 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
 #ifdef HAS_SPHERE_LIGHT
             misWeightSph = powerHeuristic(bsdfPdf, sphPdf); // compute sphere-light MIS weight for bounce ray
 #endif
+
+            // Update path continuation throughput
+            RadianceType fOverPdf = min(RadianceType(radianceClamp), f/max(PDF_EPSILON, bsdfPdf));
+            RadianceType surface_exit_throughput = fOverPdf * abs(dot(woutputW, nW));
+            throughput *= walk_throughput * surface_exit_throughput / prob_sss;
+
+            // Prepare for tracing the continuation ray
+            pW += nW * sign(dot(rayDir, nW)) * 3.0*minLengthScale; // perturb vertex into half-space of scattered ray
         }
 #endif
 
-        // Prepare for tracing the continuation ray
-        pW += nW * sign(dot(rayDir, nW)) * 3.0*minLengthScale; // perturb vertex into half-space of scattered ray
-
         // Bail out now if the path continuation throughput is below threshold
-        if (maxComponent(throughput) < THROUGHPUT_EPSILON) 
+        if (maxComponent(throughput) < THROUGHPUT_EPSILON)
             break;
     }
     return L;
 }
 
-float sample_jitter(float xi) 
+float sample_jitter(float xi)
 {
     // sample from triangle filter, returning jitter in [-1, 1]
     return xi < 0.5 ? sqrt(2.0*xi) - 1.0 : 1.0 - sqrt(2.0 - 2.0*xi);
