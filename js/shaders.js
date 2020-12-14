@@ -2186,7 +2186,7 @@ RadianceType directVolumeLighting(in vec3 pW, in vec3 rayDir, in vec3 rgb, inout
             Li *= abs(RadianceType(1.0) - shadowStrength*(RadianceType(1.0)-Tr));
             if (averageComponent(Li) > RADIANCE_EPSILON)
             {
-                float PF = phaseFunction(dot(-rayDir, -woutputW)); // evaluate phase function for scattering -woutputW -> -rayDir
+                float PF = phaseFunction(dot(-rayDir, -woutputW), atmosphereAnisotropy); // evaluate phase function for scattering -woutputW -> -rayDir
                 Ldirect += PF * Li/max(PDF_EPSILON, sphPdf);
             }
         }
