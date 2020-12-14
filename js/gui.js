@@ -205,7 +205,22 @@ GUI.prototype.createRendererSettings = function()
                             snelly.reset(true);
                         } );
     this.sphereLightFolder.add(pathtracer, 'sphereLightRadius', 0.0, 10.0).onChange( function(value) { pathtracer.reset(true); } );
-    this.sphereLightFolder.addColor(pathtracer, 'sphereLightPosition', 100.0).onChange( function(value) { pathtracer.reset(true); } );
+
+    this.sphereLightX = pathtracer.sphereLightPosition[0];
+    this.sphereLightY = pathtracer.sphereLightPosition[1];
+    this.sphereLightZ = pathtracer.sphereLightPosition[2];
+
+    this.sphereLightXItem = this.sphereLightFolder.add(this, 'sphereLightX', -1000.0, 1000.0);
+    this.sphereLightXItem.onChange( function(value) { pathtracer.sphereLightPosition[0] = value; snelly.camera.enabled = false; snelly.reset(true); } );
+    this.sphereLightXItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+
+    this.sphereLightYItem = this.sphereLightFolder.add(this, 'sphereLightY', -1000.0, 1000.0);
+    this.sphereLightYItem.onChange( function(value) { pathtracer.sphereLightPosition[1] = value; snelly.camera.enabled = false; snelly.reset(true); } );
+    this.sphereLightYItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+
+    this.sphereLightZItem = this.sphereLightFolder.add(this, 'sphereLightZ', -1000.0, 1000.0);
+    this.sphereLightZItem.onChange( function(value) { pathtracer.sphereLightPosition[2] = value; snelly.camera.enabled = false; snelly.reset(true); } );
+    this.sphereLightZItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
 
     this.sphereLightFolder.close();
 
