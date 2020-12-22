@@ -933,6 +933,7 @@ uniform float subsurface;
 uniform vec3 subsurfaceAlbedoRGB;
 uniform float subsurfaceMFP;
 uniform float subsurfaceAnisotropy;
+uniform float subsurfaceDiffuseWeight;
 uniform int maxSSSSteps;
 
 // Atmosphere constants
@@ -2289,6 +2290,7 @@ float atmosphericScatteringProbability(in RadianceType Tr, in vec3 rgb)
 
 #ifdef HAS_SURFACE
 bool randomwalk_SSS(in vec3 pW, in Basis basis, in float MFP, in RadianceType albedo, inout vec4 rnd,
+                    in RadianceType diffuseAlbedoEntry,
                     inout RadianceType walk_throughput, inout vec3 pExit)
 {
     // Returns true on successful walk to an exit point.
@@ -2296,10 +2298,16 @@ bool randomwalk_SSS(in vec3 pW, in Basis basis, in float MFP, in RadianceType al
     vec3 pWalk = pW;
     vec3 dPw = 3.0*minLengthScale * basis.nW;
     pWalk -= dPw; // Displace walk into interior to avoid issues with trace numerics
-    walk_throughput = RadianceType(1.0);
     float pdfDir;
     vec3 dirwalkL = sampleHemisphereCosineWeighted(rnd, pdfDir);
     vec3 dirwalkW = -localToWorld(dirwalkL, basis); // (negative sign to start walk in interior hemisphere)
+
+    // We assume a diffuse Lambertian lobe at the entry point
+    // (either pure white, or with the diffuse albedo of the entry point, or somewhere in between)
+    RadianceType f = mix(RadianceType(1.0), diffuseAlbedoEntry, subsurfaceDiffuseWeight) / M_PI;
+    RadianceType fOverPdf = min(RadianceType(radianceClamp), f/max(PDF_EPSILON, pdfDir));
+    RadianceType surface_entry_throughput = fOverPdf * abs(dot(dirwalkW, basis.nW));
+    walk_throughput = surface_entry_throughput; // update walk throughput due to entry in medium
 
     for (int n=0; n<HARDMAX_SSS_STEPS; ++n)
     {
@@ -2324,11 +2332,11 @@ bool randomwalk_SSS(in vec3 pW, in Basis basis, in float MFP, in RadianceType al
             float termination_prob = 1.0 - continuation_prob;
             if (rand(rnd) < termination_prob)
                 break;
-            walk_throughput /= continuation_prob;
+            walk_throughput /= continuation_prob; // update walk throughput due to RR continuation
         }
         dirwalkW = samplePhaseFunction(dirwalkW, subsurfaceAnisotropy, rnd);
         pWalk += walk_step*dirwalkW;
-        walk_throughput *= albedo;
+        walk_throughput *= albedo; // update walk throughput due to scattering in medium
     }
     return false;
 }
@@ -2336,14 +2344,16 @@ bool randomwalk_SSS(in vec3 pW, in Basis basis, in float MFP, in RadianceType al
 // Estimate radiance at the SSS exit point
 RadianceType SSS_exit_radiance(in vec3 pW, Basis basis,
                                in vec3 rgb, inout vec4 rnd,
+                               in RadianceType diffuseAlbedoExit,
                                inout float skyPdf, inout float sunPdf, inout float sphPdf)
 {
     vec3 dPw = 3.0*minLengthScale * basis.nW;
     RadianceType Ldirect = RadianceType(0.0);
     vec3 woutputL, woutputW;
 
-    // We assume a diffuse, white Lambertian lobe
-    RadianceType f = RadianceType(1.0/M_PI);
+    // We assume a diffuse Lambertian lobe at the exit point
+    // (either pure white, or with the diffuse albedo of the exit point, or somewhere in between)
+    RadianceType f = mix(RadianceType(1.0), diffuseAlbedoExit, subsurfaceDiffuseWeight) / M_PI;
 
     // Sky
     if (skyPower > RADIANCE_EPSILON)
@@ -2677,9 +2687,10 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
         // Do subsurface random walk to a new vertex
         else
         {
+            RadianceType diffuseAlbedoEntry = SURFACE_DIFFUSE_REFL_EVAL(pW, basis.nW, -rayDir, rgb);
             RadianceType walk_throughput;
             vec3 pExit;
-            bool success = randomwalk_SSS(pW, basis, subsurfaceMFP, subsurface_albedo, rnd, walk_throughput, pExit);
+            bool success = randomwalk_SSS(pW, basis, subsurfaceMFP, subsurface_albedo, rnd, diffuseAlbedoEntry, walk_throughput, pExit);
             if (!success)
                 break;
 
@@ -2690,8 +2701,9 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             nW = normal(pExit, MAT_SURFA);
             Basis basis_exit = makeBasis(nW);
 
-            // Sample direction of exit ray (assuming a diffuse, white Lambertian lobe)
-            RadianceType f = RadianceType(1.0/M_PI);
+            // Sample direction of exit ray (assuming a diffuse Lambertian lobe with diffuse albedo of exit point)
+            RadianceType diffuseAlbedoExit = SURFACE_DIFFUSE_REFL_EVAL(pW, nW, -rayDir, rgb);
+            RadianceType f = diffuseAlbedoExit / M_PI;
             float bsdfPdf;
             vec3 dirExitL = sampleHemisphereCosineWeighted(rnd, bsdfPdf);
             vec3 woutputW = localToWorld(dirExitL, basis_exit);
@@ -2709,7 +2721,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
 #ifdef HAS_DIELECTRIC
             if (!inDielectric)
 #endif
-                L += throughput * SSS_exit_radiance(pExit, basis_exit, rgb, rnd,
+                L += throughput * SSS_exit_radiance(pExit, basis_exit, rgb, rnd, diffuseAlbedoExit,
                                                     skyPdf, sunPdf, sphPdf);
             misWeightSky = powerHeuristic(bsdfPdf, skyPdf); // compute sky MIS weight for bounce ray
             misWeightSun = powerHeuristic(bsdfPdf, sunPdf); // compute sun MIS weight for bounce ray

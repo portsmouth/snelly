@@ -47,6 +47,7 @@ function Surface(name)
     this.subsurfaceAlbedoRGB = [0.5, 0.5, 0.5];
     this.subsurfaceMFP = 0.0;
     this.subsurfaceAnisotropy = 0.0;
+    this.subsurfaceDiffuseWeight = 1.0;
 }
 
 Surface.prototype = Object.create(Material.prototype);
@@ -61,6 +62,7 @@ Surface.prototype.repr  = function()
     surface.subsurfaceAlbedoRGB = [${this.subsurfaceAlbedoRGB[0]}, ${this.subsurfaceAlbedoRGB[1]}, ${this.subsurfaceAlbedoRGB[2]}];
     surface.subsurfaceMFP = ${this.subsurfaceMFP};
     surface.subsurfaceAnisotropy = ${this.subsurfaceAnisotropy};
+    surface.subsurfaceDiffuseWeight = ${this.subsurfaceDiffuseWeight};
     `;
     return code;
 }
@@ -74,6 +76,7 @@ Surface.prototype.syncShader = function(shader)
     shader.uniform3Fv("subsurfaceAlbedoRGB", this.subsurfaceAlbedoRGB);
     shader.uniformF("subsurfaceMFP", this.subsurfaceMFP);
     shader.uniformF("subsurfaceAnisotropy", this.subsurfaceAnisotropy);
+    shader.uniformF("subsurfaceDiffuseWeight", this.subsurfaceDiffuseWeight);
 }
 
 Surface.prototype.initGui  = function(parentFolder) 
@@ -151,6 +154,10 @@ Surface.prototype.initGui  = function(parentFolder)
     this.subsurfaceAnisotropyItem = parentFolder.add(this, 'subsurfaceAnisotropy', -1.0, 1.0);
     this.subsurfaceAnisotropyItem.onChange( function(value) { SURFACE_OBJ.subsurface = value; snelly.camera.enabled = false; snelly.reset(true); } );
     this.subsurfaceAnisotropyItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+
+    this.subsurfaceDiffuseWeightItem = parentFolder.add(this, 'subsurfaceDiffuseWeight', 0.0, 1.0);
+    this.subsurfaceDiffuseWeightItem.onChange( function(value) { SURFACE_OBJ.subsurface = value; snelly.camera.enabled = false; snelly.reset(true); } );
+    this.subsurfaceDiffuseWeightItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
 }
 
 ////////////////////////////////////////////////////////
