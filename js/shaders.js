@@ -2699,6 +2699,9 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             // Update ray direction to the SSS exit direction
             rayDir = woutputW;
 
+            // Update throughput due to random walk
+            throughput *= walk_throughput;
+
             // Add direct lighting term at exit vertex (assumed to be a diffuse lobe)
             float skyPdf = 0.0;
             float sunPdf = 0.0;
@@ -2717,7 +2720,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             // Update path continuation throughput
             RadianceType fOverPdf = min(RadianceType(radianceClamp), f/max(PDF_EPSILON, bsdfPdf));
             RadianceType surface_exit_throughput = fOverPdf * abs(dot(woutputW, nW));
-            throughput *= walk_throughput * surface_exit_throughput / prob_sss;
+            throughput *= surface_exit_throughput / prob_sss;
 
             // Prepare for tracing the continuation ray
             pW += nW * sign(dot(rayDir, nW)) * 3.0*minLengthScale; // perturb vertex into half-space of scattered ray
