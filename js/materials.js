@@ -661,6 +661,7 @@ Dielectric.prototype.repr  = function()
     dielectric.absorptionColor = [${this.absorptionColor[0]}, ${this.absorptionColor[1]}, ${this.absorptionColor[2]}];
     dielectric.absorptionScale = ${this.absorptionScale}; // mfp in multiples of scene scale
     dielectric.roughness = ${this.roughness};
+    dielectric.iorVal = ${this.iorVal};
     `;
     return code;
 }
