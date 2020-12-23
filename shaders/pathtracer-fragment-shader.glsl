@@ -474,6 +474,12 @@ RadianceType DIELECTRIC_SPEC_REFL_EVAL(in vec3 X, in vec3 winputL, in Basis basi
     return rgbToAlbedo(reflRGB, rgb);
 }
 
+RadianceType DIELECTRIC_ABSORPTION_EVAL(in vec3 X, in vec3 rgb)
+{
+    vec3 absorptionRGB = DIELECTRIC_ABSORPTION(dieleAbsorptionRGB, X);
+    return rgbToAlbedo(absorptionRGB, rgb);
+}
+
 RadianceType evaluateDielectric( in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, in float wavelength_nm, in vec3 rgb, bool fromCamera )
 {
     float ior = IOR_DIELE(wavelength_nm);
@@ -722,7 +728,7 @@ RadianceType evaluateSurface(in vec3 X, in Basis basis, in vec3 winputL, in vec3
 {
     if (winputL.z<0.0) return RadianceType(0.0);
     vec3 winputW = localToWorld(winputL, basis);
-    RadianceType diffuseAlbedo = SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, winputW, rgb);
+    RadianceType diffuseAlbedo = (1.0 - subsurface)*SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, winputW, rgb);
     RadianceType    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, winputW, rgb);
     float ior = surfaceIor;
     float roughness = SURFACE_ROUGHNESS(surfaceRoughness, X, basis.nW);
@@ -740,7 +746,7 @@ float pdfSurface(in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, i
 {
     if (winputL.z<0.0) return PDF_EPSILON;
     vec3 winputW = localToWorld(winputL, basis);
-    RadianceType diffuseAlbedo = SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, winputW, rgb);
+    RadianceType diffuseAlbedo = (1.0 - subsurface)*SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, winputW, rgb);
     RadianceType    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, winputW, rgb);
     float ior = surfaceIor;
     float E = fresnelDielectricReflectance(abs(winputL.z), ior);
@@ -761,7 +767,7 @@ RadianceType sampleSurface(in vec3 X, in Basis basis, in vec3 winputL, in float 
 {
     if (winputL.z<0.0) return RadianceType(0.0);
     vec3 winputW = localToWorld(winputL, basis);
-    RadianceType diffuseAlbedo = SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, winputW, rgb);
+    RadianceType diffuseAlbedo = (1.0 - subsurface)*SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, winputW, rgb);
     RadianceType    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, winputW, rgb);
     float ior = surfaceIor;
     float roughness = SURFACE_ROUGHNESS(surfaceRoughness, X, basis.nW);
@@ -1432,8 +1438,8 @@ float atmosphericScatteringProbability(in RadianceType Tr, in vec3 rgb)
 #define MIN_SSS_STEPS_BEFORE_RR 4
 
 #ifdef HAS_SURFACE
-bool randomwalk_SSS(in vec3 pW, in Basis basis, in float MFP, in RadianceType albedo, inout vec4 rnd,
-                    in RadianceType diffuseAlbedoEntry,
+bool randomwalk_SSS(in vec3 pW, in Basis basis, inout vec4 rnd,
+                    in float MFP, in RadianceType subsurfaceAlbedo, in RadianceType diffuseAlbedoEntry,
                     inout RadianceType walk_throughput, inout vec3 pExit)
 {
     // Returns true on successful walk to an exit point.
@@ -1450,7 +1456,7 @@ bool randomwalk_SSS(in vec3 pW, in Basis basis, in float MFP, in RadianceType al
     RadianceType f = mix(RadianceType(1.0), diffuseAlbedoEntry, subsurfaceDiffuseWeight) / M_PI;
     RadianceType fOverPdf = min(RadianceType(radianceClamp), f/max(PDF_EPSILON, pdfDir));
     RadianceType surface_entry_throughput = fOverPdf * abs(dot(dirwalkW, basis.nW));
-    walk_throughput = surface_entry_throughput; // update walk throughput due to entry in medium
+    walk_throughput = RadianceType(1.0); //surface_entry_throughput; // update walk throughput due to entry in medium
 
     for (int n=0; n<HARDMAX_SSS_STEPS; ++n)
     {
@@ -1479,7 +1485,7 @@ bool randomwalk_SSS(in vec3 pW, in Basis basis, in float MFP, in RadianceType al
         }
         dirwalkW = samplePhaseFunction(dirwalkW, subsurfaceAnisotropy, rnd);
         pWalk += walk_step*dirwalkW;
-        walk_throughput *= albedo; // update walk throughput due to scattering in medium
+        walk_throughput *= subsurfaceAlbedo; // update walk throughput due to scattering in medium
     }
     return false;
 }
@@ -1706,7 +1712,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
 #ifdef HAS_DIELECTRIC
         if (inDielectric)
         {
-            RadianceType absorption = rgbToAlbedo(dieleAbsorptionRGB, rgb);
+            RadianceType absorption = DIELECTRIC_ABSORPTION_EVAL(pW, rgb);
             throughput *= exp(-rayLength*absorption);
         }
 #endif
@@ -1757,14 +1763,14 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
         // Make a binary choice whether to scatter at the surface, or do a subsurface random walk:
         bool do_subsurface_walk = false;
         float prob_sss = 0.0;
+        RadianceType subsurfaceAlbedo;
 #ifdef HAS_SURFACE
-        RadianceType subsurface_albedo;  // In order to do the SSS walk:
         if (subsurfaceMFP > 0.0)         // a) the surface must have non-zero subsurface MFP, and
         {
-            subsurface_albedo = SUBSURFACE_ALBEDO_EVAL(pW, basis.nW, rgb);
-            float diffuse_weight    = averageComponent(SURFACE_DIFFUSE_REFL_EVAL(pW, basis.nW, -rayDir, rgb));
+            subsurfaceAlbedo = SUBSURFACE_ALBEDO_EVAL(pW, basis.nW, rgb);
+            float diffuse_weight    = (1.0 - subsurface)*averageComponent(SURFACE_DIFFUSE_REFL_EVAL(pW, basis.nW, -rayDir, rgb));
             float    spec_weight    = averageComponent(SURFACE_SPEC_REFL_EVAL(pW, basis.nW, -rayDir, rgb));
-            float subsurface_weight = averageComponent(subsurface_albedo) * 3.0; // weight more highly due to higher variance
+            float subsurface_weight = subsurface * averageComponent(subsurfaceAlbedo) * 3.0; // weight more highly due to higher variance
             float total_weight = diffuse_weight + spec_weight + subsurface_weight;
             prob_sss = subsurface_weight / (total_weight + DENOM_TOLERANCE);
             prob_sss = clamp(prob_sss, 0.0, 1.0-PDF_EPSILON);
@@ -1816,7 +1822,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
 
             // Update path continuation throughput
             RadianceType fOverPdf = min(RadianceType(radianceClamp), f/max(PDF_EPSILON, bsdfPdf));
-            RadianceType surface_throughput = fOverPdf * abs(dot(woutputW, nW)) / (1.0 - prob_sss);
+            RadianceType surface_throughput = fOverPdf * abs(dot(woutputW, nW)) / max(PDF_EPSILON, 1.0 - prob_sss);
             throughput *= surface_throughput;
 
             misWeightSky = powerHeuristic(bsdfPdf, skyPdf); // compute sky MIS weight for bounce ray
@@ -1833,7 +1839,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             RadianceType diffuseAlbedoEntry = SURFACE_DIFFUSE_REFL_EVAL(pW, basis.nW, -rayDir, rgb);
             RadianceType walk_throughput;
             vec3 pExit;
-            bool success = randomwalk_SSS(pW, basis, subsurfaceMFP, subsurface_albedo, rnd, diffuseAlbedoEntry, walk_throughput, pExit);
+            bool success = randomwalk_SSS(pW, basis, rnd, subsurfaceMFP, subsurfaceAlbedo, diffuseAlbedoEntry, walk_throughput, pExit);
             if (!success)
                 break;
 
@@ -1875,7 +1881,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             // Update path continuation throughput
             RadianceType fOverPdf = min(RadianceType(radianceClamp), f/max(PDF_EPSILON, bsdfPdf));
             RadianceType surface_exit_throughput = fOverPdf * abs(dot(woutputW, nW));
-            throughput *= surface_exit_throughput / prob_sss;
+            throughput *= surface_exit_throughput / max(PDF_EPSILON, prob_sss);
 
             // Prepare for tracing the continuation ray
             pW += nW * sign(dot(rayDir, nW)) * 3.0*minLengthScale; // perturb vertex into half-space of scattered ray

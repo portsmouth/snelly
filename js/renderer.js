@@ -246,6 +246,7 @@ Renderer.prototype.compileShaders = function()
     if (shader.indexOf("DIELECTRIC_SPECULAR_REFLECTANCE(") == -1) { shader += `\n vec3 DIELECTRIC_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
     if (shader.indexOf("DIELECTRIC_ROUGHNESS(")            == -1) { shader += `\n float DIELECTRIC_ROUGHNESS(in float roughness, in vec3 X, in vec3 N) { return roughness; }\n`; }
     if (shader.indexOf("DIELECTRIC_NORMAL_MAP(")            > -1) { hasDielectricNM = true; }
+    if (shader.indexOf("DIELECTRIC_ABSORPTION(")           == -1) { shader += `\n vec3 DIELECTRIC_ABSORPTION(vec3 absorption_ui, vec3 X) { return absorption_ui; }\n`; }
 
     let hasVolumeEmission = true;
     if (shader.indexOf("VOLUME_EXTINCTION(")               == -1) { shader += `\n float VOLUME_EXTINCTION(float extinction_ui, vec3 X) { return extinction_ui; }\n`; }
