@@ -2708,8 +2708,6 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             Basis basis_exit = makeBasis(nW);
 
             // Sample direction of exit ray (assuming a diffuse Lambertian lobe with diffuse albedo of exit point)
-            RadianceType diffuseAlbedoExit = SURFACE_DIFFUSE_REFL_EVAL(pW, nW, -rayDir, rgb);
-            RadianceType f = diffuseAlbedoExit / M_PI;
             float bsdfPdf;
             vec3 dirExitL = sampleHemisphereCosineWeighted(rnd, bsdfPdf);
             vec3 woutputW = localToWorld(dirExitL, basis_exit);
@@ -2724,6 +2722,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             float skyPdf = 0.0;
             float sunPdf = 0.0;
             float sphPdf = 0.0;
+            RadianceType diffuseAlbedoExit = SURFACE_DIFFUSE_REFL_EVAL(pW, nW, -rayDir, rgb);
 #ifdef HAS_DIELECTRIC
             if (!inDielectric)
 #endif
@@ -2736,6 +2735,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
 #endif
 
             // Update path continuation throughput
+            RadianceType f = mix(RadianceType(1.0), diffuseAlbedoExit, subsurfaceDiffuseWeight) / M_PI;
             RadianceType fOverPdf = min(RadianceType(radianceClamp), f/max(PDF_EPSILON, bsdfPdf));
             RadianceType surface_exit_throughput = fOverPdf * abs(dot(woutputW, nW));
             throughput *= surface_exit_throughput / max(PDF_EPSILON, prob_sss);
