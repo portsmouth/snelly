@@ -676,6 +676,7 @@ Dielectric.prototype.repr  = function()
     dielectric.absorptionScale = ${this.absorptionScale}; // mfp in multiples of scene scale
     dielectric.roughness = ${this.roughness};
     dielectric.iorVal = ${this.iorVal};
+    dielectric.abbe = ${this.abbe};
     `;
     return code;
 }
@@ -754,51 +755,75 @@ Dielectric.prototype.eraseGui = function(parentFolder)
 }
 
 
+///////////////////////////////////////////////////////////////////////////////
+// AbbeDielectric
+///////////////////////////////////////////////////////////////////////////////
+
 //
 // Simplest (but unphysical) model with no wavelength dependence
 //
-function ConstantDielectric(name, iorVal) 
+function AbbeDielectric(name, iorVal, abbe) 
 {
     Dielectric.call(this, name);
     this.iorVal = iorVal;
+    this.abbe = abbe;
 }
 
-ConstantDielectric.prototype = Object.create(Dielectric.prototype);
+AbbeDielectric.prototype = Object.create(Dielectric.prototype);
 
-ConstantDielectric.prototype.ior = function()
+AbbeDielectric.prototype.ior = function()
 {
     return `
 uniform float _iorVal;
-float IOR_DIELE(float wavelength_nm)  
-{                     
-    return _iorVal;   
+uniform float _abbe;
+float IOR_DIELE(float wavelength_nm)
+{
+    if (_abbe <= 0.0)
+        return _iorVal;
+    float nD2 = 0.5893; nD2 *= nD2;
+    float nF2 = 0.4861; nF2 *= nF2;
+    float nC2 = 0.6563; nC2 *= nC2;
+    float cauchyC = (_iorVal - 1.0)/_abbe * (nC2*nF2)/(nC2 - nF2);
+    float cauchyB = _iorVal - cauchyC/nD2;
+    float wavelength_um = 1.0e-3*wavelength_nm;
+    float l = wavelength_um;
+    return cauchyB + cauchyC/(l*l);
 }
     `;
 }
 
-ConstantDielectric.prototype.syncShader = function(shader)
+AbbeDielectric.prototype.syncShader = function(shader)
 {
     shader.uniformF("_iorVal", this.iorVal);
+    shader.uniformF("_abbe", this.abbe);
     Dielectric.prototype.syncShader.call(this, shader);
 }
 
 // set up gui and callbacks for this material
-ConstantDielectric.prototype.initGui = function(parentFolder)
+AbbeDielectric.prototype.initGui = function(parentFolder)
 {
     this.iorItem = parentFolder.add(this, 'iorVal', 0.0, 5.0);
     this.iorItem.onChange( function(value) { snelly.camControls.enabled = false; snelly.reset(true); } );
     this.iorItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 
+    this.abbeItem = parentFolder.add(this, 'abbe', 0.0, 100.0);
+    this.abbeItem.onChange( function(value) { snelly.camControls.enabled = false; snelly.reset(true); } );
+    this.abbeItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
+
     Dielectric.prototype.initGui.call(this, parentFolder)
 }
 
-ConstantDielectric.prototype.eraseGui = function(parentFolder)
+AbbeDielectric.prototype.eraseGui = function(parentFolder)
 {
     parentFolder.remove(this.iorItem);
+    parentFolder.remove(this.abbeItem);
     Dielectric.prototype.eraseGui.call(this, parentFolder)
 }
 
 
+///////////////////////////////////////////////////////////////////////////////
+// SellmeierDielectric
+///////////////////////////////////////////////////////////////////////////////
 
 // The standard Sellmeier model for dielectrics (model 1 at refractiveindex.info)
 function SellmeierDielectric(name, coeffs) 
@@ -901,6 +926,9 @@ Sellmeier2Dielectric.prototype.initGui  = function(parentFolder) { Dielectric.pr
 Sellmeier2Dielectric.prototype.eraseGui = function(parentFolder) { Dielectric.prototype.eraseGui.call(this, parentFolder) }
 
 
+///////////////////////////////////////////////////////////////////////////////
+// PolyanskiyDielectric
+///////////////////////////////////////////////////////////////////////////////
 
 // Model 4 at Polyanskiy's refractiveindex.info:
 function PolyanskiyDielectric(name, coeffs) 
@@ -951,6 +979,10 @@ PolyanskiyDielectric.prototype.syncShader = function(shader)
 PolyanskiyDielectric.prototype.initGui  = function(parentFolder) { Dielectric.prototype.initGui.call(this, parentFolder) }
 PolyanskiyDielectric.prototype.eraseGui = function(parentFolder) { Dielectric.prototype.eraseGui.call(this, parentFolder) }
 
+
+///////////////////////////////////////////////////////////////////////////////
+// CauchyDielectric
+///////////////////////////////////////////////////////////////////////////////
 
 // Cauchy model for dielectrics (model 5 at refractiveindex.info)
 function CauchyDielectric(name, coeffs) 
@@ -1022,7 +1054,7 @@ var Materials = function()
     this.metalObj = null;
     {
         // Dielectrics
-        this.addDielectric( new ConstantDielectric("Constant IOR dielectric", 1.5) ); 
+        this.addDielectric( new AbbeDielectric("Abbe dielectric", 1.5, 0.0) ); 
         this.addDielectric( new SellmeierDielectric("Glass (BK7)",       [0.0, 1.03961212, 0.00600069867, 0.231792344, 0.0200179144, 1.01046945,  103.560653]) );
         this.addDielectric( new Sellmeier2Dielectric("Glass (K7)",       [0.0, 1.1273555,  0.00720341707, 0.124412303, 0.0269835916, 0.827100531, 100.384588]) );
         this.addDielectric( new Sellmeier2Dielectric("Glass (F5)",       [0.0, 1.3104463,  0.00958633048, 0.19603426,  0.0457627627, 0.96612977,  115.011883]) );

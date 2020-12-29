@@ -95,7 +95,7 @@ var Snelly = function(sceneObj)
 */
 Snelly.prototype.getVersion = function()
 {
-    return [1, 12, 1];
+    return [1, 12, 2];
 }
 
 Snelly.prototype.handleEvent = function(event)
