@@ -216,6 +216,9 @@ Returns a chunk of GLSL code defining the SDFs which determine the geometry of u
         // return local space normal (z is up)
         vec3 SURFACE_NORMAL_MAP(in vec3 X);
 
+        // return world space surface displacement, given local tangent frame vectors
+        vec3 SURFACE_DISPLACEMENT(in vec3 X, in vec3 N, in vec3 T, in vec3 B);
+
         // return metal roughness in [0,1] (defaults to just return the input UI constant roughness_ui)
         float METAL_ROUGHNESS(in float roughness_ui, in vec3 X, in vec3 N);
 
@@ -224,6 +227,9 @@ Returns a chunk of GLSL code defining the SDFs which determine the geometry of u
 
         // return local space normal (z is up)
         vec3 METAL_NORMAL_MAP(in vec3 X);
+
+        // return world space metal displacement, given local tangent frame vectors
+        vec3 METAL_DISPLACEMENT(in vec3 X, in vec3 N, in vec3 T, in vec3 B);
 
         // return dielectric roughness in [0,1] (defaults to just return the input UI constant roughness_ui)
         float DIELECTRIC_ROUGHNESS(in float roughness_ui, in vec3 X, in vec3 N);
@@ -234,10 +240,10 @@ Returns a chunk of GLSL code defining the SDFs which determine the geometry of u
         // return local space normal (z is up)
         vec3 DIELECTRIC_NORMAL_MAP(in vec3 X);
 
-        float VOLUME_EXTINCTION(float extinction_ui, in vec3 X);
-        float VOLUME_EXTINCTION_MAX(float extinction_ui);
-        vec3 VOLUME_SCATTERING_COLOR(in vec3 scattering_color_ui, in vec3 X);
-        vec3 VOLUME_ABSORPTION_COLOR(in vec3 scattering_color_ui, in vec3 X);
+        // return world space dielectric displacement, given local tangent frame vectors
+        vec3 DIELECTRIC_DISPLACEMENT(in vec3 X, in vec3 N, in vec3 T, in vec3 B);
+
+        // Volumetric emission field
         vec3 VOLUME_EMISSION(in vec3 emission_ui, in vec3 X);```Optionally, an init function can also be provided, which will be called first by each primary ray. This is occasionally useful to prepare global variables for use during the succeeding computation for this pixel.```glsl
     void INIT();```
 
@@ -521,7 +527,7 @@ let metal = materials.loadMetal('Gold');metal.roughness = 0.05;
 <a name="new_Dielectric_new"></a>
 
 ### new Dielectric()
-Generic dielectric material. Supported physical dielectrics are:```glsl "Constant IOR dielectric" "Glass (BK7)" "Glass (K7)" "Glass (F5)" "Glass (LAFN7)" "Glass (LASF35)" "Glass (N-LAK33A)" "Glass (N-FK51A)" "Glass (SF4)" "Glass (SF67)" "Water" "Polycarbonate" "Glycerol" "Liquid Crystal (E7)" "Diamond" "Quartz" "Fused Silica" "Sapphire" "Sodium Chloride" "Proustite" "Rutile" "Silver Chloride"```
+Generic dielectric material. Supported physical dielectrics are:```glsl "Abbe dielectric" "Glass (BK7)" "Glass (K7)" "Glass (F5)" "Glass (LAFN7)" "Glass (LASF35)" "Glass (N-LAK33A)" "Glass (N-FK51A)" "Glass (SF4)" "Glass (SF67)" "Water" "Polycarbonate" "Glycerol" "Liquid Crystal (E7)" "Diamond" "Quartz" "Fused Silica" "Sapphire" "Sodium Chloride" "Proustite" "Rutile" "Silver Chloride"```
 
 **Example**  
 ```js
@@ -549,7 +555,7 @@ This object controls the properties of the three basic material types: - Dielec
 <a name="Materials+loadDielectric"></a>
 
 ### materials.loadDielectric(dielectricName) ⇒ [<code>Dielectric</code>](#Dielectric)
-Load the desired Dielectric object by name. Supported dielectrics are:```glsl "Constant IOR dielectric" "Glass (BK7)" "Glass (K7)" "Glass (F5)" "Glass (LAFN7)" "Glass (LASF35)" "Glass (N-LAK33A)" "Glass (N-FK51A)" "Glass (SF4)" "Glass (SF67)" "Water" "Polycarbonate" "Glycerol" "Liquid Crystal (E7)" "Diamond" "Quartz" "Fused Silica" "Sapphire" "Sodium Chloride" "Proustite" "Rutile" "Silver Chloride"```
+Load the desired Dielectric object by name. Supported dielectrics are:```glsl "Abbe dielectric" "Glass (BK7)" "Glass (K7)" "Glass (F5)" "Glass (LAFN7)" "Glass (LASF35)" "Glass (N-LAK33A)" "Glass (N-FK51A)" "Glass (SF4)" "Glass (SF67)" "Water" "Polycarbonate" "Glycerol" "Liquid Crystal (E7)" "Diamond" "Quartz" "Fused Silica" "Sapphire" "Sodium Chloride" "Proustite" "Rutile" "Silver Chloride"```
 
 **Kind**: instance method of [<code>Materials</code>](#Materials)  
 **Returns**: [<code>Dielectric</code>](#Dielectric) - - the loaded dielectric  

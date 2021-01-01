@@ -1793,21 +1793,21 @@ vec3 normal(in vec3 pW, int material)
 void perturbNormal(in vec3 X, in Basis basis, int material, inout vec3 nW)
 {
 #ifdef HAS_SURFACE_NORMALMAP
-    if (material==MAT_SURFA) 
+    if (material==MAT_SURFA)
     {
         vec3 nL = SURFACE_NORMAL_MAP(X);
         nW = localToWorld(normalize(2.0*nL - vec3(1.0)), basis);
     }
 #endif
 #ifdef HAS_METAL_NORMALMAP
-    if (material==MAT_METAL) 
+    if (material==MAT_METAL)
     {
         vec3 nL = METAL_NORMAL_MAP(X);
         nW = localToWorld(normalize(2.0*nL - vec3(1.0)), basis);
     }
 #endif
 #ifdef HAS_DIELECTRIC_NORMALMAP
-    if (material==MAT_DIELE) 
+    if (material==MAT_DIELE)
     {
         vec3 nL = DIELECTRIC_NORMAL_MAP(X);
         nW = localToWorld(normalize(2.0*nL - vec3(1.0)), basis);
@@ -1815,6 +1815,25 @@ void perturbNormal(in vec3 X, in Basis basis, int material, inout vec3 nW)
 #endif
 }
 #endif
+
+#ifdef HAS_DISPLACEMENT
+vec3 displaceSurface(in vec3 X, in Basis basis, int material, inout vec3 nW)
+{
+#ifdef HAS_SURFACE_DISPLACEMENT
+    if (material==MAT_SURFA)
+        return SURFACE_DISPLACEMENT(X, nW, basis.tW, basis.bW);
+#endif
+#ifdef HAS_METAL_DISPLACEMENT
+    if (material==MAT_METAL)
+        return METAL_DISPLACEMEN(X, nW, basis.tW, basis.bW);
+#endif
+#ifdef HAS_DIELECTRIC_DISPLACEMENT
+    if (material==MAT_DIELE)
+        return DIELECTRIC_DISPLACEMENT(X, nW, basis.tW, basis.bW);
+#endif
+}
+#endif
+
 
 #ifdef HAS_ATMOSPHERE
 
@@ -2615,6 +2634,9 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
 #ifdef HAS_NORMALMAP
         perturbNormal(pW, basis, hitMaterial, nW);
         basis = makeBasis(nW);
+#endif
+#ifdef HAS_DISPLACEMENT
+        pW += displaceSurface(pW, basis, hitMaterial, nW);
 #endif
 
         // Make a binary choice whether to scatter at the surface, or do a subsurface random walk:
