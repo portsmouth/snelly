@@ -622,7 +622,7 @@ TabulatedMetal.prototype.eraseGui = function(parentFolder) { Metal.prototype.era
 /** 
 * Generic dielectric material. Supported physical dielectrics are:
 *```glsl
-*  "Constant IOR dielectric"
+*  "Abbe dielectric"
 *  "Glass (BK7)"
 *  "Glass (K7)"
 *  "Glass (F5)"
@@ -1127,7 +1127,7 @@ Materials.prototype.getDielectrics = function()
 /**
 * Load the desired Dielectric object by name. Supported dielectrics are:
 *```glsl
-*  "Constant IOR dielectric"
+*  "Abbe dielectric"
 *  "Glass (BK7)"
 *  "Glass (K7)"
 *  "Glass (F5)"
