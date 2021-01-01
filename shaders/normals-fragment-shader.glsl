@@ -256,6 +256,17 @@ vec3 environmentRadianceXYZ(in vec3 dir)
 // Normals integrator
 ////////////////////////////////////////////////////////////////////////////////
 
+#ifdef HAS_SURFACE_NORMALMAP
+void perturbNormal(in vec3 X, in Basis basis, int material, inout vec3 nW)
+{
+    if (material==MAT_SURFA)
+    {
+        vec3 nL = SURFACE_NORMAL_MAP(X);
+        nW = localToWorld(normalize(2.0*nL - vec3(1.0)), basis);
+    }
+}
+#endif
+
 void constructPrimaryRay(in vec2 pixel, inout vec4 rnd, 
                          inout vec3 primaryStart, inout vec3 primaryDir)
 {
@@ -302,6 +313,10 @@ void main()
         {
             // Compute normal at hit point
             vec3 nW = normal(pW, hitMaterial);
+            Basis basis = makeBasis(nW);
+#ifdef HAS_SURFACE_NORMALMAP
+            perturbNormal(pW, basis, hitMaterial, nW);
+#endif
             colorXYZ += rgbToXyz(0.5*(nW+vec3(1.0)));
         }
         else

@@ -265,6 +265,26 @@ vec3 SURFACE_DIFFUSE_REFL_RGB(in vec3 X, in vec3 nW, in vec3 woW)
     return reflRGB;
 }
 
+#ifdef HAS_SURFACE_NORMALMAP
+void perturbNormal(in vec3 X, in Basis basis, int material, inout vec3 nW)
+{
+    if (material==MAT_SURFA)
+    {
+        vec3 nL = SURFACE_NORMAL_MAP(X);
+        nW = localToWorld(normalize(2.0*nL - vec3(1.0)), basis);
+    }
+}
+#endif
+
+#ifdef HAS_SURFACE_DISPLACEMENT
+vec3 displaceSurface(in vec3 X, in Basis basis, int material, inout vec3 nW)
+{
+    if (material==MAT_SURFA)
+        return SURFACE_DISPLACEMENT(X, nW, basis.tW, basis.bW);
+    return vec3(0.0);
+}
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 // Ambient occlusion integrator
 ////////////////////////////////////////////////////////////////////////////////
@@ -328,6 +348,13 @@ void main()
             // Compute normal at hit point
             vec3 nW = normal(pW, hitMaterial);
             Basis basis = makeBasis(nW);
+#ifdef HAS_SURFACE_NORMALMAP
+            perturbNormal(pW, basis, hitMaterial, nW);
+            basis = makeBasis(nW);
+#endif
+#ifdef HAS_SURFACE_DISPLACEMENT
+            pW += displaceSurface(pW, basis, hitMaterial, nW);
+#endif
 
             // Construct a uniformly sampled AO ray
             float hemispherePdf;
@@ -348,7 +375,7 @@ void main()
     }
     RGB /= float(__MAX_SAMPLES_PER_FRAME__);
     vec3 XYZ = rgbToXyz(RGB);
-    
+
     // Write updated radiance and sample count
     vec4 oldL = texture(Radiance, vTexCoord);
     float oldN = oldL.w;
@@ -772,6 +799,17 @@ vec3 environmentRadianceXYZ(in vec3 dir)
 // Normals integrator
 ////////////////////////////////////////////////////////////////////////////////
 
+#ifdef HAS_SURFACE_NORMALMAP
+void perturbNormal(in vec3 X, in Basis basis, int material, inout vec3 nW)
+{
+    if (material==MAT_SURFA)
+    {
+        vec3 nL = SURFACE_NORMAL_MAP(X);
+        nW = localToWorld(normalize(2.0*nL - vec3(1.0)), basis);
+    }
+}
+#endif
+
 void constructPrimaryRay(in vec2 pixel, inout vec4 rnd, 
                          inout vec3 primaryStart, inout vec3 primaryDir)
 {
@@ -818,6 +856,10 @@ void main()
         {
             // Compute normal at hit point
             vec3 nW = normal(pW, hitMaterial);
+            Basis basis = makeBasis(nW);
+#ifdef HAS_SURFACE_NORMALMAP
+            perturbNormal(pW, basis, hitMaterial, nW);
+#endif
             colorXYZ += rgbToXyz(0.5*(nW+vec3(1.0)));
         }
         else
@@ -1831,6 +1873,7 @@ vec3 displaceSurface(in vec3 X, in Basis basis, int material, inout vec3 nW)
     if (material==MAT_DIELE)
         return DIELECTRIC_DISPLACEMENT(X, nW, basis.tW, basis.bW);
 #endif
+    return vec3(0.0);
 }
 #endif
 

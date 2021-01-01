@@ -974,6 +974,7 @@ vec3 displaceSurface(in vec3 X, in Basis basis, int material, inout vec3 nW)
     if (material==MAT_DIELE)
         return DIELECTRIC_DISPLACEMENT(X, nW, basis.tW, basis.bW);
 #endif
+    return vec3(0.0);
 }
 #endif
 
