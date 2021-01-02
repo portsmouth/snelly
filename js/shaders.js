@@ -847,13 +847,14 @@ void main()
         {
             // Compute normal at hit point
             vec3 nW = normal(pW, hitMaterial);
+            vec3 ngW = nW; // geometric normal
             Basis basis = makeBasis(nW);
 #ifdef HAS_SURFACE_NORMALMAP
             nW = perturbNormal(pW, basis, hitMaterial);
             // If the incident ray lies below the hemisphere of the perturbed shading normal,
             // which can occur due to normal mapping, apply the "Flipping hack" to prevent artifacts
             // (see Schüßler, "Microfacet-based Normal Mapping for Robust Monte Carlo Path Tracing")
-            if ((dot(nW, winputW) < 0.0) && (hitMaterial != MAT_DIELE))
+            if ((dot(nW, primaryDir) > 0.0) && (hitMaterial != MAT_DIELE))
                 nW = 2.0*ngW*dot(ngW, nW) - nW;
 #endif
             colorXYZ += rgbToXyz(0.5*(nW+vec3(1.0)));
@@ -2652,7 +2653,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
         // If the incident ray lies below the hemisphere of the perturbed shading normal,
         // which can occur due to normal mapping, apply the "Flipping hack" to prevent artifacts
         // (see Schüßler, "Microfacet-based Normal Mapping for Robust Monte Carlo Path Tracing")
-        if ((dot(nW, winputW) < 0.0) && (hitMaterial != MAT_DIELE))
+        if ((dot(nW, rayDir) > 0.0) && (hitMaterial != MAT_DIELE))
             nW = 2.0*ngW*dot(ngW, nW) - nW;
         basis = makeBasis(nW);
 #endif
@@ -2675,17 +2676,15 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
         }
 #endif
 
-        float bsdfPdf;
-        vec3 winputW;
-
         // Regular surface bounce case
         if (!do_subsurface_walk)
         {
             // Sample BSDF for the next bounce direction
-            winputW = -rayDir; // winputW, points *towards* the incident direction
+            vec3 winputW = -rayDir; // winputW, points *towards* the incident direction
             vec3 winputL = worldToLocal(winputW, basis);
             vec3 woutputL; // woutputL, points *towards* the outgoing direction
             bool fromCamera = true; // camera path
+            float bsdfPdf;
             RadianceType f = sampleBsdf(pW, basis, winputL, hitMaterial, wavelength_nm, rgb, fromCamera, woutputL, bsdfPdf, rnd);
             vec3 woutputW = localToWorld(woutputL, basis);
 

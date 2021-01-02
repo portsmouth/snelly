@@ -314,13 +314,14 @@ void main()
         {
             // Compute normal at hit point
             vec3 nW = normal(pW, hitMaterial);
+            vec3 ngW = nW; // geometric normal
             Basis basis = makeBasis(nW);
 #ifdef HAS_SURFACE_NORMALMAP
             nW = perturbNormal(pW, basis, hitMaterial);
             // If the incident ray lies below the hemisphere of the perturbed shading normal,
             // which can occur due to normal mapping, apply the "Flipping hack" to prevent artifacts
             // (see Schüßler, "Microfacet-based Normal Mapping for Robust Monte Carlo Path Tracing")
-            if ((dot(nW, winputW) < 0.0) && (hitMaterial != MAT_DIELE))
+            if ((dot(nW, primaryDir) > 0.0) && (hitMaterial != MAT_DIELE))
                 nW = 2.0*ngW*dot(ngW, nW) - nW;
 #endif
             colorXYZ += rgbToXyz(0.5*(nW+vec3(1.0)));
