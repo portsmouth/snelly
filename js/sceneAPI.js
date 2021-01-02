@@ -152,8 +152,8 @@ Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snel
         // return surface roughness in [0,1] (defaults to just return the input roughness_ui)
         float SURFACE_ROUGHNESS(in float roughness_ui, in vec3 X, in vec3 N);
 
-        // return local space normal (z is up)
-        vec3 SURFACE_NORMAL_MAP(in vec3 X);
+        // return local space normal (z is up), given world space X and world space unperturbed normal N
+        vec3 SURFACE_NORMAL_MAP(in vec3 X, in vec3 N);
 
         // return world space surface displacement, given local tangent frame vectors
         vec3 SURFACE_DISPLACEMENT(in vec3 X, in vec3 N, in vec3 T, in vec3 B);

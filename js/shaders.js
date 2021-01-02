@@ -270,7 +270,7 @@ void perturbNormal(in vec3 X, in Basis basis, int material, inout vec3 nW)
 {
     if (material==MAT_SURFA)
     {
-        vec3 nL = SURFACE_NORMAL_MAP(X);
+        vec3 nL = SURFACE_NORMAL_MAP(X, basis.nW);
         nW = localToWorld(normalize(2.0*nL - vec3(1.0)), basis);
     }
 }
@@ -804,7 +804,7 @@ void perturbNormal(in vec3 X, in Basis basis, int material, inout vec3 nW)
 {
     if (material==MAT_SURFA)
     {
-        vec3 nL = SURFACE_NORMAL_MAP(X);
+        vec3 nL = SURFACE_NORMAL_MAP(X, basis.nW);
         nW = localToWorld(normalize(2.0*nL - vec3(1.0)), basis);
     }
 }
@@ -1837,7 +1837,7 @@ void perturbNormal(in vec3 X, in Basis basis, int material, inout vec3 nW)
 #ifdef HAS_SURFACE_NORMALMAP
     if (material==MAT_SURFA)
     {
-        vec3 nL = SURFACE_NORMAL_MAP(X);
+        vec3 nL = SURFACE_NORMAL_MAP(X, basis.nW);
         nW = localToWorld(normalize(2.0*nL - vec3(1.0)), basis);
     }
 #endif
