@@ -850,6 +850,11 @@ void main()
             Basis basis = makeBasis(nW);
 #ifdef HAS_SURFACE_NORMALMAP
             nW = perturbNormal(pW, basis, hitMaterial);
+            // If the incident ray lies below the hemisphere of the perturbed shading normal,
+            // which can occur due to normal mapping, apply the "Flipping hack" to prevent artifacts
+            // (see Schüßler, "Microfacet-based Normal Mapping for Robust Monte Carlo Path Tracing")
+            if ((dot(nW, winputW) < 0.0) && (hitMaterial != MAT_DIELE))
+                nW = 2.0*ngW*dot(ngW, nW) - nW;
 #endif
             colorXYZ += rgbToXyz(0.5*(nW+vec3(1.0)));
         }
@@ -1544,7 +1549,6 @@ RadianceType METAL_SPEC_REFL_EVAL(in vec3 X, in vec3 winputL, in Basis basis, in
 
 RadianceType evaluateMetal( in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, in float wavelength_nm, in vec3 rgb)
 {
-    if (winputL.z<0.0) return RadianceType(0.0);
     float ior = IOR_METAL(wavelength_nm);
     float k = K_METAL(wavelength_nm);
     float Fr = fresnelMetalReflectance(winputL.z, ior, k);
@@ -1559,7 +1563,6 @@ RadianceType evaluateMetal( in vec3 X, in Basis basis, in vec3 winputL, in vec3 
 
 float pdfMetal( in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, in float wavelength_nm, in vec3 rgb)
 {
-    if (winputL.z<0.0) return PDF_EPSILON;
     float ior = IOR_DIELE(wavelength_nm);
     float k = K_METAL(wavelength_nm);
     vec3 h = safe_normalize(woutputL + winputL); // reflection half-vector
@@ -1572,7 +1575,6 @@ float pdfMetal( in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, in
 RadianceType sampleMetal( in vec3 X, in Basis basis, in vec3 winputL, in float wavelength_nm, in vec3 rgb,
                           inout vec3 woutputL, inout float pdfOut, inout vec4 rnd )
 {
-    if (winputL.z<0.0) return RadianceType(0.0);
     float ior = IOR_METAL(wavelength_nm);
     float k = K_METAL(wavelength_nm);
     float Fr = fresnelMetalReflectance(winputL.z, ior, k);
@@ -1616,8 +1618,6 @@ RadianceType SURFACE_SPEC_REFL_EVAL(in vec3 X, in vec3 nW, in vec3 winputW, in v
 
 RadianceType evaluateSurface(in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, in float wavelength_nm, in vec3 rgb)
 {
-    if (winputL.z<0.0)
-        winputL.z = -winputL.z; // Flip to positive hemisphere (a hack for more plausible normal mapping)
     vec3 winputW = localToWorld(winputL, basis);
     RadianceType diffuseAlbedo = (1.0 - subsurface)*SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, winputW, rgb);
     RadianceType    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, winputW, rgb);
@@ -1635,8 +1635,6 @@ RadianceType evaluateSurface(in vec3 X, in Basis basis, in vec3 winputL, in vec3
 
 float pdfSurface(in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, in float wavelength_nm, in vec3 rgb)
 {
-    if (winputL.z<0.0)
-        winputL.z = -winputL.z; // Flip to positive hemisphere (a hack for more plausible normal mapping)
     vec3 winputW = localToWorld(winputL, basis);
     RadianceType diffuseAlbedo = (1.0 - subsurface)*SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, winputW, rgb);
     RadianceType    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, winputW, rgb);
@@ -1657,8 +1655,6 @@ float pdfSurface(in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, i
 RadianceType sampleSurface(in vec3 X, in Basis basis, in vec3 winputL, in float wavelength_nm, in vec3 rgb,
                            inout vec3 woutputL, inout float pdfOut, inout vec4 rnd)
 {
-    if (winputL.z<0.0)
-        winputL.z = -winputL.z; // Flip to positive hemisphere (a hack for more plausible normal mapping)
     vec3 winputW = localToWorld(winputL, basis);
     RadianceType diffuseAlbedo = (1.0 - subsurface)*SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, winputW, rgb);
     RadianceType    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, winputW, rgb);
@@ -2653,6 +2649,11 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
         Basis basis = makeBasis(nW);
 #ifdef HAS_NORMALMAP
         nW = perturbNormal(pW, basis, hitMaterial);
+        // If the incident ray lies below the hemisphere of the perturbed shading normal,
+        // which can occur due to normal mapping, apply the "Flipping hack" to prevent artifacts
+        // (see Schüßler, "Microfacet-based Normal Mapping for Robust Monte Carlo Path Tracing")
+        if ((dot(nW, winputW) < 0.0) && (hitMaterial != MAT_DIELE))
+            nW = 2.0*ngW*dot(ngW, nW) - nW;
         basis = makeBasis(nW);
 #endif
 
