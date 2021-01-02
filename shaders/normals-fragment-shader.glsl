@@ -316,7 +316,7 @@ void main()
             vec3 nW = normal(pW, hitMaterial);
             Basis basis = makeBasis(nW);
 #ifdef HAS_SURFACE_NORMALMAP
-            perturbNormal(pW, basis, hitMaterial, nW);
+            nW = perturbNormal(pW, basis, hitMaterial);
 #endif
             colorXYZ += rgbToXyz(0.5*(nW+vec3(1.0)));
         }
