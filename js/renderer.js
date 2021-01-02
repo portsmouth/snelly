@@ -226,32 +226,26 @@ Renderer.prototype.compileShaders = function()
 
     let hasSurface = true;
     let hasSurfaceNM = false;
-    let hasSurfaceDisp = false;
     if (shader.indexOf("SDF_SURFACE(")                     == -1) { hasSurface = false; }
     if (shader.indexOf("SURFACE_DIFFUSE_REFLECTANCE(")     == -1) { shader += `\n vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
     if (shader.indexOf("SURFACE_SPECULAR_REFLECTANCE(")    == -1) { shader += `\n vec3 SURFACE_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
     if (shader.indexOf("SURFACE_ROUGHNESS(")               == -1) { shader += `\n float SURFACE_ROUGHNESS(in float roughness, in vec3 X, in vec3 N) { return roughness; }\n`; }
     if (shader.indexOf("SURFACE_NORMAL_MAP(")               > -1) { hasSurfaceNM = true; }
-    if (shader.indexOf("SURFACE_DISPLACEMENT(")             > -1) { hasSurfaceDisp = true; }
     if (shader.indexOf("SUBSURFACE_ALBEDO(")               == -1) { shader += `\n vec3 SUBSURFACE_ALBEDO(in vec3 C, in vec3 X, in vec3 N) { return C; }\n`; }
 
     let hasMetal = true;
     let hasMetalNM = false;
-    let hasMetalDisp = false;
     if (shader.indexOf("SDF_METAL(")                       == -1) { hasMetal = false; }
     if (shader.indexOf("METAL_SPECULAR_REFLECTANCE(")      == -1) { shader += `\n vec3 METAL_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
     if (shader.indexOf("METAL_ROUGHNESS(")                 == -1) { shader += `\n float METAL_ROUGHNESS(in float roughness, in vec3 X, in vec3 N) { return roughness; }\n`; }
     if (shader.indexOf("METAL_NORMAL_MAP(")                 > -1) { hasMetalNM = true; }
-    if (shader.indexOf("METAL_DISPLACEMENT(")               > -1) { hasMetalDisp = true; }
 
     let hasDielectric = true;
     let hasDielectricNM = false;
-    let hasDielectricDisp = false;
     if (shader.indexOf("SDF_DIELECTRIC(")                  == -1) { hasDielectric = false; }
     if (shader.indexOf("DIELECTRIC_SPECULAR_REFLECTANCE(") == -1) { shader += `\n vec3 DIELECTRIC_SPECULAR_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V) { return C; }\n`; }
     if (shader.indexOf("DIELECTRIC_ROUGHNESS(")            == -1) { shader += `\n float DIELECTRIC_ROUGHNESS(in float roughness, in vec3 X, in vec3 N) { return roughness; }\n`; }
     if (shader.indexOf("DIELECTRIC_NORMAL_MAP(")            > -1) { hasDielectricNM = true; }
-    if (shader.indexOf("DIELECTRIC_DISPLACEMENT(")          > -1) { hasDielectricDisp = true; }
     if (shader.indexOf("DIELECTRIC_ABSORPTION(")           == -1) { shader += `\n vec3 DIELECTRIC_ABSORPTION(vec3 absorption_ui, vec3 X) { return absorption_ui; }\n`; }
 
     let hasVolumeEmission = true;
@@ -274,7 +268,6 @@ Renderer.prototype.compileShaders = function()
     let hasAtmosphere = this.colorNotZero(volumeObj.scatteringColor) || this.colorNotZero(volumeObj.absorptionColor);
 
     let hasNM = (hasSurfaceNM || hasMetalNM || hasDielectricNM);
-    let hasDisp = (hasSurfaceDisp || hasMetalDisp || hasDielectricDisp);
 
     // Insert material GLSL code
     var dielectricObj = snelly.getLoadedDielectric(); if (dielectricObj == null) return;
@@ -306,11 +299,6 @@ Renderer.prototype.compileShaders = function()
     if (hasMetalNM)        replacements.__DEFINES__ += '\n#define HAS_METAL_NORMALMAP\n';
     if (hasDielectricNM)   replacements.__DEFINES__ += '\n#define HAS_DIELECTRIC_NORMALMAP\n';
 
-    if (hasDisp)           replacements.__DEFINES__ += '\n#define HAS_DISPLACEMENT\n';
-    if (hasSurfaceDisp)    replacements.__DEFINES__ += '\n#define HAS_SURFACE_DISPLACEMENT\n';
-    if (hasMetalDisp)      replacements.__DEFINES__ += '\n#define HAS_METAL_DISPLACEMENT\n';
-    if (hasDielectricDisp) replacements.__DEFINES__ += '\n#define HAS_DIELECTRIC_DISPLACEMENT\n';
-
     if (this.interactive)  replacements.__DEFINES__ += '\n#define INTERACTIVE_MODE\n';
     if (this.dispersive)   replacements.__DEFINES__ += '\n#define DISPERSION_ENABLED\n';
 
@@ -326,10 +314,6 @@ Renderer.prototype.compileShaders = function()
     console.warn('[snelly]     hasSurfaceNM      = ', hasSurfaceNM);
     console.warn('[snelly]     hasMetalNM        = ', hasMetalNM);
     console.warn('[snelly]     hasDielectricNM   = ', hasDielectricNM);
-    console.warn('[snelly]     hasDisp           = ', hasDisp);
-    console.warn('[snelly]     hasSurfaceDisp    = ', hasSurfaceDisp);
-    console.warn('[snelly]     hasMetalDisp      = ', hasMetalDisp);
-    console.warn('[snelly]     hasDielectricDisp = ', hasDielectricDisp);
     console.warn('[snelly]     hasSphereLight    = ', hasSphereLight);
 
     // Compile pathtracer with different entry point according to mode.

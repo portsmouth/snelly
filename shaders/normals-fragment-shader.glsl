@@ -257,13 +257,14 @@ vec3 environmentRadianceXYZ(in vec3 dir)
 ////////////////////////////////////////////////////////////////////////////////
 
 #ifdef HAS_SURFACE_NORMALMAP
-void perturbNormal(in vec3 X, in Basis basis, int material, inout vec3 nW)
+vec3 perturbNormal(in vec3 X, in Basis basis, int material)
 {
     if (material==MAT_SURFA)
     {
-        vec3 nL = SURFACE_NORMAL_MAP(X, basis.nW);
-        nW = localToWorld(normalize(nL), basis);
+        vec3 nL_perturbed = SURFACE_NORMAL_MAP(X, basis.nW);
+        return localToWorld(normalize(nL_perturbed), basis);
     }
+    return basis.nW;
 }
 #endif
 

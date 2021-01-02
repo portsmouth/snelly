@@ -933,48 +933,30 @@ vec3 normal(in vec3 pW, int material)
 }
 
 #ifdef HAS_NORMALMAP
-void perturbNormal(in vec3 X, in Basis basis, int material, inout vec3 nW)
+vec3 perturbNormal(in vec3 X, in Basis basis, int material)
 {
 #ifdef HAS_SURFACE_NORMALMAP
     if (material==MAT_SURFA)
     {
-        vec3 nL = SURFACE_NORMAL_MAP(X, basis.nW);
-        nW = localToWorld(normalize(nL), basis);
+        vec3 nL_perturbed = SURFACE_NORMAL_MAP(X, basis.nW);
+        return localToWorld(normalize(nL_perturbed), basis);
     }
 #endif
 #ifdef HAS_METAL_NORMALMAP
     if (material==MAT_METAL)
     {
-        vec3 nL = METAL_NORMAL_MAP(X);
-        nW = localToWorld(normalize(nL), basis);
+        vec3 nL_perturbed = METAL_NORMAL_MAP(X, basis.nW);
+        return localToWorld(normalize(nL_perturbed), basis);
     }
 #endif
 #ifdef HAS_DIELECTRIC_NORMALMAP
     if (material==MAT_DIELE)
     {
-        vec3 nL = DIELECTRIC_NORMAL_MAP(X);
-        nW = localToWorld(normalize(nL), basis);
+        vec3 nL_perturbed = DIELECTRIC_NORMAL_MAP(X, basis.nW);
+        return localToWorld(normalize(nL_perturbed), basis);
     }
 #endif
-}
-#endif
-
-#ifdef HAS_DISPLACEMENT
-vec3 displaceSurface(in vec3 X, in Basis basis, int material, inout vec3 nW)
-{
-#ifdef HAS_SURFACE_DISPLACEMENT
-    if (material==MAT_SURFA)
-        return SURFACE_DISPLACEMENT(X, nW, basis.tW, basis.bW);
-#endif
-#ifdef HAS_METAL_DISPLACEMENT
-    if (material==MAT_METAL)
-        return METAL_DISPLACEMEN(X, nW, basis.tW, basis.bW);
-#endif
-#ifdef HAS_DIELECTRIC_DISPLACEMENT
-    if (material==MAT_DIELE)
-        return DIELECTRIC_DISPLACEMENT(X, nW, basis.tW, basis.bW);
-#endif
-    return vec3(0.0);
+    return basis.nW;
 }
 #endif
 
@@ -1777,11 +1759,8 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
         vec3 ngW = nW; // geometric normal, needed for robust ray continuation
         Basis basis = makeBasis(nW);
 #ifdef HAS_NORMALMAP
-        perturbNormal(pW, basis, hitMaterial, nW);
+        nW = perturbNormal(pW, basis, hitMaterial);
         basis = makeBasis(nW);
-#endif
-#ifdef HAS_DISPLACEMENT
-        pW += displaceSurface(pW, basis, hitMaterial, nW);
 #endif
 
         // Make a binary choice whether to scatter at the surface, or do a subsurface random walk:
@@ -1818,7 +1797,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
 
             // Detect dielectric transmission
 #ifdef HAS_DIELECTRIC
-            if (hitMaterial==MAT_DIELE && dot(winputW, nW)*dot(woutputW, nW) < 0.0)
+            if (hitMaterial==MAT_DIELE && dot(winputW, ngW)*dot(woutputW, ngW) < 0.0)
             {
                 inDielectric = !inDielectric;
             }
@@ -1832,7 +1811,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             rayDir = woutputW;
 
             // Prepare for tracing the direct lighting and continuation rays
-            pW += ngW * sign(dot(rayDir, nW)) * 3.0*minLengthScale; // perturb vertex into half-space of scattered ray
+            pW += ngW * sign(dot(rayDir, ngW)) * 3.0*minLengthScale; // perturb vertex into half-space of scattered ray
 
             // Add direct lighting term at current surface vertex
             float skyPdf = 0.0;

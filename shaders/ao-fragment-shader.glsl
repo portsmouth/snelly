@@ -263,24 +263,17 @@ vec3 SURFACE_DIFFUSE_REFL_RGB(in vec3 X, in vec3 nW, in vec3 woW)
 }
 
 #ifdef HAS_SURFACE_NORMALMAP
-void perturbNormal(in vec3 X, in Basis basis, int material, inout vec3 nW)
+vec3 perturbNormal(in vec3 X, in Basis basis, int material)
 {
     if (material==MAT_SURFA)
     {
         vec3 nL = SURFACE_NORMAL_MAP(X, basis.nW);
-        nW = localToWorld(normalize(nL), basis);
+        return localToWorld(normalize(nL), basis);
     }
+    return basis.nW;
 }
 #endif
 
-#ifdef HAS_SURFACE_DISPLACEMENT
-vec3 displaceSurface(in vec3 X, in Basis basis, int material, inout vec3 nW)
-{
-    if (material==MAT_SURFA)
-        return SURFACE_DISPLACEMENT(X, nW, basis.tW, basis.bW);
-    return vec3(0.0);
-}
-#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 // Ambient occlusion integrator
@@ -346,11 +339,8 @@ void main()
             vec3 nW = normal(pW, hitMaterial);
             Basis basis = makeBasis(nW);
 #ifdef HAS_SURFACE_NORMALMAP
-            perturbNormal(pW, basis, hitMaterial, nW);
+            nW = perturbNormal(pW, basis, hitMaterial);
             basis = makeBasis(nW);
-#endif
-#ifdef HAS_SURFACE_DISPLACEMENT
-            pW += displaceSurface(pW, basis, hitMaterial, nW);
 #endif
 
             // Construct a uniformly sampled AO ray
