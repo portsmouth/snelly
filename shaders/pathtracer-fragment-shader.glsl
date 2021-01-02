@@ -1774,6 +1774,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
         // First, compute the normal and thus the local vertex basis:
         pW = pW_next;
         vec3 nW = normal(pW, hitMaterial);
+        vec3 ngW = nW; // geometric normal, needed for robust ray continuation
         Basis basis = makeBasis(nW);
 #ifdef HAS_NORMALMAP
         perturbNormal(pW, basis, hitMaterial, nW);
@@ -1831,7 +1832,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             rayDir = woutputW;
 
             // Prepare for tracing the direct lighting and continuation rays
-            pW += nW * sign(dot(rayDir, nW)) * 3.0*minLengthScale; // perturb vertex into half-space of scattered ray
+            pW += ngW * sign(dot(rayDir, nW)) * 3.0*minLengthScale; // perturb vertex into half-space of scattered ray
 
             // Add direct lighting term at current surface vertex
             float skyPdf = 0.0;
@@ -1862,6 +1863,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             RadianceType diffuseAlbedoEntry = SURFACE_DIFFUSE_REFL_EVAL(pW, basis.nW, -rayDir, rgb);
             RadianceType walk_throughput;
             vec3 pExit;
+            basis.nW = ngW; // (use basis with geometric normal for SSS entry, to avoid surface acne)
             bool success = randomwalk_SSS(pW, basis, rnd, subsurfaceMFP, subsurfaceAlbedo, diffuseAlbedoEntry, walk_throughput, pExit);
             if (!success)
                 break;
