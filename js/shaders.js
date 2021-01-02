@@ -271,7 +271,7 @@ void perturbNormal(in vec3 X, in Basis basis, int material, inout vec3 nW)
     if (material==MAT_SURFA)
     {
         vec3 nL = SURFACE_NORMAL_MAP(X, basis.nW);
-        nW = localToWorld(normalize(2.0*nL - vec3(1.0)), basis);
+        nW = localToWorld(normalize(nL), basis);
     }
 }
 #endif
@@ -805,7 +805,7 @@ void perturbNormal(in vec3 X, in Basis basis, int material, inout vec3 nW)
     if (material==MAT_SURFA)
     {
         vec3 nL = SURFACE_NORMAL_MAP(X, basis.nW);
-        nW = localToWorld(normalize(2.0*nL - vec3(1.0)), basis);
+        nW = localToWorld(normalize(nL), basis);
     }
 }
 #endif
@@ -1838,21 +1838,21 @@ void perturbNormal(in vec3 X, in Basis basis, int material, inout vec3 nW)
     if (material==MAT_SURFA)
     {
         vec3 nL = SURFACE_NORMAL_MAP(X, basis.nW);
-        nW = localToWorld(normalize(2.0*nL - vec3(1.0)), basis);
+        nW = localToWorld(normalize(nL), basis);
     }
 #endif
 #ifdef HAS_METAL_NORMALMAP
     if (material==MAT_METAL)
     {
         vec3 nL = METAL_NORMAL_MAP(X);
-        nW = localToWorld(normalize(2.0*nL - vec3(1.0)), basis);
+        nW = localToWorld(normalize(nL), basis);
     }
 #endif
 #ifdef HAS_DIELECTRIC_NORMALMAP
     if (material==MAT_DIELE)
     {
         vec3 nL = DIELECTRIC_NORMAL_MAP(X);
-        nW = localToWorld(normalize(2.0*nL - vec3(1.0)), basis);
+        nW = localToWorld(normalize(nL), basis);
     }
 #endif
 }
