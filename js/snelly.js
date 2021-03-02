@@ -6,7 +6,7 @@
 */
 var Snelly = function(sceneObj)
 {
-    console.log('[snelly] Snelly constructor');
+    console.log('[snelly] Running Snelly renderer v'+ver[0]+'.'+ver[1]+'.'+ver[2]);
 
     this.initialized = false;
     this.terminated = false;
@@ -95,7 +95,7 @@ var Snelly = function(sceneObj)
 */
 Snelly.prototype.getVersion = function()
 {
-    return [1, 15, 0];
+    return [1, 15, 1];
 }
 
 Snelly.prototype.handleEvent = function(event)

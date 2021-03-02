@@ -3423,6 +3423,22 @@ float smithG2(in vec3 woL, in vec3 wiL, in vec3 mLocal, float roughness)
 
 #ifdef HAS_SURFACE
 
+// cosi         = magnitude of the cosine of the incident ray angle to the normal
+// eta_ti       = ratio et/ei of the transmitted IOR (et) and incident IOR (ei)
+float fresnelDielectricReflectance(in float cosi, in float eta_ti)
+{
+    float c = cosi;
+    float g = eta_ti*eta_ti - 1.0 + c*c;
+    if (g > 0.0)
+    {
+        g = sqrt(g);
+        float A = (g-c) / (g+c);
+        float B = (c*(g+c) - 1.0) / (c*(g-c) + 1.0);
+        return 0.5*A*A*(1.0 + B*B);
+    }
+    return 1.0; // total internal reflection
+}
+
 RadianceType SURFACE_DIFFUSE_REFL_EVAL(in vec3 X, in vec3 nW, in vec3 winputW, in vec3 rgb)
 {
     vec3 reflRGB = SURFACE_DIFFUSE_REFLECTANCE(surfaceDiffuseAlbedoRGB, X, nW, winputW);
