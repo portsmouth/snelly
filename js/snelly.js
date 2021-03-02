@@ -6,11 +6,11 @@
 */
 var Snelly = function(sceneObj)
 {
-    console.warning('[snelly] Snelly constructor');
-    console.warning('[snelly] --------------------------------------------------');
+    console.warn('[snelly] Snelly constructor');
+    console.warn('[snelly] --------------------------------------------------');
     let ver = this.getVersion();
-    console.warning('[snelly] Running Snelly renderer v'+ver[0]+'.'+ver[1]+'.'+ver[2]);
-    console.warning('[snelly] --------------------------------------------------');
+    console.warn('[snelly] Running Snelly renderer v'+ver[0]+'.'+ver[1]+'.'+ver[2]);
+    console.warn('[snelly] --------------------------------------------------');
 
     this.initialized = false;
     this.terminated = false;
