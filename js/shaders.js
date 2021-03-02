@@ -3634,6 +3634,14 @@ vec3 perturbNormal(in vec3 X, in Basis basis, int material)
 #endif
 
 
+// Return whether a hit occurs along a given ray to "infinity"
+bool anyHit(in vec3 pW, in vec3 rayDir)
+{
+    vec3 pW_surface;
+    int hitMaterial;
+    bool hit = traceRay(pW, rayDir, pW_surface, hitMaterial, maxLengthScale);
+    return hit;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Light sampling
@@ -3755,11 +3763,14 @@ RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 winputW, in 
         RadianceType Li = sampleSkyAtSurface(basis, rgb, rnd, woutputL, woutputW, skyPdf);
         if (averageComponent(Li) > RADIANCE_EPSILON)
         {
-            // Apply MIS weight with the BSDF pdf for the sampled direction
-            float bsdfPdf = max(PDF_EPSILON, pdfBsdf(pW, basis, winputL, woutputL, material, wavelength_nm, rgb, fromCamera));
-            RadianceType f = evaluateBsdf(pW, basis, winputL, woutputL, material, wavelength_nm, rgb, fromCamera, rnd);
-            float misWeight = powerHeuristic(skyPdf, bsdfPdf);
-            Ldirect += f * Li/max(PDF_EPSILON, skyPdf) * abs(dot(woutputW, basis.nW)) * misWeight;
+            if (!anyHit(pW, woutputW))
+            {
+                // Apply MIS weight with the BSDF pdf for the sampled direction
+                float bsdfPdf = max(PDF_EPSILON, pdfBsdf(pW, basis, winputL, woutputL, material, wavelength_nm, rgb, fromCamera));
+                RadianceType f = evaluateBsdf(pW, basis, winputL, woutputL, material, wavelength_nm, rgb, fromCamera, rnd);
+                float misWeight = powerHeuristic(skyPdf, bsdfPdf);
+                Ldirect += f * Li/max(PDF_EPSILON, skyPdf) * abs(dot(woutputW, basis.nW)) * misWeight;
+            }
         }
     }
     // Sun
@@ -3768,11 +3779,14 @@ RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 winputW, in 
         RadianceType Li = sampleSunAtSurface(basis, rgb, rnd, woutputL, woutputW, sunPdf);
         if (averageComponent(Li) > RADIANCE_EPSILON)
         {
-            // Apply MIS weight with the BSDF pdf for the sampled direction
-            float bsdfPdf = max(PDF_EPSILON, pdfBsdf(pW, basis, winputL, woutputL, material, wavelength_nm, rgb, fromCamera));
-            RadianceType f = evaluateBsdf(pW, basis, winputL, woutputL, material, wavelength_nm, rgb, fromCamera, rnd);
-            float misWeight = powerHeuristic(sunPdf, bsdfPdf);
-            Ldirect += f * Li/max(PDF_EPSILON, sunPdf) * abs(dot(woutputW, basis.nW)) * misWeight;
+            if (!anyHit(pW, woutputW))
+            {
+                // Apply MIS weight with the BSDF pdf for the sampled direction
+                float bsdfPdf = max(PDF_EPSILON, pdfBsdf(pW, basis, winputL, woutputL, material, wavelength_nm, rgb, fromCamera));
+                RadianceType f = evaluateBsdf(pW, basis, winputL, woutputL, material, wavelength_nm, rgb, fromCamera, rnd);
+                float misWeight = powerHeuristic(sunPdf, bsdfPdf);
+                Ldirect += f * Li/max(PDF_EPSILON, sunPdf) * abs(dot(woutputW, basis.nW)) * misWeight;
+            }
         }
     }
     return min(RadianceType(radianceClamp), Ldirect);
@@ -3858,10 +3872,13 @@ RadianceType SSS_exit_radiance(in vec3 pW, Basis basis,
         RadianceType Li = sampleSkyAtSurface(basis, rgb, rnd, woutputL, woutputW, skyPdf);
         if (averageComponent(Li) > RADIANCE_EPSILON)
         {
-            // Apply MIS weight with the BSDF pdf for the sampled direction
-            float bsdfPdf = pdfHemisphereCosineWeighted(woutputL);
-            float misWeight = powerHeuristic(skyPdf, bsdfPdf);
-            Ldirect += f * Li/max(PDF_EPSILON, skyPdf) * abs(dot(woutputW, basis.nW)) * misWeight;
+            if (!anyHit(pW+dPw, woutputW))
+            {
+                // Apply MIS weight with the BSDF pdf for the sampled direction
+                float bsdfPdf = pdfHemisphereCosineWeighted(woutputL);
+                float misWeight = powerHeuristic(skyPdf, bsdfPdf);
+                Ldirect += f * Li/max(PDF_EPSILON, skyPdf) * abs(dot(woutputW, basis.nW)) * misWeight;
+            }
         }
     }
     // Sun
@@ -3870,10 +3887,13 @@ RadianceType SSS_exit_radiance(in vec3 pW, Basis basis,
         RadianceType Li = sampleSunAtSurface(basis, rgb, rnd, woutputL, woutputW, sunPdf);
         if (averageComponent(Li) > RADIANCE_EPSILON)
         {
-            // Apply MIS weight with the BSDF pdf for the sampled direction
-            float bsdfPdf = pdfHemisphereCosineWeighted(woutputL);
-            float misWeight = powerHeuristic(sunPdf, bsdfPdf);
-            Ldirect += f * Li/max(PDF_EPSILON, sunPdf) * abs(dot(woutputW, basis.nW)) * misWeight;
+            if (!anyHit(pW+dPw, woutputW))
+            {
+                // Apply MIS weight with the BSDF pdf for the sampled direction
+                float bsdfPdf = pdfHemisphereCosineWeighted(woutputL);
+                float misWeight = powerHeuristic(sunPdf, bsdfPdf);
+                Ldirect += f * Li/max(PDF_EPSILON, sunPdf) * abs(dot(woutputW, basis.nW)) * misWeight;
+            }
         }
     }
     return min(RadianceType(radianceClamp), Ldirect);
@@ -3922,6 +3942,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
     RadianceType throughput = RadianceType(1.0);
     for (int vertex=0; vertex<=__MAX_BOUNCES__; ++vertex)
     {
+        // Bail out now if the path continuation throughput is below threshold
         if (maxComponent(throughput) < THROUGHPUT_EPSILON) break;
 
         // Raycast along current propagation direction rayDir, from current vertex pW to pW_next
@@ -4065,10 +4086,6 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             pW += nW * sign(dot(rayDir, nW)) * 3.0*minLengthScale; // perturb vertex into half-space of scattered ray
         }
 #endif
-
-        // Bail out now if the path continuation throughput is below threshold
-        if (maxComponent(throughput) < THROUGHPUT_EPSILON)
-            break;
     }
     return L;
 }
