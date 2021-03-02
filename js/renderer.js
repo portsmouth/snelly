@@ -6,7 +6,7 @@
 * @constructor
 * @property {number} width                       - (if not specified, fits to window)
 * @property {number} height                      - (if not specified, fits to window)
-* @property {String} [renderMode='pt']           - rendering mode (either 'pt', 'ao', 'normals')
+* @property {String} [renderMode='pt']           - rendering mode (either 'pt', 'ptsimple', 'ao', 'normals')
 * @property {number} [dispersive=false]          - enable dispersive (i.e. spectral) rendering
 * @property {number} [maxSamplesPerFrame=1]      - maximum number of per-pixel samples per frame
 * @property {number} [maxSpp=1]                  - maximum number of samples-per-pixel, after which the render terminates
@@ -60,11 +60,12 @@ var Renderer = function()
     this.pathStates = [new PathtracerState(this._width, this._height),
                        new PathtracerState(this._width, this._height)];
     this.fbo = null;
-    this.aoProgram           = null;
-    this.normalsProgram      = null;
-    this.pathtraceAllProgram = null;
-    this.tonemapProgram      = null;
-    this.pickProgram         = null;
+    this.aoProgram              = null;
+    this.normalsProgram         = null;
+    this.pathtraceAllProgram    = null;
+    this.pathtraceSimpleProgram = null;
+    this.tonemapProgram         = null;
+    this.pickProgram            = null;
 
     // Internal properties (@todo: use underscore to make this more explicit?)
     this.numSamples = 0;
@@ -84,7 +85,7 @@ var Renderer = function()
     this.maxBounces = 3;
     this.maxAtmosphereScatters = 1;
     this.maxMarchSteps = 256;
-    this.maxSSSSteps = 256;
+    this.maxSSSSteps = 128;
     this.radianceClamp = 3.0;
     this.wavelengthSamples = 256;
     this.filterRadius = 2.0;
@@ -125,11 +126,12 @@ var Renderer = function()
 
     // Load shaders
     this.shaderSources = GLU.resolveShaderSource({
-        'pathtracer': {'v': 'pathtracer-vertex-shader', 'f': 'pathtracer-fragment-shader'},
-        'ao':         {'v': 'ao-vertex-shader',         'f': 'ao-fragment-shader'        },
-        'normals':    {'v': 'normals-vertex-shader',    'f': 'normals-fragment-shader'   },
-        'tonemapper': {'v': 'tonemapper-vertex-shader', 'f': 'tonemapper-fragment-shader'},
-        'pick':       {'v': 'pick-vertex-shader',       'f': 'pick-fragment-shader'}
+        'pathtracer':       {'v': 'pathtracer-vertex-shader',       'f': 'pathtracer-fragment-shader'},
+        'simplepathtracer': {'v': 'simplepathtracer-vertex-shader', 'f': 'simplepathtracer-fragment-shader'},
+        'ao':               {'v': 'ao-vertex-shader',               'f': 'ao-fragment-shader'        },
+        'normals':          {'v': 'normals-vertex-shader',          'f': 'normals-fragment-shader'   },
+        'tonemapper':       {'v': 'tonemapper-vertex-shader',       'f': 'tonemapper-fragment-shader'},
+        'pick':             {'v': 'pick-vertex-shader',             'f': 'pick-fragment-shader'}
     });
 
     this.filterPrograms = null;
@@ -329,8 +331,12 @@ Renderer.prototype.compileShaders = function()
             console.warn('[snelly] normals mode');
             this.normalsProgram = new GLU.Shader('normals', this.shaderSources, replacements);
             break;
-        case 'pt':
+        case 'ptsimple':
+            console.warn('[snelly] simplified pathtracer mode');
+            this.pathtraceSimpleProgram = new GLU.Shader('simplepathtracer', this.shaderSources, replacements);
+            break;
         default:
+        case 'pt':
             console.warn('[snelly] pathtracer mode');
             this.pathtraceAllProgram = new GLU.Shader('pathtracer', this.shaderSources, replacements);
             break;
@@ -492,10 +498,12 @@ Renderer.prototype.render = function()
     let INTEGRATOR_PROGRAM = null;
     switch (this.renderMode)
     {
-        case 'ao':       INTEGRATOR_PROGRAM = this.aoProgram;           break;
-        case 'normals':  INTEGRATOR_PROGRAM = this.normalsProgram;      break;
-        case 'pt':
-        default:         INTEGRATOR_PROGRAM = this.pathtraceAllProgram; break;
+        case 'ao':       INTEGRATOR_PROGRAM = this.aoProgram;              break;
+        case 'normals':  INTEGRATOR_PROGRAM = this.normalsProgram;         break;
+        case 'normals':  INTEGRATOR_PROGRAM = this.normalsProgram;         break;
+        case 'ptsimple': INTEGRATOR_PROGRAM = this.pathtraceSimpleProgram; break;
+        default:
+        case 'pt':       INTEGRATOR_PROGRAM = this.pathtraceAllProgram;    break;
     }
 
     INTEGRATOR_PROGRAM.bind();
@@ -519,7 +527,7 @@ Renderer.prototype.render = function()
     INTEGRATOR_PROGRAM.uniform2Fv("resolution", [this._width, this._height]);
 
     // Read wavelength -> XYZ table
-    if (this.renderMode=='pt' || this.renderMode=='ao')
+    if (this.renderMode=='pt' || this.renderMode=='pathtraceSimpleProgram' || this.renderMode=='ao')
     {
         snelly.wavelengthToXYZ.bind(2);
         INTEGRATOR_PROGRAM.uniformTexture("WavelengthToXYZ", snelly.wavelengthToXYZ);

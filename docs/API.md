@@ -349,7 +349,7 @@ Optional callback on key down.
 | --- | --- | --- | --- |
 | width | <code>number</code> |  | (if not specified, fits to window) |
 | height | <code>number</code> |  | (if not specified, fits to window) |
-| [renderMode] | <code>String</code> | <code>&#x27;pt&#x27;</code> | rendering mode (either 'pt', 'ao', 'normals') |
+| [renderMode] | <code>String</code> | <code>&#x27;pt&#x27;</code> | rendering mode (either 'pt', 'ptsimple', 'ao', 'normals') |
 | [dispersive] | <code>number</code> | <code>false</code> | enable dispersive (i.e. spectral) rendering |
 | [maxSamplesPerFrame] | <code>number</code> | <code>1</code> | maximum number of per-pixel samples per frame |
 | [maxSpp] | <code>number</code> | <code>1</code> | maximum number of samples-per-pixel, after which the render terminates |

@@ -697,7 +697,7 @@ Dielectric.prototype.initGui  = function(parentFolder)
 { 
     if (this.absorptionScale<0.0) this.absorptionScale = snelly.maxLengthScale; 
 
-    this.roughnessItem = parentFolder.add(this, 'roughness', 0.0, 0.1);
+    this.roughnessItem = parentFolder.add(this, 'roughness', 0.0, 1.0);
     this.roughnessItem.onChange( function(value) { snelly.camControls.enabled = false; snelly.reset(true); } );
     this.roughnessItem.onFinishChange( function(value) { snelly.camControls.enabled = true; } );
 
