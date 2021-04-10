@@ -3246,20 +3246,10 @@ vec3 rgbToXyz(in vec3 RGB)
     return XYZ;
 }
 
-#ifdef DISPERSION_ENABLED
-// In dispersive rendering, takes the RGB of an albedo-like quantity (i.e. a desired color),
-// and the rgb color matching functions at the wavelength of the current monochromatic beam,
-// and returns the corresponding scalar albedo at this wavelength.
-float rgbToAlbedo(in vec3 RGB, in vec3 rgb)
-{
-    return dot(RGB, rgb);
-}
-#else
 vec3 rgbToAlbedo(in vec3 RGB, in vec3 rgb)
 {
     return RGB;
 }
-#endif
 
 float maxComponent(in vec3 v)
 {
@@ -4137,17 +4127,6 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
 void main()
 {
     vec4 rnd = texture(RngData, vTexCoord);
-    if (rand(rnd) < skipProbability)
-    {
-        vec4 oldL = texture(Radiance, vTexCoord);
-        float oldN = oldL.w;
-        float newN = oldN;
-        vec3 newL = oldL.rgb;
-        gbuf_rad = vec4(newL, newN);
-        gbuf_rng = rnd;
-        return;
-    }
-
     INIT();
     pathtrace(gl_FragCoord.xy, rnd);
 }
