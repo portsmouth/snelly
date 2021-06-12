@@ -87,6 +87,13 @@ uniform vec3 atmosphereScatteringCoeffRGB;
 uniform float atmosphereMFP;
 uniform float atmosphereAnisotropy;
 
+// Fog
+uniform bool fogEnable;
+uniform float fogMaxOpticalDepth;
+uniform float fogMFP;
+uniform vec3 fogEmission;
+uniform vec3 fogTint;
+
 // Volumetric emission constants
 uniform float volumeEmission;
 uniform vec3 volumeEmissionColorRGB;
@@ -995,9 +1002,8 @@ bool atmosphereSegment(in vec3 pW, in vec3 rayDir, float segmentLength, // input
 // Return the amount of light transmitted (per-channel) along a known "free" segment (i.e. free of geometry)
 RadianceType transmittanceOverFreeSegment(in vec3 pW, in vec3 rayDir, float segmentLength, in vec3 rgb)
 {
-#ifndef HAS_ATMOSPHERE
-    return RadianceType(1.0);
-#else
+    RadianceType Tr = RadianceType(1.0);
+#ifdef HAS_ATMOSPHERE
     RadianceType extinction = VOLUME_EXTINCTION_EVAL(rgb);
     if (length(extinction) == 0.f)
         return RadianceType(1.0);
@@ -1006,9 +1012,17 @@ RadianceType transmittanceOverFreeSegment(in vec3 pW, in vec3 rayDir, float segm
     if (!hitAtmosphere)
         return RadianceType(1.0);
     RadianceType opticalDepth = (t1 - t0) * extinction;
-    RadianceType Tr = exp(-opticalDepth);
-    return Tr;
+    Tr = exp(-opticalDepth);
 #endif
+#ifdef HAS_FOG
+    if (fogEnable)
+    {
+        vec3 fogAbsorption = vec3(1.0) - fogTint;
+        vec3 opticalDepthFog = fogMaxOpticalDepth * (vec3(1.0) - exp(-segmentLength*fogAbsorption/fogMFP));
+        Tr *= exp(-rgbToAlbedo(opticalDepthFog, rgb));
+    }
+#endif
+    return Tr;
 }
 
 // Return the amount of light transmitted (per-channel) along a given segment
@@ -1350,18 +1364,29 @@ RadianceType directVolumeLighting(in vec3 pW, in vec3 rayDir, in vec3 rgb, inout
 
 RadianceType atmosphericInscatteringRadiance(in vec3 pW, in vec3 rayDir, in float segmentLength, in vec3 rgb, inout vec4 rnd)
 {
+    RadianceType Ls = RadianceType(0.0);
+
+#ifdef HAS_FOG
+    // Fog "fake" contribution
+    if (fogEnable)
+    {
+        RadianceType TrFog = transmittanceOverFreeSegment(pW, rayDir, segmentLength, rgb);
+        Ls = (RadianceType(1.0) - TrFog) * rgbToAlbedo(fogEmission, rgb);
+    }
+#endif
+
     RadianceType extinction = VOLUME_EXTINCTION_EVAL(rgb);
     RadianceType scattering = VOLUME_SCATTERING_EVAL(rgb);
     float extinction_norm = averageComponent(extinction);
     float scattering_norm = averageComponent(scattering);
     if ( extinction_norm < RADIANCE_EPSILON ||
-         scattering_norm < RADIANCE_EPSILON ) return RadianceType(0.0);
+         scattering_norm < RADIANCE_EPSILON ) return Ls;
 
     // Find sub-segment of supplied segment over which (homogeneous) atmosphere exists
     float t0, t1;
     bool hitAtmosphere = atmosphereSegment(pW, rayDir, segmentLength, t0, t1);
     if (!hitAtmosphere)
-        return RadianceType(0.0);
+        return Ls;
 
     // Sample a scattering point in [t0, t1] from a PDF proportional to the transmittance (normalized over [t0, t1])
     float T01 = exp(-(t1-t0)*extinction_norm);
@@ -1373,7 +1398,7 @@ RadianceType atmosphericInscatteringRadiance(in vec3 pW, in vec3 rayDir, in floa
 
     // Direct lighting
     RadianceType Li = directVolumeLighting(pW_scatter, rayDir, rgb, rnd);
-    RadianceType Ls = Tr_pW * scattering * Li * invDistancePdf; // final estimator for scattered radiance
+    Ls += Tr_pW * scattering * Li * invDistancePdf; // final estimator for scattered radiance
 
 #ifdef HAS_VOLUME_EMISSION
     // Surface emission contribution
@@ -1652,7 +1677,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             // Add contribution from distant lights
             {
                 lightSegmentLength = maxLengthScale;
-                Tr = transmittanceOverSegment(pW, rayDir, lightSegmentLength, rgb);
+                Tr = transmittanceOverFreeSegment(pW, rayDir, lightSegmentLength, rgb);
                 float scatter_prob = atmosphericScatteringProbability(Tr, rgb);
                 if (averageComponent(Tr) > RADIANCE_EPSILON)
                 {

@@ -983,6 +983,13 @@ uniform vec3 atmosphereScatteringCoeffRGB;
 uniform float atmosphereMFP;
 uniform float atmosphereAnisotropy;
 
+// Fog
+uniform bool fogEnable;
+uniform float fogMaxOpticalDepth;
+uniform float fogMFP;
+uniform vec3 fogEmission;
+uniform vec3 fogTint;
+
 // Volumetric emission constants
 uniform float volumeEmission;
 uniform vec3 volumeEmissionColorRGB;
@@ -1891,9 +1898,8 @@ bool atmosphereSegment(in vec3 pW, in vec3 rayDir, float segmentLength, // input
 // Return the amount of light transmitted (per-channel) along a known "free" segment (i.e. free of geometry)
 RadianceType transmittanceOverFreeSegment(in vec3 pW, in vec3 rayDir, float segmentLength, in vec3 rgb)
 {
-#ifndef HAS_ATMOSPHERE
-    return RadianceType(1.0);
-#else
+    RadianceType Tr = RadianceType(1.0);
+#ifdef HAS_ATMOSPHERE
     RadianceType extinction = VOLUME_EXTINCTION_EVAL(rgb);
     if (length(extinction) == 0.f)
         return RadianceType(1.0);
@@ -1902,9 +1908,17 @@ RadianceType transmittanceOverFreeSegment(in vec3 pW, in vec3 rayDir, float segm
     if (!hitAtmosphere)
         return RadianceType(1.0);
     RadianceType opticalDepth = (t1 - t0) * extinction;
-    RadianceType Tr = exp(-opticalDepth);
-    return Tr;
+    Tr = exp(-opticalDepth);
 #endif
+#ifdef HAS_FOG
+    if (fogEnable)
+    {
+        vec3 fogAbsorption = vec3(1.0) - fogTint;
+        vec3 opticalDepthFog = fogMaxOpticalDepth * (vec3(1.0) - exp(-segmentLength*fogAbsorption/fogMFP));
+        Tr *= exp(-rgbToAlbedo(opticalDepthFog, rgb));
+    }
+#endif
+    return Tr;
 }
 
 // Return the amount of light transmitted (per-channel) along a given segment
@@ -2246,18 +2260,29 @@ RadianceType directVolumeLighting(in vec3 pW, in vec3 rayDir, in vec3 rgb, inout
 
 RadianceType atmosphericInscatteringRadiance(in vec3 pW, in vec3 rayDir, in float segmentLength, in vec3 rgb, inout vec4 rnd)
 {
+    RadianceType Ls = RadianceType(0.0);
+
+#ifdef HAS_FOG
+    // Fog "fake" contribution
+    if (fogEnable)
+    {
+        RadianceType TrFog = transmittanceOverFreeSegment(pW, rayDir, segmentLength, rgb);
+        Ls = (RadianceType(1.0) - TrFog) * rgbToAlbedo(fogEmission, rgb);
+    }
+#endif
+
     RadianceType extinction = VOLUME_EXTINCTION_EVAL(rgb);
     RadianceType scattering = VOLUME_SCATTERING_EVAL(rgb);
     float extinction_norm = averageComponent(extinction);
     float scattering_norm = averageComponent(scattering);
     if ( extinction_norm < RADIANCE_EPSILON ||
-         scattering_norm < RADIANCE_EPSILON ) return RadianceType(0.0);
+         scattering_norm < RADIANCE_EPSILON ) return Ls;
 
     // Find sub-segment of supplied segment over which (homogeneous) atmosphere exists
     float t0, t1;
     bool hitAtmosphere = atmosphereSegment(pW, rayDir, segmentLength, t0, t1);
     if (!hitAtmosphere)
-        return RadianceType(0.0);
+        return Ls;
 
     // Sample a scattering point in [t0, t1] from a PDF proportional to the transmittance (normalized over [t0, t1])
     float T01 = exp(-(t1-t0)*extinction_norm);
@@ -2269,7 +2294,7 @@ RadianceType atmosphericInscatteringRadiance(in vec3 pW, in vec3 rayDir, in floa
 
     // Direct lighting
     RadianceType Li = directVolumeLighting(pW_scatter, rayDir, rgb, rnd);
-    RadianceType Ls = Tr_pW * scattering * Li * invDistancePdf; // final estimator for scattered radiance
+    Ls += Tr_pW * scattering * Li * invDistancePdf; // final estimator for scattered radiance
 
 #ifdef HAS_VOLUME_EMISSION
     // Surface emission contribution
@@ -2548,7 +2573,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             // Add contribution from distant lights
             {
                 lightSegmentLength = maxLengthScale;
-                Tr = transmittanceOverSegment(pW, rayDir, lightSegmentLength, rgb);
+                Tr = transmittanceOverFreeSegment(pW, rayDir, lightSegmentLength, rgb);
                 float scatter_prob = atmosphericScatteringProbability(Tr, rgb);
                 if (averageComponent(Tr) > RADIANCE_EPSILON)
                 {
@@ -3133,6 +3158,13 @@ uniform int maxSSSSteps;
 uniform float volumeEmission;
 uniform vec3 volumeEmissionColorRGB;
 
+// Fog
+uniform bool fogEnable;
+uniform float fogMaxOpticalDepth;
+uniform float fogMFP;
+uniform vec3 fogEmission;
+uniform vec3 fogTint;
+
 
 //////////////////////////////////////////////////////////////
 // Defines
@@ -3174,7 +3206,6 @@ __SHADER__
 
 __IOR_FUNC__
 
-#define RadianceType vec3
 
 /////////////////////////////////////////////////////////////////////////
 // Basis transforms
@@ -3244,11 +3275,6 @@ vec3 rgbToXyz(in vec3 RGB)
     XYZ.y = 0.2126729*RGB.r + 0.7151522*RGB.g + 0.0721750*RGB.b;
     XYZ.z = 0.0193339*RGB.r + 0.1191920*RGB.g + 0.9503041*RGB.b;
     return XYZ;
-}
-
-vec3 rgbToAlbedo(in vec3 RGB, in vec3 rgb)
-{
-    return RGB;
 }
 
 float maxComponent(in vec3 v)
@@ -3429,37 +3455,37 @@ float fresnelDielectricReflectance(in float cosi, in float eta_ti)
     return 1.0; // total internal reflection
 }
 
-RadianceType SURFACE_DIFFUSE_REFL_EVAL(in vec3 X, in vec3 nW, in vec3 winputW, in vec3 rgb)
+vec3 SURFACE_DIFFUSE_REFL_EVAL(in vec3 X, in vec3 nW, in vec3 winputW, in vec3 rgb)
 {
     vec3 reflRGB = SURFACE_DIFFUSE_REFLECTANCE(surfaceDiffuseAlbedoRGB, X, nW, winputW);
-    return rgbToAlbedo(reflRGB, rgb);
+    return reflRGB;
 }
 
-RadianceType SUBSURFACE_ALBEDO_EVAL(in vec3 X, in vec3 nW, in vec3 rgb)
+vec3 SUBSURFACE_ALBEDO_EVAL(in vec3 X, in vec3 nW, in vec3 rgb)
 {
     vec3 reflRGB = SUBSURFACE_ALBEDO(subsurfaceAlbedoRGB, X, nW);
-    return rgbToAlbedo(reflRGB, rgb);
+    return reflRGB;
 }
 
-RadianceType SURFACE_SPEC_REFL_EVAL(in vec3 X, in vec3 nW, in vec3 winputW, in vec3 rgb)
+vec3 SURFACE_SPEC_REFL_EVAL(in vec3 X, in vec3 nW, in vec3 winputW, in vec3 rgb)
 {
     vec3 reflRGB = SURFACE_SPECULAR_REFLECTANCE(surfaceSpecAlbedoRGB, X, nW, winputW);
-    return rgbToAlbedo(reflRGB, rgb);
+    return reflRGB;
 }
 
-RadianceType evaluateSurface(in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, in float wavelength_nm, in vec3 rgb)
+vec3 evaluateSurface(in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, in float wavelength_nm, in vec3 rgb)
 {
-    if (winputL.z<0.0) return RadianceType(0.0);
+    if (winputL.z<0.0) return vec3(0.0);
     vec3 winputW = localToWorld(winputL, basis);
-    RadianceType diffuseAlbedo = (1.0 - subsurface)*SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, winputW, rgb);
-    RadianceType    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, winputW, rgb);
+    vec3 diffuseAlbedo = (1.0 - subsurface)*SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, winputW, rgb);
+    vec3    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, winputW, rgb);
     float ior = surfaceIor;
     float roughness = SURFACE_ROUGHNESS(surfaceRoughness, X, basis.nW);
     float Fr = fresnelDielectricReflectance(woutputL.z, ior);
     vec3 h = normalize(woutputL + winputL); // Compute the reflection half-vector
     float D = microfacetEval(h, roughness);
     float G = smithG2(winputL, woutputL, h, roughness);
-    RadianceType f = Fr * specAlbedo * D * G / max(4.0*abs(cosTheta(woutputL))*abs(cosTheta(winputL)), DENOM_TOLERANCE);
+    vec3 f = Fr * specAlbedo * D * G / max(4.0*abs(cosTheta(woutputL))*abs(cosTheta(winputL)), DENOM_TOLERANCE);
     float E = fresnelDielectricReflectance(winputL.z, ior);
     f += (1.0 - E) * diffuseAlbedo/M_PI;
     return f;
@@ -3469,8 +3495,8 @@ float pdfSurface(in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, i
 {
     if (winputL.z<0.0) return PDF_EPSILON;
     vec3 winputW = localToWorld(winputL, basis);
-    RadianceType diffuseAlbedo = (1.0 - subsurface)*SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, winputW, rgb);
-    RadianceType    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, winputW, rgb);
+    vec3 diffuseAlbedo = (1.0 - subsurface)*SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, winputW, rgb);
+    vec3    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, winputW, rgb);
     float ior = surfaceIor;
     float E = fresnelDielectricReflectance(abs(winputL.z), ior);
     float specWeight    = (E      )*averageComponent(specAlbedo);
@@ -3485,13 +3511,13 @@ float pdfSurface(in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, i
     return specProb*specularPdf + (1.0-specProb)*diffusePdf;
 }
 
-RadianceType sampleSurface(in vec3 X, in Basis basis, in vec3 winputL, in float wavelength_nm, in vec3 rgb,
+vec3 sampleSurface(in vec3 X, in Basis basis, in vec3 winputL, in float wavelength_nm, in vec3 rgb,
                            inout vec3 woutputL, inout float pdfOut, inout vec4 rnd)
 {
-    if (winputL.z<0.0) return RadianceType(0.0);
+    if (winputL.z<0.0) return vec3(0.0);
     vec3 winputW = localToWorld(winputL, basis);
-    RadianceType diffuseAlbedo = (1.0 - subsurface)*SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, winputW, rgb);
-    RadianceType    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, winputW, rgb);
+    vec3 diffuseAlbedo = (1.0 - subsurface)*SURFACE_DIFFUSE_REFL_EVAL(X, basis.nW, winputW, rgb);
+    vec3    specAlbedo = SURFACE_SPEC_REFL_EVAL(X, basis.nW, winputW, rgb);
     float ior = surfaceIor;
     float roughness = SURFACE_ROUGHNESS(surfaceRoughness, X, basis.nW);
     float E = fresnelDielectricReflectance(abs(winputL.z), ior);
@@ -3510,11 +3536,11 @@ RadianceType sampleSurface(in vec3 X, in Basis basis, in vec3 winputL, in float 
         vec3 m = microfacetSample(rnd, roughness); // Sample microfacet normal m
         woutputL = -winputL + 2.0*dot(winputL, m)*m; // Compute woutputL by reflecting winputL about m
         pdfOut = specProb;
-        if (woutputL.z<DENOM_TOLERANCE) return RadianceType(0.0);
+        if (woutputL.z<DENOM_TOLERANCE) return vec3(0.0);
         float D = microfacetEval(m, roughness);
         float G = smithG2(winputL, woutputL, m, roughness); // Shadow-masking function
         float Fr = fresnelDielectricReflectance(abs(winputL.z), ior);
-        RadianceType f = Fr * specAlbedo * D * G / max(4.0*abs(cosTheta(woutputL))*abs(cosTheta(winputL)), DENOM_TOLERANCE);
+        vec3 f = Fr * specAlbedo * D * G / max(4.0*abs(cosTheta(woutputL))*abs(cosTheta(winputL)), DENOM_TOLERANCE);
         float dwh_dwo; // Jacobian of the half-direction mapping
         dwh_dwo = 1.0 / max(abs(4.0*dot(winputL, m)), DENOM_TOLERANCE);
         pdfOut *= microfacetPDF(m, roughness) * dwh_dwo;
@@ -3526,7 +3552,7 @@ RadianceType sampleSurface(in vec3 X, in Basis basis, in vec3 winputL, in float 
 
 // ****************************        BSDF common interface        ****************************
 
-RadianceType evaluateBsdf( in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, in int material, in float wavelength_nm, in vec3 rgb, bool fromCamera,
+vec3 evaluateBsdf( in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, in int material, in float wavelength_nm, in vec3 rgb, bool fromCamera,
                            inout vec4 rnd )
 {
 #ifdef HAS_SURFACE
@@ -3534,7 +3560,7 @@ RadianceType evaluateBsdf( in vec3 X, in Basis basis, in vec3 winputL, in vec3 w
 #endif
 }
 
-RadianceType sampleBsdf( in vec3 X, in Basis basis, in vec3 winputL, in int material, in float wavelength_nm, in vec3 rgb, bool fromCamera,
+vec3 sampleBsdf( in vec3 X, in Basis basis, in vec3 winputL, in int material, in float wavelength_nm, in vec3 rgb, bool fromCamera,
                          inout vec3 woutputL, inout float pdfOut, inout vec4 rnd )
 {
 #ifdef HAS_SURFACE
@@ -3554,10 +3580,10 @@ float pdfBsdf( in vec3 X, in Basis basis, in vec3 winputL, in vec3 woutputL, in 
 
 #ifdef HAS_VOLUME_EMISSION
 
-RadianceType VOLUME_EMISSION_EVAL(in vec3 X, in vec3 rgb)
+vec3 VOLUME_EMISSION_EVAL(in vec3 X, in vec3 rgb)
 {
     vec3 emission = VOLUME_EMISSION(volumeEmissionColorRGB * volumeEmission, X);
-    return rgbToAlbedo(emission, rgb);
+    return emission;
 }
 
 #endif // HAS_VOLUME_EMISSION
@@ -3624,14 +3650,48 @@ vec3 perturbNormal(in vec3 X, in Basis basis, int material)
 #endif
 
 
-// Return whether a hit occurs along a given ray to "infinity"
-bool anyHit(in vec3 pW, in vec3 rayDir)
+//////////////////////////////////
+// fog transmittance
+//////////////////////////////////
+
+// Return the amount of light transmitted (per-channel) along a known "free" segment (i.e. free of geometry)
+vec3 transmittanceOverFreeSegment(in vec3 pW, in vec3 rayDir, float segmentLength)
+{
+    vec3 Tr = vec3(1.0);
+#ifdef HAS_FOG
+    if (fogEnable)
+    {
+        vec3 fogAbsorption = vec3(1.0) - fogTint;
+        vec3 opticalDepthFog = fogMaxOpticalDepth * (vec3(1.0) - exp(-segmentLength*fogAbsorption/fogMFP));
+        Tr *= exp(-opticalDepthFog);
+    }
+#endif
+    return Tr;
+}
+
+vec3 transmittanceOverSegment(in vec3 pW, in vec3 rayDir, float segmentLength)
 {
     vec3 pW_surface;
     int hitMaterial;
-    bool hit = traceRay(pW, rayDir, pW_surface, hitMaterial, maxLengthScale);
-    return hit;
+    bool hit = traceRay(pW, rayDir, pW_surface, hitMaterial, segmentLength);
+    if (hit)
+        return vec3(0.0);
+    else
+#ifdef HAS_FOG
+        return transmittanceOverFreeSegment(pW, rayDir, segmentLength);
+#else
+        return vec3(1.0);
+#endif
 }
+
+vec3 atmosphericInscatteringRadiance(in vec3 Tr)
+{
+    if (!fogEnable)
+        return vec3(0.0);
+    return (1.0 - Tr) * fogEmission;
+}
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Light sampling
@@ -3662,10 +3722,10 @@ vec3 environmentRadianceRGB(in vec3 dirW)
     return RGB;
 }
 
-RadianceType environmentRadiance(in vec3 dir, in vec3 rgb)
+vec3 environmentRadiance(in vec3 dir, in vec3 rgb)
 {
     vec3 RGB_sky = environmentRadianceRGB(dir);
-    return rgbToAlbedo(RGB_sky, rgb);
+    return RGB_sky;
 }
 
 float skyPowerEstimate()
@@ -3673,11 +3733,11 @@ float skyPowerEstimate()
     return 2.0*M_PI * skyPower * 0.5*(maxComponent(skyTintUp) + maxComponent(skyTintDown));
 }
 
-RadianceType sampleSkyAtSurface(Basis basis, in vec3 rgb, inout vec4 rnd,
+vec3 sampleSkyAtSurface(Basis basis, in vec3 rgb, inout vec4 rnd,
                                 inout vec3 woutputL, inout vec3 woutputW, inout float pdfDir)
 {
     if (skyPower<RADIANCE_EPSILON)
-        return RadianceType(0.0);
+        return vec3(0.0);
     woutputL = sampleHemisphereCosineWeighted(rnd, pdfDir);
     woutputW = localToWorld(woutputL, basis);
     return environmentRadiance(woutputW, rgb);
@@ -3713,22 +3773,22 @@ float pdfSun(in vec3 dir)
     return 1.0/solid_angle;
 }
 
-RadianceType sunRadiance(in vec3 dir, in vec3 rgb)
+vec3 sunRadiance(in vec3 dir, in vec3 rgb)
 {
     float theta_max = sunAngularSize * M_PI/180.0;
-    if (dot(dir, sunDir) < cos(theta_max)) return RadianceType(0.0);
+    if (dot(dir, sunDir) < cos(theta_max)) return vec3(0.0);
     vec3 RGB_sun = sunPower * sunColor;
-    return rgbToAlbedo(RGB_sun, rgb);
+    return RGB_sun;
 }
 
-RadianceType sampleSunAtSurface(Basis basis, in vec3 rgb, inout vec4 rnd,
+vec3 sampleSunAtSurface(Basis basis, in vec3 rgb, inout vec4 rnd,
                                 inout vec3 woutputL, inout vec3 woutputW, inout float pdfDir)
 {
     if (sunPower<RADIANCE_EPSILON)
-        return RadianceType(0.0);
+        return vec3(0.0);
     woutputW = sampleSunDir(rnd, pdfDir);
     woutputL = worldToLocal(woutputW, basis);
-    if (woutputL.z < 0.0) return RadianceType(0.0);
+    if (woutputL.z < 0.0) return vec3(0.0);
     return sunRadiance(woutputW, rgb);
 }
 
@@ -3738,26 +3798,27 @@ RadianceType sampleSunAtSurface(Basis basis, in vec3 rgb, inout vec4 rnd,
 //////////////////////////////////////////////
 
 // Estimate direct radiance at the given surface vertex
-RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 winputW, in int material,
+vec3 directSurfaceLighting(in vec3 pW, Basis basis, in vec3 winputW, in int material,
                                    float wavelength_nm, in vec3 rgb, inout vec4 rnd,
                                    inout float skyPdf, inout float sunPdf, inout float sphPdf)
 {
     vec3 winputL = worldToLocal(winputW, basis);
     bool fromCamera = true; // camera path
-    RadianceType Ldirect = RadianceType(0.0);
+    vec3 Ldirect = vec3(0.0);
     vec3 woutputL, woutputW;
 
     // Sky
     if (skyPower > RADIANCE_EPSILON)
     {
-        RadianceType Li = sampleSkyAtSurface(basis, rgb, rnd, woutputL, woutputW, skyPdf);
+        vec3 Li = sampleSkyAtSurface(basis, rgb, rnd, woutputL, woutputW, skyPdf);
         if (averageComponent(Li) > RADIANCE_EPSILON)
         {
-            if (!anyHit(pW, woutputW))
+            Li *= transmittanceOverSegment(pW, woutputW, maxLengthScale);
+            if (averageComponent(Li) > RADIANCE_EPSILON)
             {
                 // Apply MIS weight with the BSDF pdf for the sampled direction
                 float bsdfPdf = max(PDF_EPSILON, pdfBsdf(pW, basis, winputL, woutputL, material, wavelength_nm, rgb, fromCamera));
-                RadianceType f = evaluateBsdf(pW, basis, winputL, woutputL, material, wavelength_nm, rgb, fromCamera, rnd);
+                vec3 f = evaluateBsdf(pW, basis, winputL, woutputL, material, wavelength_nm, rgb, fromCamera, rnd);
                 float misWeight = powerHeuristic(skyPdf, bsdfPdf);
                 Ldirect += f * Li/max(PDF_EPSILON, skyPdf) * abs(dot(woutputW, basis.nW)) * misWeight;
             }
@@ -3766,20 +3827,21 @@ RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 winputW, in 
     // Sun
     if (sunPower > RADIANCE_EPSILON)
     {
-        RadianceType Li = sampleSunAtSurface(basis, rgb, rnd, woutputL, woutputW, sunPdf);
+        vec3 Li = sampleSunAtSurface(basis, rgb, rnd, woutputL, woutputW, sunPdf);
         if (averageComponent(Li) > RADIANCE_EPSILON)
         {
-            if (!anyHit(pW, woutputW))
+            Li *= transmittanceOverSegment(pW, woutputW, maxLengthScale);
+            if (averageComponent(Li) > RADIANCE_EPSILON)
             {
                 // Apply MIS weight with the BSDF pdf for the sampled direction
                 float bsdfPdf = max(PDF_EPSILON, pdfBsdf(pW, basis, winputL, woutputL, material, wavelength_nm, rgb, fromCamera));
-                RadianceType f = evaluateBsdf(pW, basis, winputL, woutputL, material, wavelength_nm, rgb, fromCamera, rnd);
+                vec3 f = evaluateBsdf(pW, basis, winputL, woutputL, material, wavelength_nm, rgb, fromCamera, rnd);
                 float misWeight = powerHeuristic(sunPdf, bsdfPdf);
                 Ldirect += f * Li/max(PDF_EPSILON, sunPdf) * abs(dot(woutputW, basis.nW)) * misWeight;
             }
         }
     }
-    return min(RadianceType(radianceClamp), Ldirect);
+    return min(vec3(radianceClamp), Ldirect);
 }
 
 
@@ -3792,8 +3854,8 @@ RadianceType directSurfaceLighting(in vec3 pW, Basis basis, in vec3 winputW, in 
 
 #ifdef HAS_SURFACE
 bool randomwalk_SSS(in vec3 pW, in Basis basis, inout vec4 rnd,
-                    in float MFP, in RadianceType subsurfaceAlbedo, in RadianceType diffuseAlbedoEntry,
-                    inout RadianceType walk_throughput, inout vec3 pExit)
+                    in float MFP, in vec3 subsurfaceAlbedo, in vec3 diffuseAlbedoEntry,
+                    inout vec3 walk_throughput, inout vec3 pExit)
 {
     // Returns true on successful walk to an exit point.
     // Otherwise false indicating termination without finding a valid exit point.
@@ -3806,10 +3868,10 @@ bool randomwalk_SSS(in vec3 pW, in Basis basis, inout vec4 rnd,
 
     // We assume a diffuse Lambertian lobe at the entry point
     // (either pure white, or with the diffuse albedo of the entry point, or somewhere in between)
-    RadianceType f = mix(RadianceType(1.0), diffuseAlbedoEntry, subsurfaceDiffuseWeight) / M_PI;
-    RadianceType fOverPdf = min(RadianceType(radianceClamp), f/max(PDF_EPSILON, pdfDir));
-    RadianceType surface_entry_throughput = fOverPdf * abs(dot(dirwalkW, basis.nW));
-    walk_throughput = RadianceType(1.0); //surface_entry_throughput; // update walk throughput due to entry in medium
+    vec3 f = mix(vec3(1.0), diffuseAlbedoEntry, subsurfaceDiffuseWeight) / M_PI;
+    vec3 fOverPdf = min(vec3(radianceClamp), f/max(PDF_EPSILON, pdfDir));
+    vec3 surface_entry_throughput = fOverPdf * abs(dot(dirwalkW, basis.nW));
+    walk_throughput = vec3(1.0); //surface_entry_throughput; // update walk throughput due to entry in medium
     for (int n=0; n<HARDMAX_SSS_STEPS; ++n)
     {
         if (n>maxSSSSteps)
@@ -3843,50 +3905,46 @@ bool randomwalk_SSS(in vec3 pW, in Basis basis, inout vec4 rnd,
 }
 
 // Estimate radiance at the SSS exit point
-RadianceType SSS_exit_radiance(in vec3 pW, Basis basis,
+vec3 SSS_exit_radiance(in vec3 pW, Basis basis,
                                in vec3 rgb, inout vec4 rnd,
-                               in RadianceType diffuseAlbedoExit,
+                               in vec3 diffuseAlbedoExit,
                                inout float skyPdf, inout float sunPdf, inout float sphPdf)
 {
     vec3 dPw = 3.0*minLengthScale * basis.nW;
-    RadianceType Ldirect = RadianceType(0.0);
+    vec3 Ldirect = vec3(0.0);
     vec3 woutputL, woutputW;
 
     // We assume a diffuse Lambertian lobe at the exit point
     // (either pure white, or with the diffuse albedo of the exit point, or somewhere in between)
-    RadianceType f = mix(RadianceType(1.0), diffuseAlbedoExit, subsurfaceDiffuseWeight) / M_PI;
+    vec3 f = mix(vec3(1.0), diffuseAlbedoExit, subsurfaceDiffuseWeight) / M_PI;
 
     // Sky
     if (skyPower > RADIANCE_EPSILON)
     {
-        RadianceType Li = sampleSkyAtSurface(basis, rgb, rnd, woutputL, woutputW, skyPdf);
+        vec3 Li = sampleSkyAtSurface(basis, rgb, rnd, woutputL, woutputW, skyPdf);
+        Li *= transmittanceOverSegment(pW, woutputW, maxLengthScale);
         if (averageComponent(Li) > RADIANCE_EPSILON)
         {
-            if (!anyHit(pW+dPw, woutputW))
-            {
-                // Apply MIS weight with the BSDF pdf for the sampled direction
-                float bsdfPdf = pdfHemisphereCosineWeighted(woutputL);
-                float misWeight = powerHeuristic(skyPdf, bsdfPdf);
-                Ldirect += f * Li/max(PDF_EPSILON, skyPdf) * abs(dot(woutputW, basis.nW)) * misWeight;
-            }
+            // Apply MIS weight with the BSDF pdf for the sampled direction
+            float bsdfPdf = pdfHemisphereCosineWeighted(woutputL);
+            float misWeight = powerHeuristic(skyPdf, bsdfPdf);
+            Ldirect += f * Li/max(PDF_EPSILON, skyPdf) * abs(dot(woutputW, basis.nW)) * misWeight;
         }
     }
     // Sun
     if (sunPower > RADIANCE_EPSILON)
     {
-        RadianceType Li = sampleSunAtSurface(basis, rgb, rnd, woutputL, woutputW, sunPdf);
+        vec3 Li = sampleSunAtSurface(basis, rgb, rnd, woutputL, woutputW, sunPdf);
+        Li *= transmittanceOverSegment(pW, woutputW, maxLengthScale);
         if (averageComponent(Li) > RADIANCE_EPSILON)
         {
-            if (!anyHit(pW+dPw, woutputW))
-            {
-                // Apply MIS weight with the BSDF pdf for the sampled direction
-                float bsdfPdf = pdfHemisphereCosineWeighted(woutputL);
-                float misWeight = powerHeuristic(sunPdf, bsdfPdf);
-                Ldirect += f * Li/max(PDF_EPSILON, sunPdf) * abs(dot(woutputW, basis.nW)) * misWeight;
-            }
+            // Apply MIS weight with the BSDF pdf for the sampled direction
+            float bsdfPdf = pdfHemisphereCosineWeighted(woutputL);
+            float misWeight = powerHeuristic(sunPdf, bsdfPdf);
+            Ldirect += f * Li/max(PDF_EPSILON, sunPdf) * abs(dot(woutputW, basis.nW)) * misWeight;
         }
     }
-    return min(RadianceType(radianceClamp), Ldirect);
+    return min(vec3(radianceClamp), Ldirect);
 }
 
 #endif
@@ -3919,17 +3977,17 @@ void constructPrimaryRay(in vec2 pixel, inout vec4 rnd,
 }
 
 
-RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir, 
+vec3 cameraPath(in vec3 primaryStart, in vec3 primaryDir, 
                         float wavelength_nm, in vec3 rgb, inout vec4 rnd)
 {
     // Perform pathtrace starting from the camera lens to estimate the primary ray radiance, L
-    RadianceType L = RadianceType(0.0);
+    vec3 L = vec3(0.0);
     float misWeightSky = 1.0; // For MIS book-keeping
     float misWeightSun = 1.0; // For MIS book-keeping
     vec3 pW = primaryStart;
     vec3 rayDir = primaryDir; // (opposite to light beam direction)
 
-    RadianceType throughput = RadianceType(1.0);
+    vec3 throughput = vec3(1.0);
     for (int vertex=0; vertex<=__MAX_BOUNCES__; ++vertex)
     {
         // Bail out now if the path continuation throughput is below threshold
@@ -3940,17 +3998,41 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
         int hitMaterial;
         bool hit = traceRay(pW, rayDir, pW_next, hitMaterial, maxLengthScale);
         float rayLength = maxLengthScale;
+
+        vec3 Tr;
         if (hit)
         {
             rayLength = length(pW_next - pW);
+            Tr = transmittanceOverFreeSegment(pW, rayDir, rayLength);
         }
         else
         {
-            // This ray missed all geometry; add contribution from distant lights and terminate path
-            if (!(vertex==0 && !envMapVisible)      && misWeightSky>0.0) L += throughput * misWeightSky * environmentRadiance(rayDir, rgb);
-            if (!(vertex==0 && !sunVisibleDirectly) && misWeightSun>0.0) L += throughput * misWeightSun * sunRadiance(rayDir, rgb);
+            Tr = transmittanceOverFreeSegment(pW, rayDir, maxLengthScale);
+#ifdef HAS_FOG
+            if (averageComponent(Tr) > RADIANCE_EPSILON)
+#endif
+            {
+                // This ray missed all geometry; add contribution from distant lights and terminate path
+                if (!(vertex==0 && !envMapVisible)      && misWeightSky>0.0) L += throughput * Tr * misWeightSky * environmentRadiance(rayDir, rgb);
+                if (!(vertex==0 && !sunVisibleDirectly) && misWeightSun>0.0) L += throughput * Tr * misWeightSun * sunRadiance(rayDir, rgb);
+            }
+#ifdef HAS_FOG
+            // Add term for in-scattering in the homogeneous atmosphere (fog) over the segment to the light hit
+            if (vertex<2) // (restrict to first two segments only, for efficiency)
+                L += throughput * atmosphericInscatteringRadiance(Tr);
+#endif
+            // Ray escapes to infinity
             break;
         }
+
+#ifdef HAS_FOG
+        // Add term for in-scattering in the homogeneous atmosphere (fog) over the segment to the light hit
+        if (vertex<2) // (restrict to first two segments only, for efficiency)
+            L += throughput * atmosphericInscatteringRadiance(Tr);
+
+        // Attenuate throughput to next hit due to atmospheric attenuation (Beer's law)
+        throughput *= Tr;
+#endif
 
         // This ray hit some geometry, so deal with the surface interaction.
         // First, compute the normal and thus the local vertex basis:
@@ -3971,7 +4053,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
         // Make a binary choice whether to scatter at the surface, or do a subsurface random walk:
         bool do_subsurface_walk = false;
         float prob_sss = 0.0;
-        RadianceType subsurfaceAlbedo;
+        vec3 subsurfaceAlbedo;
 #ifdef HAS_SURFACE
         if (subsurfaceMFP > 0.0)         // a) the surface must have non-zero subsurface MFP, and
         {
@@ -3995,7 +4077,7 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             vec3 woutputL; // woutputL, points *towards* the outgoing direction
             bool fromCamera = true; // camera path
             float bsdfPdf;
-            RadianceType f = sampleBsdf(pW, basis, winputL, hitMaterial, wavelength_nm, rgb, fromCamera, woutputL, bsdfPdf, rnd);
+            vec3 f = sampleBsdf(pW, basis, winputL, hitMaterial, wavelength_nm, rgb, fromCamera, woutputL, bsdfPdf, rnd);
             vec3 woutputW = localToWorld(woutputL, basis);
 
             // Detect dielectric transmission
@@ -4018,8 +4100,8 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
                                                     skyPdf, sunPdf, sphPdf);
 
             // Update path continuation throughput
-            RadianceType fOverPdf = min(RadianceType(radianceClamp), f/max(PDF_EPSILON, bsdfPdf));
-            RadianceType surface_throughput = fOverPdf * abs(dot(woutputW, nW)) / max(PDF_EPSILON, 1.0 - prob_sss);
+            vec3 fOverPdf = min(vec3(radianceClamp), f/max(PDF_EPSILON, bsdfPdf));
+            vec3 surface_throughput = fOverPdf * abs(dot(woutputW, nW)) / max(PDF_EPSILON, 1.0 - prob_sss);
             throughput *= surface_throughput;
 
             misWeightSky = powerHeuristic(bsdfPdf, skyPdf); // compute sky MIS weight for bounce ray
@@ -4030,8 +4112,8 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
         // Do subsurface random walk to a new vertex
         else
         {
-            RadianceType diffuseAlbedoEntry = SURFACE_DIFFUSE_REFL_EVAL(pW, basis.nW, -rayDir, rgb);
-            RadianceType walk_throughput;
+            vec3 diffuseAlbedoEntry = SURFACE_DIFFUSE_REFL_EVAL(pW, basis.nW, -rayDir, rgb);
+            vec3 walk_throughput;
             vec3 pExit;
             basis.nW = ngW; // (use basis with geometric normal for SSS entry, to avoid surface acne)
             bool success = randomwalk_SSS(pW, basis, rnd, subsurfaceMFP, subsurfaceAlbedo, diffuseAlbedoEntry, walk_throughput, pExit);
@@ -4060,16 +4142,16 @@ RadianceType cameraPath(in vec3 primaryStart, in vec3 primaryDir,
             float skyPdf = 0.0;
             float sunPdf = 0.0;
             float sphPdf = 0.0;
-            RadianceType diffuseAlbedoExit = SURFACE_DIFFUSE_REFL_EVAL(pW, nW, -rayDir, rgb);
+            vec3 diffuseAlbedoExit = SURFACE_DIFFUSE_REFL_EVAL(pW, nW, -rayDir, rgb);
             L += throughput * SSS_exit_radiance(pExit, basis_exit, rgb, rnd, diffuseAlbedoExit,
                                                 skyPdf, sunPdf, sphPdf);
             misWeightSky = powerHeuristic(bsdfPdf, skyPdf); // compute sky MIS weight for bounce ray
             misWeightSun = powerHeuristic(bsdfPdf, sunPdf); // compute sun MIS weight for bounce ray
 
             // Update path continuation throughput
-            RadianceType f = mix(RadianceType(1.0), diffuseAlbedoExit, subsurfaceDiffuseWeight) / M_PI;
-            RadianceType fOverPdf = min(RadianceType(radianceClamp), f/max(PDF_EPSILON, bsdfPdf));
-            RadianceType surface_exit_throughput = fOverPdf * abs(dot(woutputW, nW));
+            vec3 f = mix(vec3(1.0), diffuseAlbedoExit, subsurfaceDiffuseWeight) / M_PI;
+            vec3 fOverPdf = min(vec3(radianceClamp), f/max(PDF_EPSILON, bsdfPdf));
+            vec3 surface_exit_throughput = fOverPdf * abs(dot(woutputW, nW));
             throughput *= surface_exit_throughput / max(PDF_EPSILON, prob_sss);
 
             // Prepare for tracing the continuation ray
@@ -4095,7 +4177,7 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
     sunBasis = makeBasis(sunDir);
 
     // Sample radiance of primary ray
-    RadianceType L = RadianceType(0.0);
+    vec3 L = vec3(0.0);
     for (int n=0; n<__MAX_SAMPLES_PER_FRAME__; ++n)
     {
         // Apply FIS to obtain pixel jitter about center in pixel units

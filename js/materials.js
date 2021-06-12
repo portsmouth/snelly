@@ -209,6 +209,12 @@ function Volume(name)
     // UI values for optional heterogeneous volumetric emission field
     this.emission = 0.0;
     this.emissionColor = [1.0, 1.0, 1.0];
+    // "faked fog" parameters
+    this.fogEnable = false;
+    this.fogMFP = 0.0;
+    this.fogMaxOpticalDepth = 5.0;
+    this.fogEmission = [1.0, 1.0, 1.0];
+    this.fogTint = [0.5, 0.5, 0.5];
 }
 
 Volume.prototype = Object.create(Material.prototype);
@@ -227,6 +233,11 @@ Volume.prototype.repr  = function()
     volume.absorptionColor = [${this.absorptionColor[0]}, ${this.absorptionColor[1]}, ${this.absorptionColor[2]}];
     volume.emission = ${this.emission};
     volume.emissionColor = [${this.emissionColor[0]}, ${this.emissionColor[1]}, ${this.emissionColor[2]}];
+    volume.fogEmission = [${this.fogEmission[0]}, ${this.fogEmission[1]}, ${this.fogEmission[2]}];
+    volume.fogTint = [${this.fogTint[0]}, ${this.fogTint[1]}, ${this.fogTint[2]}];
+    volume.fogMFP = ${this.fogMFP};
+    volume.fogMaxOpticalDepth = ${this.fogMaxOpticalDepth};
+    volume.fogEnable = ${this.fogEnable};
     `;
     return code;
 }
@@ -255,6 +266,12 @@ Volume.prototype.syncShader = function(shader)
 
     shader.uniformF("volumeEmission", this.emission);
     shader.uniform3Fv("volumeEmissionColorRGB", this.emissionColor);
+
+    shader.uniformI("fogEnable", this.fogEnable);
+    shader.uniformF("fogMFP", Math.pow(10.0, this.fogMFP));
+    shader.uniformF("fogMaxOpticalDepth", this.fogMaxOpticalDepth);
+    shader.uniform3Fv("fogEmission", this.fogEmission);
+    shader.uniform3Fv("fogTint", this.fogTint);
 }
 
 Volume.prototype.nonNullVolume = function(color)
@@ -367,6 +384,57 @@ Volume.prototype.initGui = function(parentFolder)
     this.atmosphereMaxZItem = parentFolder.add(this, 'atmosphereMaxZ', -1000.0, 1000.0);
     this.atmosphereMaxZItem.onChange( function(value) { VOLUME_OBJ.atmosphereMaxZ = value; snelly.camera.enabled = false; snelly.reset(true); } );
     this.atmosphereMaxZItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+
+    // Fog params
+    this.fogEnableItem = parentFolder.add(this, 'fogEnable').onChange( function(value) { snelly.reset(); } );
+
+    this.fogmfpItem = parentFolder.add(this, 'fogMFP', -2.0, 5.0);
+    this.fogmfpItem.onChange( function(value) { this.fogMFP = value; snelly.camera.enabled = false; snelly.reset(true); });
+    this.fogmfpItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+
+    this.fogMaxOpticalDepthItem = parentFolder.add(this, 'fogMaxOpticalDepth', 0.0, 10.0);
+    this.fogMaxOpticalDepthItem.onChange( function(value) { this.fogMaxOpticalDepth = value; snelly.camera.enabled = false; snelly.reset(true); });
+    this.fogMaxOpticalDepthItem.onFinishChange( function(value) { snelly.camera.enabled = true; } );
+
+    parentFolder.fogEmission = [this.fogEmission[0]*255.0, this.fogEmission[1]*255.0, this.fogEmission[2]*255.0];
+    var fogEmissionItem = parentFolder.addColor(parentFolder, 'fogEmission');
+    fogEmissionItem.onChange( function(C) {
+                            let CACHED_NON_NULL_VOUME = VOLUME_OBJ.nonNullVolume();
+                            if (typeof C==='string' || C instanceof String)
+                            {
+                                var color = hexToRgb(C);
+                                VOLUME_OBJ.fogEmission[0] = color.r / 255.0;
+                                VOLUME_OBJ.fogEmission[1] = color.g / 255.0;
+                                VOLUME_OBJ.fogEmission[2] = color.b / 255.0;
+                            }
+                            else
+                            {
+                                VOLUME_OBJ.fogEmission[0] = C[0] / 255.0;
+                                VOLUME_OBJ.fogEmission[1] = C[1] / 255.0;
+                                VOLUME_OBJ.fogEmission[2] = C[2] / 255.0;
+                            }
+                            snelly.reset(true);
+                        } );
+
+    parentFolder.fogTint = [this.fogTint[0]*255.0, this.fogTint[1]*255.0, this.fogTint[2]*255.0];
+    var fogTintItem = parentFolder.addColor(parentFolder, 'fogTint');
+    fogTintItem.onChange( function(C) {
+                            let CACHED_NON_NULL_VOUME = VOLUME_OBJ.nonNullVolume();
+                            if (typeof C==='string' || C instanceof String)
+                            {
+                                var color = hexToRgb(C);
+                                VOLUME_OBJ.fogTint[0] = color.r / 255.0;
+                                VOLUME_OBJ.fogTint[1] = color.g / 255.0;
+                                VOLUME_OBJ.fogTint[2] = color.b / 255.0;
+                            }
+                            else
+                            {
+                                VOLUME_OBJ.fogTint[0] = C[0] / 255.0;
+                                VOLUME_OBJ.fogTint[1] = C[1] / 255.0;
+                                VOLUME_OBJ.fogTint[2] = C[2] / 255.0;
+                            }
+                            snelly.reset(true);
+                        } );
 }
 
 

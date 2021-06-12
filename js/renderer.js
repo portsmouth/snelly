@@ -266,8 +266,10 @@ Renderer.prototype.compileShaders = function()
         GLU.fail('Scene must define at least one of: SDF_SURFACE, SDF_METAL, SDF_DIELECTRIC, or SDF_VOLUME'); 
     }
 
-    var volumeObj     = snelly.getVolume();           if (volumeObj == null) return;
+    var volumeObj = snelly.getVolume();
+    if (volumeObj == null) return;
     let hasAtmosphere = this.colorNotZero(volumeObj.scatteringColor) || this.colorNotZero(volumeObj.absorptionColor);
+    let hasFog = volumeObj.fogEnable;
 
     let hasNM = (hasSurfaceNM || hasMetalNM || hasDielectricNM);
 
@@ -293,6 +295,7 @@ Renderer.prototype.compileShaders = function()
     if (hasMetal)          replacements.__DEFINES__ += '\n#define HAS_METAL\n';
     if (hasDielectric)     replacements.__DEFINES__ += '\n#define HAS_DIELECTRIC\n';
     if (hasAtmosphere)     replacements.__DEFINES__ += '\n#define HAS_ATMOSPHERE\n';
+    if (hasFog )           replacements.__DEFINES__ += '\n#define HAS_FOG\n';
     if (hasVolumeEmission) replacements.__DEFINES__ += '\n#define HAS_VOLUME_EMISSION\n';
     if (hasGeometry)       replacements.__DEFINES__ += '\n#define HAS_GEOMETRY\n';
 
