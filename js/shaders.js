@@ -15,6 +15,7 @@ in vec2 vTexCoord;
 layout(location = 0) out vec4 gbuf_rad;
 layout(location = 1) out vec4 gbuf_rng;
 
+// Camera parameters
 uniform vec2 resolution;
 uniform vec3 camPos;
 uniform vec3 camDir;
@@ -25,19 +26,43 @@ uniform float camAspect;
 uniform float camAperture;
 uniform float camFocalDistance;
 
-uniform float minLengthScale;
-uniform float maxLengthScale;
-uniform float skyPower;
+// Rendering  parameters
 uniform float radianceClamp;
 uniform float skipProbability;
 uniform float shadowStrength;
 uniform bool maxStepsIsMiss;
 
+// Length scales
+uniform float minLengthScale;
+uniform float maxLengthScale;
+
+// Surface material parameters
 uniform vec3 surfaceDiffuseAlbedoRGB;
+
+// Sky parameters
+uniform bool haveEnvMap;
+uniform bool envMapVisible;
+uniform float envMapPhiRotation;
+uniform float envMapThetaRotation;
+uniform float envMapTransitionAngle;
+uniform float skyPower;
+uniform vec3 skyTintUp;
+uniform vec3 skyTintDown;
+
+// Sun parameters
+uniform float sunPower;
+uniform float sunAngularSize;
+uniform float sunLatitude;
+uniform float sunLongitude;
+uniform vec3 sunColor;
+uniform vec3 sunDir;
+uniform bool sunVisibleDirectly;
+
 
 #define DENOM_TOLERANCE 1.0e-7
 #define PDF_EPSILON 1.0e-6
 #define THROUGHPUT_EPSILON 1.0e-5
+#define RADIANCE_EPSILON 1.0e-5
 
 #define MAT_INVAL  -1
 #define MAT_DIELE  0
@@ -113,13 +138,13 @@ bool traceRay(in vec3 start, in vec3 dir,
 }
 
 // (whether occluded along infinite ray)
-bool Occluded(in vec3 start, in vec3 dir)
+float Transmittance(in vec3 start, in vec3 dir)
 {
     float eps = 3.0*minLengthScale;
     vec3 delta = eps * dir;
     int material;
     vec3 hit;
-    return traceRay(start+delta, dir, hit, material, maxLengthScale);
+    return traceRay(start+delta, dir, hit, material, maxLengthScale) ? 0.0 : 1.0;
 }
 
 vec3 normal(in vec3 pW, int material)
@@ -193,16 +218,6 @@ vec3 localToWorld(in vec3 vLocal, in Basis basis)
     return basis.tW*vLocal.x + basis.bW*vLocal.y + basis.nW*vLocal.z;
 }
 
-vec3 xyzToRgb(vec3 XYZ)
-{
-    // (Assuming RGB in sRGB color space)
-    vec3 RGB;
-    RGB.r =  3.2404542*XYZ.x - 1.5371385*XYZ.y - 0.4985314*XYZ.z;
-    RGB.g = -0.9692660*XYZ.x + 1.8760108*XYZ.y + 0.0415560*XYZ.z;
-    RGB.b =  0.0556434*XYZ.x - 0.2040259*XYZ.y + 1.0572252*XYZ.z;
-    return RGB;
-}
-
 vec3 rgbToXyz(in vec3 RGB)
 {
     // (Assuming RGB in sRGB color space)
@@ -213,19 +228,11 @@ vec3 rgbToXyz(in vec3 RGB)
     return XYZ;
 }
 
-vec3 xyz_to_spectrum(vec3 XYZ)
+float averageComponent(in vec3 v)
 {
-    // Given a color in XYZ tristimulus coordinates, return the coefficients in spectrum:
-    //      L(l) = cx x(l) + cy y(l) + cz z(l)
-    // (where x, y, z are the tristimulus CMFs) such that this spectrum reproduces the given XYZ tristimulus.
-    // (NB, these coefficients differ from XYZ, because the XYZ color matching functions are not orthogonal)
-    vec3 c;
-    c.x =  3.38214566*XYZ.x - 2.58540997*XYZ.y - 0.40649004*XYZ.z;
-    c.y = -2.58540997*XYZ.x + 3.20943158*XYZ.y + 0.22767094*XYZ.z;
-    c.z = -0.40649004*XYZ.x + 0.22767094*XYZ.y + 0.70334476*XYZ.z;
-
-    return c;
+    return (v.r + v.g + v.b)/3.0;
 }
+
 
 /////////////////////////////////////////////////////////////////////////
 // Sampling formulae
@@ -247,9 +254,9 @@ float rand(inout vec4 rnd)
     return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
 }
 
-vec3 sampleHemisphere(inout vec4 rnd, inout float pdf)
+// Do cosine-weighted sampling of hemisphere
+vec3 sampleHemisphereCosineWeighted(inout vec4 rnd, inout float pdf)
 {
-    // Do cosine-weighted sampling of hemisphere
     float r = sqrt(rand(rnd));
     float theta = 2.0 * M_PI * rand(rnd);
     float x = r * cos(theta);
@@ -277,6 +284,92 @@ vec3 perturbNormal(in vec3 X, in Basis basis, int material)
 }
 #endif
 
+//////////////////////////////////////////////
+// Sky
+//////////////////////////////////////////////
+
+vec3 environmentRadianceRGB(in vec3 dirW)
+{
+    float rot_phi   = M_PI*envMapPhiRotation/180.0;
+    float rot_theta = M_PI*envMapThetaRotation/180.0;
+    vec3 sky_pole = vec3(sin(rot_theta), cos(rot_theta), 0.0);
+    Basis sky_basis = makeBasis(sky_pole);
+    vec3 dirL = worldToLocal(dirW, sky_basis);
+    float phi = atan(dirL.y, dirL.x) + M_PI + rot_phi;
+    phi -= 2.0*M_PI*floor(phi/(2.0*M_PI)); // wrap phi to [0, 2*pi]
+    float theta = acos(dirL.z);
+    float u = phi/(2.0*M_PI);
+    float v = theta/M_PI;
+    vec3 RGB = vec3(1.0);
+    if (haveEnvMap)
+        RGB = texture(envMap, vec2(u,v)).rgb;
+    float t = dot(dirW, sky_pole);
+    float tt = envMapTransitionAngle/180.0;
+    RGB *= skyPower * mix(skyTintDown, skyTintUp, smoothstep(-tt, tt, t));
+    return RGB;
+}
+
+vec3 environmentRadiance(in vec3 dir)
+{
+    vec3 RGB_sky = environmentRadianceRGB(dir);
+    return RGB_sky;
+}
+
+vec3 sampleSkyAtSurface(Basis basis, inout vec4 rnd,
+                        inout vec3 woutputW, inout float pdfDir)
+{
+    vec3 woutputL = sampleHemisphereCosineWeighted(rnd, pdfDir);
+    woutputW = localToWorld(woutputL, basis);
+    return environmentRadiance(woutputW);
+}
+
+//////////////////////////////////////////////
+// Sun
+//////////////////////////////////////////////
+
+Basis sunBasis;
+
+vec3 sampleSunDir(inout vec4 rnd, inout float pdfDir)
+{
+    float theta_max = sunAngularSize * M_PI/180.0;
+    float theta = theta_max * sqrt(rand(rnd));
+    float costheta = cos(theta);
+    float sintheta = sqrt(max(0.0, 1.0-costheta*costheta));
+    float phi = 2.0 * M_PI * rand(rnd);
+    float cosphi = cos(phi);
+    float sinphi = sin(phi);
+    float x = sintheta * cosphi;
+    float y = sintheta * sinphi;
+    float z = costheta;
+    float solid_angle = 2.0*M_PI*(1.0 - cos(theta_max));
+    pdfDir = 1.0/solid_angle;
+    return localToWorld(vec3(x, y, z), sunBasis);
+}
+
+float pdfSun(in vec3 dir)
+{
+    float theta_max = sunAngularSize * M_PI/180.0;
+    if (dot(dir, sunDir) < cos(theta_max)) return 0.0;
+    float solid_angle = 2.0*M_PI*(1.0 - cos(theta_max));
+    return 1.0/solid_angle;
+}
+
+vec3 sunRadiance(in vec3 dir)
+{
+    float theta_max = sunAngularSize * M_PI/180.0;
+    if (dot(dir, sunDir) < cos(theta_max)) return vec3(0.0);
+    vec3 RGB_sun = sunPower * sunColor;
+    return RGB_sun;
+}
+
+vec3 sampleSunAtSurface(Basis basis, inout vec4 rnd,
+                        inout vec3 woutputW, inout float pdfDir)
+{
+    woutputW = sampleSunDir(rnd, pdfDir);
+    vec3 woutputL = worldToLocal(woutputW, basis);
+    if (woutputL.z < 0.0) return vec3(0.0);
+    return sunRadiance(woutputW);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Ambient occlusion integrator
@@ -320,6 +413,9 @@ void main()
     }
 #endif
 
+    // Setup sun basis
+    sunBasis = makeBasis(sunDir);
+
     INIT();
 
     vec2 pixel = gl_FragCoord.xy;
@@ -346,24 +442,38 @@ void main()
             basis = makeBasis(nW);
 #endif
 
-            // Construct a uniformly sampled AO ray
-            float hemispherePdf;
-            vec3 wiL = sampleHemisphere(rnd, hemispherePdf);
-            vec3 wiW = localToWorld(wiL, basis);
+            // Compute diffuse BSDF
+            vec3 f = SURFACE_DIFFUSE_REFL_RGB(pW, basis.nW, woW) / M_PI;
 
-            // Compute diffuse albedo
-            vec3 diffuseAlbedo = SURFACE_DIFFUSE_REFL_RGB(pW, basis.nW, woW);
-
-            // Set incident radiance to according to whether the AO ray hit anything or missed.
-            if (!Occluded(pW, wiW)) RGB += diffuseAlbedo;
-            else                    RGB += diffuseAlbedo * abs(1.0 - shadowStrength);
+            // Compute direct lighting
+            vec3 Ldirect = vec3(0.0);
+            vec3 woutputW;
+            if (skyPower > RADIANCE_EPSILON)
+            {
+                // Sky
+                float skyPdf;
+                vec3 Li = sampleSkyAtSurface(basis, rnd, woutputW, skyPdf);
+                Li *= Transmittance(pW, woutputW);
+                Ldirect += f * Li/max(PDF_EPSILON, skyPdf) * abs(dot(woutputW, basis.nW));
+            }
+            if (sunPower > RADIANCE_EPSILON)
+            {
+                // Sun
+                float sunPdf;
+                vec3 Li = sampleSunAtSurface(basis, rnd, woutputW, sunPdf);
+                if (averageComponent(Li) > RADIANCE_EPSILON)
+                {
+                    Li *= Transmittance(pW, woutputW);
+                    Ldirect += f * Li/max(PDF_EPSILON, sunPdf) * abs(dot(woutputW, basis.nW));
+                }
+            }
+            RGB += Ldirect;
         }
         else
-        {
-            RGB += skyPower * vec3(1.0);
-        }
-    }
+            RGB += environmentRadiance(primaryDir);
+    } // sample n
     RGB /= float(__MAX_SAMPLES_PER_FRAME__);
+
     vec3 XYZ = rgbToXyz(RGB);
 
     // Write updated radiance and sample count
