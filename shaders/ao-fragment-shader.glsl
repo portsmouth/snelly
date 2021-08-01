@@ -135,13 +135,11 @@ bool traceRay(in vec3 start, in vec3 dir,
 }
 
 // (whether occluded along infinite ray)
-float Transmittance(in vec3 start, in vec3 dir)
+float Transmittance(in vec3 start, in vec3 dir, in vec3 nW)
 {
-    float eps = 3.0*minLengthScale;
-    vec3 delta = eps * dir;
     int material;
     vec3 hit;
-    return traceRay(start+delta, dir, hit, material, maxLengthScale) ? 0.0 : 1.0;
+    return traceRay(start, dir, hit, material, maxLengthScale) ? 0.0 : 1.0;
 }
 
 vec3 normal(in vec3 pW, int material)
@@ -312,7 +310,7 @@ vec3 environmentRadiance(in vec3 dir)
     return RGB_sky;
 }
 
-vec3 sampleSkyAtSurface(Basis basis, inout vec4 rnd,
+vec3 sampleSkyAtSurface(in Basis basis, inout vec4 rnd,
                         inout vec3 woutputW, inout float pdfDir)
 {
     vec3 woutputL = sampleHemisphereCosineWeighted(rnd, pdfDir);
@@ -359,7 +357,7 @@ vec3 sunRadiance(in vec3 dir)
     return RGB_sun;
 }
 
-vec3 sampleSunAtSurface(Basis basis, inout vec4 rnd,
+vec3 sampleSunAtSurface(in Basis basis, inout vec4 rnd,
                         inout vec3 woutputW, inout float pdfDir)
 {
     woutputW = sampleSunDir(rnd, pdfDir);
@@ -440,28 +438,32 @@ void main()
 #endif
 
             // Compute diffuse BSDF
-            vec3 f = SURFACE_DIFFUSE_REFL_RGB(pW, basis.nW, woW) / M_PI;
+            vec3 f = SURFACE_DIFFUSE_REFL_RGB(pW, nW, woW) / M_PI;
 
             // Compute direct lighting
             vec3 Ldirect = vec3(0.0);
-            vec3 woutputW;
+            vec3 N = 3.0*minLengthScale * nW;
             if (skyPower > RADIANCE_EPSILON)
             {
                 // Sky
                 float skyPdf;
+                vec3 woutputW;
                 vec3 Li = sampleSkyAtSurface(basis, rnd, woutputW, skyPdf);
-                Li *= Transmittance(pW, woutputW);
-                Ldirect += f * Li/max(PDF_EPSILON, skyPdf) * abs(dot(woutputW, basis.nW));
+                vec3 pW_perturbed = pW + sign(dot(woutputW, nW))*N;
+                Li *= Transmittance(pW_perturbed, woutputW, nW);
+                Ldirect += f * Li/max(PDF_EPSILON, skyPdf) * abs(dot(woutputW, nW));
             }
             if (sunPower > RADIANCE_EPSILON)
             {
                 // Sun
                 float sunPdf;
+                vec3 woutputW;
                 vec3 Li = sampleSunAtSurface(basis, rnd, woutputW, sunPdf);
                 if (averageComponent(Li) > RADIANCE_EPSILON)
                 {
-                    Li *= Transmittance(pW, woutputW);
-                    Ldirect += f * Li/max(PDF_EPSILON, sunPdf) * abs(dot(woutputW, basis.nW));
+                    vec3 pW_perturbed = pW + sign(dot(woutputW, nW))*N;
+                    Li *= Transmittance(pW, woutputW, nW);
+                    Ldirect += f * Li/max(PDF_EPSILON, sunPdf) * abs(dot(woutputW, nW));
                 }
             }
             RGB += Ldirect;
