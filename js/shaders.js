@@ -138,7 +138,7 @@ bool traceRay(in vec3 start, in vec3 dir,
 }
 
 // (whether occluded along infinite ray)
-float Transmittance(in vec3 start, in vec3 dir, in vec3 nW)
+float Transmittance(in vec3 start, in vec3 dir)
 {
     int material;
     vec3 hit;
@@ -445,15 +445,14 @@ void main()
 
             // Compute direct lighting
             vec3 Ldirect = vec3(0.0);
-            vec3 N = 3.0*minLengthScale * nW;
+            vec3 dPw = 3.0*minLengthScale*nW;
             if (skyPower > RADIANCE_EPSILON)
             {
                 // Sky
                 float skyPdf;
                 vec3 woutputW;
                 vec3 Li = sampleSkyAtSurface(basis, rnd, woutputW, skyPdf);
-                vec3 pW_perturbed = pW + sign(dot(woutputW, nW))*N;
-                Li *= Transmittance(pW_perturbed, woutputW, nW);
+                Li *= Transmittance(pW+dPw, woutputW);
                 Ldirect += f * Li/max(PDF_EPSILON, skyPdf) * abs(dot(woutputW, nW));
             }
             if (sunPower > RADIANCE_EPSILON)
@@ -464,8 +463,7 @@ void main()
                 vec3 Li = sampleSunAtSurface(basis, rnd, woutputW, sunPdf);
                 if (averageComponent(Li) > RADIANCE_EPSILON)
                 {
-                    vec3 pW_perturbed = pW + sign(dot(woutputW, nW))*N;
-                    Li *= Transmittance(pW, woutputW, nW);
+                    Li *= Transmittance(pW+dPw, woutputW);
                     Ldirect += f * Li/max(PDF_EPSILON, sunPdf) * abs(dot(woutputW, nW));
                 }
             }
