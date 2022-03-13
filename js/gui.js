@@ -96,6 +96,7 @@ GUI.prototype.createRendererSettings = function()
     this.tonemappingFolder.add(pathtracer, 'gamma', 0.0, 3.0);
     this.tonemappingFolder.add(pathtracer, 'contrast', 0.0, 3.0);
     this.tonemappingFolder.add(pathtracer, 'saturation', 0.0, 3.0);
+    this.tonemappingFolder.add(pathtracer, 'hueShift', 0.0, 1.0);
     this.tonemappingFolder.close();
 
     // lighting folder

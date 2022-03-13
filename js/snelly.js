@@ -331,6 +331,7 @@ Snelly.prototype.dumpScene = function()
     renderer.gamma = ${renderer.gamma};
     renderer.contrast = ${renderer.contrast};
     renderer.saturation = ${renderer.saturation};
+    renderer.hueShift = ${renderer.hueShift};
     // Lights
         // sky light
         renderer.skyPower = ${renderer.skyPower};
