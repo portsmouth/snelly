@@ -1423,7 +1423,6 @@ void main()
 #endif
                 if (averageComponent(Li) > RADIANCE_EPSILON)
                 {
-                    Li *= Transmittance(pW_hit+dPw, woutputW);
                     Ldirect += f * TrToLight * Li / max(PDF_EPSILON, skyPdf) * abs(dot(woutputW, nW));
                 }
             }
@@ -1440,7 +1439,6 @@ void main()
 #endif
                 if (averageComponent(Li) > RADIANCE_EPSILON)
                 {
-                    Li *= Transmittance(pW_hit+dPw, woutputW);
                     Ldirect += f * TrToLight * Li / max(PDF_EPSILON, sunPdf) * abs(dot(woutputW, nW));
                 }
             }
