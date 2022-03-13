@@ -26,10 +26,10 @@ uniform float camFocalDistance;
 // Rendering  parameters
 uniform float radianceClamp;
 uniform float skipProbability;
-uniform float shadowStrength;
 uniform bool maxStepsIsMiss;
 
 // Length scales
+uniform float lengthScale;                      // UPLOAD!
 uniform float minLengthScale;
 uniform float maxLengthScale;
 
@@ -53,8 +53,19 @@ uniform float sunLatitude;
 uniform float sunLongitude;
 uniform vec3 sunColor;
 uniform vec3 sunDir;
-uniform bool sunVisibleDirectly;
+uniform bool sunVisibleDirectly;                      // UPLOAD!
 
+// Atmosphere constants
+uniform vec3 atmosphereBoundsMin;                      // UPLOAD!
+uniform vec3 atmosphereBoundsMax;                      // UPLOAD!
+uniform vec3 atmosphereExtinctionCoeffRGB;                      // UPLOAD!
+uniform vec3 atmosphereScatteringCoeffRGB;                      // UPLOAD!
+uniform float atmosphereMFP;                      // UPLOAD!
+uniform float atmosphereAnisotropy;                      // UPLOAD!
+
+// Volumetric emission constants
+uniform float volumeEmission;
+uniform vec3 volumeEmissionColorRGB;
 
 #define DENOM_TOLERANCE 1.0e-7
 #define PDF_EPSILON 1.0e-6
@@ -67,6 +78,22 @@ uniform bool sunVisibleDirectly;
 #define MAT_SURFA  2
 
 #define M_PI 3.1415926535897932384626433832795
+
+/// GLSL floating point pseudorandom number generator, from
+/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
+/// http://arxiv.org/pdf/1505.06022.pdf
+float rand(inout vec4 rnd)
+{
+    const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
+    const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
+    const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
+    const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
+    vec4 beta = floor(rnd/q);
+    vec4 p = a*(rnd - beta*q) - beta*r;
+    beta = (1.0 - sign(p))*0.5*m;
+    rnd = p + beta;
+    return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
+}
 
 //////////////////////////////////////////////////////////////
 // Dynamically injected code
@@ -233,22 +260,6 @@ float averageComponent(in vec3 v)
 // Sampling formulae
 /////////////////////////////////////////////////////////////////////////
 
-/// GLSL floating point pseudorandom number generator, from
-/// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
-/// http://arxiv.org/pdf/1505.06022.pdf
-float rand(inout vec4 rnd)
-{
-    const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
-    const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
-    const vec4 a = vec4(   3423.0,    2646.0,    1707.0,    1999.0);
-    const vec4 m = vec4(4194287.0, 4194277.0, 4194191.0, 4194167.0);
-    vec4 beta = floor(rnd/q);
-    vec4 p = a*(rnd - beta*q) - beta*r;
-    beta = (1.0 - sign(p))*0.5*m;
-    rnd = p + beta;
-    return fract(dot(rnd/m, vec4(1.0, -1.0, 1.0, -1.0)));
-}
-
 // Do cosine-weighted sampling of hemisphere
 vec3 sampleHemisphereCosineWeighted(inout vec4 rnd, inout float pdf)
 {
@@ -260,6 +271,19 @@ vec3 sampleHemisphereCosineWeighted(inout vec4 rnd, inout float pdf)
     pdf = abs(z) / M_PI;
     return vec3(x, y, z);
 }
+
+#ifdef HAS_ATMOSPHERE
+vec3 sampleSphereUniformly(inout vec4 rnd)
+{
+    float z = 1.0 - 2.0*rand(rnd);
+    float r = sqrt(max(0.0, 1.0 - z*z));
+    float phi = 2.0*M_PI*rand(rnd);
+    float x = cos(phi);
+    float y = sin(phi);
+    // pdf = 1.0/(4.0*M_PI);
+    return vec3(x, y, z);
+}
+#endif
 
 vec3 SURFACE_DIFFUSE_REFL_RGB(in vec3 X, in vec3 nW, in vec3 woW)
 {
@@ -318,6 +342,18 @@ vec3 sampleSkyAtSurface(in Basis basis, inout vec4 rnd,
     return environmentRadiance(woutputW);
 }
 
+#ifdef HAS_ATMOSPHERE
+vec3 sampleSkyInVolume(inout vec4 rnd,
+                       inout vec3 woutputW, inout float pdfDir)
+{
+    if (skyPower<RADIANCE_EPSILON)
+        return vec3(0.0);
+    woutputW = sampleSphereUniformly(rnd);
+    pdfDir = 1.0/(4.0*M_PI);
+    return environmentRadiance(woutputW);
+}
+#endif
+
 //////////////////////////////////////////////
 // Sun
 //////////////////////////////////////////////
@@ -365,6 +401,216 @@ vec3 sampleSunAtSurface(in Basis basis, inout vec4 rnd,
     if (woutputL.z < 0.0) return vec3(0.0);
     return sunRadiance(woutputW);
 }
+
+#ifdef HAS_ATMOSPHERE
+vec3 sampleSunInVolume(inout vec4 rnd,
+                       inout vec3 woutputW, inout float pdfDir)
+{
+    if (sunPower<RADIANCE_EPSILON)
+        return vec3(0.0);
+    woutputW = sampleSunDir(rnd, pdfDir);
+    return sunRadiance(woutputW);
+}
+#endif
+
+
+//////////////////////////////////////////////
+// Atmosphere
+//////////////////////////////////////////////
+
+#ifdef HAS_ATMOSPHERE
+
+vec3 VOLUME_SCATTERING_EVAL()
+{
+    return atmosphereScatteringCoeffRGB/(atmosphereMFP*lengthScale);
+}
+
+vec3 VOLUME_EXTINCTION_EVAL()
+{
+    return atmosphereExtinctionCoeffRGB/(atmosphereMFP*lengthScale);
+}
+
+#ifdef HAS_VOLUME_EMISSION
+vec3 VOLUME_EMISSION_EVAL(in vec3 X)
+{
+    vec3 emission = VOLUME_EMISSION(volumeEmissionColorRGB * volumeEmission, X);
+    return emission;
+}
+#endif // HAS_VOLUME_EMISSION
+
+#define sort2(a,b) { vec3 tmp=min(a,b); b=a+b-tmp; a=tmp; }
+
+bool atmosphereHit( in vec3 rayPos, in vec3 rayDir,
+                    inout float t0, inout float t1 )
+{
+    vec3 dL = 1.0/rayDir;
+    vec3 lo = (atmosphereBoundsMin*lengthScale - rayPos) * dL;
+    vec3 hi = (atmosphereBoundsMax*lengthScale - rayPos) * dL;
+    sort2(lo, hi);
+    bool hit = !( lo.x>hi.y || lo.y>hi.x || lo.x>hi.z || lo.z>hi.x || lo.y>hi.z || lo.z>hi.y );
+    t0 = max(max(lo.x, lo.y), lo.z);
+    t1 = min(min(hi.x, hi.y), hi.z);
+    return hit;
+}
+
+bool atmosphereSegment(in vec3 pW, in vec3 rayDir, float segmentLength, // input segment
+                       inout float t0, inout float t1)                  // portion of input segment within atmosphere
+{
+    if ( !atmosphereHit(pW, rayDir, t0, t1) )
+        return false;
+    t0 = max(0.0, t0);
+    if (t1<0.0 || segmentLength<t0)
+        return false;
+    t1 = min(segmentLength, t1);
+    return true;
+}
+
+// Return the amount of light transmitted (per-channel) along a known "free" segment (i.e. free of geometry)
+vec3 transmittanceOverFreeSegment(in vec3 pW, in vec3 rayDir, float segmentLength)
+{
+    vec3 extinction = VOLUME_EXTINCTION_EVAL();
+    if (length(extinction) == 0.f)
+        return vec3(1.0);
+    float t0, t1;
+    bool hitAtmosphere = atmosphereSegment(pW, rayDir, segmentLength, t0, t1);
+    if (!hitAtmosphere)
+        return vec3(1.0);
+    vec3 opticalDepth = (t1 - t0) * extinction;
+    vec3 Tr = exp(-opticalDepth);
+    return Tr;
+}
+
+// Return the amount of light transmitted (per-channel) along a given segment
+// (zero if occluded by geometry).
+vec3 transmittanceOverSegment(in vec3 pW, in vec3 rayDir, float segmentLength)
+{
+    vec3 pW_surface;
+    int hitMaterial;
+    bool hit = traceRay(pW, rayDir, pW_surface, hitMaterial, segmentLength);
+    if (hit)
+        return vec3(0.0);
+    else
+        return transmittanceOverFreeSegment(pW, rayDir, segmentLength);
+}
+
+float phaseFunction(float mu, float anisotropy)
+{
+    float g = anisotropy;
+    float gSqr = g*g;
+    return (1.0/(4.0*M_PI)) * (1.0 - gSqr) / pow(1.0 - 2.0*g*mu + gSqr, 1.5);
+}
+
+#ifdef HAS_VOLUME_EMISSION
+vec3 samplePhaseFunction(in vec3 rayDir, float anisotropy, inout vec4 rnd)
+{
+    float g = anisotropy;
+    float costheta;
+    if (abs(g)<1.0e-3)
+        costheta = 1.0 - 2.0*rand(rnd);
+    else
+        costheta = 1.0/(2.0*g) * (1.0 + g*g - ((1.0-g*g)*(1.0-g+2.0*g*rand(rnd))));
+    float sintheta = sqrt(max(0.0, 1.0-costheta*costheta));
+    float phi = 2.0*M_PI*rand(rnd);
+    Basis basis = makeBasis(rayDir);
+    return costheta*rayDir + sintheta*(cos(phi)*basis.tW + sin(phi)*basis.bW);
+}
+#endif
+
+vec3 directVolumeLighting(in vec3 pW, in vec3 rayDir, inout vec4 rnd)
+{
+    vec3 Ldirect = vec3(0.0);
+    // Sky
+    if (skyPower > RADIANCE_EPSILON)
+    {
+        vec3 woutputW;
+        float skyPdf;
+        vec3 Li = sampleSkyInVolume(rnd, woutputW, skyPdf);
+        if (averageComponent(Li) > RADIANCE_EPSILON)
+        {
+            vec3 Tr = transmittanceOverSegment(pW, woutputW, maxLengthScale);
+            Li *= Tr;
+            if (averageComponent(Li) > RADIANCE_EPSILON)
+            {
+                float PF = phaseFunction(dot(-rayDir, -woutputW), atmosphereAnisotropy); // evaluate phase function for scattering -woutputW -> -rayDir
+                Ldirect += PF * Li/max(PDF_EPSILON, skyPdf);
+            }
+        }
+    }
+    // Sun
+    if (sunPower > RADIANCE_EPSILON)
+    {
+        vec3 woutputW;
+        float sunPdf;
+        vec3 Li = sampleSunInVolume(rnd, woutputW, sunPdf);
+        if (averageComponent(Li) > RADIANCE_EPSILON)
+        {
+            vec3 Tr = transmittanceOverSegment(pW, woutputW, maxLengthScale);
+            Li *= Tr;
+            if (averageComponent(Li) > RADIANCE_EPSILON)
+            {
+                float PF = phaseFunction(dot(-rayDir, -woutputW), atmosphereAnisotropy); // evaluate phase function for scattering -woutputW -> -rayDir
+                Ldirect += PF * Li/max(PDF_EPSILON, sunPdf);
+            }
+        }
+    }
+    return min(vec3(radianceClamp), Ldirect);
+}
+
+vec3 atmosphericInscatteringRadiance(in vec3 pW, in vec3 rayDir, in float segmentLength, inout vec4 rnd)
+{
+    vec3 Ls = vec3(0.0);
+    vec3 extinction = VOLUME_EXTINCTION_EVAL();
+    vec3 scattering = VOLUME_SCATTERING_EVAL();
+    float extinction_norm = averageComponent(extinction);
+    float scattering_norm = averageComponent(scattering);
+    if ( extinction_norm < RADIANCE_EPSILON ||
+         scattering_norm < RADIANCE_EPSILON ) return Ls;
+
+    // Find sub-segment of supplied segment over which (homogeneous) atmosphere exists
+    float t0, t1;
+    bool hitAtmosphere = atmosphereSegment(pW, rayDir, segmentLength, t0, t1);
+    if (!hitAtmosphere)
+        return Ls;
+
+    // Sample a scattering point in [t0, t1] from a PDF proportional to the transmittance (normalized over [t0, t1])
+    float T01 = exp(-(t1-t0)*extinction_norm);
+    vec3 Tr_pW;
+    float invDistancePdf;
+    if (T01 > 1.0e-3)
+    {
+        float t_scatter = t0 - log(1.0 - rand(rnd)*(1.0 - T01)) / extinction_norm; // sampled scatter distance
+        vec3 pW_scatter = pW + t_scatter*rayDir;                                   // sampled scatter point
+        vec3 opticalDepth_scatter = (t_scatter - t0) * extinction;                 // optical depth from pW -> pW_scatter
+        Tr_pW = exp(-opticalDepth_scatter);                                        // transmittance from pW -> pW_scatter
+        invDistancePdf = (1.0 - T01) * exp(averageComponent(opticalDepth_scatter)) / extinction_norm; // PDF of scatter distance
+    }
+    else
+    {
+        
+    }
+
+    // Direct lighting
+    vec3 Li = directVolumeLighting(pW_scatter, rayDir, rnd);
+    Ls += Tr_pW * scattering * Li * invDistancePdf; // final estimator for scattered radiance
+
+#ifdef HAS_VOLUME_EMISSION
+    // Surface emission contribution
+    vec3 woW = samplePhaseFunction(rayDir, atmosphereAnisotropy, rnd); // sample direction of scattered light (from phase function)
+    vec3 pW_hit;
+    int hitMaterial;
+    bool hit = traceRay(pW_scatter, woW, pW_hit, hitMaterial, maxLengthScale);
+    if (hit)
+    {
+        // (NB, phase function is the angle PDF, so the MC PDF denom. cancels it in the estimator)
+        Ls += Tr_pW * scattering * VOLUME_EMISSION_EVAL(pW_hit) * invDistancePdf;
+    }
+#endif
+
+    return Ls;
+}
+
+#endif // HAS_ATMOSPHERE
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Ambient occlusion integrator
@@ -414,31 +660,38 @@ void main()
     INIT();
 
     vec2 pixel = gl_FragCoord.xy;
-    vec3 RGB = vec3(0.0);
+    vec3 L = vec3(0.0);
     for (int n=0; n<__MAX_SAMPLES_PER_FRAME__; ++n)
     {
         // Jitter over pixel
         vec2 pixelj = pixel + (-0.5 + vec2(rand(rnd), rand(rnd)));
         vec3 primaryStart, primaryDir;
+#ifdef HAS_CUSTOM_CAMERA
+        CONSTRUCT_PRIMARY_RAY(pixelj, rnd, primaryStart, primaryDir);
+#else
         constructPrimaryRay(pixelj, rnd, primaryStart, primaryDir);
+#endif
 
         // Raycast to first hit point
-        vec3 pW;
+        vec3 pW_hit;
         vec3 woW = -primaryDir;
         int hitMaterial;
-        bool hit = traceRay(primaryStart, primaryDir, pW, hitMaterial, maxLengthScale);
+        bool hit = traceRay(primaryStart, primaryDir, pW_hit, hitMaterial, maxLengthScale);
+
+        // Closest-hit logic
         if (hit)
         {
             // Compute normal at hit point
-            vec3 nW = normal(pW, hitMaterial);
+            vec3 nW = normal(pW_hit, hitMaterial);
             Basis basis = makeBasis(nW);
 #ifdef HAS_SURFACE_NORMALMAP
             nW = perturbNormal(pW, basis, hitMaterial);
             basis = makeBasis(nW);
 #endif
+            float rayLength = length(pW_hit - primaryStart);
 
             // Compute diffuse BSDF
-            vec3 f = SURFACE_DIFFUSE_REFL_RGB(pW, nW, woW) / M_PI;
+            vec3 f = SURFACE_DIFFUSE_REFL_RGB(pW_hit, nW, woW) / M_PI;
 
             // Compute direct lighting
             vec3 Ldirect = vec3(0.0);
@@ -449,8 +702,12 @@ void main()
                 float skyPdf;
                 vec3 woutputW;
                 vec3 Li = sampleSkyAtSurface(basis, rnd, woutputW, skyPdf);
-                Li *= Transmittance(pW+dPw, woutputW);
-                Ldirect += f * Li/max(PDF_EPSILON, skyPdf) * abs(dot(woutputW, nW));
+#ifdef HAS_ATMOSPHERE
+                vec3 TrToLight = transmittanceOverSegment(pW_hit+dPw, woutputW, maxLengthScale);
+#else
+                vec3 TrToLight = vec3(1.0);
+#endif
+                Ldirect += f * TrToLight * Li / max(PDF_EPSILON, skyPdf) * abs(dot(woutputW, nW));
             }
             if (sunPower > RADIANCE_EPSILON)
             {
@@ -458,20 +715,56 @@ void main()
                 float sunPdf;
                 vec3 woutputW;
                 vec3 Li = sampleSunAtSurface(basis, rnd, woutputW, sunPdf);
+#ifdef HAS_ATMOSPHERE
+                vec3 TrToLight = transmittanceOverSegment(pW_hit+dPw, woutputW, maxLengthScale);
+#else
+                vec3 TrToLight = vec3(1.0);
+#endif
                 if (averageComponent(Li) > RADIANCE_EPSILON)
                 {
-                    Li *= Transmittance(pW+dPw, woutputW);
-                    Ldirect += f * Li/max(PDF_EPSILON, sunPdf) * abs(dot(woutputW, nW));
+                    Li *= Transmittance(pW_hit+dPw, woutputW);
+                    Ldirect += f * TrToLight * Li / max(PDF_EPSILON, sunPdf) * abs(dot(woutputW, nW));
                 }
             }
-            RGB += Ldirect;
-        }
-        else
-            RGB += environmentRadiance(primaryDir);
-    } // sample n
-    RGB /= float(__MAX_SAMPLES_PER_FRAME__);
+#ifdef HAS_ATMOSPHERE
+            vec3 TrToHit = transmittanceOverFreeSegment(primaryStart, primaryDir, rayLength);
+#else
+            vec3 TrToHit = vec3(1.0);
+#endif
+            L += TrToHit * Ldirect;
 
-    vec3 XYZ = rgbToXyz(RGB);
+#ifdef HAS_ATMOSPHERE
+            // Add term for single-scattering in the homogeneous atmosphere over the segment up to the closest hit
+            vec3 Lscatter = atmosphericInscatteringRadiance(primaryStart, primaryDir, rayLength, rnd);
+            L += Lscatter;
+#endif
+
+#ifdef HAS_VOLUME_EMISSION
+            // Add volumetric emission at the surface point, if present (treating it as an isotropic radiance field)
+            L += TrToHit * VOLUME_EMISSION_EVAL(pW_hit);
+#endif
+        }
+
+        // Miss logic
+        else
+        {
+            vec3 TrToInfinity = vec3(1.0);
+#ifdef HAS_ATMOSPHERE
+            // Add term for single-inscattering in the homogeneous atmosphere over the segment to infinity
+            vec3 Lscatter = atmosphericInscatteringRadiance(primaryStart, primaryDir, maxLengthScale, rnd);
+            L += Lscatter;
+            TrToInfinity = transmittanceOverFreeSegment(primaryStart, primaryDir, maxLengthScale);
+#endif
+            L += TrToInfinity * environmentRadiance(primaryDir);
+            if (sunVisibleDirectly)
+                L += TrToInfinity * sunRadiance(primaryDir);
+        }
+
+    } // sample n of __MAX_SAMPLES_PER_FRAME__
+
+    L /= float(__MAX_SAMPLES_PER_FRAME__);
+
+    vec3 XYZ = rgbToXyz(L);
 
     // Write updated radiance and sample count
     vec4 oldL = texture(Radiance, vTexCoord);
