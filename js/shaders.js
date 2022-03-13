@@ -884,14 +884,6 @@ bool traceRay(in vec3 start, in vec3 dir,
     return traceDistance(start, dir, maxMarchDist, hit, material);
 }
 
-// (whether occluded along infinite ray)
-float Transmittance(in vec3 start, in vec3 dir)
-{
-    int material;
-    vec3 hit;
-    return traceRay(start, dir, hit, material, maxLengthScale) ? 0.0 : 1.0;
-}
-
 vec3 normal(in vec3 pW, int material)
 {
     // Compute normal as gradient of SDF
@@ -1188,34 +1180,6 @@ bool atmosphereSegment(in vec3 pW, in vec3 rayDir, float segmentLength, // input
     return true;
 }
 
-// Return the amount of light transmitted (per-channel) along a known "free" segment (i.e. free of geometry)
-vec3 transmittanceOverFreeSegment(in vec3 pW, in vec3 rayDir, float segmentLength)
-{
-    vec3 extinction = VOLUME_EXTINCTION_EVAL();
-    if (length(extinction) == 0.f)
-        return vec3(1.0);
-    float t0, t1;
-    bool hitAtmosphere = atmosphereSegment(pW, rayDir, segmentLength, t0, t1);
-    if (!hitAtmosphere)
-        return vec3(1.0);
-    vec3 opticalDepth = (t1 - t0) * extinction;
-    vec3 Tr = exp(-opticalDepth);
-    return Tr;
-}
-
-// Return the amount of light transmitted (per-channel) along a given segment
-// (zero if occluded by geometry).
-vec3 transmittanceOverSegment(in vec3 pW, in vec3 rayDir, float segmentLength)
-{
-    vec3 pW_surface;
-    int hitMaterial;
-    bool hit = traceRay(pW, rayDir, pW_surface, hitMaterial, segmentLength);
-    if (hit)
-        return vec3(0.0);
-    else
-        return transmittanceOverFreeSegment(pW, rayDir, segmentLength);
-}
-
 float phaseFunction(float mu, float anisotropy)
 {
     float g = anisotropy;
@@ -1330,6 +1294,37 @@ vec3 atmosphericInscatteringRadiance(in vec3 pW, in vec3 rayDir, in float segmen
 // Ambient occlusion integrator
 ////////////////////////////////////////////////////////////////////////////////
 
+// Return the amount of light transmitted (per-channel) along a known "free" segment (i.e. free of geometry)
+vec3 transmittanceOverFreeSegment(in vec3 pW, in vec3 rayDir, float segmentLength)
+{
+    vec3 Tr = vec3(1.0);
+#ifdef HAS_ATMOSPHERE
+    vec3 extinction = VOLUME_EXTINCTION_EVAL();
+    if (length(extinction) == 0.f)
+        return vec3(1.0);
+    float t0, t1;
+    bool hitAtmosphere = atmosphereSegment(pW, rayDir, segmentLength, t0, t1);
+    if (!hitAtmosphere)
+        return vec3(1.0);
+    vec3 opticalDepth = (t1 - t0) * extinction;
+    Tr = exp(-opticalDepth);
+#endif
+    return Tr;
+}
+
+// Return the amount of light transmitted (per-channel) along a given segment
+// (zero if occluded by geometry).
+vec3 transmittanceOverSegment(in vec3 pW, in vec3 rayDir, float segmentLength)
+{
+    vec3 pW_surface;
+    int hitMaterial;
+    bool hit = traceRay(pW, rayDir, pW_surface, hitMaterial, segmentLength);
+    if (hit)
+        return vec3(0.0);
+    else
+        return transmittanceOverFreeSegment(pW, rayDir, segmentLength);
+}
+
 void constructPrimaryRay(in vec2 pixel, inout vec4 rnd,
                          inout vec3 primaryStart, inout vec3 primaryDir)
 {
@@ -1416,15 +1411,9 @@ void main()
                 float skyPdf;
                 vec3 woutputW;
                 vec3 Li = sampleSkyAtSurface(basis, rnd, woutputW, skyPdf);
-#ifdef HAS_ATMOSPHERE
                 vec3 TrToLight = transmittanceOverSegment(pW_hit+dPw, woutputW, maxLengthScale);
-#else
-                vec3 TrToLight = vec3(1.0);
-#endif
                 if (averageComponent(Li) > RADIANCE_EPSILON)
-                {
                     Ldirect += f * TrToLight * Li / max(PDF_EPSILON, skyPdf) * abs(dot(woutputW, nW));
-                }
             }
             if (sunPower > RADIANCE_EPSILON)
             {
@@ -1432,15 +1421,9 @@ void main()
                 float sunPdf;
                 vec3 woutputW;
                 vec3 Li = sampleSunAtSurface(basis, rnd, woutputW, sunPdf);
-#ifdef HAS_ATMOSPHERE
                 vec3 TrToLight = transmittanceOverSegment(pW_hit+dPw, woutputW, maxLengthScale);
-#else
-                vec3 TrToLight = vec3(1.0);
-#endif
                 if (averageComponent(Li) > RADIANCE_EPSILON)
-                {
                     Ldirect += f * TrToLight * Li / max(PDF_EPSILON, sunPdf) * abs(dot(woutputW, nW));
-                }
             }
 #ifdef HAS_ATMOSPHERE
             vec3 TrToHit = transmittanceOverFreeSegment(primaryStart, primaryDir, rayLength);
