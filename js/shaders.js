@@ -1421,7 +1421,11 @@ void main()
 #else
                 vec3 TrToLight = vec3(1.0);
 #endif
-                Ldirect += f * TrToLight * Li / max(PDF_EPSILON, skyPdf) * abs(dot(woutputW, nW));
+                if (averageComponent(Li) > RADIANCE_EPSILON)
+                {
+                    Li *= Transmittance(pW_hit+dPw, woutputW);
+                    Ldirect += f * TrToLight * Li / max(PDF_EPSILON, skyPdf) * abs(dot(woutputW, nW));
+                }
             }
             if (sunPower > RADIANCE_EPSILON)
             {
