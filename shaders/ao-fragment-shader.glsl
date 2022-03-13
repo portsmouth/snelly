@@ -53,15 +53,15 @@ uniform float sunLatitude;
 uniform float sunLongitude;
 uniform vec3 sunColor;
 uniform vec3 sunDir;
-uniform bool sunVisibleDirectly;                      // UPLOAD!
+uniform bool sunVisibleDirectly;
 
 // Atmosphere constants
-uniform vec3 atmosphereBoundsMin;                      // UPLOAD!
-uniform vec3 atmosphereBoundsMax;                      // UPLOAD!
-uniform vec3 atmosphereExtinctionCoeffRGB;                      // UPLOAD!
-uniform vec3 atmosphereScatteringCoeffRGB;                      // UPLOAD!
-uniform float atmosphereMFP;                      // UPLOAD!
-uniform float atmosphereAnisotropy;                      // UPLOAD!
+uniform vec3 atmosphereBoundsMin;
+uniform vec3 atmosphereBoundsMax;
+uniform vec3 atmosphereExtinctionCoeffRGB;
+uniform vec3 atmosphereScatteringCoeffRGB;
+uniform float atmosphereMFP;
+uniform float atmosphereAnisotropy;
 
 // Volumetric emission constants
 uniform float volumeEmission;
@@ -291,6 +291,14 @@ vec3 SURFACE_DIFFUSE_REFL_RGB(in vec3 X, in vec3 nW, in vec3 woW)
     return reflRGB;
 }
 
+#ifdef HAS_VOLUME_EMISSION
+vec3 VOLUME_EMISSION_EVAL(in vec3 X)
+{
+    vec3 emission = VOLUME_EMISSION(volumeEmissionColorRGB * volumeEmission, X);
+    return emission;
+}
+#endif // HAS_VOLUME_EMISSION
+
 #ifdef HAS_SURFACE_NORMALMAP
 vec3 perturbNormal(in vec3 X, in Basis basis, int material)
 {
@@ -430,14 +438,6 @@ vec3 VOLUME_EXTINCTION_EVAL()
     return atmosphereExtinctionCoeffRGB/(atmosphereMFP*lengthScale);
 }
 
-#ifdef HAS_VOLUME_EMISSION
-vec3 VOLUME_EMISSION_EVAL(in vec3 X)
-{
-    vec3 emission = VOLUME_EMISSION(volumeEmissionColorRGB * volumeEmission, X);
-    return emission;
-}
-#endif // HAS_VOLUME_EMISSION
-
 #define sort2(a,b) { vec3 tmp=min(a,b); b=a+b-tmp; a=tmp; }
 
 bool atmosphereHit( in vec3 rayPos, in vec3 rayDir,
@@ -574,20 +574,11 @@ vec3 atmosphericInscatteringRadiance(in vec3 pW, in vec3 rayDir, in float segmen
 
     // Sample a scattering point in [t0, t1] from a PDF proportional to the transmittance (normalized over [t0, t1])
     float T01 = exp(-(t1-t0)*extinction_norm);
-    vec3 Tr_pW;
-    float invDistancePdf;
-    if (T01 > 1.0e-3)
-    {
-        float t_scatter = t0 - log(1.0 - rand(rnd)*(1.0 - T01)) / extinction_norm; // sampled scatter distance
-        vec3 pW_scatter = pW + t_scatter*rayDir;                                   // sampled scatter point
-        vec3 opticalDepth_scatter = (t_scatter - t0) * extinction;                 // optical depth from pW -> pW_scatter
-        Tr_pW = exp(-opticalDepth_scatter);                                        // transmittance from pW -> pW_scatter
-        invDistancePdf = (1.0 - T01) * exp(averageComponent(opticalDepth_scatter)) / extinction_norm; // PDF of scatter distance
-    }
-    else
-    {
-        
-    }
+    float t_scatter = t0 - log(1.0 - rand(rnd)*(1.0 - T01)) / extinction_norm; // sampled scatter distance
+    vec3 pW_scatter = pW + t_scatter*rayDir;                                   // sampled scatter point
+    vec3 opticalDepth_scatter = (t_scatter - t0) * extinction;         // optical depth from pW -> pW_scatter
+    vec3 Tr_pW = exp(-opticalDepth_scatter);                           // transmittance from pW -> pW_scatter
+    float invDistancePdf = (1.0 - T01) * exp(averageComponent(opticalDepth_scatter)) / extinction_norm; // PDF of scatter distance
 
     // Direct lighting
     vec3 Li = directVolumeLighting(pW_scatter, rayDir, rnd);
