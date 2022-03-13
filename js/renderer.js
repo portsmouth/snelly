@@ -123,6 +123,7 @@ var Renderer = function()
     this.gamma = 2.2;
     this.contrast = 1.0;
     this.saturation = 1.0;
+    this.hueShift = 0.0;
 
     // Load shaders
     this.shaderSources = GLU.resolveShaderSource({
@@ -226,6 +227,9 @@ Renderer.prototype.compileShaders = function()
     // Insert default functions for those not implemented
     if (shader.indexOf("INIT(")                            == -1) { shader += `\n void INIT() {}\n`; }
 
+    let hasCustomCamera = false
+    if (shader.indexOf("CONSTRUCT_PRIMARY_RAY(")           != -1) { hasCustomCamera = true; }
+
     let hasSurface = true;
     let hasSurfaceNM = false;
     if (shader.indexOf("SDF_SURFACE(")                     == -1) { hasSurface = false; }
@@ -291,6 +295,8 @@ Renderer.prototype.compileShaders = function()
     replacements.__MAX_SAMPLES_PER_FRAME__  = Math.round(this.maxSamplesPerFrame);
     replacements.__DEFINES__ = '';
 
+    if (hasCustomCamera)   replacements.__DEFINES__ += '\n#define HAS_CUSTOM_CAMERA\n';
+
     if (hasSurface)        replacements.__DEFINES__ += '\n#define HAS_SURFACE\n';
     if (hasMetal)          replacements.__DEFINES__ += '\n#define HAS_METAL\n';
     if (hasDielectric)     replacements.__DEFINES__ += '\n#define HAS_DIELECTRIC\n';
@@ -309,6 +315,7 @@ Renderer.prototype.compileShaders = function()
 
     if (hasSphereLight) replacements.__DEFINES__ += '\n#define HAS_SPHERE_LIGHT\n';
 
+    console.warn('[snelly]     hasCustomCamera   = ', hasCustomCamera);
     console.warn('[snelly]     hasSurface        = ', hasSurface);
     console.warn('[snelly]     hasMetal          = ', hasMetal);
     console.warn('[snelly]     hasDielectric     = ', hasDielectric);
@@ -625,6 +632,7 @@ Renderer.prototype.render = function()
         this.tonemapProgram.uniformF("invGamma", 1.0/this.gamma);
         this.tonemapProgram.uniformF("contrast", this.contrast);
         this.tonemapProgram.uniformF("saturation", this.saturation);
+        this.tonemapProgram.uniformF("hueShift", this.hueShift);
 
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);

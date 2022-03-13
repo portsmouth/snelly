@@ -1099,7 +1099,11 @@ void pathtrace(vec2 pixel, vec4 rnd) // the current pixel
 
         // Compute world ray direction for this fragment
         vec3 primaryStart, primaryDir;
+#ifdef HAS_CUSTOM_CAMERA
+        CONSTRUCT_PRIMARY_RAY(pixelj, rnd, primaryStart, primaryDir);
+#else
         constructPrimaryRay(pixelj, rnd, primaryStart, primaryDir);
+#endif
 
         // Perform pathtrace to estimate the primary ray radiance, L
         L += cameraPath(primaryStart, primaryDir, wavelength_nm, rgb, rnd);
