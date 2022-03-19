@@ -675,7 +675,7 @@ void main()
             vec3 nW = normal(pW_hit, hitMaterial);
             Basis basis = makeBasis(nW);
 #ifdef HAS_SURFACE_NORMALMAP
-            nW = perturbNormal(pW, basis, hitMaterial);
+            nW = perturbNormal(pW_hit, basis, hitMaterial);
             basis = makeBasis(nW);
 #endif
             float rayLength = length(pW_hit - primaryStart);
