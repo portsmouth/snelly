@@ -1458,9 +1458,8 @@ void main()
             L += Lscatter;
             TrToInfinity = transmittanceOverFreeSegment(primaryStart, primaryDir, maxLengthScale);
 #endif
-            L += TrToInfinity * environmentRadiance(primaryDir);
-            if (sunVisibleDirectly)
-                L += TrToInfinity * sunRadiance(primaryDir);
+            if (envMapVisible)      L += TrToInfinity * environmentRadiance(primaryDir);
+            if (sunVisibleDirectly) L += TrToInfinity * sunRadiance(primaryDir);
         }
 
     } // sample n of __MAX_SAMPLES_PER_FRAME__
