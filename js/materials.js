@@ -231,6 +231,7 @@ Volume.prototype.repr  = function()
     volume.lof10_mfp = ${this.lof10_mfp};
     volume.scatteringColor = [${this.scatteringColor[0]}, ${this.scatteringColor[1]}, ${this.scatteringColor[2]}];
     volume.absorptionColor = [${this.absorptionColor[0]}, ${this.absorptionColor[1]}, ${this.absorptionColor[2]}];
+    volume.anisotropy = ${this.anisotropy};
     volume.emission = ${this.emission};
     volume.emissionColor = [${this.emissionColor[0]}, ${this.emissionColor[1]}, ${this.emissionColor[2]}];
     volume.fogEmission = [${this.fogEmission[0]}, ${this.fogEmission[1]}, ${this.fogEmission[2]}];
