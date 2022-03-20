@@ -1938,7 +1938,11 @@ void main()
         // Jitter over pixel
         vec2 pixelj = pixel + (-0.5 + vec2(rand(rnd), rand(rnd)));
         vec3 primaryStart, primaryDir;
+#ifdef HAS_CUSTOM_CAMERA
+        CONSTRUCT_PRIMARY_RAY(pixelj, rnd, primaryStart, primaryDir);
+#else
         constructPrimaryRay(pixelj, rnd, primaryStart, primaryDir);
+#endif
 
         // Raycast to first hit point
         vec3 pW;
