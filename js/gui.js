@@ -42,6 +42,16 @@ GUI.prototype.toggleHide = function()
     this.visible = !this.visible;
 }
 
+GUI.prototype.show = function()
+{
+    this.visible = true;
+}
+
+GUI.prototype.hide = function()
+{
+    this.visible = false;
+}
+
 function hexToRgb(hex)
 {
     var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -79,7 +89,7 @@ GUI.prototype.createRendererSettings = function()
     this.raymarchingFolder.add(pathtracer, 'radianceClamp', -2.0, 12.0).onChange( function(value) { pathtracer.reset(true); } );
     this.raymarchingFolder.add(pathtracer, 'shadowStrength', 0.0, 1.0).onChange( function(value) { pathtracer.reset(true); } );
     this.raymarchingFolder.add(pathtracer, 'wavelengthSamples', 4, 1024, 1).onChange( function(value) { pathtracer.reset(true); } );
-    
+
     this.raymarchingFolder.add(pathtracer, 'interactive').onChange( function(value) { pathtracer.reset(); } );
     this.raymarchingFolder.close();
 
@@ -88,6 +98,7 @@ GUI.prototype.createRendererSettings = function()
     this.cameraFolder.add(camera, 'fov', 5.0, 120.0).onChange( function(value) { pathtracer.reset(true); } );
     this.cameraFolder.add(camera, 'aperture',      -35.0, 1.0).onChange( function(value) { pathtracer.reset(true); } );
     this.cameraFolder.add(camera, 'focalDistance', -3.0, 3.0).onChange( function(value) { pathtracer.reset(true); } );
+    this.cameraFolder.add(camera, 'auto_focus').onChange( function(value) { pathtracer.reset(); } );
     this.cameraFolder.close();
 
     // tonemapping folder

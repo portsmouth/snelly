@@ -45,6 +45,7 @@ var Snelly = function(sceneObj)
     this.camera = new THREE.PerspectiveCamera(VIEW_ANGLE, ASPECT, NEAR, FAR);
     this.camera.lookAt(new THREE.Vector3(0.0, 0.0, 0.0));
     this.camera.position.set(1.0, 1.0, 1.0);
+    this.camera.auto_focus = false;
 
     this.camControls = new THREE.OrbitControls(this.camera, this.container);
     this.camControls.zoomSpeed = 2.0;
@@ -54,6 +55,7 @@ var Snelly = function(sceneObj)
 
     this.gui = null;
     this.guiVisible = true;
+    this.guiEnabled = true;
 
     // Instantiate materials
     this.materials = new Materials();
@@ -79,7 +81,9 @@ var Snelly = function(sceneObj)
     this.resize();
 
     // Create dat gui
-    this.gui = new GUI(this.guiVisible);
+    if (this.guiEnabled)
+        this.gui = new GUI(this.guiVisible);
+    this.enableGUI(this.guiEnabled);
 
     // Setup keypress and mouse events
     window.addEventListener( 'mousemove', this, false );
@@ -91,6 +95,9 @@ var Snelly = function(sceneObj)
 
     this.reset_time = performance.now();
     this.initialized = true;
+
+    if (this.camera.auto_focus)
+        this.auto_focus();
 }
 
 /**
@@ -99,7 +106,7 @@ var Snelly = function(sceneObj)
 */
 Snelly.prototype.getVersion = function()
 {
-    return [1, 17, 9];
+    return [1, 18, 0];
 }
 
 Snelly.prototype.handleEvent = function(event)
@@ -161,6 +168,17 @@ Snelly.prototype.showGUI = function(show)
     this.guiVisible = show;
 }
 
+Snelly.prototype.enableGUI = function(enable)
+{
+    this.guiEnabled = enable;
+    if (!enable)
+    {
+        this.showGUI(false);
+        if (this.gui)
+            this.gui.closed = true;
+    }
+}
+
 /**
 * Specify arbitrary status text (one line only) to display in the lower right of the viewport
 * @param {Boolean} statusText - text to display
@@ -188,7 +206,7 @@ Snelly.prototype.getGLContext = function()
 }
 
 
-Snelly.prototype.initScene = function()
+Snelly.prototype.initScene = function(runShaderCompilation=true)
 {
     console.warn('[snelly] Snelly.prototype.initScene');
 
@@ -252,7 +270,8 @@ Snelly.prototype.initScene = function()
     this.initial_camera_target.copy(this.camControls.target);
 
     // Compile GLSL shaders
-    this.pathtracer.compileShaders();
+    if (runShaderCompilation)
+        this.pathtracer.compileShaders();
 
     // Fix renderer to width & height, if they were specified
     if ((typeof this.pathtracer.width!=="undefined") && (typeof this.pathtracer.height!=="undefined"))
@@ -270,9 +289,9 @@ Snelly.prototype.initScene = function()
 
     // Camera setup
     this.camControls.update();
-    this.reset(false);
+    let no_recompile = !runShaderCompilation;
+    this.reset(no_recompile);
 }
-
 
 Snelly.prototype.dumpScene = function()
 {
@@ -305,6 +324,7 @@ Snelly.prototype.dumpScene = function()
     camera.fov = ${camera.fov};
     camera.aperture = ${camera.aperture};
     camera.focalDistance = ${camera.focalDistance};
+    camera.auto_focus = ${camera.auto_focus};
     camera.up.set(${camera.up.x}, ${camera.up.y}, ${camera.up.z});
     camera.position.set(${camera.position.x}, ${camera.position.y}, ${camera.position.z});
     controls.target.set(${controls.target.x}, ${controls.target.y}, ${controls.target.z});
@@ -478,6 +498,8 @@ Snelly.prototype.reset = function(no_recompile = false)
 {
     if (!this.initialized || this.terminated) return;
     this.reset_time = performance.now();
+    if (this.camera.auto_focus)
+        this.auto_focus();
     this.pathtracer.reset(no_recompile);
 }
    
@@ -487,11 +509,12 @@ Snelly.prototype.render = function()
     if (!this.initialized || this.terminated) return;
     if (this.sceneObj == null) return;
     this.rendering = true;
+    this.textCtx.clearRect(0, 0, this.textCtx.canvas.width, this.textCtx.canvas.height);
 
-    let isReady = true;
+    let isReady = this.pathtracer.loaded;
     if (typeof this.sceneObj.isReady !== "undefined")
     {
-        isReady = this.sceneObj.isReady(this);
+        isReady = isReady && this.sceneObj.isReady(this);
     }
 
     if (isReady)
@@ -504,33 +527,41 @@ Snelly.prototype.render = function()
         const gl = GLU.gl;
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        this.textCtx.textAlign = "center";   	// This determines the alignment of text, e.g. left, center, right
+        this.textCtx.textBaseline = "middle";	// This determines the baseline of the text, e.g. top, middle, bottom
+        this.textCtx.font = '18px monospace';	// This determines the size of the text and the font family used
+        this.textCtx.globalAlpha = 0.95;
+        this.textCtx.strokeStyle = 'black';
+        this.textCtx.lineWidth  = 2;
+        this.textCtx.fillStyle = "#ff5500";
+        this.textCtx.fillText('Loading ...', this.textCtx.canvas.width/2, this.textCtx.canvas.height/2);
     }
 
-    // Update HUD text canvas
-    this.textCtx.textAlign = "left";   	// This determines the alignment of text, e.g. left, center, right
-    this.textCtx.textBaseline = "middle";	// This determines the baseline of the text, e.g. top, middle, bottom
-    this.textCtx.font = '12px monospace';	// This determines the size of the text and the font family used
-    this.textCtx.clearRect(0, 0, this.textCtx.canvas.width, this.textCtx.canvas.height);
-    this.textCtx.globalAlpha = 0.95;
-    this.textCtx.strokeStyle = 'black';
-    this.textCtx.lineWidth  = 2;
     if (this.guiVisible)
     {
-          if (this.onSnellyLink) this.textCtx.fillStyle = "#ff5500";
-          else                   this.textCtx.fillStyle = "#ffff00";
-          let ver = this.getVersion();
-          this.textCtx.strokeText('Snelly renderer v'+ver[0]+'.'+ver[1]+'.'+ver[2], 14, 20);
-          this.textCtx.fillText('Snelly renderer v'+ver[0]+'.'+ver[1]+'.'+ver[2], 14, 20);
-          
-          this.textCtx.fillStyle = "#ffccaa";
-          this.textCtx.strokeText('spp: ' + (this.pathtracer.spp).toPrecision(3), 14, 35);
-          this.textCtx.fillText('spp: ' + (this.pathtracer.spp).toPrecision(3), 14, 35);
-          if (this.sceneName != '')
-          {
-              this.textCtx.fillStyle = "#ffaa22";
-              this.textCtx.strokeText(this.sceneName, 14, this.textCtx.canvas.height-25);
-              this.textCtx.fillText(this.sceneName, 14, this.textCtx.canvas.height-25);
-          }
+        // Update HUD text canvas
+        this.textCtx.textAlign = "left";   	// This determines the alignment of text, e.g. left, center, right
+        this.textCtx.textBaseline = "middle";	// This determines the baseline of the text, e.g. top, middle, bottom
+        this.textCtx.font = '12px monospace';	// This determines the size of the text and the font family used
+        this.textCtx.globalAlpha = 0.95;
+        this.textCtx.strokeStyle = 'black';
+        this.textCtx.lineWidth  = 2;
+
+        if (this.onSnellyLink) this.textCtx.fillStyle = "#ff5500";
+        else                   this.textCtx.fillStyle = "#ffff00";
+        let ver = this.getVersion();
+        this.textCtx.strokeText('Snelly renderer v'+ver[0]+'.'+ver[1]+'.'+ver[2], 14, 20);
+        this.textCtx.fillText('Snelly renderer v'+ver[0]+'.'+ver[1]+'.'+ver[2], 14, 20);
+        this.textCtx.fillStyle = "#ffccaa";
+        this.textCtx.strokeText('spp: ' + (this.pathtracer.spp).toPrecision(3), 14, 35);
+        this.textCtx.fillText('spp: ' + (this.pathtracer.spp).toPrecision(3), 14, 35);
+        if (this.sceneName != '')
+        {
+            this.textCtx.fillStyle = "#ffaa22";
+            this.textCtx.strokeText(this.sceneName, 14, this.textCtx.canvas.height-25);
+            this.textCtx.fillText(this.sceneName, 14, this.textCtx.canvas.height-25);
+        }
         if (this.sceneURL != '')
         {
             if (this.onUserLink) this.textCtx.fillStyle = "#aaccff";
@@ -587,6 +618,11 @@ Snelly.prototype.resize = function()
         // resizes the render itself to match.
         let width = window.innerWidth;
         let height = window.innerHeight;
+        if (typeof this.pathtracer.aspect_ratio!=="undefined")
+        {
+            width = this.pathtracer.aspect_ratio * height;
+        }
+
         this._resize(width, height);
         if (this.initialized)
             this.render();
@@ -668,9 +704,28 @@ Snelly.prototype.onDocumentMouseUp = function(event)
     this.camControls.update();
 }
 
+Snelly.prototype.auto_focus = function()
+{
+    let render_canvas = this.render_canvas;
+    let rxPick = 0.5 * render_canvas.width;
+    let ryPick = 0.5 * render_canvas.height;
+    var pickData = this.pathtracer.pick(rxPick, ryPick);
+    if (pickData == null)
+        return;
+    let fd = Math.max(1.0e-6, Math.abs(pickData.distance));
+    let new_focalDistance = Math.log10(fd/this.lengthScale);
+    if (new_focalDistance == this.camera.focalDistance)
+        return;
+    this.camera.focalDistance = new_focalDistance;
+    if (this.gui)
+        this.gui.sync();
+}
+
 Snelly.prototype.onDocumentRightClick = function(event)
 {
     if (event.altKey) return; // don't pick if alt-right-clicking (panning)
+    if (!this.camControls.enabled) return;
+
     let render_canvas = this.render_canvas;
 
     // map pixel picked on window to pixel of render buffer
@@ -684,7 +739,8 @@ Snelly.prototype.onDocumentRightClick = function(event)
     var pickData = this.pathtracer.pick(rxPick, ryPick);
     let fd = Math.max(1.0e-6, Math.abs(pickData.distance));
     this.camera.focalDistance = Math.log10(fd/this.lengthScale);
-    this.gui.sync();
+    if (this.gui)
+        this.gui.sync();
     this.reset(true);
 }
 
@@ -707,12 +763,24 @@ Snelly.prototype.onkeydown = function(event)
             break;
 
         case 82: // R key: reset scene
-            this.initScene();
+            if (this.guiEnabled)
+                this.initScene();
+            break;
+
+        case 90: // Z key: reset scene, no compile
+            if (this.guiEnabled)
+            {
+                let runShaderCompilation = false;
+                this.initScene(runShaderCompilation);
+            }
             break;
 
         case 72: // H key: toggle hide/show dat gui
-            this.guiVisible = !this.guiVisible;
-            snelly.getGUI().toggleHide();
+            if (this.guiEnabled)
+            {
+                this.guiVisible = !this.guiVisible;
+                snelly.getGUI().toggleHide();
+            }
             break;
 
         case 79: // O key: output scene settings code to console
@@ -812,9 +880,6 @@ Snelly.prototype.onkeydown = function(event)
 
 function camChanged()
 {
-    if (!snelly.rendering)
-    {
-        var no_recompile = true;
-        snelly.reset(no_recompile);
-    }
+    let no_recompile = true;
+    snelly.reset(no_recompile);
 }

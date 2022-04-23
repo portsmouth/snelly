@@ -399,9 +399,8 @@ Renderer.prototype.pick = function(xPick, yPick)
 {
     console.warn('[snelly] Renderer.prototype.pick');
 
-    if (!this.loaded) return;
-    if (this.pickProgram==null) return;
-    var sceneObj = snelly.getScene(); if (sceneObj==null) return;
+    if (this.pickProgram==null) return null;
+    var sceneObj = snelly.getScene(); if (sceneObj==null) return null;
 
     let gl = this.gl;
     gl.viewport(0, 0, 1, 1);
