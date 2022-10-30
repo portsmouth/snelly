@@ -7,7 +7,7 @@ uniform vec3 camPos;
 uniform vec3 camDir;
 uniform vec3 camX;
 uniform vec3 camY;
-uniform float camFovy; // degrees
+uniform float camFovy; // degrees 
 uniform float camAspect;
 uniform float camAperture;
 uniform float camFocalDistance;
@@ -28,7 +28,7 @@ uniform vec2 mousePick;
 /// GLSL floating point pseudorandom number generator, from
 /// "Implementing a Photorealistic Rendering System using GLSL", Toshiya Hachisuka
 /// http://arxiv.org/pdf/1505.06022.pdf
-float rand(inout vec4 rnd)
+float rand(inout vec4 rnd) 
 {
     const vec4 q = vec4(   1225.0,    1585.0,    2457.0,    2098.0);
     const vec4 r = vec4(   1112.0,     367.0,      92.0,     265.0);
