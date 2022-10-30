@@ -171,9 +171,9 @@ Surface.prototype.initGui  = function(parentFolder)
 // Volumetric material
 ////////////////////////////////////////////////////////
 
-/**
+/** 
 * Volumetric material (a homogeneous atmosphere, with heterogeneous emission). Control via properties:
-* @constructor
+* @constructor 
 * @extends Material
 * @property {number} mfp             - MFP in units of inverse scene scale (gives grey extinction as inverse MFP)
 * @property {number} maxOpticalDepth - maximum optical depth (in any channel), used to bound attenuation to infinity
@@ -193,7 +193,7 @@ Surface.prototype.initGui  = function(parentFolder)
 function Volume(name)
 {
     Material.call(this, name);
-
+    
     //.atmosphere bounds (homogeneous within this box)
     this.atmosphereMinX = -10.0;
     this.atmosphereMaxX =  10.0;
@@ -231,7 +231,6 @@ Volume.prototype.repr  = function()
     volume.lof10_mfp = ${this.lof10_mfp};
     volume.scatteringColor = [${this.scatteringColor[0]}, ${this.scatteringColor[1]}, ${this.scatteringColor[2]}];
     volume.absorptionColor = [${this.absorptionColor[0]}, ${this.absorptionColor[1]}, ${this.absorptionColor[2]}];
-    volume.anisotropy = ${this.anisotropy};
     volume.emission = ${this.emission};
     volume.emissionColor = [${this.emissionColor[0]}, ${this.emissionColor[1]}, ${this.emissionColor[2]}];
     volume.fogEmission = [${this.fogEmission[0]}, ${this.fogEmission[1]}, ${this.fogEmission[2]}];
@@ -1340,3 +1339,5 @@ Materials.prototype.syncShader  = function(program)
     if (this.surfaceObj    !== null) this.surfaceObj.syncShader(program);
     if (this.volumeObj     !== null) this.volumeObj.syncShader(program);
 }
+
+    
