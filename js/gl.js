@@ -634,12 +634,14 @@ var GLU = {};
     sheet.insertRule(`body{
   margin: 0px;
   overflow: hidden;
+  text-align:center;
 }`, sheet.cssRules.length);
 
     sheet.insertRule(`#container {
     position: relative;
     margin: 0px;
     padding: 0px;
+    display: inline-block;
 }`, sheet.cssRules.length);
 
     sheet.insertRule(`#textContainer {
@@ -650,12 +652,6 @@ var GLU = {};
     top: 0px;
     pointer-events: none;
     z-index: 1;
-}`, sheet.cssRules.length);
-
-    sheet.insertRule(`#gui {
-    position: absolute;
-    z-index: 100;
-    right: 0px;
 }`, sheet.cssRules.length);
 
     sheet.insertRule(`#debugger {
@@ -669,6 +665,7 @@ var GLU = {};
         font-family: Verdana, Tahoma, Arial, Helvetica, sans-serif;
         left: 0px;
         top: 0px;
+        text-align:left;
     }`, sheet.cssRules.length);
 
     // Create here the DOM elements for renderer and text canvas
