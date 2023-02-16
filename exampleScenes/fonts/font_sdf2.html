@@ -18,54 +18,74 @@ Scene.prototype.init = function(snelly)
     let camera    = snelly.getCamera();
     let controls  = snelly.getControls();
     let materials = snelly.getMaterials();
-        
-    snelly.showGUI(true);
+    
+snelly.showGUI(true);
 
     /** Camera settings **/
     camera.fov = 45;
-    camera.aperture = -9.392648784172552;
-    camera.focalDistance = 0.7861280116663573;
+    camera.aperture = -18;
+    camera.focalDistance = 2;
+    camera.auto_focus = false;
     camera.up.set(0, 1, 0);
-    camera.position.set(13.248393643072044, 2.4991077504342556, -4.196444505691209);
-    controls.target.set(3.859112776725921, 0.7233521957214232, 2.185255708068565);
+    camera.position.set(8.333206172609657, 2.5444462519038566, -4.1454757688628945);
+    controls.target.set(3.8962800743583346, 0.9438402263069575, 1.8432797351654135);
 
     /** Renderer settings **/
-    renderer.renderMode = 'pt';
+    // General rendering settings
+    renderer.renderMode = 'ptsimple';
     renderer.dispersive = false;
     renderer.maxSamplesPerFrame = 1;
     renderer.maxSpp = 1024;
-    renderer.maxBounces = 1;
-    renderer.maxScatters = 2;
-    renderer.maxMarchSteps = 256;
-    renderer.maxVolumeSteps = 256;
+    renderer.maxBounces = 2;
+    renderer.maxAtmosphereScatters = 1;
+    renderer.maxMarchSteps = 512;
     renderer.maxStepsIsMiss = true;
     renderer.interactive = true;
     renderer.goalFPS = 20;
     renderer.minsSPPToRedraw = 0;
+    renderer.filterRadius = 2;
     renderer.radianceClamp = 3;
     renderer.wavelengthSamples = 1024;
+    renderer.shadowStrength = 1;
+    // Tone-mapping
     renderer.exposure = 0.9695050132362262;
     renderer.gamma = 1.8597304079697472;
     renderer.contrast = 1.308699175978711;
     renderer.saturation = 1;
-    renderer.skyPower = 1.024075823291703;
-    renderer.skyTint = [1, 1, 1];
-    renderer.envMapRotation = 0;
-    renderer.envMapVisible = false;
-    renderer.sunPower = -6;
-    renderer.sunColor = [1, 1, 1];
-    renderer.sunAngularSize = 3.214348853281045;
-    renderer.sunLatitude = 23.650191598151224;
-    renderer.sunLongitude = 281.0259283154285;
-    renderer.sunVisibleDirectly = true;
-    renderer.shadowStrength = 1;
+    renderer.hueShift = 0;
+    // Lights
+        // sky light
+        renderer.skyPower = 0.6253384053387219;
+        renderer.skyTintUp = [1, 1, 1];
+        renderer.skyTintDown = [1, 1, 1];
+        renderer.envMapVisible = false;
+        renderer.envMapPhiRotation = 0;
+        renderer.envMapThetaRotation = 0;
+        renderer.envMapTransitionAngle = 135;
+        // sun light
+        renderer.sunPower = 2.011763569945762;
+        renderer.sunColor = [1, 1, 1];
+        renderer.sunAngularSize = 12.626372034814118;
+        renderer.sunLatitude = 30.321898214111002;
+        renderer.sunLongitude = 98.04006521149786;
+        renderer.sunVisibleDirectly = true;
+        // sphere light
+        renderer.sphereLightPosition = [0, 0, 0];
+        renderer.sphereLightRadius = 1;
+        renderer.sphereLightPower = -7;
+        renderer.sphereLightColor = [1, 1, 1];
 
     /** Material settings **/
     let surface = materials.loadSurface();
-    surface.roughness = 0.010147991543340382;
-    surface.ior = 2.7138830162085976;
-    surface.diffuseAlbedo = [0.36274509803921573, 0.060457516339869274, 0.060457516339869274];
-    surface.specAlbedo = [0.5, 0.37254901960784315, 0.37254901960784315];
+    surface.roughness = 0.1;
+    surface.ior = 1.3573555687909469;
+    surface.diffuseAlbedo = [0.37828947777441124, 0.37828947777441124, 0.37828947777441124];
+    surface.specAlbedo = [0.1315789530817174, 0.1315789530817174, 0.1315789530817174];
+    surface.subsurface = 0;
+    surface.subsurfaceAlbedoRGB = [0.5, 0.5, 0.5];
+    surface.subsurfaceMFP = 3.811792733770099;
+    surface.subsurfaceAnisotropy = 0;
+    surface.subsurfaceDiffuseWeight = 0;
 
     /******* copy-pasted console output on 'O', end *******/
 
@@ -90,9 +110,9 @@ Scene.prototype.init = function(snelly)
     let format = gl.RED;
 
     this.textOrigin = [0.0, 0.0, 0.0];
-    this.textWidth = 12.0;
+    this.textWidth = 8.0;
     this.textHeight = 3.0;
-    this.textThickness = 0.5;
+    this.hue_shift = 0.0;
 
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -107,12 +127,10 @@ Scene.prototype.shader = function()
 {
     return `
     uniform sampler2D sdfTex;
-    uniform float R;
-
     uniform vec3 textOrigin;
     uniform float textWidth;
     uniform float textHeight;
-    uniform float textThickness;
+    uniform float hue_shift;
 
     float sdBox(vec3 X, vec3 bmin, vec3 bmax)
     {
@@ -123,7 +141,7 @@ Scene.prototype.shader = function()
     vec3 E;
     void INIT()
     {
-        E = vec3(textWidth, textHeight, textThickness);
+        E = vec3(textWidth, textHeight, 0.333);
     }
 
     float opI( float d1, float d2 ) { return max(d1,d2); }
@@ -140,7 +158,23 @@ Scene.prototype.shader = function()
         vec3 D = X - textOrigin;
         vec2 uv = vec2(1.0 - D.x/textWidth, 1.0 - D.y/textHeight);
         float textSdf = textWidth * texture(sdfTex, uv).r;
-        return opI(textSdf, embeddedBox);
+        return 0.5 * opI(textSdf, embeddedBox);
+    }
+
+    vec3 hsv2rgb(vec3 c)
+    {
+       vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+       vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+       return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+    }
+
+    vec3 SURFACE_DIFFUSE_REFLECTANCE(in vec3 C, in vec3 X, in vec3 N, in vec3 V)
+    {
+        float lx = (X.x - textOrigin.x) / textWidth;
+        float ly = (X.y - textOrigin.y) / textHeight;
+        float hue = 3.0*(lx + ly) + 1.0;
+        vec3 hsv = vec3(mod(hue, 1.0), 1.0, 1.0);
+        return C * hsv2rgb(hsv);
     }
 
     `;
@@ -149,13 +183,13 @@ Scene.prototype.shader = function()
 Scene.prototype.getName = function() { return '3d text rendering'; }
 Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/fonts/font_sdf.html"; }
 Scene.prototype.getLengthScale = function()    { return 1.0; }
-Scene.prototype.getMinLengthScale = function() { return 1.0e-3 * this.getLengthScale(); }
+Scene.prototype.getMinLengthScale = function() { return 1.0e-4 * this.getLengthScale(); }
 Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
 Scene.prototype.initGui = function(gui) 
 { 
     gui.addSlider(this, {name: 'textWidth', min: 0.0, max: 20.0});
     gui.addSlider(this, {name: 'textHeight', min: 0.0, max: 10.0});
-    gui.addSlider(this, {name: 'textThickness', min: 0.0, max: 10.0});
+    gui.addSlider(this, {name: 'hue_shift', min: 0.0, max: 1.0});
 }
 
 Scene.prototype.envMap = function() { return 'https://portsmouth.github.io/envmaps/HDR_112_River_Road_2_Bg.jpg'; }
@@ -175,7 +209,7 @@ Scene.prototype.syncShader = function(snelly, shader)
     shader.uniform3Fv("textOrigin", this.textOrigin);
     shader.uniformF("textWidth", this.textWidth);
     shader.uniformF("textHeight", this.textHeight);
-    shader.uniformF("textThickness", this.textThickness);
+    shader.uniformF("hue_shift", this.hue_shift);
 }
 
 </script>
