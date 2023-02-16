@@ -1,0 +1,192 @@
+   
+<body onload="onLoad();">
+<script src="https://portsmouth.github.io/snelly/js/compiled/snelly.min.js"></script>
+	
+	
+<?/* ------------------------------------------------------------------*/?>
+<?/*                         scene definition                          */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script>
+
+function Scene() {}
+Scene.prototype.init = function(snelly)
+{
+    /******* copy-pasted console output on 'O', begin *******/
+
+    let renderer  = snelly.getRenderer();
+    let camera    = snelly.getCamera();
+    let controls  = snelly.getControls();
+    let materials = snelly.getMaterials();
+        
+    snelly.showGUI(true);
+
+    /** Camera settings **/
+    camera.fov = 45;
+    camera.aperture = -9.392648784172552;
+    camera.focalDistance = 0.7861280116663573;
+    camera.up.set(0, 1, 0);
+    camera.position.set(13.248393643072044, 2.4991077504342556, -4.196444505691209);
+    controls.target.set(3.859112776725921, 0.7233521957214232, 2.185255708068565);
+
+    /** Renderer settings **/
+    renderer.renderMode = 'pt';
+    renderer.dispersive = false;
+    renderer.maxSamplesPerFrame = 1;
+    renderer.maxSpp = 1024;
+    renderer.maxBounces = 1;
+    renderer.maxScatters = 2;
+    renderer.maxMarchSteps = 256;
+    renderer.maxVolumeSteps = 256;
+    renderer.maxStepsIsMiss = true;
+    renderer.interactive = true;
+    renderer.goalFPS = 20;
+    renderer.minsSPPToRedraw = 0;
+    renderer.radianceClamp = 3;
+    renderer.wavelengthSamples = 1024;
+    renderer.exposure = 0.9695050132362262;
+    renderer.gamma = 1.8597304079697472;
+    renderer.contrast = 1.308699175978711;
+    renderer.saturation = 1;
+    renderer.skyPower = 1.024075823291703;
+    renderer.skyTint = [1, 1, 1];
+    renderer.envMapRotation = 0;
+    renderer.envMapVisible = false;
+    renderer.sunPower = -6;
+    renderer.sunColor = [1, 1, 1];
+    renderer.sunAngularSize = 3.214348853281045;
+    renderer.sunLatitude = 23.650191598151224;
+    renderer.sunLongitude = 281.0259283154285;
+    renderer.sunVisibleDirectly = true;
+    renderer.shadowStrength = 1;
+
+    /** Material settings **/
+    let surface = materials.loadSurface();
+    surface.roughness = 0.010147991543340382;
+    surface.ior = 2.7138830162085976;
+    surface.diffuseAlbedo = [0.36274509803921573, 0.060457516339869274, 0.060457516339869274];
+    surface.specAlbedo = [0.5, 0.37254901960784315, 0.37254901960784315];
+
+    /******* copy-pasted console output on 'O', end *******/
+
+    var fontsize = 1024; // Font size in pixels
+    var resHorizontal = 2048;
+    var resVertical = 1024;
+    var fontFamily = 'copperplate'; // css font-family
+    var fontWeight = 'normal';     // css font-weight
+    var textSDFGenerator = new TextSDF(fontsize, resHorizontal, resVertical, fontFamily, fontWeight);
+    var text_sdf = textSDFGenerator.draw('Autodesk ♥ Adobe');
+    var text_res_horizontal = textSDFGenerator.getResHorizontal();
+    var text_res_vertical = textSDFGenerator.getResVertical();
+
+    let gl = snelly.getGLContext();
+    this.sdfTexture = gl.createTexture();
+    let texture_unit = snelly.getUserTextureUnitStart();
+    gl.activeTexture(gl.TEXTURE0 + texture_unit);
+    gl.bindTexture(gl.TEXTURE_2D, this.sdfTexture);
+
+    let type = gl.FLOAT;
+    let internalformat = gl.R32F;
+    let format = gl.RED;
+
+    this.textOrigin = [0.0, 0.0, 0.0];
+    this.textWidth = 10.0;
+    this.textHeight = 3.0;
+    this.textThickness = 0.5;
+
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.activeTexture(gl.TEXTURE0 + texture_unit);
+    gl.bindTexture(gl.TEXTURE_2D, this.sdfTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, internalformat, text_res_horizontal, text_res_vertical, 0, format, type, text_sdf);
+}
+
+Scene.prototype.shader = function()
+{
+    return `
+    uniform sampler2D sdfTex;
+    uniform float R;
+
+    uniform vec3 textOrigin;
+    uniform float textWidth;
+    uniform float textHeight;
+    uniform float textThickness;
+
+    float sdBox(vec3 X, vec3 bmin, vec3 bmax)
+    {
+        vec3 d = abs(X-0.5*(bmin+bmax)) - 0.5*(bmax-bmin);
+        return min(max(d.x,max(d.y,d.z)),0.0) + length(max(d,0.0));
+    }
+
+    vec3 E;
+    void INIT()
+    {
+        E = vec3(textWidth, textHeight, textThickness);
+    }
+
+    float opI( float d1, float d2 ) { return max(d1,d2); }
+    float opU( float d1, float d2 ) { return min(d1,d2); }
+
+    float SDF_SURFACE(vec3 X)
+    {
+        float embeddedBox = sdBox(X, textOrigin + 0.01*E, textOrigin + 0.99*E);
+        float boundingBox = sdBox(X, textOrigin, textOrigin + E);
+        if ( boundingBox > 0.0 )
+        {
+            return embeddedBox;
+        }
+        vec3 D = X - textOrigin;
+        vec2 uv = vec2(1.0 - D.x/textWidth, 1.0 - D.y/textHeight);
+        float textSdf = textWidth * texture(sdfTex, uv).r;
+        return opI(textSdf, embeddedBox);
+    }
+
+    `;
+}
+
+Scene.prototype.getName = function() { return '3d text rendering'; }
+Scene.prototype.getURL = function() { return "https://github.com/portsmouth/snelly/blob/master/exampleScenes/fonts/font_sdf.html"; }
+Scene.prototype.getLengthScale = function()    { return 1.0; }
+Scene.prototype.getMinLengthScale = function() { return 1.0e-3 * this.getLengthScale(); }
+Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
+Scene.prototype.initGui = function(gui) 
+{ 
+    gui.addSlider(this, {name: 'textWidth', min: 0.0, max: 10.0});
+    gui.addSlider(this, {name: 'textHeight', min: 0.0, max: 10.0});
+    gui.addSlider(this, {name: 'textThickness', min: 0.0, max: 10.0});
+}
+
+Scene.prototype.envMap = function() { return 'https://portsmouth.github.io/envmaps/HDR_112_River_Road_2_Bg.jpg'; }
+
+
+Scene.prototype.syncShader = function(snelly, shader) 
+{ 
+    let gl = snelly.getGLContext();
+    let texture_unit = snelly.getUserTextureUnitStart();
+    let program = shader.getProgram();
+    let texture_id = gl.getUniformLocation(program, "sdfTex");
+    gl.activeTexture(gl.TEXTURE0 + texture_unit);
+    gl.bindTexture(gl.TEXTURE_2D, this.sdfTexture);
+    gl.uniform1i(texture_id, texture_unit);
+    gl.activeTexture(gl.TEXTURE0);
+
+    shader.uniform3Fv("textOrigin", this.textOrigin);
+    shader.uniformF("textWidth", this.textWidth);
+    shader.uniformF("textHeight", this.textHeight);
+    shader.uniformF("textThickness", this.textThickness);
+}
+
+</script>
+
+<?/* ------------------------------------------------------------------*/?>
+<?/*                            main loop                              */?>
+<?/* ------------------------------------------------------------------*/?>
+
+<script type="text/javascript">
+function onLoad() { snelly = new Snelly(new Scene()); animateLoop(); }
+function animateLoop() { snelly.render(); window.requestAnimationFrame(animateLoop); }
+</script>
+
+</body>
