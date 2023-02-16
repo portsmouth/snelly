@@ -70,8 +70,8 @@ Scene.prototype.init = function(snelly)
     /******* copy-pasted console output on 'O', end *******/
 
     var fontsize = 1024; // Font size in pixels
-    var resHorizontal = 2048;
-    var resVertical = 1024;
+    var resHorizontal = 8192;
+    var resVertical = 4096;
     var fontFamily = 'copperplate'; // css font-family
     var fontWeight = 'normal';     // css font-weight
     var textSDFGenerator = new TextSDF(fontsize, resHorizontal, resVertical, fontFamily, fontWeight);
@@ -90,7 +90,7 @@ Scene.prototype.init = function(snelly)
     let format = gl.RED;
 
     this.textOrigin = [0.0, 0.0, 0.0];
-    this.textWidth = 10.0;
+    this.textWidth = 12.0;
     this.textHeight = 3.0;
     this.textThickness = 0.5;
 
@@ -153,7 +153,7 @@ Scene.prototype.getMinLengthScale = function() { return 1.0e-3 * this.getLengthS
 Scene.prototype.getMaxLengthScale = function() { return 1.0e2 * this.getLengthScale(); }
 Scene.prototype.initGui = function(gui) 
 { 
-    gui.addSlider(this, {name: 'textWidth', min: 0.0, max: 10.0});
+    gui.addSlider(this, {name: 'textWidth', min: 0.0, max: 20.0});
     gui.addSlider(this, {name: 'textHeight', min: 0.0, max: 10.0});
     gui.addSlider(this, {name: 'textThickness', min: 0.0, max: 10.0});
 }
